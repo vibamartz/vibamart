@@ -129,8 +129,9 @@ service cloud.firestore {
     }
 
     match /adminLogs/{logId} {
-      allow read, create: if isAdmin() && (request.method == 'get' || request.method == 'list' || isValidAdminLog(incoming()));
-    }
+      allow read: if isAdmin();
+      allow create: if isAdmin() && isValidAdminLog(incoming());
+     }
 
     match /banners/{bannerId} {
       allow read: if true;
