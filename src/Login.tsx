@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+} from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, Phone, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Phone, ArrowLeft, CheckCircle2, RefreshCw, User, Mail, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './components/Logo';
 
@@ -15,154 +21,223 @@ declare global {
   }
 }
 
+type Step = 'auth' | 'otp' | 'profile';
+type Mode = 'login' | 'signup';
+
+const RESEND_DELAY = 60;
+
 export default function Login() {
+  const [mode, setMode] = useState<Mode>('login');
+  const [step, setStep] = useState<Step>('auth');
   const [loading, setLoading] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
+
+  // Phone
+  const [phone, setPhone] = useState('');
+
+  // OTP – 6 individual digit boxes
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Resend timer
+  const [resendTimer, setResendTimer] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Profile (signup)
   const [displayName, setDisplayName] = useState('');
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [tempFirebaseUser, setTempFirebaseUser] = useState<any>(null);
+  const [email, setEmail] = useState('');
+
+  // Firebase
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [isSignup, setIsSignup] = useState(false);
+  const [tempFirebaseUser, setTempFirebaseUser] = useState<any>(null);
+
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
+  // Cleanup recaptcha + timer on unmount
   useEffect(() => {
     return () => {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-      }
+      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  const startResendTimer = () => {
+    setResendTimer(RESEND_DELAY);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer((t) => {
+        if (t <= 1) {
+          clearInterval(timerRef.current!);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+  };
 
   const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': () => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        }
+        size: 'invisible',
+        callback: () => {},
       });
     }
   };
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Normalize phone number: remove spaces, dashes, etc.
-    let formattedNumber = phoneNumber.trim().replace(/\s+/g, '');
-    
-    // If it doesn't start with +, and is 10 digits, assume it's an Indian number and prepend +91
-    if (!formattedNumber.startsWith('+')) {
-      if (formattedNumber.length === 10 && /^\d+$/.test(formattedNumber)) {
-        formattedNumber = `+91${formattedNumber}`;
-      } else {
-        toast.error('Please include your country code starting with + (e.g., +91 for India)');
-        return;
-      }
+  const formatPhone = (raw: string) => {
+    const trimmed = raw.trim().replace(/\s+/g, '');
+    if (!trimmed.startsWith('+')) {
+      if (trimmed.length === 10 && /^\d+$/.test(trimmed)) return `+91${trimmed}`;
+      return null;
     }
+    return trimmed;
+  };
 
-    if (formattedNumber.length < 10 || !/^\+\d+$/.test(formattedNumber)) {
-      toast.error('Please enter a valid phone number with country code');
+  const sendOtp = async (isResend = false) => {
+    const formatted = formatPhone(phone);
+    if (!formatted) {
+      toast.error('Enter a valid phone number (10 digits or include country code)');
       return;
     }
-
     setLoading(true);
     try {
-      setupRecaptcha();
-      const appVerifier = window.recaptchaVerifier;
-      const confirmation = await signInWithPhoneNumber(auth, formattedNumber, appVerifier);
-      setConfirmationResult(confirmation);
-      setShowOtpInput(true);
-      toast.success('OTP sent to your mobile!');
-    } catch (error: any) {
-      console.error(error);
-      if (error.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid phone number format. Please include country code.');
-      } else if (error.code === 'auth/operation-not-allowed') {
-        toast.error('SMS is not enabled for this region. Please enable Phone Auth and allow your region in Firebase Console.', { duration: 6000 });
-      } else {
-        toast.error('Failed to send OTP. Please try again.');
-      }
-      if (window.recaptchaVerifier) {
+      if (isResend && window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
+        // @ts-ignore – force re-init
+        window.recaptchaVerifier = undefined;
       }
+      setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth, formatted, window.recaptchaVerifier);
+      setConfirmationResult(result);
+      setStep('otp');
+      setOtpDigits(['', '', '', '', '', '']);
+      startResendTimer();
+      toast.success(isResend ? 'OTP resent!' : 'OTP sent to your mobile!');
+      setTimeout(() => otpRefs.current[0]?.focus(), 200);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/invalid-phone-number') {
+        toast.error('Invalid phone number format. Please check and try again.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        toast.error('Phone auth not enabled. Enable it in Firebase Console → Authentication.', { duration: 7000 });
+      } else if (err.code === 'auth/billing-not-enabled') {
+        toast.error('SMS requires Firebase Blaze plan. Upgrade your project billing in Firebase Console.', { duration: 8000 });
+      } else if (err.code === 'auth/too-many-requests') {
+        toast.error('Too many attempts. Please wait a few minutes and try again.', { duration: 6000 });
+      } else if (err.code === 'auth/captcha-check-failed') {
+        toast.error('reCAPTCHA verification failed. Please refresh and try again.');
+      } else {
+        toast.error(`OTP failed: ${err.code || err.message || 'Unknown error'}`, { duration: 6000 });
+      }
+      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendOtp(false);
+  };
+
+  // OTP digit input handlers
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (otpDigits[index]) {
+        const newDigits = [...otpDigits];
+        newDigits[index] = '';
+        setOtpDigits(newDigits);
+      } else if (index > 0) {
+        otpRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length === 6) {
+      setOtpDigits(pasted.split(''));
+      otpRefs.current[5]?.focus();
+    }
+  };
+
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp || otp.length < 6) {
-      toast.error('Please enter the 6-digit OTP');
+    const otpCode = otpDigits.join('');
+    if (otpCode.length < 6) {
+      toast.error('Please enter the complete 6-digit OTP');
       return;
     }
-
     setLoading(true);
     try {
       if (!confirmationResult) throw new Error('No confirmation result');
-      const result = await confirmationResult.confirm(otp);
+      const result = await confirmationResult.confirm(otpCode);
       const firebaseUser = result.user;
 
-      // Check if user exists in Firestore
       const userRef = doc(db, 'users', firebaseUser.uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        // New user - need to collect name
         setTempFirebaseUser(firebaseUser);
-        setShowNameInput(true);
-        setShowOtpInput(false);
+        setStep('profile');
       } else {
-        // Existing user
-        await syncUserToFirestore(firebaseUser);
-        toast.success('Successfully logged in!');
+        await syncUser(firebaseUser);
+        toast.success('Welcome back! 🎉');
         navigate('/');
       }
-    } catch (error: any) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
       toast.error('Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCompleteSignup = async (e: React.FormEvent) => {
+  const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName || displayName.length < 2) {
+    if (!displayName || displayName.trim().length < 2) {
       toast.error('Please enter your full name');
       return;
     }
-
     setLoading(true);
     try {
-      if (!tempFirebaseUser) throw new Error('No temporary user session');
-      await syncUserToFirestore(tempFirebaseUser, displayName);
-      toast.success('Account created successfully!');
+      if (!tempFirebaseUser) throw new Error('No temp user');
+      await syncUser(tempFirebaseUser, displayName.trim(), email.trim() || undefined);
+      toast.success('Account created! Welcome to ViBa Mart 🛍️');
       navigate('/');
-    } catch (error: any) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
       toast.error('Failed to complete signup. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const syncUserToFirestore = async (firebaseUser: any, providedName?: string) => {
+  const syncUser = async (firebaseUser: any, providedName?: string, providedEmail?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
       const newUser = {
         uid: firebaseUser.uid,
-        email: firebaseUser.email || '',
+        email: providedEmail || firebaseUser.email || '',
         phone: firebaseUser.phoneNumber || '',
         displayName: providedName || firebaseUser.displayName || `User ${firebaseUser.phoneNumber?.slice(-4)}`,
         photoURL: firebaseUser.photoURL || '',
         role: firebaseUser.email === 'vk311779@gmail.com' ? 'admin' : 'customer',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
       await setDoc(userRef, newUser);
       setUser(newUser as any);
@@ -182,193 +257,335 @@ export default function Login() {
     provider.setCustomParameters({ prompt: 'select_account' });
     try {
       const result = await signInWithPopup(auth, provider);
-      await syncUserToFirestore(result.user);
-      toast.success('Successfully logged in!');
+      await syncUser(result.user);
+      toast.success('Signed in with Google! 🎉');
       navigate('/');
-    } catch (error: any) {
-      console.error(error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast.error('Login process was cancelled (popup closed).');
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        toast.error('Sign-in was cancelled. Please try again.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        toast.error('Domain not authorized. Add "localhost" to Firebase Console → Authentication → Authorized Domains.', { duration: 8000 });
+      } else if (err.code === 'auth/popup-blocked') {
+        toast.error('Popup was blocked by your browser. Please allow popups for this site.');
       } else {
-        toast.error('Failed to login. Please try again.');
+        toast.error(`Google sign-in failed: ${err.code || err.message || 'Unknown error'}`, { duration: 6000 });
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const otpCode = otpDigits.join('');
+  const isOtpComplete = otpCode.length === 6;
+
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 bg-gray-50">
-      <div id="recaptcha-container"></div>
-      
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
+      <div id="recaptcha-container" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-gray-100"
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="max-w-md w-full"
       >
-        <div className="text-center mb-10">
-          <div className="flex justify-center mb-6">
-            <Link to="/" className="hover:opacity-80 transition-opacity">
-              <Logo className="scale-125" />
-            </Link>
+        {/* Card */}
+        <div className="bg-white rounded-3xl shadow-2xl shadow-green-100/60 border border-green-100/80 overflow-hidden">
+          {/* Top accent bar */}
+          <div className="h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400" />
+
+          <div className="p-8 sm:p-10">
+            {/* Logo */}
+            <div className="flex justify-center mb-8">
+              <Link to="/" className="hover:opacity-80 transition-opacity">
+                <Logo className="scale-125" />
+              </Link>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {/* ─── STEP: AUTH ─────────────────────────────────── */}
+              {step === 'auth' && (
+                <motion.div
+                  key="auth"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Mode tabs */}
+                  <div className="flex bg-gray-100 rounded-2xl p-1 mb-8">
+                    {(['login', 'signup'] as Mode[]).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setMode(m)}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                          mode === m
+                            ? 'bg-white text-green-700 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        {m === 'login' ? 'Log In' : 'Sign Up'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <h2 className="text-2xl font-black text-gray-900 mb-1">
+                    {mode === 'login' ? 'Welcome back! 👋' : 'Create account 🎉'}
+                  </h2>
+                  <p className="text-gray-400 text-sm font-medium mb-8">
+                    {mode === 'login'
+                      ? 'Sign in to access your orders & wishlist'
+                      : 'Join ViBa Mart and start shopping today'}
+                  </p>
+
+                  {/* Google */}
+                  <button
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 text-gray-700 px-5 py-3.5 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-200 transition-all disabled:opacity-50 group mb-6"
+                  >
+                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5 group-hover:scale-110 transition-transform" alt="Google" />
+                    {loading ? 'Connecting...' : 'Continue with Google'}
+                  </button>
+
+                  {/* Divider */}
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-100" />
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="bg-white px-4 text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                        or use phone number
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Phone form */}
+                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
+                        Mobile Number
+                      </label>
+                      <div className="flex gap-2">
+                        {/* Country prefix badge */}
+                        <div className="flex items-center gap-1.5 bg-gray-50 border-2 border-gray-100 rounded-2xl px-4 font-bold text-gray-600 text-sm whitespace-nowrap select-none">
+                          🇮🇳 +91
+                        </div>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="98765 43210"
+                          maxLength={15}
+                          className="flex-1 bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
+                          required
+                        />
+                      </div>
+                      <p className="mt-1.5 ml-1 text-[11px] text-gray-400 font-medium">
+                        Include country code for non-Indian numbers (e.g. +1 for US)
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !phone}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      <Phone className="w-4 h-4" />
+                      {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
+                    </button>
+                  </form>
+
+                  <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">
+                    By continuing, you agree to ViBa Mart's{' '}
+                    <Link to="/terms" className="text-green-600 underline decoration-green-200">Terms</Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">Privacy Policy</Link>
+                  </p>
+                </motion.div>
+              )}
+
+              {/* ─── STEP: OTP ──────────────────────────────────── */}
+              {step === 'otp' && (
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Icon */}
+                  <div className="flex justify-center mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-green-50 flex items-center justify-center">
+                      <ShieldCheck className="w-8 h-8 text-green-600" />
+                    </div>
+                  </div>
+
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
+                  <p className="text-gray-400 text-sm font-medium text-center mb-8">
+                    Enter the 6-digit code sent to{' '}
+                    <span className="text-gray-700 font-bold">{phone}</span>
+                  </p>
+
+                  <form onSubmit={handleVerifyOtp} className="space-y-6">
+                    {/* 6-digit OTP boxes */}
+                    <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
+                      {otpDigits.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { otpRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className={`w-11 h-14 text-center text-xl font-black rounded-2xl border-2 transition-all focus:outline-none
+                            ${digit
+                              ? 'border-green-400 bg-green-50 text-green-700 focus:ring-4 focus:ring-green-100'
+                              : 'border-gray-100 bg-gray-50 text-gray-900 focus:border-green-400 focus:ring-4 focus:ring-green-50'
+                            }`}
+                        />
+                      ))}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !isOtpComplete}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      <CheckCircle2 className="w-5 h-5" />
+                      {loading ? 'Verifying...' : 'Verify & Continue'}
+                    </button>
+                  </form>
+
+                  {/* Resend */}
+                  <div className="flex items-center justify-center mt-6 gap-2">
+                    {resendTimer > 0 ? (
+                      <p className="text-sm text-gray-400 font-medium">
+                        Resend OTP in{' '}
+                        <span className="font-black text-green-600 tabular-nums">{resendTimer}s</span>
+                      </p>
+                    ) : (
+                      <button
+                        onClick={() => sendOtp(true)}
+                        disabled={loading}
+                        className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Resend OTP
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Back */}
+                  <button
+                    onClick={() => {
+                      setStep('auth');
+                      setOtpDigits(['', '', '', '', '', '']);
+                      if (timerRef.current) clearInterval(timerRef.current);
+                    }}
+                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Change Number
+                  </button>
+                </motion.div>
+              )}
+
+              {/* ─── STEP: PROFILE ──────────────────────────────── */}
+              {step === 'profile' && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Icon */}
+                  <div className="flex justify-center mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                      <User className="w-8 h-8 text-emerald-600" />
+                    </div>
+                  </div>
+
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">One last step 🙌</h2>
+                  <p className="text-gray-400 text-sm font-medium text-center mb-8">
+                    Tell us a little about yourself to complete your account
+                  </p>
+
+                  <form onSubmit={handleCompleteProfile} className="space-y-4">
+                    {/* Name */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
+                        Full Name <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                        <input
+                          type="text"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="e.g. Rahul Sharma"
+                          className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-11 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email (optional) */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
+                        Email Address <span className="text-gray-300 font-medium normal-case">(optional)</span>
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-11 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
+                        />
+                      </div>
+                      <p className="mt-1 ml-1 text-[11px] text-gray-400 font-medium">
+                        For order confirmation emails
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || displayName.trim().length < 2}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2"
+                    >
+                      <CheckCircle2 className="w-5 h-5" />
+                      {loading ? 'Creating account...' : 'Complete Sign Up'}
+                    </button>
+                  </form>
+
+                  <button
+                    onClick={() => {
+                      setStep('auth');
+                      setTempFirebaseUser(null);
+                      setOtpDigits(['', '', '', '', '', '']);
+                    }}
+                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Cancel & Restart
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 mb-2">
-            {showNameInput ? 'One last step' : showOtpInput ? 'Verify OTP' : isSignup ? 'Create Account' : 'Welcome Back'}
-          </h2>
-          <p className="text-gray-500 font-medium">
-            {showNameInput ? 'Tell us your name to get started' : showOtpInput ? `Enter code sent to ${phoneNumber}` : isSignup ? 'Join ViBa Mart today' : 'Access your orders, wishlist and more'}
-          </p>
         </div>
 
-        <div className="space-y-4">
-          <AnimatePresence mode="wait">
-            {showNameInput ? (
-              <motion.div
-                key="name-input"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-              >
-                <form className="space-y-4" onSubmit={handleCompleteSignup}>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-gray-300"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-primary text-white py-4 rounded-2xl font-black hover:bg-primary-hover shadow-xl shadow-blue-100 transition-all transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2"
-                  >
-                    {loading ? 'Creating account...' : 'Complete Signup'}
-                    {!loading && <CheckCircle2 className="w-5 h-5" />}
-                  </button>
-                </form>
-
-                <button 
-                  onClick={() => {
-                    setShowNameInput(false);
-                    setTempFirebaseUser(null);
-                    setShowOtpInput(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors pt-4"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Cancel & Restart
-                </button>
-              </motion.div>
-            ) : !showOtpInput ? (
-              <motion.div
-                key="login-options"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 text-gray-700 px-6 py-4 rounded-2xl font-bold hover:bg-blue-50 hover:border-blue-100 transition-all disabled:opacity-50 group"
-                >
-                  <img src="https://www.google.com/favicon.ico" className="w-5 h-5 group-hover:scale-110 transition-transform" alt="Google" />
-                  {loading ? 'Signing in...' : 'Continue with Google'}
-                </button>
-
-                <div className="relative my-8">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-blue-50"></span>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-4 text-gray-400 font-black tracking-widest text-[10px]">Or continue with phone</span>
-                  </div>
-                </div>
-
-                <form className="space-y-4" onSubmit={handleRequestOtp}>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone Number</label>
-                    <input 
-                      type="tel" 
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+91 00000 00000"
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-bold placeholder:text-gray-300"
-                      required
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-primary text-white py-4 rounded-2xl font-black hover:bg-primary-hover shadow-xl shadow-blue-100 transition-all transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2"
-                  >
-                    {loading ? 'Sending...' : isSignup ? 'Sign Up with OTP' : 'Request OTP'}
-                  </button>
-                </form>
-
-                <div className="text-center mt-6">
-                  <button 
-                    onClick={() => setIsSignup(!isSignup)}
-                    className="text-sm font-bold text-primary hover:underline transition-all"
-                  >
-                    {isSignup ? 'Already have an account? Log in' : 'New here? Create an account'}
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="otp-input"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-              >
-                <form className="space-y-4" onSubmit={handleVerifyOtp}>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Enter 6-Digit OTP</label>
-                    <input 
-                      type="text" 
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="· · · · · ·"
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-black text-2xl text-center tracking-[0.5em] placeholder:text-gray-200"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={loading || otp.length < 6}
-                    className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2"
-                  >
-                    {loading ? 'Verifying...' : 'Verify & Continue'}
-                  </button>
-                </form>
-
-                <button 
-                  onClick={() => setShowOtpInput(false)}
-                  className="w-full flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Change Phone Number
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <p className="mt-8 text-center text-xs text-gray-400 font-bold tracking-tight">
-          By continuing, you agree to ViBa Mart's <Link to="/terms" className="text-primary underline decoration-primary/30">Terms of Service</Link> and <Link to="/privacy" className="text-primary underline decoration-primary/30">Privacy Policy</Link>
+        {/* Footer note */}
+        <p className="text-center text-[11px] text-gray-400 font-medium mt-4">
+          🔒 Secured by Firebase Authentication
         </p>
       </motion.div>
     </div>
   );
 }
-
-// No additional code below this line
