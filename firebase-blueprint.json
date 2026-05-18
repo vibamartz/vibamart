@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and role information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "vendor", "admin"] },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Product details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "discountPrice": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "vendorId": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "stock": { "type": "number" },
+        "rating": { "type": "number" },
+        "numReviews": { "type": "number" },
+        "variants": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "extraPrice": { "type": "number" },
+              "stock": { "type": "number" }
+            },
+            "required": ["id", "name", "extraPrice", "stock"]
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product categories",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "image": { "type": "string" },
+        "icon": { "type": "string" }
+      }
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer orders",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered", "cancelled"] },
+        "paymentStatus": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "address": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "trackingId": { "type": "string" },
+        "carrier": { "type": "string" },
+        "estimatedDelivery": { "type": "string" },
+        "statusHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "timestamp": { "type": "string" },
+              "message": { "type": "string" },
+              "location": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "AdminLog": {
+      "title": "Admin Activity Log",
+      "description": "Records of administrative actions",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "targetId": { "type": "string" },
+        "targetCollection": { "type": "string" }
+      },
+      "required": ["adminId", "adminEmail", "action", "description", "timestamp"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Home page promotional banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "image": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "link": { "type": "string" },
+        "active": { "type": "boolean" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "image", "title", "active", "order"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Discount coupon",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["percent", "flat"] },
+        "value": { "type": "number" },
+        "minAmount": { "type": "number" },
+        "expiry": { "type": "string" }
+      },
+      "required": ["code", "type", "value", "minAmount", "expiry"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Product review",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["id", "productId", "userId", "rating", "comment", "createdAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Global announcement broadcast",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["sale", "info", "critical"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "type", "active", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+        "schema": "User",
+        "description": "Root collection for user identity"
+    },
+    "categories": {
+        "schema": "Category",
+        "description": "Product categories"
+    },
+    "products": {
+        "schema": "Product",
+        "description": "Main product catalog"
+    },
+    "orders": {
+        "schema": "Order",
+        "description": "Customer orders history"
+    },
+    "adminLogs": {
+        "schema": "AdminLog",
+        "description": "Audit trail for admin actions"
+    },
+    "banners": {
+        "schema": "Banner",
+        "description": "Home sliders"
+    },
+    "coupons": {
+        "schema": "Coupon",
+        "description": "Promotional codes"
+    },
+    "reviews": {
+        "schema": "Review",
+        "description": "Product ratings and feedback"
+    },
+    "announcements": {
+        "schema": "Announcement",
+        "description": "Global alerts"
+    }
+  }
+}
