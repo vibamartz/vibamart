@@ -3124,7 +3124,9 @@ function CategoriesManagementView() {
     if (!newImage) return;
     setBusy(true);
     try {
-      await updateDoc(doc(db, 'categories', catId), { image: newImage });
+      const cat = categories.find(c => c.id === catId);
+      if(!cat) return;
+      await setDoc(doc(db, 'categories', catId), { ...cat, image: newImage });
       toast.success('Category image updated');
     } catch (e) {
       toast.error('Failed to update image');
@@ -3138,7 +3140,7 @@ function CategoriesManagementView() {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
       const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
-      await updateDoc(doc(db, 'categories', catId), { subcategories: newSubs });
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
       toast.success('Subcategory image updated');
     } catch (e) {
       toast.error('Failed to update image');

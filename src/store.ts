@@ -17,7 +17,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user }),
   initAuth: () => {
     let unsubscribeSnapshot: (() => void) | null = null;
-    
+
     onAuthStateChanged(auth, (firebaseUser) => {
       // Clean up previous snapshot listener if it exists
       if (unsubscribeSnapshot) {
@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
-            
+
             if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin') {
               try {
                 await setDoc(docRef, { role: 'admin' }, { merge: true });
@@ -69,10 +69,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: JSON.parse(localStorage.getItem("viba_cart") || "[]"),
   addItem: (product, quantity, variantId) => {
     const items = get().items;
-    
+
     // Find the relevant variant if variantId is provided
     const variant = variantId && product.variants ? product.variants.find(v => v.id === variantId) : null;
-    
+
     // Validation: if variantId is provided but variant not found, don't add
     if (variantId && !variant) {
       console.warn(`Attempted to add invalid variant ${variantId} for product ${product.id}`);
@@ -90,15 +90,15 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     let newItems;
     if (existing) {
-      newItems = items.map(i => 
-        (i.productId === product.id && i.variantId === variantId) 
-        ? { ...i, quantity: i.quantity + quantity } 
-        : i
+      newItems = items.map(i =>
+        (i.productId === product.id && i.variantId === variantId)
+          ? { ...i, quantity: i.quantity + quantity }
+          : i
       );
     } else {
       newItems = [...items, { productId: product.id, variantId, quantity, product }];
     }
-    
+
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
     return true;
@@ -109,10 +109,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
   },
   updateQuantity: (productId, quantity, variantId) => {
-    const newItems = get().items.map(i => 
-      (i.productId === productId && i.variantId === variantId) 
-      ? { ...i, quantity } 
-      : i
+    const newItems = get().items.map(i =>
+      (i.productId === productId && i.variantId === variantId)
+        ? { ...i, quantity }
+        : i
     );
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
@@ -150,10 +150,24 @@ export const useCategoryStore = create<CategoryState>((set) => ({
       if (!snapshot.empty) {
         // Assume document ID is the category ID or similar, but typically we can store one single doc or multiple docs.
         // Let's expect multiple docs for categories.
-        const fetchedCategories = snapshot.docs.map(doc => doc.data() as Category);
+        const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+
+        // Merge with INITIAL_CATEGORIES to ensure we don't crash on partial documents
+        const mergedCategories = INITIAL_CATEGORIES.map(initialCat => {
+          const fetchedCat = fetchedCategories.find(c => c.id === initialCat.id);
+          if (fetchedCat) {
+            const mergedSubs = initialCat.subcategories?.map(initialSub => {
+              const fetchedSub = fetchedCat.subcategories?.find(s => s.id === initialSub.id);
+              return fetchedSub ? { ...initialSub, ...fetchedSub } : initialSub;
+            });
+            return { ...initialCat, ...fetchedCat, subcategories: mergedSubs };
+          }
+          return initialCat;
+        });
+
         // Sort by ID or order if needed, for simplicity sort by ID
-        fetchedCategories.sort((a, b) => a.id.localeCompare(b.id));
-        set({ categories: fetchedCategories, loading: false });
+        mergedCategories.sort((a, b) => a.id.localeCompare(b.id));
+        set({ categories: mergedCategories, loading: false });
       } else {
         // If empty, seed Firestore with initial categories
         INITIAL_CATEGORIES.forEach(async (cat) => {
