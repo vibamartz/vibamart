@@ -152,20 +152,34 @@ export const useCategoryStore = create<CategoryState>((set) => ({
         // Let's expect multiple docs for categories.
         const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
 
-        // Merge with INITIAL_CATEGORIES to ensure we don't crash on partial documents
-        const mergedCategories = INITIAL_CATEGORIES.map(initialCat => {
-          const fetchedCat = fetchedCategories.find(c => c.id === initialCat.id);
-          if (fetchedCat) {
-            const mergedSubs = initialCat.subcategories?.map(initialSub => {
-              const fetchedSub = fetchedCat.subcategories?.find(s => s.id === initialSub.id);
-              return fetchedSub ? { ...initialSub, ...fetchedSub } : initialSub;
+        // Map of ID -> Category to perform the merge
+        const categoriesMap = new Map<string, Category>();
+        INITIAL_CATEGORIES.forEach(cat => categoriesMap.set(cat.id, cat));
+
+        // Overwrite or append from fetchedCategories
+        fetchedCategories.forEach(fetchedCat => {
+          const initialCat = categoriesMap.get(fetchedCat.id);
+          if (initialCat) {
+            const mergedSubs = [...(initialCat.subcategories || [])];
+            fetchedCat.subcategories?.forEach(fetchedSub => {
+              const idx = mergedSubs.findIndex(s => s.id === fetchedSub.id);
+              if (idx !== -1) {
+                mergedSubs[idx] = { ...mergedSubs[idx], ...fetchedSub };
+              } else {
+                mergedSubs.push(fetchedSub);
+              }
             });
-            return { ...initialCat, ...fetchedCat, subcategories: mergedSubs };
+            categoriesMap.set(fetchedCat.id, {
+              ...initialCat,
+              ...fetchedCat,
+              subcategories: mergedSubs
+            });
+          } else {
+            categoriesMap.set(fetchedCat.id, fetchedCat);
           }
-          return initialCat;
         });
 
-        // Sort by ID or order if needed, for simplicity sort by ID
+        const mergedCategories = Array.from(categoriesMap.values());
         mergedCategories.sort((a, b) => a.id.localeCompare(b.id));
         set({ categories: mergedCategories, loading: false });
       } else {

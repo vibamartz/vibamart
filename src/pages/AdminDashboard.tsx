@@ -3120,6 +3120,17 @@ function CategoriesManagementView() {
   const { categories } = useCategoryStore();
   const [busy, setBusy] = useState(false);
 
+  // Add category state
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatImage, setNewCatImage] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('sparkles');
+
+  // Add subcategory state
+  const [activeAddSubCatId, setActiveAddSubCatId] = useState<string | null>(null);
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubImage, setNewSubImage] = useState('');
+
   const updateCategoryImage = async (catId: string, newImage: string) => {
     if (!newImage) return;
     setBusy(true);
@@ -3147,53 +3158,301 @@ function CategoriesManagementView() {
     } finally { setBusy(false); }
   };
 
+  const addCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    const catId = newCatName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    setBusy(true);
+    try {
+      const newCat = {
+        id: catId,
+        name: newCatName.trim(),
+        image: newCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
+        icon: newCatIcon || 'sparkles',
+        subcategories: []
+      };
+      await setDoc(doc(db, 'categories', catId), newCat);
+      toast.success('Category added successfully');
+      setNewCatName('');
+      setNewCatImage('');
+      setNewCatIcon('sparkles');
+      setShowAddCat(false);
+    } catch (e) {
+      toast.error('Failed to add category');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addSubcategory = async (e: React.FormEvent, catId: string) => {
+    e.preventDefault();
+    if (!newSubName.trim()) return;
+    const subId = newSubName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const newSub = {
+        id: subId,
+        name: newSubName.trim(),
+        image: newSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+      };
+      const subcategories = cat.subcategories ? [...cat.subcategories, newSub] : [newSub];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Subcategory added successfully');
+      setNewSubName('');
+      setNewSubImage('');
+      setActiveAddSubCatId(null);
+    } catch (e) {
+      toast.error('Failed to add subcategory');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteCategory = async (catId: string) => {
+    if (!window.confirm('Are you sure you want to delete this category? All subcategories will be permanently deleted!')) return;
+    setBusy(true);
+    try {
+      await deleteDoc(doc(db, 'categories', catId));
+      toast.success('Category deleted');
+    } catch (e) {
+      toast.error('Failed to delete category');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteSubcategory = async (catId: string, subId: string) => {
+    if (!window.confirm('Are you sure you want to delete this subcategory?')) return;
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const newSubs = cat.subcategories?.filter(s => s.id !== subId) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
+      toast.success('Subcategory deleted');
+    } catch (e) {
+      toast.error('Failed to delete subcategory');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900">Manage Categories</h2>
-        <p className="text-sm text-gray-500">Update logo images for categories and subcategories</p>
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Manage Categories</h2>
+          <p className="text-sm text-gray-500">Add, edit or remove categories and subcategories</p>
+        </div>
+        <button
+          onClick={() => setShowAddCat(!showAddCat)}
+          className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-hover shadow-lg shadow-blue-500/10 flex items-center gap-2 self-start sm:self-center transition-all active:scale-95"
+        >
+          {showAddCat ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {showAddCat ? 'Cancel' : 'New Category'}
+        </button>
       </div>
 
-      {categories.map(cat => (
-        <div key={cat.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100" />
-              <h3 className="font-bold text-lg text-gray-900">{cat.name}</h3>
+      {showAddCat && (
+        <motion.form
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          onSubmit={addCategory}
+          className="bg-white p-6 rounded-2xl border border-gray-100 shadow-md space-y-4"
+        >
+          <h3 className="font-bold text-gray-950 uppercase tracking-widest text-[10px] mb-2">Create New Category</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Name</label>
+              <input
+                required
+                type="text"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
+                placeholder="e.g. Fashion"
+              />
             </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Image URL</label>
+              <input
+                type="text"
+                value={newCatImage}
+                onChange={(e) => setNewCatImage(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Name</label>
+              <select
+                value={newCatIcon}
+                onChange={(e) => setNewCatIcon(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
+              >
+                <option value="sparkles">Sparkles</option>
+                <option value="smartphone">Smartphone</option>
+                <option value="shirt">Shirt</option>
+                <option value="laptop">Laptop</option>
+                <option value="home">Home</option>
+                <option value="tv">TV</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
             <button
-              disabled={busy}
-              onClick={() => {
-                const url = window.prompt('Enter new category image URL:', cat.image);
-                if (url && url !== cat.image) updateCategoryImage(cat.id, url);
-              }}
-              className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-bold hover:bg-gray-200 transition-colors"
+              type="button"
+              onClick={() => setShowAddCat(false)}
+              className="px-4 py-2 bg-gray-50 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-100"
             >
-              Change Image
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary-hover shadow-md"
+            >
+              Save Category
             </button>
           </div>
-          {cat.subcategories && (
-            <div className="ml-8 pl-8 border-l-2 border-gray-100 space-y-4 pt-4">
-              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
-              {cat.subcategories.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100/50">
-                  <div className="flex items-center gap-4">
-                    <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
-                    <span className="font-bold text-gray-700">{sub.name}</span>
-                  </div>
-                  <button
-                    disabled={busy}
-                    onClick={() => {
-                      const url = window.prompt(`Enter new image URL for ${sub.name}:`, sub.image);
-                      if (url && url !== sub.image) updateSubcategoryImage(cat.id, sub.id, url);
-                    }}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors"
-                  >
-                    Change Image
-                  </button>
-                </div>
-              ))}
+        </motion.form>
+      )}
+
+      {categories.map(cat => (
+        <div key={cat.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm" />
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">{cat.name}</h3>
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">ID: {cat.id}</span>
+              </div>
             </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const url = window.prompt('Enter new category image URL:', cat.image);
+                  if (url && url !== cat.image) updateCategoryImage(cat.id, url);
+                }}
+                className="px-3.5 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors"
+              >
+                Change Image
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  if (activeAddSubCatId === cat.id) {
+                    setActiveAddSubCatId(null);
+                  } else {
+                    setActiveAddSubCatId(cat.id);
+                  }
+                }}
+                className="px-3.5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Subcategory
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => deleteCategory(cat.id)}
+                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors border border-rose-100/50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {activeAddSubCatId === cat.id && (
+            <motion.form
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              onSubmit={(e) => addSubcategory(e, cat.id)}
+              className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4"
+            >
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Add Subcategory to {cat.name}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Subcategory Name</label>
+                  <input
+                    required
+                    type="text"
+                    value={newSubName}
+                    onChange={(e) => setNewSubName(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
+                    placeholder="e.g. Sneakers"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Image URL</label>
+                  <input
+                    type="text"
+                    value={newSubImage}
+                    onChange={(e) => setNewSubImage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveAddSubCatId(null)}
+                  className="px-3.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="px-3.5 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary-hover shadow-sm"
+                >
+                  Save Subcategory
+                </button>
+              </div>
+            </motion.form>
+          )}
+
+          {cat.subcategories && cat.subcategories.length > 0 ? (
+            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 border-l-0 sm:border-l-2 border-gray-100 space-y-3 pt-2">
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cat.subcategories.map(sub => (
+                  <div key={sub.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub">
+                    <div className="flex items-center gap-3">
+                      <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                      <div>
+                        <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
+                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        disabled={busy}
+                        onClick={() => {
+                          const url = window.prompt(`Enter new image URL for ${sub.name}:`, sub.image);
+                          if (url && url !== sub.image) updateSubcategoryImage(cat.id, sub.id, url);
+                        }}
+                        className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-colors"
+                      >
+                        Change Image
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() => deleteSubcategory(cat.id, sub.id)}
+                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/30"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium">No subcategories created yet.</div>
           )}
         </div>
       ))}
