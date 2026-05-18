@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '../store';
 import { Navigate, Link } from 'react-router-dom';
 import { 
@@ -6,7 +6,8 @@ import {
   Settings, LogOut, ChevronRight, TrendingUp, 
   Plus, Search, Filter, MoreVertical, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
-  Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown
+  Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
+  Upload, Link2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -2368,6 +2369,259 @@ function AnalyticsView() {
   );
 }
 
+// ─── Product Image Uploader ───────────────────────────────────────────────────
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_SIZE_MB = 10;
+
+function ProductImageUploader({
+  images,
+  onChange,
+}: {
+  images: string[];
+  onChange: (imgs: string[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlValue, setUrlValue] = useState('');
+  const MAX_SLOTS = 6;
+
+  const processFiles = useCallback(
+    (files: FileList | null) => {
+      if (!files) return;
+      const remaining = MAX_SLOTS - images.length;
+      const toProcess = Array.from(files).slice(0, remaining);
+
+      toProcess.forEach((file) => {
+        if (!ACCEPTED_TYPES.includes(file.type)) {
+          toast.error(`"${file.name}" is not a supported format (JPG, PNG, WEBP).`);
+          return;
+        }
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          onChange([...images, dataUrl]);
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [images, onChange]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragging(false);
+      processFiles(e.dataTransfer.files);
+    },
+    [processFiles]
+  );
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const handleAddUrl = () => {
+    const url = urlValue.trim();
+    if (!url) return;
+    if (images.length >= MAX_SLOTS) {
+      toast.error('Maximum 6 images allowed.');
+      return;
+    }
+    onChange([...images, url]);
+    setUrlValue('');
+    setShowUrlInput(false);
+  };
+
+  const removeImage = (idx: number) => {
+    onChange(images.filter((_, i) => i !== idx));
+  };
+
+  const setPrimary = (idx: number) => {
+    if (idx === 0) return;
+    const reordered = [images[idx], ...images.filter((_, i) => i !== idx)];
+    onChange(reordered);
+  };
+
+  return (
+    <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Media Assets</h3>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+            JPG · PNG · WEBP — Max 10 MB each
+          </p>
+        </div>
+        <span
+          className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+            images.length >= MAX_SLOTS
+              ? 'bg-red-50 text-red-500 border-red-100'
+              : 'bg-gray-50 text-gray-400 border-gray-100'
+          }`}
+        >
+          {images.length}/{MAX_SLOTS} Slots
+        </span>
+      </div>
+
+      {/* Drop Zone */}
+      {images.length < MAX_SLOTS && (
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative w-full border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 py-14 cursor-pointer transition-all duration-300 group ${
+            isDragging
+              ? 'border-blue-400 bg-blue-50 scale-[1.01]'
+              : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
+          }`}
+        >
+          <div
+            className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${
+              isDragging ? 'bg-blue-100 scale-110' : 'bg-gray-100 group-hover:bg-gray-200'
+            }`}
+          >
+            <Upload
+              className={`w-7 h-7 transition-colors duration-300 ${
+                isDragging ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'
+              }`}
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-black text-gray-700">
+              {isDragging ? 'Drop images here' : 'Drag & drop images here'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 font-medium">
+              or <span className="text-blue-500 font-black">click to browse</span>
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={(e) => processFiles(e.target.files)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {/* Animated ring when dragging */}
+          {isDragging && (
+            <div className="absolute inset-0 rounded-[32px] border-4 border-blue-400/40 animate-pulse pointer-events-none" />
+          )}
+        </div>
+      )}
+
+      {/* Image Thumbnails Grid */}
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 gap-5">
+          {images.map((img, idx) => (
+            <motion.div
+              key={idx}
+              layout
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              className="relative aspect-square bg-gray-50 rounded-[28px] overflow-hidden group border-2 border-transparent hover:border-gray-900 transition-all cursor-pointer"
+              onClick={() => setPrimary(idx)}
+              title={idx === 0 ? 'Primary image' : 'Click to set as primary'}
+            >
+              <img
+                src={img}
+                alt={`Product image ${idx + 1}`}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 rounded-[26px]" />
+
+              {/* Primary Badge */}
+              {idx === 0 ? (
+                <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest rounded-lg shadow-lg">
+                  ★ Primary
+                </span>
+              ) : (
+                <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-white/80 backdrop-blur-sm text-gray-600 text-[8px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                  Set Primary
+                </span>
+              )}
+
+              {/* Delete Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeImage(idx);
+                }}
+                className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-md rounded-xl text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white shadow-md"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Position badge */}
+              <span className="absolute top-3 left-3 w-6 h-6 bg-black/40 backdrop-blur-sm text-white text-[9px] font-black rounded-lg flex items-center justify-center">
+                {idx + 1}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* URL Fallback */}
+      <div className="border-t border-gray-50 pt-6">
+        {showUrlInput ? (
+          <div className="flex gap-3 items-center">
+            <input
+              ref={urlInputRef}
+              autoFocus
+              type="url"
+              value={urlValue}
+              onChange={(e) => setUrlValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrl(); } }}
+              placeholder="https://example.com/product-image.jpg"
+              className="flex-1 bg-gray-50 border-2 border-gray-200 focus:border-blue-300 rounded-2xl px-5 py-3 text-sm outline-none transition-all font-medium"
+            />
+            <button
+              type="button"
+              onClick={handleAddUrl}
+              disabled={!urlValue.trim() || images.length >= MAX_SLOTS}
+              className="px-5 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-40 whitespace-nowrap"
+            >
+              Add URL
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowUrlInput(false); setUrlValue(''); }}
+              className="p-3 text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowUrlInput(true)}
+            disabled={images.length >= MAX_SLOTS}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-30"
+          >
+            <Link2 className="w-3.5 h-3.5" />
+            Add via URL instead
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function AddProductView({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const [formData, setFormData] = useState<Partial<Product>>(() => {
     const defaults = {
@@ -2581,41 +2835,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
         <div className="lg:col-span-2 space-y-12">
           
           {/* Media Section */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <div className="flex justify-between items-center">
-               <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Media Assets</h3>
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{formData.images?.length || 0}/6 Slots</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-6">
-               {(formData.images || []).map((img, idx) => (
-                 <div key={idx} className="relative aspect-square bg-gray-50 rounded-[32px] overflow-hidden group border-2 border-transparent hover:border-gray-900 transition-all cursor-pointer">
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                    <button 
-                      type="button"
-                      onClick={() => setFormData(p => ({ ...p, images: p.images?.filter((_, i) => i !== idx) }))}
-                      className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-md rounded-xl text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    {idx === 0 && <span className="absolute bottom-4 left-4 px-3 py-1 bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest rounded-lg">Primary</span>}
-                 </div>
-               ))}
-               {(formData.images?.length || 0) < 6 && (
-                 <div 
-                   onClick={() => {
-                     const url = window.prompt('Enter Image URL:');
-                     if(url) setFormData(p => ({...p, images: [...(p.images || []), url], primaryImage: p.images?.length === 0 ? url : p.primaryImage}));
-                   }}
-                   className="aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-[32px] flex flex-col items-center justify-center text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-all cursor-pointer group"
-                 >
-                    <Plus className="w-8 h-8 mb-2 group-hover:scale-125 transition-transform" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Add Asset</span>
-                 </div>
-               )}
-            </div>
-            <p className="text-[10px] text-gray-400 font-medium italic">Supports JPG, PNG, WEBP (Max 10MB per unit). Drag & drop protocol encouraged.</p>
-          </div>
+          <ProductImageUploader
+            images={formData.images || []}
+            onChange={(imgs) =>
+              setFormData(p => ({
+                ...p,
+                images: imgs,
+                primaryImage: imgs[0] ?? p.primaryImage
+              }))
+            }
+          />
 
           {/* Product Info Section */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-10">
