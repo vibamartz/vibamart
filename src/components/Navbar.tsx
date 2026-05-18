@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard, 
+import {
+  Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
   Mic, Camera, TrendingUp, History, ArrowRight, Bell,
-  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent 
+  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
-import { useAuthStore, useCartStore } from '../store';
+import { useAuthStore, useCartStore, useCategoryStore } from '../store';
 import { auth } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
-import { CATEGORIES } from '../constants';
-
 export default function Navbar() {
+  const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const { items } = useCartStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -77,7 +76,7 @@ export default function Navbar() {
       const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
       const updated = [query, ...existing.filter((s: string) => s !== query)].slice(0, 10);
       localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
-      
+
       navigate(`/products?q=${query}`);
       setIsSearchFocused(false);
       setIsMenuOpen(false);
@@ -108,7 +107,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (searchQuery.length > 0) {
-      const filtered = CATEGORIES.filter(cat => 
+      const filtered = CATEGORIES.filter(cat =>
         cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         cat.id.toLowerCase().includes(searchQuery.toLowerCase())
       ).slice(0, 3);
@@ -189,9 +188,8 @@ export default function Navbar() {
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search products, brands & more"
-                className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-11 pr-12 sm:pr-24 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${
-                  isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
-                }`}
+                className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-11 pr-12 sm:pr-24 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
+                  }`}
                 value={searchQuery}
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
@@ -207,8 +205,8 @@ export default function Navbar() {
                 </button>
               )}
               <div className="absolute right-12 hidden sm:flex items-center gap-2 pr-2 border-r border-gray-100 mr-2">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={startVoiceSearch}
                   className={`p-1.5 transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
                 >
@@ -218,7 +216,7 @@ export default function Navbar() {
                   <Camera className="w-4 h-4" />
                 </button>
               </div>
-              <button 
+              <button
                 type="submit"
                 className="absolute right-1.5 p-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
               >
@@ -271,7 +269,7 @@ export default function Navbar() {
                             <History className="w-4 h-4 text-primary" />
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Searches</span>
                           </div>
-                          <button 
+                          <button
                             onClick={clearRecentHistory}
                             className="text-[9px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest"
                           >
@@ -330,7 +328,7 @@ export default function Navbar() {
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="border-t border-gray-100 pt-4">
                       <div className="flex items-center gap-2 mb-4 px-2">
                         <History className="w-4 h-4 text-gray-400" />
@@ -360,7 +358,7 @@ export default function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-6">
-             {user?.role === 'admin' && (
+            {user?.role === 'admin' && (
               <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors">
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="text-sm font-medium">Admin</span>
@@ -412,8 +410,8 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
-            <button 
-              className="p-2 text-gray-600 transition-transform active:scale-95" 
+            <button
+              className="p-2 text-gray-600 transition-transform active:scale-95"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle Menu"
             >
@@ -428,8 +426,8 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest">
             {CATEGORIES.map(cat => (
-              <Link 
-                key={cat.id} 
+              <Link
+                key={cat.id}
                 to={`/products?category=${cat.id}`}
                 className="hover:text-primary transition-colors h-full flex items-center gap-2 border-b-2 border-transparent hover:border-primary pt-0.5 group"
               >
@@ -487,7 +485,7 @@ export default function Navbar() {
                   />
                   <div className="absolute right-2 flex items-center gap-1">
                     {searchQuery && (
-                      <button 
+                      <button
                         type="button"
                         onClick={clearSearch}
                         className="p-2 text-gray-400 hover:text-rose-500"
@@ -495,8 +493,8 @@ export default function Navbar() {
                         <X className="w-4 h-4" />
                       </button>
                     )}
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={startVoiceSearch}
                       className={`p-2 transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
                     >
@@ -506,21 +504,21 @@ export default function Navbar() {
                 </form>
 
                 {user && (
-                    <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-gray-100 transition-colors">
-                        <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20 overflow-hidden">
-                            {user.photoURL ? (
-                                <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" />
-                            ) : (
-                                user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()
-                            )}
-                        </div>
-                        <div className="flex flex-col overflow-hidden">
-                            <p className="font-black text-gray-900 truncate">{user.displayName || 'User'}</p>
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-widest">View Profile</p>
-                        </div>
-                    </Link>
+                  <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-gray-100 transition-colors">
+                    <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/20 overflow-hidden">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <p className="font-black text-gray-900 truncate">{user.displayName || 'User'}</p>
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">View Profile</p>
+                    </div>
+                  </Link>
                 )}
-                
+
                 <div className="flex flex-col gap-4">
                   {[
                     { to: '/', label: 'Home', icon: HomeIcon },
@@ -529,9 +527,9 @@ export default function Navbar() {
                     { to: '/track-order', label: 'Track Order', icon: History },
                     { to: '/faq', label: 'Help & Support', icon: Sparkles },
                   ].map((item) => (
-                    <Link 
+                    <Link
                       key={item.to}
-                      to={item.to} 
+                      to={item.to}
                       className="flex items-center group/nav justify-between p-4 rounded-2xl hover:bg-primary/5 transition-all"
                       onClick={() => setIsMenuOpen(false)}
                     >
@@ -554,10 +552,10 @@ export default function Navbar() {
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-4">Categories</p>
                   <div className="grid grid-cols-2 gap-3">
                     {CATEGORIES.map(cat => (
-                      <Link 
-                        key={cat.id} 
-                        to={`/products?category=${cat.id}`} 
-                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 transition-all group/cat border border-gray-50" 
+                      <Link
+                        key={cat.id}
+                        to={`/products?category=${cat.id}`}
+                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 transition-all group/cat border border-gray-50"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 group-hover/cat:text-primary shadow-sm transition-colors">
@@ -572,21 +570,21 @@ export default function Navbar() {
 
               <div className="mt-auto pt-8 flex flex-col gap-3">
                 {!user ? (
-                   <Link
+                  <Link
                     to="/login"
                     className="w-full bg-primary text-white text-center py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
                     onClick={() => setIsMenuOpen(false)}
-                   >
+                  >
                     Sign In to Account
-                   </Link>
+                  </Link>
                 ) : (
-                    <button 
-                        onClick={() => { auth.signOut(); setIsMenuOpen(false); }}
-                        className="w-full flex items-center justify-center gap-2 text-rose-500 font-black uppercase tracking-widest text-[11px] py-4 border-2 border-rose-50 rounded-2xl hover:bg-rose-50 transition-all"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        Sign Out
-                    </button>
+                  <button
+                    onClick={() => { auth.signOut(); setIsMenuOpen(false); }}
+                    className="w-full flex items-center justify-center gap-2 text-rose-500 font-black uppercase tracking-widest text-[11px] py-4 border-2 border-rose-50 rounded-2xl hover:bg-rose-50 transition-all"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Sign Out
+                  </button>
                 )}
                 <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-4">ViBa Mart v2.4.0</p>
               </div>

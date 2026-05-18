@@ -130,3 +130,44 @@ export const useCartStore = create<CartState>((set, get) => ({
     }, 0);
   }
 }));
+
+import { Category } from './types';
+import { CATEGORIES as INITIAL_CATEGORIES } from './constants';
+import { collection } from 'firebase/firestore';
+
+interface CategoryState {
+  categories: Category[];
+  loading: boolean;
+  initCategories: () => void;
+}
+
+export const useCategoryStore = create<CategoryState>((set) => ({
+  categories: INITIAL_CATEGORIES,
+  loading: true,
+  initCategories: () => {
+    const q = collection(db, 'categories');
+    onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        // Assume document ID is the category ID or similar, but typically we can store one single doc or multiple docs.
+        // Let's expect multiple docs for categories.
+        const fetchedCategories = snapshot.docs.map(doc => doc.data() as Category);
+        // Sort by ID or order if needed, for simplicity sort by ID
+        fetchedCategories.sort((a, b) => a.id.localeCompare(b.id));
+        set({ categories: fetchedCategories, loading: false });
+      } else {
+        // If empty, seed Firestore with initial categories
+        INITIAL_CATEGORIES.forEach(async (cat) => {
+          try {
+            await setDoc(doc(db, 'categories', cat.id), cat);
+          } catch (e) {
+            console.error("Failed to seed category", e);
+          }
+        });
+        set({ categories: INITIAL_CATEGORIES, loading: false });
+      }
+    }, (error) => {
+      console.error("Failed to fetch categories", error);
+      set({ loading: false });
+    });
+  }
+}));

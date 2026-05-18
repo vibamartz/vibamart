@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useAuthStore } from './store';
+import { useAuthStore, useCategoryStore } from './store';
 import PermissionModal from './components/PermissionModal';
 
 // Layout & Common
@@ -33,10 +33,12 @@ function ScrollToTop() {
 
 export default function App() {
   const { initAuth, loading } = useAuthStore();
+  const { initCategories, loading: catsLoading } = useCategoryStore();
   const [showPermissions, setShowPermissions] = useState(false);
 
   useEffect(() => {
     initAuth();
+    initCategories();
     
     // Check if permissions have been acknowledged
     const acknowledged = localStorage.getItem('permissionsAcknowledged');
@@ -50,7 +52,7 @@ export default function App() {
     setShowPermissions(false);
   };
 
-  if (loading) {
+  if (loading || catsLoading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">

@@ -9,10 +9,11 @@ import {
   Filter, SlidersHorizontal, ChevronDown, Grid, List as ListIcon, X, Star, Heart 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CATEGORIES } from '../constants';
+import { useCartStore, useCategoryStore } from '../store';
 import ProductCard from '../components/ProductCard';
 
 export default function ProductList() {
+  const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);

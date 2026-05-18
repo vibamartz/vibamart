@@ -11,9 +11,10 @@ import ProductCard from '../components/ProductCard';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Banner } from '../types';
-import { CATEGORIES } from '../constants';
+import { useCategoryStore } from '../store';
 
 export default function Home() {
+  const { categories: CATEGORIES } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
