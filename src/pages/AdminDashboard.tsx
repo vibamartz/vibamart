@@ -347,19 +347,79 @@ function ActionButton({ icon: Icon, label, color, onClick }: { icon: any, label:
 
 function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   const [dateRange, setDateRange] = useState('7d');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const salesData: any[] = [];
+  useEffect(() => {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Order));
+      setOrders(ordersData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to load orders for reports:", error);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const paymentData = [
-    { id: 'PAY-1001', customer: 'Rahul Sharma', method: 'UPI', status: 'success', amount: '₹12,500', date: '2024-05-07 14:30' },
-    { id: 'PAY-1002', customer: 'Priya Singh', method: 'Card', status: 'success', amount: '₹1,200', date: '2024-05-07 15:20' },
-    { id: 'PAY-1003', customer: 'Amit Patel', method: 'Net Banking', status: 'failed', amount: '₹5,400', date: '2024-05-07 16:15' },
-    { id: 'PAY-1004', customer: 'Sneha Kapur', method: 'UPI', status: 'pending', amount: '₹3,450', date: '2024-05-07 18:45' },
-    { id: 'PAY-1005', customer: 'Vikram Roy', method: 'Card', status: 'success', amount: '₹18,200', date: '2024-05-06 10:30' },
-  ];
+  // Aggregate real orders by date for salesData
+  const salesMap: Record<string, { date: string; amount: number; orders: number; items: number }> = {};
+  
+  orders.forEach(order => {
+    if (!order.createdAt) return;
+    const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    
+    const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    
+    if (salesMap[dateStr]) {
+      salesMap[dateStr].amount += order.total || 0;
+      salesMap[dateStr].orders += 1;
+      salesMap[dateStr].items += itemsCount;
+    } else {
+      salesMap[dateStr] = {
+        date: dateStr,
+        amount: order.total || 0,
+        orders: 1,
+        items: itemsCount
+      };
+    }
+  });
+
+  const salesData = Object.values(salesMap);
+
+  const paymentData = orders.map(order => {
+    const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : 'N/A';
+
+    return {
+      id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
+      customer: order.contactName || order.contactEmail || 'Guest Customer',
+      method: order.paymentMethod ? (order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.toUpperCase()) : 'Unknown',
+      status: order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'failed' ? 'failed' : 'pending',
+      amount: `₹${(order.total || 0).toLocaleString()}`,
+      date: formattedDate
+    };
+  });
 
   const exportToCSV = () => {
     const data = type === 'sales' ? salesData : paymentData;
+    if (data.length === 0) {
+      toast.error('No transactions available to export');
+      return;
+    }
     const headers = Object.keys(data[0]).join(',');
     const rows = data.map(obj => Object.values(obj).join(',')).join('\n');
     const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
@@ -427,15 +487,25 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {salesData.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium">{row.date}</td>
-                    <td className="px-6 py-4 text-sm font-bold">₹{row.amount.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm">{row.orders}</td>
-                    <td className="px-6 py-4 text-sm">{row.items}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-blue-500">+{Math.floor(Math.random() * 10)}%</td>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">Loading sales data...</td>
                   </tr>
-                ))}
+                ) : salesData.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded yet.</td>
+                  </tr>
+                ) : (
+                  salesData.map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium">{row.date}</td>
+                      <td className="px-6 py-4 text-sm font-bold">₹{row.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm">{row.orders}</td>
+                      <td className="px-6 py-4 text-sm">{row.items}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-blue-500">+{Math.floor(Math.random() * 10)}%</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           ) : (
@@ -451,27 +521,37 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {paymentData.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-bold text-gray-700">{row.id}</td>
-                    <td className="px-6 py-4 text-sm font-medium">{row.customer}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gray-300" />
-                        {row.method}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-500">{row.date}</td>
-                    <td className="px-6 py-4 text-sm font-bold">{row.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${row.status === 'success' ? 'bg-blue-100 text-blue-600' :
-                          row.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
-                        }`}>
-                        {row.status}
-                      </span>
-                    </td>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500 font-medium">Loading transactions...</td>
                   </tr>
-                ))}
+                ) : paymentData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400 font-medium">No payment transactions recorded yet.</td>
+                  </tr>
+                ) : (
+                  paymentData.map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-bold text-gray-700">{row.id}</td>
+                      <td className="px-6 py-4 text-sm font-medium">{row.customer}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-gray-300" />
+                          {row.method}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-500">{row.date}</td>
+                      <td className="px-6 py-4 text-sm font-bold">{row.amount}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${row.status === 'success' ? 'bg-blue-100 text-blue-600' :
+                            row.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                          }`}>
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
