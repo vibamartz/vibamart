@@ -25,10 +25,10 @@ import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
 
 const STATS = [
-  { label: 'Total Revenue', value: '₹12.5L', change: '+12.5%', icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Total Orders', value: '1,240', change: '+8.2%', icon: ShoppingBag, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Total Customers', value: '4,850', change: '+15.4%', icon: Users, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Active Products', value: '156', change: '-2.1%', icon: Package, color: 'text-secondary', bg: 'bg-secondary/5' },
+  { label: 'Total Revenue', value: '₹0', change: '0%', icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/5' },
+  { label: 'Total Orders', value: '0', change: '0%', icon: ShoppingBag, color: 'text-primary', bg: 'bg-primary/5' },
+  { label: 'Total Customers', value: '0', change: '0%', icon: Users, color: 'text-primary', bg: 'bg-primary/5' },
+  { label: 'Active Products', value: '0', change: '0%', icon: Package, color: 'text-secondary', bg: 'bg-secondary/5' },
 ];
 
 const SALES_DATA = [
@@ -405,9 +405,9 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ReportStat label={type === 'sales' ? 'Total Volume' : 'Net Payments'} value={type === 'sales' ? '₹1.51L' : '₹1.28L'} icon={TrendingUp} color="text-blue-500" />
-        <ReportStat label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'} value={type === 'sales' ? '₹8,400' : '94.2%'} icon={PieChart} color="text-primary" />
-        <ReportStat label={type === 'sales' ? 'New Customers' : 'Pending Approvals'} value={type === 'sales' ? '124' : '₹42K'} icon={Users} color="text-blue-500" />
+        <ReportStat label={type === 'sales' ? 'Total Volume' : 'Net Payments'} value={type === 'sales' ? '₹0' : '₹0'} icon={TrendingUp} color="text-blue-500" />
+        <ReportStat label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'} value={type === 'sales' ? '₹0' : '0%'} icon={PieChart} color="text-primary" />
+        <ReportStat label={type === 'sales' ? 'New Customers' : 'Pending Approvals'} value={type === 'sales' ? '0' : '₹0'} icon={Users} color="text-blue-500" />
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
