@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuthStore, useCategoryStore } from './store';
 import PermissionModal from './components/PermissionModal';
 
@@ -107,6 +108,7 @@ export default function App() {
           onClose={() => setShowPermissions(false)}
           onAccept={handlePermissionsAccept}
         />
+        <SpeedInsights />
       </div>
     </Router>
   );
