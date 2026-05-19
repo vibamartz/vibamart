@@ -20,7 +20,7 @@ service cloud.firestore {
     function isAdmin() { 
       return isSignedIn() && (
         (request.auth.token.email == 'vk311779@gmail.com' && request.auth.token.email_verified == true) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
 
@@ -100,7 +100,7 @@ service cloud.firestore {
 
     match /categories/{catId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
     match /products/{productId} {
