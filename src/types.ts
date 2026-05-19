@@ -20,6 +20,7 @@ export interface Address {
   state: string;
   zip: string;
   country: string;
+  label?: string;
 }
 
 export interface Product {

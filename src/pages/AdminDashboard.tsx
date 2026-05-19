@@ -3219,8 +3219,9 @@ function CategoriesManagementView() {
       if(!cat) return;
       await setDoc(doc(db, 'categories', catId), { ...cat, image: newImage });
       toast.success('Category image updated');
-    } catch (e) {
-      toast.error('Failed to update image');
+    } catch (e: any) {
+      console.error("Failed to update category image:", e);
+      toast.error(`Failed to update image: ${e?.message || e}`);
     } finally { setBusy(false); }
   };
 
@@ -3233,8 +3234,9 @@ function CategoriesManagementView() {
       const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
       await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
       toast.success('Subcategory image updated');
-    } catch (e) {
-      toast.error('Failed to update image');
+    } catch (e: any) {
+      console.error("Failed to update subcategory image:", e);
+      toast.error(`Failed to update image: ${e?.message || e}`);
     } finally { setBusy(false); }
   };
 

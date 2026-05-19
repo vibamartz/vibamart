@@ -31,7 +31,7 @@ export default function Profile() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
   const [newAddress, setNewAddress] = useState<Address>({
-    street: '', city: '', state: '', zip: '', country: 'India'
+    street: '', city: '', state: '', zip: '', country: 'India', label: 'Home'
   });
   const navigate = useNavigate();
 
@@ -66,7 +66,7 @@ export default function Profile() {
       setUser({ ...user, addresses: updatedAddresses, ...(!user.address ? { address: newAddress } : {}) });
       setShowAddressModal(false);
       setEditingAddressIndex(null);
-      setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India' });
+      setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India', label: 'Home' });
       toast.success(editingAddressIndex !== null ? 'Address updated' : 'Address added');
     } catch (err) {
       toast.error('Failed to save address');
@@ -584,7 +584,7 @@ export default function Profile() {
                        <button 
                          onClick={() => {
                            setEditingAddressIndex(null);
-                           setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India' });
+                           setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India', label: 'Home' });
                            setShowAddressModal(true);
                          }}
                          className="p-3 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
@@ -624,7 +624,7 @@ export default function Profile() {
                                    <MapPin className="w-5 h-5" />
                                  </div>
                                  <span className="text-xs font-black uppercase tracking-widest text-gray-900">
-                                   {isDefault ? 'Default Address' : 'Saved Address'}
+                                   {addr.label || (isDefault ? 'Default Address' : 'Saved Address')}
                                  </span>
                                </div>
                                <div className="space-y-1">
@@ -784,6 +784,26 @@ function AddressModal({
         <p className="text-sm text-gray-500 mb-8 font-medium">Please provide your complete shipping details</p>
 
         <div className="space-y-4">
+           <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Address Label</label>
+              <div className="flex gap-2 mb-2">
+                {['Home', 'Work', 'Other'].map(lbl => (
+                  <button
+                    key={lbl}
+                    type="button"
+                    onClick={() => setAddress({ ...address, label: lbl })}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
+                      (address.label || 'Home') === lbl 
+                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                        : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+           </div>
+
            <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Street Address</label>
               <input 

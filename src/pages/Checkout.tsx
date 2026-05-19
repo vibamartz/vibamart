@@ -23,19 +23,92 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [address, setAddress] = useState({
-    street: "#123, 4th Cross, 2nd Main Road",
-    city: "Bangalore",
-    state: "Karnataka",
-    zip: "560064",
-    country: "India"
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "India",
+    label: "Home"
   });
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [saveAddress, setSaveAddress] = useState(false);
+  const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
+  const [editAddressForm, setEditAddressForm] = useState({
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "India",
+    label: "Home"
+  });
   const [guestInfo, setGuestInfo] = useState({
     email: '',
     name: '',
     phone: ''
   });
+
+  // Load default address from user profile when available
+  React.useEffect(() => {
+    if (user) {
+      if (user.address) {
+        setAddress(user.address);
+      } else if (user.addresses && user.addresses.length > 0) {
+        setAddress(user.addresses[0]);
+      } else {
+        setAddress({
+          street: "",
+          city: "",
+          state: "",
+          zip: "",
+          country: "India",
+          label: "Home"
+        });
+        setIsEditingAddress(true); // default to edit form if no address
+      }
+    } else {
+      setIsEditingAddress(true); // default to edit form for guests
+    }
+  }, [user]);
+
+  const handleSaveFormAddress = async () => {
+    if (!editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
+      toast.error("Please fill all address fields");
+      return;
+    }
+
+    try {
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        let updatedAddresses = [...(user.addresses || [])];
+
+        if (editingAddressIndex !== null) {
+          // Editing existing address
+          updatedAddresses[editingAddressIndex] = editAddressForm;
+          toast.success("Address updated in your profile!");
+        } else if (saveAddress) {
+          // Adding new address and saveAddress is checked
+          updatedAddresses.push(editAddressForm);
+          toast.success("Address saved to your profile!");
+        }
+
+        // Write to Firestore if we updated addresses or saveAddress is checked
+        if (editingAddressIndex !== null || saveAddress) {
+          await updateDoc(userRef, {
+            addresses: updatedAddresses,
+            ...(!user.address ? { address: editAddressForm } : {})
+          });
+        }
+      }
+
+      // Update selected address state
+      setAddress(editAddressForm);
+      setIsEditingAddress(false);
+      setEditingAddressIndex(null);
+    } catch (error) {
+      console.error("Error saving address:", error);
+      toast.error("Failed to save address to profile");
+    }
+  };
 
   if (items.length === 0) return <Navigate to="/cart" />;
 
@@ -66,7 +139,7 @@ export default function Checkout() {
               
               const getComp = (type: string) => addressComponents.find(c => c.types.includes(type))?.long_name || '';
               
-              setAddress({
+              setEditAddressForm({
                 street: res.formatted_address.split(',')[0] || getComp('route'),
                 city: getComp('locality') || getComp('administrative_area_level_2'),
                 state: getComp('administrative_area_level_1'),
@@ -79,7 +152,7 @@ export default function Checkout() {
           }
 
           // Fallback if Google Maps not loaded or failed
-          setAddress(prev => ({
+          setEditAddressForm(prev => ({
             ...prev,
             street: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
             city: "Bangalore",
@@ -176,7 +249,7 @@ export default function Checkout() {
 
         const docRef = await addDoc(collection(db, 'orders'), orderData);
         
-        if (user && saveAddress) {
+        if (user && saveAddress && !user.addresses?.some(a => a.street === address.street && a.city === address.city)) {
           const userRef = doc(db, 'users', user.uid);
           await updateDoc(userRef, {
               addresses: arrayUnion({
@@ -184,7 +257,7 @@ export default function Checkout() {
                   city: address.city,
                   state: address.state,
                   zip: address.zip,
-                  country: address.country
+                  country: address.country, label: address.label || 'Home'
               } as Address)
           });
         }
@@ -314,40 +387,25 @@ export default function Checkout() {
           </CheckoutStep>
 
           {/* Step 2: Delivery Address */}
-          <CheckoutStep 
+                    <CheckoutStep 
             number={2} 
             title="Delivery Address" 
             isActive={step === 2} 
             isCompleted={step > 2}
-            summary={`${address.city}, ${address.state}`}
+            summary={address.city ? `${address.city}, ${address.state}` : "No address selected"}
           >
              <div className="space-y-4">
-                {user && user.addresses && user.addresses.length > 0 && (
-                  <div className="mb-4">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Or Select Saved Address</label>
-                    <select 
-                      className="w-full text-sm font-bold border-2 border-gray-100 p-4 rounded-xl focus:outline-none"
-                      onChange={(e) => {
-                        const addr = user.addresses![parseInt(e.target.value)];
-                        setAddress(addr);
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="" disabled>Select address</option>
-                      {user.addresses.map((addr, idx) => (
-                        <option key={idx} value={idx}>{addr.street}, {addr.city}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 {isEditingAddress ? (
+                  // Elegant inline edit / add form
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="p-6 bg-white rounded-2xl border-2 border-primary space-y-4"
                   >
                     <div className="flex items-center justify-between mb-2">
-                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Update Shipping Address</h4>
+                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                         {editingAddressIndex !== null ? "Edit Shipping Address" : "Add New Shipping Address"}
+                       </h4>
                        <button 
                          onClick={handleUseCurrentLocation}
                          className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
@@ -356,28 +414,48 @@ export default function Checkout() {
                          Use My Location
                        </button>
                     </div>
+
+                    <div className="space-y-2 mb-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Address Label</label>
+                      <div className="flex gap-2">
+                        {['Home', 'Work', 'Other'].map(lbl => (
+                          <button
+                            key={lbl}
+                            type="button"
+                            onClick={() => setEditAddressForm({ ...editAddressForm, label: lbl })}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
+                              (editAddressForm.label || 'Home') === lbl 
+                                ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                                : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
+                            }`}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     
                     <div className="grid grid-cols-1 gap-3">
                        <input 
                          type="text" 
                          placeholder="Street Address / Area" 
-                         value={address.street}
-                         onChange={(e) => setAddress({...address, street: e.target.value})}
+                         value={editAddressForm.street}
+                         onChange={(e) => setEditAddressForm({...editAddressForm, street: e.target.value})}
                          className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                        />
                        <div className="grid grid-cols-2 gap-3">
                          <input 
                            type="text" 
                            placeholder="City" 
-                           value={address.city}
-                           onChange={(e) => setAddress({...address, city: e.target.value})}
+                           value={editAddressForm.city}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, city: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                          <input 
                            type="text" 
                            placeholder="State" 
-                           value={address.state}
-                           onChange={(e) => setAddress({...address, state: e.target.value})}
+                           value={editAddressForm.state}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, state: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                        </div>
@@ -385,63 +463,136 @@ export default function Checkout() {
                          <input 
                            type="text" 
                            placeholder="Pincode" 
-                           value={address.zip}
-                           onChange={(e) => setAddress({...address, zip: e.target.value})}
+                           value={editAddressForm.zip}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, zip: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                          <input 
                            type="text" 
                            placeholder="Country" 
-                           value={address.country}
-                           onChange={(e) => setAddress({...address, country: e.target.value})}
+                           value={editAddressForm.country}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, country: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                        </div>
                     </div>
-                    {user && (
+                    {user && editingAddressIndex === null && (
                       <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                         <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
-                        Save this address for future
+                        Save this address to my profile
                       </label>
                     )}
 
                     <div className="flex gap-3 pt-2">
                       <button 
-                        onClick={() => setIsEditingAddress(false)}
+                        onClick={handleSaveFormAddress}
                         className="flex-1 bg-primary text-white py-3 rounded-xl font-black uppercase tracking-widest text-[10px]"
                       >
-                        Save Address
+                        {editingAddressIndex !== null ? "Update Address" : "Save Address"}
                       </button>
-                      <button 
-                         onClick={() => setIsEditingAddress(false)}
-                         className="px-6 py-3 border-2 border-gray-100 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[10px]"
-                      >
-                        Cancel
-                      </button>
+                      {(user?.addresses && user.addresses.length > 0) && (
+                        <button 
+                           onClick={() => {
+                             setIsEditingAddress(false);
+                             setEditingAddressIndex(null);
+                           }}
+                           className="px-6 py-3 border-2 border-gray-100 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ) : (
-                  <div className="border-2 border-primary bg-primary/5 p-6 rounded-2xl relative text-left">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-widest uppercase">Home</span>
-                      <button onClick={() => setIsEditingAddress(true)} className="text-[10px] font-black text-primary uppercase tracking-widest">Edit</button>
-                    </div>
-                    <p className="font-black text-gray-900 mb-1">{user?.displayName || guestInfo.name}</p>
-                    <p className="text-sm text-gray-600 font-medium leading-relaxed max-w-xs">
-                      {address.street}, {address.city}, <br/> {address.state} - {address.zip}
-                    </p>
-                    <p className="text-sm font-bold text-gray-900 mt-2">{user?.phone || guestInfo.phone || '+91 98765 43210'}</p>
-                    <button onClick={() => setStep(3)} className="mt-6 w-full bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/10">Deliver Here</button>
+                  // Grid of Saved Address Cards
+                  <div className="space-y-4">
+                    {user && user.addresses && user.addresses.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {user.addresses.map((addr, idx) => {
+                          const isSelected = JSON.stringify(addr) === JSON.stringify(address);
+                          return (
+                            <div 
+                              key={idx}
+                              onClick={() => setAddress(addr)}
+                              className={`p-5 rounded-2xl border-2 text-left cursor-pointer transition-all relative group flex flex-col justify-between ${
+                                isSelected 
+                                  ? 'border-primary bg-primary/5 shadow-md shadow-primary/5' 
+                                  : 'border-gray-100 hover:border-gray-200 bg-white hover:shadow-sm'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="bg-primary text-white text-[9px] font-black px-2 py-0.5 rounded-md tracking-widest uppercase">
+                                    {addr.label || 'Home'}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingAddressIndex(idx);
+                                        setEditAddressForm(addr);
+                                        setIsEditingAddress(true);
+                                      }}
+                                      className="text-[9px] font-black text-gray-400 hover:text-primary uppercase tracking-widest bg-gray-50 hover:bg-primary/10 p-1.5 rounded"
+                                    >
+                                      Edit
+                                    </button>
+                                    {isSelected && (
+                                      <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center text-white">
+                                        <ShieldCheck className="w-3 h-3 text-white" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="font-bold text-gray-900 text-xs mb-1">{user.displayName}</p>
+                                <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                                  {addr.street}, {addr.city}, <br/> {addr.state} - {addr.zip}
+                                </p>
+                              </div>
+                              <p className="text-xs font-bold text-gray-900 mt-2">{user.phone || '+91 98765 43210'}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Add New Address dashed trigger */}
+                    <button 
+                      onClick={() => {
+                        setEditingAddressIndex(null);
+                        setEditAddressForm({
+                          street: '',
+                          city: '',
+                          state: '',
+                          zip: '',
+                          country: 'India',
+                          label: 'Home'
+                        });
+                        setSaveAddress(true);
+                        setIsEditingAddress(true);
+                      }} 
+                      className="w-full border-2 border-dashed border-gray-200 p-5 rounded-2xl flex items-center justify-center gap-3 text-gray-400 hover:text-primary hover:border-primary transition-all group bg-white"
+                    >
+                      <div className="bg-gray-50 p-2 rounded-lg group-hover:bg-blue-50">
+                          <MapPin className="w-4 h-4" />
+                      </div>
+                      <span className="font-black uppercase tracking-widest text-[9px]">Add New Delivery Address</span>
+                    </button>
+
+                    {/* Proceed Deliver Here button */}
+                    {address.street ? (
+                      <button 
+                        onClick={() => setStep(3)} 
+                        className="w-full bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/15 hover:scale-[1.01] transition-all"
+                      >
+                        Deliver Here & Continue
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-center text-xs font-bold text-amber-600">
+                        Please add or select a delivery address to continue.
+                      </div>
+                    )}
                   </div>
-                )}
-                
-                {!isEditingAddress && (
-                  <button onClick={() => setIsEditingAddress(true)} className="w-full border-2 border-dashed border-gray-200 p-6 rounded-2xl flex items-center justify-center gap-3 text-gray-400 hover:text-primary hover:border-primary transition-all group">
-                    <div className="bg-gray-50 p-2 rounded-lg group-hover:bg-blue-50">
-                        <MapPin className="w-5 h-5" />
-                    </div>
-                    <span className="font-bold uppercase tracking-widest text-[10px]">Add New Delivery Address</span>
-                  </button>
                 )}
              </div>
           </CheckoutStep>
