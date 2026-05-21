@@ -40,6 +40,15 @@ const SALES_DATA = [
   { month: 'Jun', sales: 67000 },
 ];
 
+const sanitizeImageUrl = (url: string) => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed) || /^data:image\/[a-z+]+;base64,/i.test(trimmed)) {
+    return trimmed;
+  }
+  return '';
+};
+
 export default function AdminDashboard() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -1065,7 +1074,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
       }
 
       // Generate a temporary ID
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const tempId = `temp_${Date.now()}_${window.crypto.randomUUID().replace(/-/g, '').slice(0, 9)}`;
 
       const newUser: UserProfile = {
         uid: tempId,
@@ -1207,7 +1216,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
     const toastId = toast.loading('Adding variant...');
     try {
       const v: ProductVariant = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: window.crypto.randomUUID().replace(/-/g, '').slice(0, 9),
         name: newVariant.name,
         material: newVariant.material,
         price: newVariant.price,
@@ -2508,6 +2517,14 @@ function ProductImageUploader({
   const handleAddUrl = () => {
     const url = urlValue.trim();
     if (!url) return;
+
+    // Validate image URL pattern to prevent XSS/injection attacks (CodeQL DOM text reinterpreted as HTML)
+    const isValid = /^https?:\/\/.+/i.test(url) || /^data:image\/[a-z+]+;base64,.+/i.test(url);
+    if (!isValid) {
+      toast.error('Please enter a valid HTTP, HTTPS, or Base64 data image URL.');
+      return;
+    }
+
     if (images.length >= MAX_SLOTS) {
       toast.error('Maximum 6 images allowed.');
       return;
@@ -2607,7 +2624,7 @@ function ProductImageUploader({
               title={idx === 0 ? 'Primary image' : 'Click to set as primary'}
             >
               <img
-                src={img}
+                src={sanitizeImageUrl(img) || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=500'}
                 alt={`Product image ${idx + 1}`}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />

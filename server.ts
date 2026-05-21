@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
@@ -24,7 +25,7 @@ function getRazorpay() {
     razorpayInstance = new Razorpay({
       key_id,
       key_secret,
-    });
+      });
   }
   return razorpayInstance;
 }
@@ -32,6 +33,16 @@ function getRazorpay() {
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Apply rate limiter to all requests to prevent DoS attacks (CodeQL Missing rate limiting)
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200, // Limit each IP to 200 requests per 15 minutes
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests from this IP, please try again later." }
+  });
+  app.use(limiter);
 
   app.use(express.json());
 
