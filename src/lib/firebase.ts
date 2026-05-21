@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer, initializeFirestore } from "firebase/firestore";
-import firebaseConfig from "../../firebase-applet-config.json";
+// @ts-ignore
+const firebaseConfig = process.env.FIREBASE_CONFIG || {};
 
 const app = initializeApp(firebaseConfig);
 
