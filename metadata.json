@@ -1,6 +1,12 @@
 {
   "name": "ViBa Mart",
   "description": "An enterprise-grade modern eCommerce platform inspired by ViBa architecture with a premium green theme, featuring a robust multi-vendor system, admin dashboard, and secure payments.",
-  "requestFramePermissions": ["geolocation", "microphone", "camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
