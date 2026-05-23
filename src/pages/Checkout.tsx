@@ -123,50 +123,76 @@ export default function Checkout() {
       return;
     }
 
-    const toastId = toast.loading('Synchronizing with satellite coordinates...');
+    const toastId = toast.loading('Detecting your location...');
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          
-          if (typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
-            const geocoder = new google.maps.Geocoder();
-            const response = await geocoder.geocode({ location: { lat: latitude, lng: longitude } });
-            
-            if (response.results && response.results[0]) {
-              const res = response.results[0];
-              const addressComponents = res.address_components;
-              
-              const getComp = (type: string) => addressComponents.find(c => c.types.includes(type))?.long_name || '';
-              
-              setEditAddressForm({
-                street: res.formatted_address.split(',')[0] || getComp('route'),
-                city: getComp('locality') || getComp('administrative_area_level_2'),
-                state: getComp('administrative_area_level_1'),
-                zip: getComp('postal_code'),
-                country: getComp('country') || 'India'
-              });
-              toast.success('Exact location synchronized!', { id: toastId });
-              return;
-            }
-          }
 
-          // Fallback if Google Maps not loaded or failed
-          setEditAddressForm(prev => ({
-            ...prev,
-            street: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
-            city: "Bangalore",
-            state: "Karnataka",
-            zip: "560001",
-            country: "India"
-          }));
-          toast.success('Approximate location acquired', { id: toastId });
+          // Use OpenStreetMap Nominatim API for free reverse geocoding (no API key needed)
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`,
+            {
+              headers: {
+                'Accept-Language': 'en',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const addr = data.address || {};
+
+            setEditAddressForm({
+              street: [addr.road, addr.neighbourhood, addr.suburb].filter(Boolean).join(', ') || data.display_name?.split(',')[0] || '',
+              city: addr.city || addr.town || addr.village || addr.county || '',
+              state: addr.state || '',
+              zip: addr.postcode || '',
+              country: addr.country || 'India',
+              label: 'Home'
+            });
+            toast.success('Location detected successfully!', { id: toastId });
+          } else {
+            // If the API call fails, still fill in coordinates as a fallback
+            setEditAddressForm(prev => ({
+              ...prev,
+              street: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
+            }));
+            toast.success('Location coordinates captured. Please fill in the details.', { id: toastId });
+          }
         } catch (error) {
-          toast.error('Signal acquisition failed', { id: toastId });
+          // Network error during reverse geocoding — still use raw coordinates
+          try {
+            const { latitude, longitude } = position.coords;
+            setEditAddressForm(prev => ({
+              ...prev,
+              street: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
+            }));
+            toast.success('Location coordinates captured. Please fill in the details.', { id: toastId });
+          } catch {
+            toast.error('Could not retrieve location details. Please enter address manually.', { id: toastId });
+          }
         }
       },
       (error) => {
-        toast.error(`Access Denied: ${error.message}`, { id: toastId });
+        let message = 'Location access denied.';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message = 'Location permission denied. Please allow location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message = 'Location unavailable. Please check your device settings.';
+            break;
+          case error.TIMEOUT:
+            message = 'Location request timed out. Please try again.';
+            break;
+        }
+        toast.error(message, { id: toastId });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 300000,
       }
     );
   };
