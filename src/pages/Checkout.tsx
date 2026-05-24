@@ -373,7 +373,27 @@ export default function Checkout() {
           prefill: {
             name: user?.displayName || guestInfo.name || undefined,
             email: user?.email || guestInfo.email || undefined,
-            contact: user?.phone || guestInfo.phone || undefined
+            contact: user?.phone || guestInfo.phone || undefined,
+            method: "upi"
+          },
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: "UPI / QR Code",
+                  instruments: [
+                    {
+                      method: "upi",
+                      flows: ["qr", "intent", "collect"]
+                    }
+                  ]
+                }
+              },
+              sequence: ["block.upi"],
+              preferences: {
+                show_default_blocks: true
+              }
+            }
           },
           theme: {
             color: "#16a34a" // primary green
@@ -792,7 +812,7 @@ export default function Checkout() {
                   <div onClick={() => setPaymentMethod('razorpay')}>
                     <PaymentOption 
                       icon={Smartphone} 
-                      label="Online Payment (UPI, Card, NetBanking)" 
+                      label="UPI / QR Code & Online Payment (Razorpay)" 
                       isActive={paymentMethod === 'razorpay'} 
                     />
                   </div>
