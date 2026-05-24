@@ -69,6 +69,20 @@ export const CATEGORIES: Category[] = [
       { id: '6-3', name: 'Washing Machines', image: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=200&h=200&fit=crop' }
     ]
   },
+  {
+    id: '7',
+    name: 'Toys',
+    image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400&h=400&fit=crop',
+    icon: 'sparkles',
+    subcategories: []
+  },
+  {
+    id: '8',
+    name: 'Food & Health',
+    image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400&h=400&fit=crop',
+    icon: 'sparkles',
+    subcategories: []
+  },
 ];
 
 export const AVAILABLE_PERMISSIONS = [

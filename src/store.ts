@@ -173,6 +173,19 @@ export const useCategoryStore = create<CategoryState>((set) => ({
     onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+
+        // Auto-seed missing initial categories to Firestore
+        INITIAL_CATEGORIES.forEach(async (initialCat) => {
+          const exists = fetchedCategories.some(c => c.id === initialCat.id);
+          if (!exists) {
+            try {
+              await setDoc(doc(db, 'categories', initialCat.id), initialCat);
+            } catch (e) {
+              console.error("Failed to seed missing category:", initialCat.id, e);
+            }
+          }
+        });
+
         fetchedCategories.sort((a, b) => a.id.localeCompare(b.id));
         set({ categories: fetchedCategories, loading: false });
       } else {
