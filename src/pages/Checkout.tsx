@@ -28,7 +28,8 @@ export default function Checkout() {
     state: "",
     zip: "",
     country: "India",
-    label: "Home"
+    label: "Home",
+    phone: ""
   });
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [saveAddress, setSaveAddress] = useState(false);
@@ -39,7 +40,8 @@ export default function Checkout() {
     state: "",
     zip: "",
     country: "India",
-    label: "Home"
+    label: "Home",
+    phone: ""
   });
   const [guestInfo, setGuestInfo] = useState({
     email: '',
@@ -67,7 +69,8 @@ export default function Checkout() {
           state: "",
           zip: "",
           country: "India",
-          label: "Home"
+          label: "Home",
+          phone: ""
         });
         setIsEditingAddress(true); // default to edit form if no address
       }
@@ -252,7 +255,8 @@ export default function Checkout() {
           state: address.state || "",
           zip: address.zip || "",
           country: address.country || "India",
-          label: address.label || "Home"
+          label: address.label || "Home",
+          phone: address.phone || ""
         };
 
         const orderData: any = {
@@ -518,7 +522,14 @@ export default function Checkout() {
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                        </div>
-                    </div>
+                       <input 
+                         type="tel" 
+                         placeholder="Contact Phone Number (Optional)" 
+                         value={editAddressForm.phone || ''}
+                         onChange={(e) => setEditAddressForm({...editAddressForm, phone: e.target.value})}
+                         className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                       />
+                     </div>
                     {user && editingAddressIndex === null && (
                       <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                         <input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} />
@@ -592,7 +603,7 @@ export default function Checkout() {
                                   {addr.street}, {addr.city}, <br/> {addr.state} - {addr.zip}
                                 </p>
                               </div>
-                              <p className="text-xs font-bold text-gray-900 mt-2">{user.phone || '+91 98765 43210'}</p>
+                              <p className="text-xs font-bold text-gray-900 mt-2">{addr.phone || user.phone || '+91 98765 43210'}</p>
                             </div>
                           );
                         })}
@@ -609,7 +620,8 @@ export default function Checkout() {
                           state: '',
                           zip: '',
                           country: 'India',
-                          label: 'Home'
+                          label: 'Home',
+                          phone: ''
                         });
                         setSaveAddress(true);
                         setIsEditingAddress(true);

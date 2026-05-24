@@ -21,6 +21,7 @@ export interface Address {
   zip: string;
   country: string;
   label?: string;
+  phone?: string;
 }
 
 export interface Product {
