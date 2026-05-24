@@ -328,9 +328,9 @@ export default function Checkout() {
             await finalizeOrder('razorpay', 'paid');
           },
           prefill: {
-            name: user?.displayName || guestInfo.name,
-            email: user?.email || guestInfo.email,
-            contact: user?.phone || guestInfo.phone
+            name: user?.displayName || guestInfo.name || undefined,
+            email: user?.email || guestInfo.email || undefined,
+            contact: user?.phone || guestInfo.phone || undefined
           },
           theme: {
             color: "#16a34a" // primary green
@@ -342,7 +342,12 @@ export default function Checkout() {
           }
         };
 
-        const rzp = new (window as any).Razorpay(options);
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          console.error(response.error);
+          toast.error(response.error.description || 'Payment failed. Please try again.');
+          setLoading(false);
+        });
         rzp.open();
       }
     } catch (error: any) {
