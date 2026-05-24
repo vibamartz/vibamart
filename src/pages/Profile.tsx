@@ -16,6 +16,7 @@ import {
   updateDoc, doc, onSnapshot, deleteDoc, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
 import { Order, Address, UserProfile, WaitlistItem, Product } from '../types';
+import { lookupZipcode } from '../services/zipcode';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -31,7 +32,16 @@ export default function Profile() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
   const [newAddress, setNewAddress] = useState<Address>({
-    street: '', city: '', state: '', zip: '', country: 'India', label: 'Home'
+    fullName: user?.displayName || '',
+    phone: user?.phone || '',
+    house: '',
+    street: '',
+    landmark: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: 'India',
+    label: 'Home'
   });
   const navigate = useNavigate();
 
@@ -47,6 +57,10 @@ export default function Profile() {
 
   const handleSaveAddress = async () => {
     if (!user) return;
+    if (!newAddress.fullName || !newAddress.phone || !newAddress.house || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
+      toast.error('Please fill all required address fields');
+      return;
+    }
     try {
       const userRef = doc(db, 'users', user.uid);
       let updatedAddresses = [...(user.addresses || [])];
@@ -66,7 +80,18 @@ export default function Profile() {
       setUser({ ...user, addresses: updatedAddresses, ...(!user.address ? { address: newAddress } : {}) });
       setShowAddressModal(false);
       setEditingAddressIndex(null);
-      setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India', label: 'Home' });
+      setNewAddress({
+        fullName: user?.displayName || '',
+        phone: user?.phone || '',
+        house: '',
+        street: '',
+        landmark: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: 'India',
+        label: 'Home'
+      });
       toast.success(editingAddressIndex !== null ? 'Address updated' : 'Address added');
     } catch (err) {
       toast.error('Failed to save address');
@@ -584,7 +609,18 @@ export default function Profile() {
                        <button 
                          onClick={() => {
                            setEditingAddressIndex(null);
-                           setNewAddress({ street: '', city: '', state: '', zip: '', country: 'India', label: 'Home' });
+                           setNewAddress({
+                             fullName: user?.displayName || '',
+                             phone: user?.phone || '',
+                             house: '',
+                             street: '',
+                             landmark: '',
+                             city: '',
+                             state: '',
+                             zip: '',
+                             country: 'India',
+                             label: 'Home'
+                           });
                            setShowAddressModal(true);
                          }}
                          className="p-3 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
@@ -628,9 +664,11 @@ export default function Profile() {
                                  </span>
                                </div>
                                <div className="space-y-1">
-                                  <p className="text-sm font-bold text-gray-800">{addr.street}</p>
-                                  <p className="text-sm text-gray-600">{addr.city}, {addr.state}</p>
-                                  <p className="text-sm text-gray-600">{addr.zip}, {addr.country}</p>
+                                  <p className="text-sm font-black text-gray-900">{addr.fullName}</p>
+                                  <p className="text-xs font-bold text-gray-500">{addr.phone}</p>
+                                  <p className="text-sm text-gray-600 mt-2">{addr.house}, {addr.street}</p>
+                                  {addr.landmark && <p className="text-xs text-gray-400">Landmark: {addr.landmark}</p>}
+                                  <p className="text-sm text-gray-600">{addr.city}, {addr.state}, {addr.country} - {addr.zip}</p>
                                </div>
                                {!isDefault && (
                                  <button 
@@ -762,7 +800,29 @@ function AddressModal({
   onSave: () => void;
   isEditing: boolean;
 }) {
+  const [zipLoading, setZipLoading] = useState(false);
+
   if (!show) return null;
+
+  const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
+    const cleanZip = zipCode.trim();
+    if (!cleanZip || cleanZip.length < 5) return;
+    setZipLoading(true);
+    try {
+      const info = await lookupZipcode(cleanZip, countryVal);
+      setAddress({
+        ...address,
+        city: info.city,
+        state: info.state,
+        country: info.country
+      });
+      toast.success(`Zipcode detected: ${info.city}, ${info.state}, ${info.country}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid zipcode');
+    } finally {
+      setZipLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -776,12 +836,12 @@ function AddressModal({
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl relative z-10"
+        className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto"
       >
         <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
           {isEditing ? 'Edit Address' : 'Add New Address'}
         </h3>
-        <p className="text-sm text-gray-500 mb-8 font-medium">Please provide your complete shipping details</p>
+        <p className="text-sm text-gray-500 mb-6 font-medium">Please provide your complete shipping details</p>
 
         <div className="space-y-4">
            <div className="space-y-1.5">
@@ -804,60 +864,123 @@ function AddressModal({
               </div>
            </div>
 
-           <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Street Address</label>
-              <input 
-                value={address.street}
-                onChange={e => setAddress({ ...address, street: e.target.value })}
-                placeholder="House No, Building, Street" 
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
-              />
-           </div>
-
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">City</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Full Name *</label>
                 <input 
-                  value={address.city}
-                  onChange={e => setAddress({ ...address, city: e.target.value })}
-                  placeholder="City" 
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  value={address.fullName || ''}
+                  onChange={e => setAddress({ ...address, fullName: e.target.value })}
+                  placeholder="Full Name" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
                 />
              </div>
              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">State</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Phone Number *</label>
                 <input 
-                  value={address.state}
-                  onChange={e => setAddress({ ...address, state: e.target.value })}
-                  placeholder="State" 
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  value={address.phone || ''}
+                  onChange={e => setAddress({ ...address, phone: e.target.value })}
+                  placeholder="Phone Number" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
                 />
              </div>
            </div>
 
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Zip Code</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">House / Apartment *</label>
                 <input 
-                  value={address.zip}
-                  onChange={e => setAddress({ ...address, zip: e.target.value })}
-                  placeholder="6-digit ZIP" 
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  value={address.house || ''}
+                  onChange={e => setAddress({ ...address, house: e.target.value })}
+                  placeholder="Flat / House No. / Villa" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
                 />
              </div>
              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Country</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Street Address *</label>
                 <input 
-                  value={address.country}
+                  value={address.street || ''}
+                  onChange={e => setAddress({ ...address, street: e.target.value })}
+                  placeholder="Street / Area / Locality" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
+                />
+             </div>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Zipcode *</label>
+                <div className="relative">
+                  <input 
+                    value={address.zip || ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setAddress({ ...address, zip: val });
+                      if (/^\d{6}$/.test(val.trim()) || (/^\d{5}$/.test(val.trim()) && address.country.toLowerCase() === 'us')) {
+                        handleZipcodeLookup(val, address.country);
+                      }
+                    }}
+                    onBlur={() => handleZipcodeLookup(address.zip, address.country)}
+                    placeholder="Zip / Pin code" 
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-4 pr-10 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                    required
+                  />
+                  {zipLoading && (
+                    <div className="absolute right-3 top-3.5 flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
+             </div>
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Country *</label>
+                <input 
+                  value={address.country || ''}
                   onChange={e => setAddress({ ...address, country: e.target.value })}
                   placeholder="Country" 
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
+                />
+             </div>
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Landmark</label>
+                <input 
+                  value={address.landmark || ''}
+                  onChange={e => setAddress({ ...address, landmark: e.target.value })}
+                  placeholder="e.g. Near Temple" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                />
+             </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">City *</label>
+                <input 
+                  value={address.city || ''}
+                  onChange={e => setAddress({ ...address, city: e.target.value })}
+                  placeholder="City" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
+                />
+             </div>
+             <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">State *</label>
+                <input 
+                  value={address.state || ''}
+                  onChange={e => setAddress({ ...address, state: e.target.value })}
+                  placeholder="State" 
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
+                  required
                 />
              </div>
            </div>
         </div>
 
-        <div className="mt-10 flex gap-3">
+        <div className="mt-8 flex gap-3">
            <button 
              onClick={onClose}
              className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all"

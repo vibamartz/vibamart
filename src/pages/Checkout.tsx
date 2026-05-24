@@ -8,6 +8,7 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { Order, OrderItem, Address } from '../types';
 import axios from 'axios';
+import { lookupZipcode } from '../services/zipcode';
 
 declare global {
   interface Window {
@@ -22,27 +23,55 @@ export default function Checkout() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [address, setAddress] = useState({
+  const [address, setAddress] = useState<Address>({
+    fullName: "",
+    phone: "",
+    house: "",
     street: "",
+    landmark: "",
     city: "",
     state: "",
-    zip: "",
     country: "India",
-    label: "Home",
-    phone: ""
+    zip: "",
+    label: "Home"
   });
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [saveAddress, setSaveAddress] = useState(false);
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
-  const [editAddressForm, setEditAddressForm] = useState({
+  const [editAddressForm, setEditAddressForm] = useState<Address>({
+    fullName: "",
+    phone: "",
+    house: "",
     street: "",
+    landmark: "",
     city: "",
     state: "",
-    zip: "",
     country: "India",
-    label: "Home",
-    phone: ""
+    zip: "",
+    label: "Home"
   });
+  const [zipLoading, setZipLoading] = useState(false);
+
+  const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
+    const cleanZip = zipCode.trim();
+    if (!cleanZip || cleanZip.length < 5) return;
+    setZipLoading(true);
+    try {
+      const info = await lookupZipcode(cleanZip, countryVal);
+      setEditAddressForm(prev => ({
+        ...prev,
+        city: info.city,
+        state: info.state,
+        country: info.country
+      }));
+      toast.success(`Zipcode detected: ${info.city}, ${info.state}, ${info.country}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid zipcode');
+    } finally {
+      setZipLoading(false);
+    }
+  };
+
   const [guestInfo, setGuestInfo] = useState({
     email: '',
     name: '',
@@ -64,13 +93,16 @@ export default function Checkout() {
         setIsEditingAddress(false);
       } else {
         setAddress({
+          fullName: user.displayName || "",
+          phone: user.phone || "",
+          house: "",
           street: "",
+          landmark: "",
           city: "",
           state: "",
-          zip: "",
           country: "India",
-          label: "Home",
-          phone: ""
+          zip: "",
+          label: "Home"
         });
         setIsEditingAddress(true); // default to edit form if no address
       }
@@ -80,8 +112,8 @@ export default function Checkout() {
   }, [user]);
 
   const handleSaveFormAddress = async () => {
-    if (!editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
-      toast.error("Please fill all address fields");
+    if (!editAddressForm.fullName || !editAddressForm.phone || !editAddressForm.house || !editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
+      toast.error("Please fill all required address fields");
       return;
     }
 
@@ -153,7 +185,11 @@ export default function Checkout() {
             const addr = data.address || {};
 
             setEditAddressForm({
+              fullName: editAddressForm.fullName || user?.displayName || '',
+              phone: editAddressForm.phone || user?.phone || '',
+              house: addr.house_number || '',
               street: [addr.road, addr.neighbourhood, addr.suburb].filter(Boolean).join(', ') || data.display_name?.split(',')[0] || '',
+              landmark: addr.suburb || '',
               city: addr.city || addr.town || addr.village || addr.county || '',
               state: addr.state || '',
               zip: addr.postcode || '',
@@ -250,13 +286,16 @@ export default function Checkout() {
 
       const finalizeOrder = async (pMethod: string, pStatus: string) => {
         const orderAddress: Address = {
+          fullName: address.fullName || user?.displayName || guestInfo.name || "",
+          phone: address.phone || user?.phone || guestInfo.phone || "",
+          house: address.house || "",
           street: address.street || "",
+          landmark: address.landmark || "",
           city: address.city || "",
           state: address.state || "",
-          zip: address.zip || "",
           country: address.country || "India",
-          label: address.label || "Home",
-          phone: address.phone || ""
+          zip: address.zip || "",
+          label: address.label || "Home"
         };
 
         const orderData: any = {
@@ -291,7 +330,7 @@ export default function Checkout() {
         // Always save the order address to the user's profile for future checkouts
         if (user && address.street) {
           const isDuplicate = user.addresses?.some(
-            a => a.street === address.street && a.city === address.city && a.zip === address.zip
+            a => a.street === address.street && a.house === address.house && a.city === address.city && a.zip === address.zip
           );
           if (!isDuplicate) {
             const userRef = doc(db, 'users', user.uid);
@@ -483,52 +522,99 @@ export default function Checkout() {
                     </div>
                     
                     <div className="grid grid-cols-1 gap-3">
-                       <input 
-                         type="text" 
-                         placeholder="Street Address / Area" 
-                         value={editAddressForm.street}
-                         onChange={(e) => setEditAddressForm({...editAddressForm, street: e.target.value})}
-                         className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
-                       />
-                       <div className="grid grid-cols-2 gap-3">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                          <input 
                            type="text" 
-                           placeholder="City" 
-                           value={editAddressForm.city}
-                           onChange={(e) => setEditAddressForm({...editAddressForm, city: e.target.value})}
+                           placeholder="Full Name *" 
+                           value={editAddressForm.fullName || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, fullName: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
                          />
                          <input 
-                           type="text" 
-                           placeholder="State" 
-                           value={editAddressForm.state}
-                           onChange={(e) => setEditAddressForm({...editAddressForm, state: e.target.value})}
+                           type="tel" 
+                           placeholder="Phone Number *" 
+                           value={editAddressForm.phone || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, phone: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
                          />
                        </div>
-                       <div className="grid grid-cols-2 gap-3">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                          <input 
                            type="text" 
-                           placeholder="Pincode" 
-                           value={editAddressForm.zip}
-                           onChange={(e) => setEditAddressForm({...editAddressForm, zip: e.target.value})}
+                           placeholder="House / Apartment / Suite *" 
+                           value={editAddressForm.house || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, house: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
                          />
                          <input 
                            type="text" 
-                           placeholder="Country" 
-                           value={editAddressForm.country}
+                           placeholder="Street / Area / Locality *" 
+                           value={editAddressForm.street || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, street: e.target.value})}
+                           className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
+                         />
+                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                         <div className="relative">
+                           <input 
+                             type="text" 
+                             placeholder="Zipcode / Pincode *" 
+                             value={editAddressForm.zip || ''}
+                             onChange={(e) => {
+                               const val = e.target.value;
+                               setEditAddressForm({...editAddressForm, zip: val});
+                               if (/^\d{6}$/.test(val.trim()) || (/^\d{5}$/.test(val.trim()) && editAddressForm.country.toLowerCase() === 'us')) {
+                                 handleZipcodeLookup(val, editAddressForm.country);
+                               }
+                             }}
+                             onBlur={() => handleZipcodeLookup(editAddressForm.zip, editAddressForm.country)}
+                             className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                             required
+                           />
+                           {zipLoading && (
+                             <div className="absolute right-3 top-3.5 flex items-center justify-center">
+                               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                             </div>
+                           )}
+                         </div>
+                         <input 
+                           type="text" 
+                           placeholder="Country *" 
+                           value={editAddressForm.country || ''}
                            onChange={(e) => setEditAddressForm({...editAddressForm, country: e.target.value})}
                            className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
+                         />
+                         <input 
+                           type="text" 
+                           placeholder="Landmark (Optional)" 
+                           value={editAddressForm.landmark || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, landmark: e.target.value})}
+                           className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
                          />
                        </div>
-                       <input 
-                         type="tel" 
-                         placeholder="Contact Phone Number (Optional)" 
-                         value={editAddressForm.phone || ''}
-                         onChange={(e) => setEditAddressForm({...editAddressForm, phone: e.target.value})}
-                         className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
-                       />
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                         <input 
+                           type="text" 
+                           placeholder="City *" 
+                           value={editAddressForm.city || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, city: e.target.value})}
+                           className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
+                         />
+                         <input 
+                           type="text" 
+                           placeholder="State *" 
+                           value={editAddressForm.state || ''}
+                           onChange={(e) => setEditAddressForm({...editAddressForm, state: e.target.value})}
+                           className="w-full text-xs font-bold border-2 border-gray-100 p-3 rounded-xl focus:outline-none focus:border-primary/30"
+                           required
+                         />
+                       </div>
                      </div>
                     {user && editingAddressIndex === null && (
                       <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
@@ -598,12 +684,12 @@ export default function Checkout() {
                                     )}
                                   </div>
                                 </div>
-                                <p className="font-bold text-gray-900 text-xs mb-1">{user.displayName}</p>
+                                <p className="font-bold text-gray-900 text-xs mb-1">{addr.fullName || user.displayName}</p>
                                 <p className="text-xs text-gray-600 font-medium leading-relaxed">
-                                  {addr.street}, {addr.city}, <br/> {addr.state} - {addr.zip}
+                                  {addr.house}, {addr.street}, {addr.landmark ? `Landmark: ${addr.landmark}, ` : ''}{addr.city}, <br/> {addr.state}, {addr.country} - {addr.zip}
                                 </p>
                               </div>
-                              <p className="text-xs font-bold text-gray-900 mt-2">{addr.phone || user.phone || '+91 98765 43210'}</p>
+                              <p className="text-xs font-bold text-gray-900 mt-2">{addr.phone || user.phone || ''}</p>
                             </div>
                           );
                         })}
@@ -615,13 +701,16 @@ export default function Checkout() {
                       onClick={() => {
                         setEditingAddressIndex(null);
                         setEditAddressForm({
+                          fullName: user?.displayName || '',
+                          phone: user?.phone || '',
+                          house: '',
                           street: '',
+                          landmark: '',
                           city: '',
                           state: '',
-                          zip: '',
                           country: 'India',
-                          label: 'Home',
-                          phone: ''
+                          zip: '',
+                          label: 'Home'
                         });
                         setSaveAddress(true);
                         setIsEditingAddress(true);

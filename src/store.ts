@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { UserProfile, CartItem, Product } from "./types";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 
 interface AuthState {
   user: UserProfile | null;
   loading: boolean;
+  orderedProductIds: string[];
   setUser: (user: UserProfile | null) => void;
   initAuth: () => void;
 }
@@ -14,9 +15,11 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
+  orderedProductIds: [],
   setUser: (user) => set({ user }),
   initAuth: () => {
     let unsubscribeSnapshot: (() => void) | null = null;
+    let unsubscribeOrdersSnapshot: (() => void) | null = null;
 
     onAuthStateChanged(auth, (firebaseUser) => {
       // Clean up previous snapshot listener if it exists
@@ -24,8 +27,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
+      if (unsubscribeOrdersSnapshot) {
+        unsubscribeOrdersSnapshot();
+        unsubscribeOrdersSnapshot = null;
+      }
 
       if (firebaseUser) {
+        // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
@@ -36,7 +44,6 @@ export const useAuthStore = create<AuthState>((set) => ({
                 await setDoc(docRef, { role: 'admin' }, { merge: true });
               } catch (err) {
                 console.error("Failed to bootstrap admin role:", err);
-                // Even if bootstrapping fails, we can set the local user if token check passes in rules
                 set({ user: { ...data, role: 'admin' }, loading: false });
               }
             } else {
@@ -49,8 +56,26 @@ export const useAuthStore = create<AuthState>((set) => ({
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
           set({ loading: false });
         });
+
+        // Subscribe to ordered products
+        const ordersRef = collection(db, "orders");
+        const ordersQuery = query(ordersRef, where("customerId", "==", firebaseUser.uid));
+        unsubscribeOrdersSnapshot = onSnapshot(ordersQuery, (ordersSnap) => {
+          const productIds = new Set<string>();
+          ordersSnap.docs.forEach(docSnap => {
+            const items = docSnap.data().items || [];
+            items.forEach((item: any) => {
+              if (item.productId) {
+                productIds.add(item.productId);
+              }
+            });
+          });
+          set({ orderedProductIds: Array.from(productIds) });
+        }, (error) => {
+          console.warn("Failed to listen to customer orders:", error);
+        });
       } else {
-        set({ user: null, loading: false });
+        set({ user: null, orderedProductIds: [], loading: false });
       }
     });
   },
@@ -133,7 +158,6 @@ export const useCartStore = create<CartState>((set, get) => ({
 
 import { Category } from './types';
 import { CATEGORIES as INITIAL_CATEGORIES } from './constants';
-import { collection } from 'firebase/firestore';
 
 interface CategoryState {
   categories: Category[];

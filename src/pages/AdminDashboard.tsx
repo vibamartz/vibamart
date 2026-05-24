@@ -2712,6 +2712,7 @@ function ProductImageUploader({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AddProductView({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
+  const { categories } = useCategoryStore();
   const [formData, setFormData] = useState<Partial<Product>>(() => {
     const defaults = {
       name: '',
@@ -2722,8 +2723,9 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
       mrp: 0,
       discountPercentage: 0,
       gst: 0,
-      categoryId: CATEGORIES[0]?.id || '',
+      categoryId: '',
       subCategoryId: '',
+      nestedSubCategoryId: '',
       vendorId: 'admin',
       images: [],
       primaryImage: '',
@@ -2752,8 +2754,9 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
         sku: product.sku || '',
         color: product.color || '',
         size: product.size || '',
-        categoryId: product.categoryId || defaults.categoryId,
+        categoryId: product.categoryId || '',
         subCategoryId: product.subCategoryId || '',
+        nestedSubCategoryId: product.nestedSubCategoryId || '',
         variants: (product.variants || []).map(v => ({
           ...v,
           name: v.name || '',
@@ -2781,7 +2784,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
   const [currentTag, setCurrentTag] = useState('');
   const [busy, setBusy] = useState(false);
-  const selectedCategory = CATEGORIES.find(c => c.id === formData.categoryId);
+
+  // Set default categoryId once categories load, if none is set
+  useEffect(() => {
+    if (!formData.categoryId && categories.length > 0) {
+      setFormData(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories, formData.categoryId]);
+
+  const selectedCategory = categories.find(c => c.id === formData.categoryId);
+  const selectedSubCategory = selectedCategory?.subcategories?.find(s => s.id === formData.subCategoryId);
 
   // Auto-calculate discount
   useEffect(() => {
@@ -3155,58 +3167,70 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Primary Collection</label>
                 <select
                   value={formData.categoryId}
-                  onChange={e => setFormData(p => ({ ...p, categoryId: e.target.value, subCategoryId: '' }))}
+                  onChange={e => setFormData(p => ({ ...p, categoryId: e.target.value, subCategoryId: '', nestedSubCategoryId: '' }))}
                   className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
                 >
-                  {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                  <option value="">Select Category</option>
+                  {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Sector (Sub-category)</label>
                 <select
                   value={formData.subCategoryId}
-                  onChange={e => setFormData(p => ({ ...p, subCategoryId: e.target.value }))}
+                  onChange={e => setFormData(p => ({ ...p, subCategoryId: e.target.value, nestedSubCategoryId: '' }))}
                   className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm disabled:opacity-30"
-                  disabled={!selectedCategory?.subcategories}
+                  disabled={!selectedCategory?.subcategories || selectedCategory.subcategories.length === 0}
                 >
                   <option value="">Select Sector</option>
                   {selectedCategory?.subcategories?.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
                 </select>
               </div>
+              {selectedSubCategory?.subcategories && selectedSubCategory.subcategories.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nested Sub-category</label>
+                  <select
+                    value={formData.nestedSubCategoryId}
+                    onChange={e => setFormData(p => ({ ...p, nestedSubCategoryId: e.target.value }))}
+                    className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  >
+                    <option value="">Select Nested Sub-category</option>
+                    {selectedSubCategory.subcategories.map(nested => <option key={nested.id} value={nested.id}>{nested.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
-
+ 
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Search DNA (Tags)</h3>
-            <div className="flex flex-wrap gap-2">
-              {(formData.tags || []).map(tag => (
-                <span key={tag} className="px-4 py-2 bg-gray-50 text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-100 flex items-center gap-2">
-                  {tag}
-                  <button onClick={() => setFormData(p => ({ ...p, tags: p.tags?.filter(t => t !== tag) }))} className="text-gray-300 hover:text-red-500"><X className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-            <div className="relative">
-              <input
-                value={currentTag}
-                onChange={e => setCurrentTag(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (currentTag && !formData.tags?.includes(currentTag)) {
-                      setFormData(p => ({ ...p, tags: [...(p.tags || []), currentTag] }));
-                      setCurrentTag('');
-                    }
-                  }
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+            <div className="space-y-4">
+              <textarea
+                value={formData.tags?.join(', ') || ''}
+                onChange={e => {
+                  const tagsVal = e.target.value;
+                  const tagsArray = tagsVal.split(',').map(t => t.trim()).filter(Boolean);
+                  setFormData(p => ({ ...p, tags: tagsArray }));
                 }}
-                className="w-full bg-gray-50 border-4 border-transparent rounded-[20px] px-6 py-4 outline-none focus:bg-white focus:border-primary/5 transition-all font-bold text-xs"
-                placeholder="Insert tag + Enter"
+                className="w-full bg-gray-50 border-4 border-transparent rounded-[32px] px-8 py-6 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm h-32 resize-none"
+                placeholder="apple, iphone, ios, mobile, smartphone"
               />
-              <Hash className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+              <p className="text-[10px] text-gray-400 font-bold ml-1">Keywords separated by commas. These keywords help customers locate products via searching.</p>
             </div>
+            
+            {formData.tags && formData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50">
+                {formData.tags.map(tag => (
+                  <span key={tag} className="px-4 py-2 bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest rounded-xl border border-primary/5 flex items-center gap-2">
+                    {tag}
+                    <button type="button" onClick={() => setFormData(p => ({ ...p, tags: p.tags?.filter(t => t !== tag) }))} className="text-primary/40 hover:text-primary"><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-
+ 
         </div>
       </form>
     </motion.div>

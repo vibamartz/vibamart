@@ -15,13 +15,17 @@ export interface UserProfile {
 }
 
 export interface Address {
+  id?: string;
+  fullName: string;
+  phone: string;
+  house: string;
   street: string;
+  landmark?: string;
   city: string;
   state: string;
-  zip: string;
   country: string;
+  zip: string;
   label?: string;
-  phone?: string;
 }
 
 export interface Product {
@@ -37,11 +41,12 @@ export interface Product {
   gst?: number;
   categoryId: string;
   subCategoryId?: string;
+  nestedSubCategoryId?: string;
   vendorId: string;
   images: string[];
   primaryImage?: string;
   sku?: string;
-  tags?: string[];
+  tags?: string[]; // Keywords / search tags
   stock: number;
   status: 'active' | 'draft' | 'out_of_stock';
   rating: number;
@@ -79,6 +84,7 @@ export interface SubCategory {
   id: string;
   name: string;
   image?: string;
+  subcategories?: SubCategory[]; // Recursive subcategories
 }
 
 export interface WaitlistItem {

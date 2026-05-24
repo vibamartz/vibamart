@@ -6,7 +6,7 @@ import { useCartStore, useAuthStore } from '../store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
 
 interface ProductCardProps {
   product: Product;
@@ -16,7 +16,9 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, showTrackButton = false }: ProductCardProps) {
   const { addItem } = useCartStore();
-  const { user } = useAuthStore();
+  const { user, orderedProductIds } = useAuthStore();
+  const hasBeenOrdered = orderedProductIds?.includes(product.id);
+
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
     product.variants && product.variants.length > 0 ? product.variants[0].id : undefined
   );
@@ -24,6 +26,40 @@ export default function ProductCard({ product, showTrackButton = false }: Produc
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId);
 
   const navigate = useNavigate();
+
+  const handleTrackOrder = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return;
+    
+    const toastId = toast.loading('Locating your order...');
+    try {
+      const ordersRef = collection(db, "orders");
+      const q = query(
+        ordersRef, 
+        where("customerId", "==", user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      const ordersList: any[] = [];
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.items?.some((item: any) => item.productId === product.id)) {
+          ordersList.push({ id: docSnap.id, ...data });
+        }
+      });
+      
+      if (ordersList.length > 0) {
+        ordersList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        toast.success('Order located!', { id: toastId });
+        navigate(`/track-order/${ordersList[0].id}`);
+      } else {
+        toast.error('Could not find order details', { id: toastId });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to locate order', { id: toastId });
+    }
+  };
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -81,19 +117,14 @@ export default function ProductCard({ product, showTrackButton = false }: Produc
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
         
-        {/* Buttons Overlay */}
         <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
-          {showTrackButton ? (
+          {(hasBeenOrdered || showTrackButton) ? (
             <button 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigate(`/track-order/${product.id}`);
-              }}
+              onClick={handleTrackOrder}
               className="flex-1 bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-xl"
             >
               <Truck className="w-3.5 h-3.5" />
-              Track
+              Track Order
             </button>
           ) : (
             <>

@@ -120,9 +120,27 @@ export default function ProductList() {
       // Search query filter (from URL)
       const queryStr = searchParams.get('q');
       if (queryStr) {
-        const term = queryStr.toLowerCase();
-        if (!p.name.toLowerCase().includes(term) && !p.description.toLowerCase().includes(term)) {
-          return false;
+        const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
+        if (terms.length > 0) {
+          const catObj = CATEGORIES.find(c => c.id === p.categoryId);
+          const catName = catObj?.name || '';
+          const subCatObj = catObj?.subcategories?.find(s => s.id === p.subCategoryId);
+          const subCatName = subCatObj?.name || '';
+          const nestedSubCatName = subCatObj?.subcategories?.find(n => n.id === p.nestedSubCategoryId)?.name || '';
+
+          const searchableText = [
+            p.name,
+            p.brand,
+            p.description,
+            p.fullDescription,
+            catName,
+            subCatName,
+            nestedSubCatName,
+            ...(p.tags || [])
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          const isMatch = terms.every(term => searchableText.includes(term));
+          if (!isMatch) return false;
         }
       }
 
