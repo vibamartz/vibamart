@@ -19,7 +19,7 @@ export default function Checkout() {
   const { items, total, clearCart } = useCartStore();
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [step, setStep] = useState(user ? 2 : 1);
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [address, setAddress] = useState({
@@ -50,10 +50,16 @@ export default function Checkout() {
   // Load default address from user profile when available
   React.useEffect(() => {
     if (user) {
-      if (user.address) {
-        setAddress(user.address);
-      } else if (user.addresses && user.addresses.length > 0) {
+      // Auto-advance past login step for logged-in users
+      if (step === 1) {
+        setStep(2);
+      }
+      if (user.addresses && user.addresses.length > 0) {
         setAddress(user.addresses[0]);
+        setIsEditingAddress(false);
+      } else if (user.address) {
+        setAddress(user.address);
+        setIsEditingAddress(false);
       } else {
         setAddress({
           street: "",
@@ -240,6 +246,15 @@ export default function Checkout() {
       });
 
       const finalizeOrder = async (pMethod: string, pStatus: string) => {
+        const orderAddress: Address = {
+          street: address.street || "",
+          city: address.city || "",
+          state: address.state || "",
+          zip: address.zip || "",
+          country: address.country || "India",
+          label: address.label || "Home"
+        };
+
         const orderData: any = {
           customerId: user ? user.uid : 'guest',
           items: orderItems,
@@ -247,13 +262,7 @@ export default function Checkout() {
           status: "pending",
           paymentStatus: pStatus, 
           paymentMethod: pMethod,
-          address: {
-            street: address.street || "",
-            city: address.city || "",
-            state: address.state || "",
-            zip: address.zip || "",
-            country: address.country || "India"
-          },
+          address: orderAddress,
           createdAt: new Date().toISOString(),
           statusHistory: [
             {
@@ -275,17 +284,19 @@ export default function Checkout() {
 
         const docRef = await addDoc(collection(db, 'orders'), orderData);
         
-        if (user && saveAddress && !user.addresses?.some(a => a.street === address.street && a.city === address.city)) {
-          const userRef = doc(db, 'users', user.uid);
-          await updateDoc(userRef, {
-              addresses: arrayUnion({
-                  street: address.street,
-                  city: address.city,
-                  state: address.state,
-                  zip: address.zip,
-                  country: address.country, label: address.label || 'Home'
-              } as Address)
-          });
+        // Always save the order address to the user's profile for future checkouts
+        if (user && address.street) {
+          const isDuplicate = user.addresses?.some(
+            a => a.street === address.street && a.city === address.city && a.zip === address.zip
+          );
+          if (!isDuplicate) {
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, {
+              addresses: arrayUnion(orderAddress),
+              // Also set the primary address if not already set
+              ...(!user.address ? { address: orderAddress } : {})
+            });
+          }
         }
         
         clearCart();
@@ -354,7 +365,7 @@ export default function Checkout() {
             title={user ? "Account Verified" : "Login or Continue as Guest"} 
             isActive={step === 1} 
             isCompleted={step > 1}
-            summary={user ? user.email : guestInfo.email || "Guest"}
+            summary={user ? user.email || user.phone : guestInfo.email || "Guest"}
           >
              {user ? (
                <div className="space-y-4">
@@ -419,6 +430,7 @@ export default function Checkout() {
             isActive={step === 2} 
             isCompleted={step > 2}
             summary={address.city ? `${address.city}, ${address.state}` : "No address selected"}
+            onClickHeader={() => setStep(2)}
           >
              <div className="space-y-4">
                 {isEditingAddress ? (
@@ -630,6 +642,7 @@ export default function Checkout() {
             isActive={step === 3} 
             isCompleted={step > 3}
             summary={`${items.length} Items`}
+            onClickHeader={() => setStep(3)}
           >
              <div className="space-y-6">
                 {items.map((item) => {
@@ -738,17 +751,25 @@ export default function Checkout() {
   );
 }
 
-function CheckoutStep({ number, title, isActive, isCompleted, summary, children }: any) {
+function CheckoutStep({ number, title, isActive, isCompleted, summary, children, onClickHeader }: any) {
   return (
-    <div className={`overflow-hidden transition-all duration-300 ${isActive ? 'bg-white shadow-xl rounded-2xl border border-gray-100' : 'bg-gray-50/50 grayscale opacity-60 rounded-xl'}`}>
-       <div className={`px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between ${isActive ? 'bg-gray-900 text-white' : ''}`}>
+    <div className={`overflow-hidden transition-all duration-300 ${isActive ? 'bg-white shadow-xl rounded-2xl border border-gray-100' : isCompleted ? 'bg-white/80 rounded-xl border border-gray-100 hover:shadow-md' : 'bg-gray-50/50 grayscale opacity-60 rounded-xl'}`}>
+       <div 
+         className={`px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between ${isActive ? 'bg-gray-900 text-white' : ''} ${isCompleted && onClickHeader ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+         onClick={isCompleted && onClickHeader ? onClickHeader : undefined}
+       >
           <div className="flex items-center gap-3 sm:gap-4">
-             <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${isActive ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>
-               {number}
+             <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${isActive ? 'bg-primary text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+               {isCompleted ? '✓' : number}
              </div>
              <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-xs">{title}</h3>
           </div>
-          {isCompleted && <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 hidden sm:inline">{summary}</span>}
+          {isCompleted && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 hidden sm:inline">{summary}</span>
+              {onClickHeader && <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Change</span>}
+            </div>
+          )}
        </div>
        <AnimatePresence>
           {isActive && (
