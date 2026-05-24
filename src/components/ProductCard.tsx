@@ -10,11 +10,10 @@ import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getD
 
 interface ProductCardProps {
   product: Product;
-  showTrackButton?: boolean;
   key?: any;
 }
 
-export default function ProductCard({ product, showTrackButton = false }: ProductCardProps) {
+export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const hasBeenOrdered = orderedProductIds?.includes(product.id);
@@ -118,7 +117,7 @@ export default function ProductCard({ product, showTrackButton = false }: Produc
         />
         
         <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
-          {(hasBeenOrdered || showTrackButton) ? (
+          {hasBeenOrdered ? (
             <button 
               onClick={handleTrackOrder}
               className="flex-1 bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-xl"

@@ -172,40 +172,9 @@ export const useCategoryStore = create<CategoryState>((set) => ({
     const q = collection(db, 'categories');
     onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        // Assume document ID is the category ID or similar, but typically we can store one single doc or multiple docs.
-        // Let's expect multiple docs for categories.
         const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-
-        // Map of ID -> Category to perform the merge
-        const categoriesMap = new Map<string, Category>();
-        INITIAL_CATEGORIES.forEach(cat => categoriesMap.set(cat.id, cat));
-
-        // Overwrite or append from fetchedCategories
-        fetchedCategories.forEach(fetchedCat => {
-          const initialCat = categoriesMap.get(fetchedCat.id);
-          if (initialCat) {
-            const mergedSubs = [...(initialCat.subcategories || [])];
-            fetchedCat.subcategories?.forEach(fetchedSub => {
-              const idx = mergedSubs.findIndex(s => s.id === fetchedSub.id);
-              if (idx !== -1) {
-                mergedSubs[idx] = { ...mergedSubs[idx], ...fetchedSub };
-              } else {
-                mergedSubs.push(fetchedSub);
-              }
-            });
-            categoriesMap.set(fetchedCat.id, {
-              ...initialCat,
-              ...fetchedCat,
-              subcategories: mergedSubs
-            });
-          } else {
-            categoriesMap.set(fetchedCat.id, fetchedCat);
-          }
-        });
-
-        const mergedCategories = Array.from(categoriesMap.values());
-        mergedCategories.sort((a, b) => a.id.localeCompare(b.id));
-        set({ categories: mergedCategories, loading: false });
+        fetchedCategories.sort((a, b) => a.id.localeCompare(b.id));
+        set({ categories: fetchedCategories, loading: false });
       } else {
         // If empty, seed Firestore with initial categories
         INITIAL_CATEGORIES.forEach(async (cat) => {

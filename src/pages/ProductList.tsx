@@ -380,7 +380,7 @@ export default function ProductList() {
              {filteredProducts.length > 0 ? (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6' : 'space-y-6'}>
                   {filteredProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} showTrackButton={true} />
+                    <ProductCard key={product.id} product={product} />
                   ))}
                </div>
              ) : (

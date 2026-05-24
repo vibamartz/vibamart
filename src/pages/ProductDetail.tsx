@@ -283,8 +283,8 @@ export default function ProductDetail() {
                </div>
             )}
 
-           {/* Order Status Panel - shown when product has been ordered */}
-           {hasBeenOrdered && associatedOrder && (
+           {hasBeenOrdered && associatedOrder ? (
+             /* ── Order Status Panel — ONLY shown after order placement ── */
              <motion.div 
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
@@ -323,7 +323,7 @@ export default function ProductDetail() {
                  )}
                </div>
 
-               {/* Order ID */}
+               {/* Order ID + Track Order Button */}
                <div className="flex items-center justify-between bg-white/60 rounded-xl px-4 py-3">
                  <div>
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order ID</p>
@@ -338,56 +338,56 @@ export default function ProductDetail() {
                  </Link>
                </div>
              </motion.div>
-           )}
-
-           {/* Quantity & Actions */}
-           <div className="flex flex-col gap-4 items-stretch">
-              {product.stock > 0 && (
-                <div className="bg-gray-50 border border-gray-100 rounded-xl flex items-center p-1 w-full sm:w-auto self-stretch">
-                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">-</button>
-                    <span className="w-12 text-center font-black text-lg">{quantity}</span>
-                    <button onClick={() => setQuantity(quantity + 1)} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">+</button>
-                </div>
-              )}
-              <div className="flex-1 w-full flex flex-col gap-3">
-                  {product.stock > 0 ? (
-                   <>
-                    <button 
-                        onClick={handleAddToCart}
-                        disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
-                            (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                            : 'bg-[#ff9f00] text-white shadow-orange-100 hover:bg-[#f39700] active:scale-95'
-                        }`}
-                    >
-                        <ShoppingCart className="w-5 h-5" /> Add to Cart
-                     </button>
+           ) : (
+             /* ── Add to Cart / Buy Now — ONLY shown BEFORE order placement ── */
+             <div className="flex flex-col gap-4 items-stretch">
+               {product.stock > 0 && (
+                 <div className="bg-gray-50 border border-gray-100 rounded-xl flex items-center p-1 w-full sm:w-auto self-stretch">
+                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">-</button>
+                     <span className="w-12 text-center font-black text-lg">{quantity}</span>
+                     <button onClick={() => setQuantity(quantity + 1)} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">+</button>
+                 </div>
+               )}
+               <div className="flex-1 w-full flex flex-col gap-3">
+                   {product.stock > 0 ? (
+                    <>
                      <button 
-                         onClick={handleBuyNow}
-                        disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
-                        className={`flex-1 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
-                            (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                            : 'bg-[#fb641b] text-white shadow-orange-200 hover:bg-[#f15e17] active:scale-95'
-                        }`}
-                    >
-                        Buy Now
-                    </button>
-                   </>
-                 ) : (
-                    <button 
-                        onClick={isOnWaitlist ? undefined : handleJoinWaitlist}
-                        disabled={isOnWaitlist}
-                        className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
-                            isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
-                        }`}
-                    >
-                        {isOnWaitlist ? <><Bell className="w-5 h-5" /> On Waitlist</> : <><Bell className="w-5 h-5" /> Notify Me When Available</>}
+                         onClick={handleAddToCart}
+                         disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
+                         className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                             (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
+                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                             : 'bg-[#ff9f00] text-white shadow-orange-100 hover:bg-[#f39700] active:scale-95'
+                         }`}
+                     >
+                         <ShoppingCart className="w-5 h-5" /> Add to Cart
+                      </button>
+                      <button 
+                          onClick={handleBuyNow}
+                         disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
+                         className={`flex-1 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                             (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
+                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                             : 'bg-[#fb641b] text-white shadow-orange-200 hover:bg-[#f15e17] active:scale-95'
+                         }`}
+                     >
+                         Buy Now
                      </button>
-                  )}
-              </div>
-           </div>
+                    </>
+                  ) : (
+                     <button 
+                         onClick={isOnWaitlist ? undefined : handleJoinWaitlist}
+                         disabled={isOnWaitlist}
+                         className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
+                             isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
+                         }`}
+                     >
+                         {isOnWaitlist ? <><Bell className="w-5 h-5" /> On Waitlist</> : <><Bell className="w-5 h-5" /> Notify Me When Available</>}
+                      </button>
+                   )}
+               </div>
+             </div>
+           )}
 
             {/* Delivery Details Section */}
             <div className="space-y-8 pt-8 border-t border-gray-100 mb-8">

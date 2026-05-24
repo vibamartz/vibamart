@@ -19,7 +19,7 @@ import Logo from '../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, setDoc, arrayUnion } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction, AdminAction } from '../services/adminLogService';
-import { Role, UserProfile, Product, ProductVariant, Order, OrderStatus, Coupon, Banner, Review, Announcement, ReturnRequest } from '../types';
+import { Role, UserProfile, Product, ProductVariant, Order, OrderStatus, Coupon, Banner, Review, Announcement, ReturnRequest, Category, SubCategory } from '../types';
 import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../constants';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
@@ -3247,39 +3247,31 @@ function CategoriesManagementView() {
   const [newCatImage, setNewCatImage] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('sparkles');
 
+  // Edit category state
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatImage, setEditCatImage] = useState('');
+  const [editCatIcon, setEditCatIcon] = useState('sparkles');
+
   // Add subcategory state
   const [activeAddSubCatId, setActiveAddSubCatId] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
   const [newSubImage, setNewSubImage] = useState('');
 
-  const updateCategoryImage = async (catId: string, newImage: string) => {
-    if (!newImage) return;
-    setBusy(true);
-    try {
-      const cat = categories.find(c => c.id === catId);
-      if(!cat) return;
-      await setDoc(doc(db, 'categories', catId), { ...cat, image: newImage });
-      toast.success('Category image updated');
-    } catch (e: any) {
-      console.error("Failed to update category image:", e);
-      toast.error(`Failed to update image: ${e?.message || e}`);
-    } finally { setBusy(false); }
-  };
+  // Edit subcategory state
+  const [editingSubId, setEditingSubId] = useState<{ catId: string; subId: string } | null>(null);
+  const [editSubName, setEditSubName] = useState('');
+  const [editSubImage, setEditSubImage] = useState('');
 
-  const updateSubcategoryImage = async (catId: string, subId: string, newImage: string) => {
-    if (!newImage) return;
-    setBusy(true);
-    try {
-      const cat = categories.find(c => c.id === catId);
-      if (!cat) return;
-      const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
-      toast.success('Subcategory image updated');
-    } catch (e: any) {
-      console.error("Failed to update subcategory image:", e);
-      toast.error(`Failed to update image: ${e?.message || e}`);
-    } finally { setBusy(false); }
-  };
+  // Add nested subcategory state
+  const [activeAddNestedId, setActiveAddNestedId] = useState<{ catId: string; subId: string } | null>(null);
+  const [newNestedName, setNewNestedName] = useState('');
+  const [newNestedImage, setNewNestedImage] = useState('');
+
+  // Edit nested subcategory state
+  const [editingNestedId, setEditingNestedId] = useState<{ catId: string; subId: string; nestedId: string } | null>(null);
+  const [editNestedName, setEditNestedName] = useState('');
+  const [editNestedImage, setEditNestedImage] = useState('');
 
   const addCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3307,6 +3299,63 @@ function CategoriesManagementView() {
     }
   };
 
+  const startEditCategory = (cat: Category) => {
+    setEditingCatId(cat.id);
+    setEditCatName(cat.name);
+    setEditCatImage(cat.image);
+    setEditCatIcon(cat.icon || 'sparkles');
+  };
+
+  const saveEditCategory = async (catId: string) => {
+    if (!editCatName.trim()) {
+      toast.error('Category name is required');
+      return;
+    }
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      await setDoc(doc(db, 'categories', catId), {
+        ...cat,
+        name: editCatName.trim(),
+        image: editCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
+        icon: editCatIcon
+      });
+      toast.success('Category updated successfully');
+      setEditingCatId(null);
+    } catch (e: any) {
+      toast.error('Failed to update category: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateCategoryImage = async (catId: string, newImage: string) => {
+    if (!newImage) return;
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if(!cat) return;
+      await setDoc(doc(db, 'categories', catId), { ...cat, image: newImage });
+      toast.success('Category image updated');
+    } catch (e: any) {
+      toast.error(`Failed to update image: ${e?.message || e}`);
+    } finally { setBusy(false); }
+  };
+
+  const deleteCategory = async (catId: string) => {
+    if (!window.confirm('Are you sure you want to delete this category? All subcategories and nested subcategories will be permanently deleted!')) return;
+    setBusy(true);
+    try {
+      await deleteDoc(doc(db, 'categories', catId));
+      toast.success('Category deleted');
+    } catch (e) {
+      toast.error('Failed to delete category');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const addSubcategory = async (e: React.FormEvent, catId: string) => {
     e.preventDefault();
     if (!newSubName.trim()) return;
@@ -3318,7 +3367,8 @@ function CategoriesManagementView() {
       const newSub = {
         id: subId,
         name: newSubName.trim(),
-        image: newSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+        image: newSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
+        subcategories: []
       };
       const subcategories = cat.subcategories ? [...cat.subcategories, newSub] : [newSub];
       await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
@@ -3333,21 +3383,57 @@ function CategoriesManagementView() {
     }
   };
 
-  const deleteCategory = async (catId: string) => {
-    if (!window.confirm('Are you sure you want to delete this category? All subcategories will be permanently deleted!')) return;
+  const startEditSubcategory = (catId: string, sub: SubCategory) => {
+    setEditingSubId({ catId, subId: sub.id });
+    setEditSubName(sub.name);
+    setEditSubImage(sub.image || '');
+  };
+
+  const saveEditSubcategory = async (catId: string, subId: string) => {
+    if (!editSubName.trim()) {
+      toast.error('Subcategory name is required');
+      return;
+    }
     setBusy(true);
     try {
-      await deleteDoc(doc(db, 'categories', catId));
-      toast.success('Category deleted');
-    } catch (e) {
-      toast.error('Failed to delete category');
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const subcategories = cat.subcategories?.map(s => {
+        if (s.id === subId) {
+          return {
+            ...s,
+            name: editSubName.trim(),
+            image: editSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+          };
+        }
+        return s;
+      }) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Subcategory updated successfully');
+      setEditingSubId(null);
+    } catch (e: any) {
+      toast.error('Failed to update subcategory: ' + e?.message);
     } finally {
       setBusy(false);
     }
   };
 
+  const updateSubcategoryImage = async (catId: string, subId: string, newImage: string) => {
+    if (!newImage) return;
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
+      toast.success('Subcategory image updated');
+    } catch (e: any) {
+      toast.error(`Failed to update image: ${e?.message || e}`);
+    } finally { setBusy(false); }
+  };
+
   const deleteSubcategory = async (catId: string, subId: string) => {
-    if (!window.confirm('Are you sure you want to delete this subcategory?')) return;
+    if (!window.confirm('Are you sure you want to delete this subcategory? All nested subcategories will be permanently deleted!')) return;
     setBusy(true);
     try {
       const cat = categories.find(c => c.id === catId);
@@ -3362,12 +3448,110 @@ function CategoriesManagementView() {
     }
   };
 
+  const addNestedSubcategory = async (e: React.FormEvent, catId: string, subId: string) => {
+    e.preventDefault();
+    if (!newNestedName.trim()) return;
+    const nestedId = newNestedName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const subcategories = cat.subcategories?.map(s => {
+        if (s.id === subId) {
+          const nestedSubs = s.subcategories ? [...s.subcategories, {
+            id: nestedId,
+            name: newNestedName.trim(),
+            image: newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+          }] : [{
+            id: nestedId,
+            name: newNestedName.trim(),
+            image: newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+          }];
+          return { ...s, subcategories: nestedSubs };
+        }
+        return s;
+      }) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Nested subcategory added successfully');
+      setNewNestedName('');
+      setNewNestedImage('');
+      setActiveAddNestedId(null);
+    } catch (e: any) {
+      toast.error('Failed to add nested subcategory: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEditNestedSubcategory = (catId: string, subId: string, nested: SubCategory) => {
+    setEditingNestedId({ catId, subId, nestedId: nested.id });
+    setEditNestedName(nested.name);
+    setEditNestedImage(nested.image || '');
+  };
+
+  const saveEditNestedSubcategory = async (catId: string, subId: string, nestedId: string) => {
+    if (!editNestedName.trim()) {
+      toast.error('Nested subcategory name is required');
+      return;
+    }
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const subcategories = cat.subcategories?.map(s => {
+        if (s.id === subId) {
+          const nestedSubs = s.subcategories?.map(n => {
+            if (n.id === nestedId) {
+              return {
+                ...n,
+                name: editNestedName.trim(),
+                image: editNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+              };
+            }
+            return n;
+          }) || [];
+          return { ...s, subcategories: nestedSubs };
+        }
+        return s;
+      }) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Nested subcategory updated successfully');
+      setEditingNestedId(null);
+    } catch (e: any) {
+      toast.error('Failed to update nested subcategory: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteNestedSubcategory = async (catId: string, subId: string, nestedId: string) => {
+    if (!window.confirm('Are you sure you want to delete this nested subcategory?')) return;
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const subcategories = cat.subcategories?.map(s => {
+        if (s.id === subId) {
+          const nestedSubs = s.subcategories?.filter(n => n.id !== nestedId) || [];
+          return { ...s, subcategories: nestedSubs };
+        }
+        return s;
+      }) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Nested subcategory deleted');
+    } catch (e: any) {
+      toast.error('Failed to delete nested subcategory: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Manage Categories</h2>
-          <p className="text-sm text-gray-500">Add, edit or remove categories and subcategories</p>
+          <p className="text-sm text-gray-500">Add, edit or remove categories, subcategories and nested subcategories (3 Levels)</p>
         </div>
         <button
           onClick={() => setShowAddCat(!showAddCat)}
@@ -3411,22 +3595,10 @@ function CategoriesManagementView() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-                      if (!ACCEPTED_TYPES.includes(file.type)) {
-                        toast.error('Supported formats: JPG, PNG, WEBP');
-                        return;
-                      }
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast.error('Image exceeds 5 MB limit');
-                        return;
-                      }
                       const reader = new FileReader();
                       reader.onload = (ev) => {
                         const dataUrl = ev.target?.result as string;
-                        if (dataUrl) {
-                          setNewCatImage(dataUrl);
-                          toast.success('Local file uploaded successfully!');
-                        }
+                        if (dataUrl) setNewCatImage(dataUrl);
                       };
                       reader.readAsDataURL(file);
                     }}
@@ -3478,78 +3650,128 @@ function CategoriesManagementView() {
 
       {categories.map(cat => (
         <div key={cat.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm" />
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">{cat.name}</h3>
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">ID: {cat.id}</span>
+          
+          {editingCatId === cat.id ? (
+            <div className="flex flex-col gap-4 bg-gray-50 p-5 rounded-2xl border border-gray-100">
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Editing Category: {cat.name}</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Name</label>
+                  <input
+                    type="text"
+                    value={editCatName}
+                    onChange={(e) => setEditCatName(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                    <span>Image URL / File</span>
+                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3 h-3" /> Upload File
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const dataUrl = ev.target?.result as string;
+                            if (dataUrl) setEditCatImage(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </label>
+                  <input
+                    type="text"
+                    value={editCatImage.startsWith('data:') ? 'Local Uploaded File' : editCatImage}
+                    onChange={(e) => setEditCatImage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Name</label>
+                  <select
+                    value={editCatIcon}
+                    onChange={(e) => setEditCatIcon(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
+                  >
+                    <option value="sparkles">Sparkles</option>
+                    <option value="smartphone">Smartphone</option>
+                    <option value="shirt">Shirt</option>
+                    <option value="laptop">Laptop</option>
+                    <option value="home">Home</option>
+                    <option value="tv">TV</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCatId(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => saveEditCategory(cat.id)}
+                  className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 shadow-md flex items-center gap-1"
+                >
+                  <Check className="w-3.5 h-3.5" /> Save Changes
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 self-end sm:self-center">
-              <label className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors cursor-pointer text-gray-700">
-                <Upload className="w-3.5 h-3.5" />
-                Upload File
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-                    if (!ACCEPTED_TYPES.includes(file.type)) {
-                      toast.error('Supported formats: JPG, PNG, WEBP');
-                      return;
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm" />
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                    {cat.name}
+                    <span className="text-[10px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10">Icon: {cat.icon || 'sparkles'}</span>
+                  </h3>
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">ID: {cat.id}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  disabled={busy}
+                  onClick={() => startEditCategory(cat)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors text-gray-750"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-gray-550" />
+                  Edit Details
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => {
+                    if (activeAddSubCatId === cat.id) {
+                      setActiveAddSubCatId(null);
+                    } else {
+                      setActiveAddSubCatId(cat.id);
                     }
-                    if (file.size > 5 * 1024 * 1024) {
-                      toast.error('Image exceeds 5 MB limit');
-                      return;
-                    }
-                    const reader = new FileReader();
-                    reader.onload = async (ev) => {
-                      const dataUrl = ev.target?.result as string;
-                      if (dataUrl) await updateCategoryImage(cat.id, dataUrl);
-                    };
-                    reader.readAsDataURL(file);
                   }}
-                />
-              </label>
-
-              <button
-                disabled={busy}
-                onClick={() => {
-                  const url = window.prompt('Enter new category image URL:', cat.image);
-                  if (url && url !== cat.image) updateCategoryImage(cat.id, url);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold hover:bg-gray-100 transition-colors text-gray-700"
-              >
-                <Link2 className="w-3.5 h-3.5" />
-                Web URL
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => {
-                  if (activeAddSubCatId === cat.id) {
-                    setActiveAddSubCatId(null);
-                  } else {
-                    setActiveAddSubCatId(cat.id);
-                  }
-                }}
-                className="px-3.5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Subcategory
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => deleteCategory(cat.id)}
-                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors border border-rose-100/50"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                  className="px-3.5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Subcategory
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => deleteCategory(cat.id)}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors border border-rose-100/50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {activeAddSubCatId === cat.id && (
             <motion.form
@@ -3568,7 +3790,7 @@ function CategoriesManagementView() {
                     value={newSubName}
                     onChange={(e) => setNewSubName(e.target.value)}
                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
-                    placeholder="e.g. Sneakers"
+                    placeholder="e.g. Mobiles"
                   />
                 </div>
                 <div className="space-y-1">
@@ -3584,22 +3806,10 @@ function CategoriesManagementView() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-                          if (!ACCEPTED_TYPES.includes(file.type)) {
-                            toast.error('Supported formats: JPG, PNG, WEBP');
-                            return;
-                          }
-                          if (file.size > 5 * 1024 * 1024) {
-                            toast.error('Image exceeds 5 MB limit');
-                            return;
-                          }
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             const dataUrl = ev.target?.result as string;
-                            if (dataUrl) {
-                              setNewSubImage(dataUrl);
-                              toast.success('Local file uploaded successfully!');
-                            }
+                            if (dataUrl) setNewSubImage(dataUrl);
                           };
                           reader.readAsDataURL(file);
                         }}
@@ -3637,65 +3847,258 @@ function CategoriesManagementView() {
           {cat.subcategories && cat.subcategories.length > 0 ? (
             <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 border-l-0 sm:border-l-2 border-gray-100 space-y-3 pt-2">
               <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {cat.subcategories.map(sub => (
-                  <div key={sub.id} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub">
-                    <div className="flex items-center gap-3">
-                      <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
-                      <div>
-                        <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
-                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                  <div key={sub.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub space-y-3">
+                    
+                    {editingSubId?.catId === cat.id && editingSubId?.subId === sub.id ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Subcategory Name</label>
+                            <input
+                              type="text"
+                              value={editSubName}
+                              onChange={(e) => setEditSubName(e.target.value)}
+                              className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                              <span>Image URL / File</span>
+                              <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                                <Upload className="w-2.5 h-2.5" /> Upload File
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      const dataUrl = ev.target?.result as string;
+                                      if (dataUrl) setEditSubImage(dataUrl);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                              </label>
+                            </label>
+                            <input
+                              type="text"
+                              value={editSubImage.startsWith('data:') ? 'Local Uploaded File' : editSubImage}
+                              onChange={(e) => setEditSubImage(e.target.value)}
+                              className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingSubId(null)}
+                            className="px-2.5 py-1 bg-white border border-gray-250 rounded text-[10px] font-bold text-gray-500"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => saveEditSubcategory(cat.id, sub.id)}
+                            disabled={busy}
+                            className="px-2.5 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600 flex items-center gap-0.5"
+                          >
+                            <Check className="w-3 h-3" /> Save
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <label className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-colors cursor-pointer text-gray-700">
-                        <Upload className="w-3 h-3" />
-                        Upload
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-                            if (!ACCEPTED_TYPES.includes(file.type)) {
-                              toast.error('Supported formats: JPG, PNG, WEBP');
-                              return;
-                            }
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error('Image exceeds 5 MB limit');
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = async (ev) => {
-                              const dataUrl = ev.target?.result as string;
-                              if (dataUrl) await updateSubcategoryImage(cat.id, sub.id, dataUrl);
-                            };
-                            reader.readAsDataURL(file);
-                          }}
-                        />
-                      </label>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                          <div>
+                            <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            disabled={busy}
+                            onClick={() => startEditSubcategory(cat.id, sub)}
+                            className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            disabled={busy}
+                            onClick={() => {
+                              if (activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id) {
+                                setActiveAddNestedId(null);
+                              } else {
+                                setActiveAddNestedId({ catId: cat.id, subId: sub.id });
+                              }
+                            }}
+                            className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black flex items-center gap-1 text-[10px] font-bold"
+                          >
+                            <Plus className="w-3 h-3" /> Nested
+                          </button>
+                          <button
+                            disabled={busy}
+                            onClick={() => deleteSubcategory(cat.id, sub.id)}
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/30"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-                      <button
-                        disabled={busy}
-                        onClick={() => {
-                          const url = window.prompt(`Enter new image URL for ${sub.name}:`, sub.image);
-                          if (url && url !== sub.image) updateSubcategoryImage(cat.id, sub.id, url);
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-colors text-gray-700"
+                    {activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id && (
+                      <motion.form
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        onSubmit={(e) => addNestedSubcategory(e, cat.id, sub.id)}
+                        className="bg-white p-3 rounded-lg border border-gray-100 space-y-3 mt-2"
                       >
-                        <Link2 className="w-3 h-3" />
-                        Web URL
-                      </button>
-                      <button
-                        disabled={busy}
-                        onClick={() => deleteSubcategory(cat.id, sub.id)}
-                        className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/30"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Add Nested Subcategory to {sub.name}</h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Name</label>
+                            <input
+                              required
+                              type="text"
+                              value={newNestedName}
+                              onChange={(e) => setNewNestedName(e.target.value)}
+                              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                              placeholder="e.g. Android"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                              <span>Image</span>
+                              <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                                <Upload className="w-2 h-2" /> Upload
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      const dataUrl = ev.target?.result as string;
+                                      if (dataUrl) setNewNestedImage(dataUrl);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                              </label>
+                            </label>
+                            <input
+                              type="text"
+                              value={newNestedImage.startsWith('data:') ? 'Local Uploaded File' : newNestedImage}
+                              onChange={(e) => setNewNestedImage(e.target.value)}
+                              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                              placeholder="Image URL"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveAddNestedId(null)}
+                            className="px-2.5 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-500"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={busy}
+                            className="px-2.5 py-1 bg-primary text-white rounded text-[10px] font-bold hover:bg-primary-hover shadow-sm"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </motion.form>
+                    )}
+
+                    {sub.subcategories && sub.subcategories.length > 0 && (
+                      <div className="pl-4 border-l border-gray-200 space-y-2 mt-2">
+                        <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nested Subcategories</h5>
+                        <div className="space-y-1.5">
+                          {sub.subcategories.map(nested => (
+                            <div key={nested.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100">
+                              
+                              {editingNestedId?.catId === cat.id && editingNestedId?.subId === sub.id && editingNestedId?.nestedId === nested.id ? (
+                                <div className="flex-grow flex flex-col gap-2">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="space-y-0.5">
+                                      <label className="text-[7px] font-black uppercase text-gray-400">Nested Name</label>
+                                      <input
+                                        type="text"
+                                        value={editNestedName}
+                                        onChange={(e) => setEditNestedName(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                      />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <label className="text-[7px] font-black uppercase text-gray-400">Image URL</label>
+                                      <input
+                                        type="text"
+                                        value={editNestedImage}
+                                        onChange={(e) => setEditNestedImage(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-end gap-1">
+                                    <button
+                                      onClick={() => setEditingNestedId(null)}
+                                      className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-bold"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => saveEditNestedSubcategory(cat.id, sub.id, nested.id)}
+                                      disabled={busy}
+                                      className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <img src={nested.image} alt={nested.name} className="w-8 h-8 rounded object-cover border border-gray-100" />
+                                    <div>
+                                      <span className="font-semibold text-gray-700 text-xs">{nested.name}</span>
+                                      <span className="text-[7px] font-bold text-gray-400 block uppercase tracking-wider">ID: {nested.id}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      disabled={busy}
+                                      onClick={() => startEditNestedSubcategory(cat.id, sub.id, nested)}
+                                      className="p-1 bg-gray-50 border border-gray-150 rounded text-gray-500 hover:bg-gray-100"
+                                    >
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      disabled={busy}
+                                      onClick={() => deleteNestedSubcategory(cat.id, sub.id, nested.id)}
+                                      className="p-1 bg-rose-50 text-rose-500 rounded hover:bg-rose-100"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 ))}
               </div>
@@ -3703,6 +4106,7 @@ function CategoriesManagementView() {
           ) : (
             <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium">No subcategories created yet.</div>
           )}
+
         </div>
       ))}
     </div>
