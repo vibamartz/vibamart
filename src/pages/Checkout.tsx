@@ -379,17 +379,26 @@ export default function Checkout() {
           config: {
             display: {
               blocks: {
-                upi: {
-                  name: "UPI / QR Code",
+                qr: {
+                  name: "Show QR Code",
                   instruments: [
                     {
                       method: "upi",
-                      flows: ["qr", "intent", "collect"]
+                      flows: ["qr"]
+                    }
+                  ]
+                },
+                upi: {
+                  name: "Pay via UPI ID / Apps",
+                  instruments: [
+                    {
+                      method: "upi",
+                      flows: ["collect", "intent"]
                     }
                   ]
                 }
               },
-              sequence: ["block.upi"],
+              sequence: ["block.qr", "block.upi"],
               preferences: {
                 show_default_blocks: true
               }
