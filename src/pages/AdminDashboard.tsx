@@ -2772,8 +2772,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
         tags: product.tags || [],
         features: product.features || [],
         serviceablePincodes: product.serviceablePincodes || [],
-        price: product.price || 0,
-        mrp: product.mrp || 0,
+        price: product.discountPrice !== undefined && product.discountPrice !== null ? product.discountPrice : product.price,
+        mrp: product.discountPrice !== undefined && product.discountPrice !== null ? product.price : (product.mrp || product.price),
         stock: product.stock || 0,
         gst: product.gst || 0,
         discountPercentage: product.discountPercentage || 0,
@@ -2797,13 +2797,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
   // Auto-calculate discount
   useEffect(() => {
-    if (formData.mrp && formData.price) {
-      const discount = Math.round(((formData.mrp - formData.price) / formData.mrp) * 100);
-      if (discount !== formData.discountPercentage) {
-        setFormData(prev => ({ ...prev, discountPercentage: discount }));
-      }
+    const mrp = formData.mrp || 0;
+    const price = formData.price || 0;
+    let discount = 0;
+    if (mrp > 0 && price > 0 && mrp > price) {
+      discount = Math.round(((mrp - price) / mrp) * 100);
     }
-  }, [formData.mrp, formData.price]);
+    if (discount !== formData.discountPercentage) {
+      setFormData(prev => ({ ...prev, discountPercentage: discount }));
+    }
+  }, [formData.mrp, formData.price, formData.discountPercentage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2812,10 +2815,17 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
     try {
       const pid = product?.id || `prod_${Date.now()}`;
+      const mrp = formData.mrp || 0;
+      const price = formData.price || 0;
+      const isDiscounted = mrp > 0 && price > 0 && mrp > price;
 
       const rawData = {
         ...formData,
         id: pid,
+        price: isDiscounted ? mrp : price,
+        discountPrice: isDiscounted ? price : null,
+        mrp: mrp || price,
+        discountPercentage: isDiscounted ? Math.round(((mrp - price) / mrp) * 100) : 0,
         updatedAt: new Date().toISOString()
       };
 
@@ -3118,11 +3128,17 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                   className="w-full bg-blue-50/50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic text-blue-600"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Discount (%)</label>
                   <div className="w-full bg-gray-50 rounded-[24px] px-8 py-5 font-black text-sm opacity-50">
                     {formData.discountPercentage}%
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Savings (₹)</label>
+                  <div className="w-full bg-green-50 text-green-700 rounded-[24px] px-8 py-5 font-black text-sm">
+                    ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -3240,6 +3256,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 function CategoriesManagementView() {
   const { categories } = useCategoryStore();
   const [busy, setBusy] = useState(false);
+
+  // Expandable tree state
+  const [expandedCats, setExpandedCats] = useState<string[]>([]);
+  const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
+
+  const toggleCat = (id: string) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  const toggleSub = (catId: string, subId: string) => {
+    const id = `${catId}-${subId}`;
+    setExpandedSubs(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  };
 
   // Add category state
   const [showAddCat, setShowAddCat] = useState(false);
@@ -3546,6 +3572,55 @@ function CategoriesManagementView() {
     }
   };
 
+  const moveSubcategory = async (catId: string, subIndex: number, direction: 'up' | 'down') => {
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat || !cat.subcategories) return;
+      const subcategories = [...cat.subcategories];
+      if (direction === 'up' && subIndex > 0) {
+        [subcategories[subIndex - 1], subcategories[subIndex]] = [subcategories[subIndex], subcategories[subIndex - 1]];
+      } else if (direction === 'down' && subIndex < subcategories.length - 1) {
+        [subcategories[subIndex + 1], subcategories[subIndex]] = [subcategories[subIndex], subcategories[subIndex + 1]];
+      } else {
+        setBusy(false);
+        return;
+      }
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Subcategory reordered');
+    } catch (e: any) {
+      toast.error('Failed to reorder: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const moveNestedSubcategory = async (catId: string, subId: string, nestedIndex: number, direction: 'up' | 'down') => {
+    setBusy(true);
+    try {
+      const cat = categories.find(c => c.id === catId);
+      if (!cat) return;
+      const subcategories = cat.subcategories?.map(s => {
+        if (s.id === subId && s.subcategories) {
+          const nestedSubs = [...s.subcategories];
+          if (direction === 'up' && nestedIndex > 0) {
+            [nestedSubs[nestedIndex - 1], nestedSubs[nestedIndex]] = [nestedSubs[nestedIndex], nestedSubs[nestedIndex - 1]];
+          } else if (direction === 'down' && nestedIndex < nestedSubs.length - 1) {
+            [nestedSubs[nestedIndex + 1], nestedSubs[nestedIndex]] = [nestedSubs[nestedIndex], nestedSubs[nestedIndex + 1]];
+          }
+          return { ...s, subcategories: nestedSubs };
+        }
+        return s;
+      }) || [];
+      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      toast.success('Nested subcategory reordered');
+    } catch (e: any) {
+      toast.error('Failed to reorder: ' + e?.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -3730,6 +3805,9 @@ function CategoriesManagementView() {
           ) : (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
+                <button onClick={() => toggleCat(cat.id)} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-900">
+                  <ChevronRight className={`w-5 h-5 transition-transform ${expandedCats.includes(cat.id) ? 'rotate-90' : ''}`} />
+                </button>
                 <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm" />
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
@@ -3844,11 +3922,19 @@ function CategoriesManagementView() {
             </motion.form>
           )}
 
-          {cat.subcategories && cat.subcategories.length > 0 ? (
-            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 border-l-0 sm:border-l-2 border-gray-100 space-y-3 pt-2">
-              <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {cat.subcategories.map(sub => (
+          <AnimatePresence>
+            {expandedCats.includes(cat.id) && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                {cat.subcategories && cat.subcategories.length > 0 ? (
+                  <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 border-l-0 sm:border-l-2 border-gray-100 space-y-3 pt-2 mt-4">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {cat.subcategories.map((sub, subIndex) => (
                   <div key={sub.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub space-y-3">
                     
                     {editingSubId?.catId === cat.id && editingSubId?.subId === sub.id ? (
@@ -3912,13 +3998,42 @@ function CategoriesManagementView() {
                     ) : (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => toggleSub(cat.id, sub.id)}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                          >
+                            <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${expandedSubs.includes(`${cat.id}-${sub.id}`) ? 'rotate-90' : ''}`} />
+                          </button>
                           <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
                           <div>
                             <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                              {sub.subcategories && sub.subcategories.length > 0 && (
+                                <span className="text-[8px] font-black bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{sub.subcategories.length} nested</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
+                          <div className="flex flex-col gap-0.5 mr-1">
+                            <button
+                              disabled={busy || subIndex === 0}
+                              onClick={() => moveSubcategory(cat.id, subIndex, 'up')}
+                              className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              title="Move up"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              disabled={busy || subIndex === (cat.subcategories?.length || 0) - 1}
+                              onClick={() => moveSubcategory(cat.id, subIndex, 'down')}
+                              className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              title="Move down"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                          </div>
                           <button
                             disabled={busy}
                             onClick={() => startEditSubcategory(cat.id, sub)}
@@ -4021,82 +4136,112 @@ function CategoriesManagementView() {
                     )}
 
                     {sub.subcategories && sub.subcategories.length > 0 && (
-                      <div className="pl-4 border-l border-gray-200 space-y-2 mt-2">
-                        <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nested Subcategories</h5>
-                        <div className="space-y-1.5">
-                          {sub.subcategories.map(nested => (
-                            <div key={nested.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100">
+                      <AnimatePresence>
+                        {expandedSubs.includes(`${cat.id}-${sub.id}`) && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pl-4 border-l border-gray-200 space-y-2 mt-2">
+                              <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nested Subcategories</h5>
+                              <div className="space-y-1.5">
+                                {sub.subcategories.map((nested, nestedIndex) => (
+                                  <div key={nested.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100">
                               
-                              {editingNestedId?.catId === cat.id && editingNestedId?.subId === sub.id && editingNestedId?.nestedId === nested.id ? (
-                                <div className="flex-grow flex flex-col gap-2">
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <div className="space-y-0.5">
-                                      <label className="text-[7px] font-black uppercase text-gray-400">Nested Name</label>
-                                      <input
-                                        type="text"
-                                        value={editNestedName}
-                                        onChange={(e) => setEditNestedName(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
-                                      />
-                                    </div>
-                                    <div className="space-y-0.5">
-                                      <label className="text-[7px] font-black uppercase text-gray-400">Image URL</label>
-                                      <input
-                                        type="text"
-                                        value={editNestedImage}
-                                        onChange={(e) => setEditNestedImage(e.target.value)}
-                                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex justify-end gap-1">
-                                    <button
-                                      onClick={() => setEditingNestedId(null)}
-                                      className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-bold"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => saveEditNestedSubcategory(cat.id, sub.id, nested.id)}
-                                      disabled={busy}
-                                      className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold"
-                                    >
-                                      Save
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="flex items-center gap-2">
-                                    <img src={nested.image} alt={nested.name} className="w-8 h-8 rounded object-cover border border-gray-100" />
-                                    <div>
-                                      <span className="font-semibold text-gray-700 text-xs">{nested.name}</span>
-                                      <span className="text-[7px] font-bold text-gray-400 block uppercase tracking-wider">ID: {nested.id}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      disabled={busy}
-                                      onClick={() => startEditNestedSubcategory(cat.id, sub.id, nested)}
-                                      className="p-1 bg-gray-50 border border-gray-150 rounded text-gray-500 hover:bg-gray-100"
-                                    >
-                                      <Edit3 className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      disabled={busy}
-                                      onClick={() => deleteNestedSubcategory(cat.id, sub.id, nested.id)}
-                                      className="p-1 bg-rose-50 text-rose-500 rounded hover:bg-rose-100"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </>
-                              )}
+                                    {editingNestedId?.catId === cat.id && editingNestedId?.subId === sub.id && editingNestedId?.nestedId === nested.id ? (
+                                      <div className="flex-grow flex flex-col gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          <div className="space-y-0.5">
+                                            <label className="text-[7px] font-black uppercase text-gray-400">Nested Name</label>
+                                            <input
+                                              type="text"
+                                              value={editNestedName}
+                                              onChange={(e) => setEditNestedName(e.target.value)}
+                                              className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                            />
+                                          </div>
+                                          <div className="space-y-0.5">
+                                            <label className="text-[7px] font-black uppercase text-gray-400">Image URL</label>
+                                            <input
+                                              type="text"
+                                              value={editNestedImage}
+                                              onChange={(e) => setEditNestedImage(e.target.value)}
+                                              className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex justify-end gap-1">
+                                          <button
+                                            onClick={() => setEditingNestedId(null)}
+                                            className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-bold"
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button
+                                            onClick={() => saveEditNestedSubcategory(cat.id, sub.id, nested.id)}
+                                            disabled={busy}
+                                            className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold"
+                                          >
+                                            Save
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center gap-2">
+                                          <img src={nested.image} alt={nested.name} className="w-8 h-8 rounded object-cover border border-gray-100" />
+                                          <div>
+                                            <span className="font-semibold text-gray-700 text-xs">{nested.name}</span>
+                                            <span className="text-[7px] font-bold text-gray-400 block uppercase tracking-wider">ID: {nested.id}</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <div className="flex flex-col gap-0.5 mr-0.5">
+                                            <button
+                                              disabled={busy || nestedIndex === 0}
+                                              onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'up')}
+                                              className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                              title="Move up"
+                                            >
+                                              <ArrowUp className="w-2.5 h-2.5" />
+                                            </button>
+                                            <button
+                                              disabled={busy || nestedIndex === (sub.subcategories?.length || 0) - 1}
+                                              onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'down')}
+                                              className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                              title="Move down"
+                                            >
+                                              <ArrowDown className="w-2.5 h-2.5" />
+                                            </button>
+                                          </div>
+                                          <button
+                                            disabled={busy}
+                                            onClick={() => startEditNestedSubcategory(cat.id, sub.id, nested)}
+                                            className="p-1 bg-gray-50 border border-gray-150 rounded text-gray-500 hover:bg-gray-100"
+                                          >
+                                            <Edit3 className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            disabled={busy}
+                                            onClick={() => deleteNestedSubcategory(cat.id, sub.id, nested.id)}
+                                            className="p-1 bg-rose-50 text-rose-500 rounded hover:bg-rose-100"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </>
+                                    )}
 
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     )}
 
                   </div>
@@ -4104,8 +4249,11 @@ function CategoriesManagementView() {
               </div>
             </div>
           ) : (
-            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium">No subcategories created yet.</div>
+            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium mt-4">No subcategories created yet.</div>
           )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
         </div>
       ))}

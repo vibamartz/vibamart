@@ -209,7 +209,14 @@ export default function ProductCard({ product }: ProductCardProps) {
                 <span className="text-xs text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
               )}
             </div>
-            <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
+              {product.discountPrice && (
+                <span className="text-[10px] text-green-600 font-black">
+                  • Save ₹{(product.price - product.discountPrice).toLocaleString()}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { useAuthStore } from '../store';
 import { Product } from '../types';
 import { toast } from 'react-hot-toast';
 import { 
-  Filter, SlidersHorizontal, ChevronDown, Grid, List as ListIcon, X, Star, Heart 
+  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCartStore, useCategoryStore } from '../store';
@@ -55,6 +55,9 @@ export default function ProductList() {
     return cat ? [cat] : [];
   });
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+  const [selectedNestedSubCategories, setSelectedNestedSubCategories] = useState<string[]>([]);
+  const [expandedFilterCats, setExpandedFilterCats] = useState<string[]>([]);
+  const [expandedFilterSubs, setExpandedFilterSubs] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState(200000);
   const [minRating, setMinRating] = useState(0);
   const [minDiscount, setMinDiscount] = useState(0);
@@ -83,11 +86,17 @@ export default function ProductList() {
     // Clear subcategories if they don't belong to any of the selected categories
     if (selectedCategories.length === 0) {
       setSelectedSubCategories([]);
+      setSelectedNestedSubCategories([]);
     } else {
       const validSubIds = selectedCategories.flatMap(catId => 
         CATEGORIES.find(c => c.id === catId)?.subcategories?.map(s => s.id) || []
       );
       setSelectedSubCategories(prev => prev.filter(id => validSubIds.includes(id)));
+      // Clear nested if parent sub is deselected
+      const validNestedIds = selectedCategories.flatMap(catId => 
+        CATEGORIES.find(c => c.id === catId)?.subcategories?.flatMap(s => s.subcategories?.map(n => n.id) || []) || []
+      );
+      setSelectedNestedSubCategories(prev => prev.filter(id => validNestedIds.includes(id)));
     }
   }, [selectedCategories]);
 
@@ -98,6 +107,9 @@ export default function ProductList() {
       
       // SubCategory filter
       if (selectedSubCategories.length > 0 && p.subCategoryId && !selectedSubCategories.includes(p.subCategoryId)) return false;
+
+      // Nested SubCategory filter
+      if (selectedNestedSubCategories.length > 0 && p.nestedSubCategoryId && !selectedNestedSubCategories.includes(p.nestedSubCategoryId)) return false;
 
       // Price filter
       const effectivePrice = p.discountPrice || p.price;
@@ -153,23 +165,54 @@ export default function ProductList() {
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return result;
-  }, [allProducts, selectedCategories, selectedSubCategories, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams]);
+  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams]);
 
   const toggleCategory = (id: string) => {
-    setSelectedCategories(prev => 
+    setSelectedCategories(prev => {
+      const isSelected = prev.includes(id);
+      if (!isSelected) {
+        setExpandedFilterCats(cats => cats.includes(id) ? cats : [...cats, id]);
+        return [...prev, id];
+      } else {
+        return prev.filter(c => c !== id);
+      }
+    });
+  };
+
+  const toggleSubCategory = (id: string) => {
+    setSelectedSubCategories(prev => {
+      const isSelected = prev.includes(id);
+      if (!isSelected) {
+        const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === id));
+        if (cat) {
+          const filterSubKey = `${cat.id}-${id}`;
+          setExpandedFilterSubs(subs => subs.includes(filterSubKey) ? subs : [...subs, filterSubKey]);
+        }
+        return [...prev, id];
+      } else {
+        return prev.filter(c => c !== id);
+      }
+    });
+  };
+
+  const toggleNestedSubCategory = (id: string) => {
+    setSelectedNestedSubCategories(prev => 
       prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     );
   };
 
-  const toggleSubCategory = (id: string) => {
-    setSelectedSubCategories(prev => 
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    );
+  const toggleFilterCat = (id: string) => {
+    setExpandedFilterCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const toggleFilterSub = (id: string) => {
+    setExpandedFilterSubs(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
 
   const clearFilters = () => {
     setSelectedCategories([]);
     setSelectedSubCategories([]);
+    setSelectedNestedSubCategories([]);
     setPriceRange(200000);
     setMinRating(0);
     setMinDiscount(0);
@@ -258,31 +301,101 @@ export default function ProductList() {
                 </div>
                 
                 <FilterSection title="Categories">
-                   {CATEGORIES.map(cat => (
-                     <div key={cat.id} className="space-y-1">
-                       <FilterOption 
-                        label={cat.name} 
-                        count={allProducts.filter(p => p.categoryId === cat.id).length} 
-                        checked={selectedCategories.includes(cat.id)}
-                        onChange={() => toggleCategory(cat.id)}
-                      />
-                      {selectedCategories.includes(cat.id) && cat.subcategories && (
-                        <div className="ml-4 pl-4 border-l border-gray-100 space-y-2 mt-2">
-                          {cat.subcategories.map(sub => (
-                            <FilterOption 
-                              key={sub.id}
-                              label={sub.name}
-                              count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id).length}
-                              checked={selectedSubCategories.includes(sub.id)}
-                              onChange={() => toggleSubCategory(sub.id)}
-                              small
-                            />
-                          ))}
+                    {CATEGORIES.map(cat => {
+                      const hasSubs = cat.subcategories && cat.subcategories.length > 0;
+                      const isCatExpanded = expandedFilterCats.includes(cat.id);
+                      return (
+                        <div key={cat.id} className="space-y-1">
+                          <div className="flex items-center gap-1.5 group">
+                            {hasSubs ? (
+                              <button
+                                onClick={() => toggleFilterCat(cat.id)}
+                                className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                              >
+                                <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isCatExpanded ? 'rotate-90' : ''}`} />
+                              </button>
+                            ) : (
+                              <div className="w-[22px] flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <FilterOption 
+                                label={cat.name} 
+                                count={allProducts.filter(p => p.categoryId === cat.id).length} 
+                                checked={selectedCategories.includes(cat.id)}
+                                onChange={() => toggleCategory(cat.id)}
+                              />
+                            </div>
+                          </div>
+                          
+                          <AnimatePresence initial={false}>
+                            {hasSubs && isCatExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                className="overflow-hidden ml-[22px] pl-3 border-l border-gray-100 space-y-2 mt-1"
+                              >
+                                {cat.subcategories.map(sub => {
+                                  const filterSubKey = `${cat.id}-${sub.id}`;
+                                  const hasNested = sub.subcategories && sub.subcategories.length > 0;
+                                  const isSubExpanded = expandedFilterSubs.includes(filterSubKey);
+                                  return (
+                                    <div key={sub.id} className="space-y-1">
+                                      <div className="flex items-center gap-1.5 group">
+                                        {hasNested ? (
+                                          <button
+                                            onClick={() => toggleFilterSub(filterSubKey)}
+                                            className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                                          >
+                                            <ChevronRight className={`w-3 h-3 transition-transform duration-200 ${isSubExpanded ? 'rotate-90' : ''}`} />
+                                          </button>
+                                        ) : (
+                                          <div className="w-[20px] flex-shrink-0" />
+                                        )}
+                                        <div className="flex-1">
+                                          <FilterOption 
+                                            label={sub.name}
+                                            count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id).length}
+                                            checked={selectedSubCategories.includes(sub.id)}
+                                            onChange={() => toggleSubCategory(sub.id)}
+                                            small
+                                          />
+                                        </div>
+                                      </div>
+                                      
+                                      <AnimatePresence initial={false}>
+                                        {hasNested && isSubExpanded && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                            className="overflow-hidden ml-[20px] pl-3 border-l border-gray-100 space-y-1.5 mt-1"
+                                          >
+                                            {sub.subcategories.map(nested => (
+                                              <FilterOption 
+                                                key={nested.id}
+                                                label={nested.name}
+                                                count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id && p.nestedSubCategoryId === nested.id).length}
+                                                checked={selectedNestedSubCategories.includes(nested.id)}
+                                                onChange={() => toggleNestedSubCategory(nested.id)}
+                                                small
+                                              />
+                                            ))}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                })}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      )}
-                     </div>
-                   ))}
-                </FilterSection>
+                      );
+                    })}
+                 </FilterSection>
 
                 <FilterSection title="Price Range">
                     <div className="space-y-4 pt-2">
@@ -446,30 +559,100 @@ export default function ProductList() {
                    </FilterSection>
 
                    <FilterSection title="Categories">
-                      {CATEGORIES.map(cat => (
+                      {CATEGORIES.map(cat => {
+                      const hasSubs = cat.subcategories && cat.subcategories.length > 0;
+                      const isCatExpanded = expandedFilterCats.includes(cat.id);
+                      return (
                         <div key={cat.id} className="space-y-1">
-                          <FilterOption 
-                            label={cat.name} 
-                            count={allProducts.filter(p => p.categoryId === cat.id).length} 
-                            checked={selectedCategories.includes(cat.id)}
-                            onChange={() => toggleCategory(cat.id)}
-                          />
-                          {selectedCategories.includes(cat.id) && cat.subcategories && (
-                            <div className="ml-4 pl-4 border-l border-gray-100 space-y-2 mt-2">
-                              {cat.subcategories.map(sub => (
-                                <FilterOption 
-                                  key={sub.id}
-                                  label={sub.name}
-                                  count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id).length}
-                                  checked={selectedSubCategories.includes(sub.id)}
-                                  onChange={() => toggleSubCategory(sub.id)}
-                                  small
-                                />
-                              ))}
+                          <div className="flex items-center gap-1.5 group">
+                            {hasSubs ? (
+                              <button
+                                onClick={() => toggleFilterCat(cat.id)}
+                                className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                              >
+                                <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isCatExpanded ? 'rotate-90' : ''}`} />
+                              </button>
+                            ) : (
+                              <div className="w-[22px] flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <FilterOption 
+                                label={cat.name} 
+                                count={allProducts.filter(p => p.categoryId === cat.id).length} 
+                                checked={selectedCategories.includes(cat.id)}
+                                onChange={() => toggleCategory(cat.id)}
+                              />
                             </div>
-                          )}
+                          </div>
+                          
+                          <AnimatePresence initial={false}>
+                            {hasSubs && isCatExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                className="overflow-hidden ml-[22px] pl-3 border-l border-gray-100 space-y-2 mt-1"
+                              >
+                                {cat.subcategories.map(sub => {
+                                  const filterSubKey = `${cat.id}-${sub.id}`;
+                                  const hasNested = sub.subcategories && sub.subcategories.length > 0;
+                                  const isSubExpanded = expandedFilterSubs.includes(filterSubKey);
+                                  return (
+                                    <div key={sub.id} className="space-y-1">
+                                      <div className="flex items-center gap-1.5 group">
+                                        {hasNested ? (
+                                          <button
+                                            onClick={() => toggleFilterSub(filterSubKey)}
+                                            className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                                          >
+                                            <ChevronRight className={`w-3 h-3 transition-transform duration-200 ${isSubExpanded ? 'rotate-90' : ''}`} />
+                                          </button>
+                                        ) : (
+                                          <div className="w-[20px] flex-shrink-0" />
+                                        )}
+                                        <div className="flex-1">
+                                          <FilterOption 
+                                            label={sub.name}
+                                            count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id).length}
+                                            checked={selectedSubCategories.includes(sub.id)}
+                                            onChange={() => toggleSubCategory(sub.id)}
+                                            small
+                                          />
+                                        </div>
+                                      </div>
+                                      
+                                      <AnimatePresence initial={false}>
+                                        {hasNested && isSubExpanded && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                            className="overflow-hidden ml-[20px] pl-3 border-l border-gray-100 space-y-1.5 mt-1"
+                                          >
+                                            {sub.subcategories.map(nested => (
+                                              <FilterOption 
+                                                key={nested.id}
+                                                label={nested.name}
+                                                count={allProducts.filter(p => p.categoryId === cat.id && p.subCategoryId === sub.id && p.nestedSubCategoryId === nested.id).length}
+                                                checked={selectedNestedSubCategories.includes(nested.id)}
+                                                onChange={() => toggleNestedSubCategory(nested.id)}
+                                                small
+                                              />
+                                            ))}
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
+                                  );
+                                })}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                      ))}
+                      );
+                    })}
                    </FilterSection>
 
                    <FilterSection title="Price Range">

@@ -222,12 +222,19 @@ export default function ProductDetail() {
         {/* Right: Info */}
         <div className="flex-1 space-y-8 py-4">
            <div className="space-y-4">
-              <div className="flex items-baseline gap-4">
-                 <span className="text-5xl font-black text-gray-900">₹{totalPrice.toLocaleString()}</span>
-                 {product.discountPrice && (
-                    <span className="text-2xl text-gray-400 line-through font-medium">₹{(product.price + (currentVariant?.extraPrice || 0)).toLocaleString()}</span>
-                 )}
-                 {discountPercentage > 0 && <span className="text-2xl font-black text-green-600">{discountPercentage}% off</span>}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-baseline gap-4 flex-wrap">
+                   <span className="text-5xl font-black text-gray-900">₹{totalPrice.toLocaleString()}</span>
+                   {product.discountPrice && (
+                      <span className="text-2xl text-gray-400 line-through font-medium">₹{(product.price + (currentVariant?.extraPrice || 0)).toLocaleString()}</span>
+                   )}
+                   {discountPercentage > 0 && <span className="text-2xl font-black text-green-600 uppercase">{discountPercentage}% OFF</span>}
+                </div>
+                {product.discountPrice && (
+                  <p className="text-sm font-bold text-green-600">
+                    You save ₹{(product.price - product.discountPrice).toLocaleString()}
+                  </p>
+                )}
               </div>
               <p className="text-sm font-bold text-gray-500">Free delivery on this item. Usually delivered in 2-3 days.</p>
            </div>
