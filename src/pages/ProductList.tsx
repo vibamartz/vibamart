@@ -259,6 +259,40 @@ export default function ProductList() {
              </div>
            )}
 
+           {/* Nested Subcategories Horizontal Bar with Icon/Logo */}
+           {selectedSubCategories.length > 0 && (
+             <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 mb-4 border-t border-gray-100/50">
+               {selectedSubCategories.flatMap(subId => {
+                 const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
+                 const sub = cat?.subcategories?.find(s => s.id === subId);
+                 return sub?.subcategories || [];
+               }).map(nested => (
+                 <button
+                   key={nested.id}
+                   onClick={() => toggleNestedSubCategory(nested.id)}
+                   className="flex flex-col items-center gap-2.5 min-w-[60px] group transition-all animate-in fade-in slide-in-from-top-1 duration-200"
+                 >
+                   <div className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${
+                     selectedNestedSubCategories.includes(nested.id) 
+                       ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-md' 
+                       : 'border-gray-100 group-hover:border-primary/50 group-hover:scale-105'
+                   }`}>
+                     <img 
+                       src={nested.image || 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=200&h=200&fit=crop'} 
+                       className="w-full h-full rounded-full object-cover" 
+                       alt={nested.name} 
+                     />
+                   </div>
+                   <span className={`text-[9px] font-black uppercase tracking-tight text-center max-w-[70px] leading-tight transition-colors ${
+                     selectedNestedSubCategories.includes(nested.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
+                   }`}>
+                     {nested.name}
+                   </span>
+                 </button>
+               ))}
+             </div>
+           )}
+
            {searchParams.get('q') && (
              <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100 mb-4">
                Search results for: "{searchParams.get('q')}"

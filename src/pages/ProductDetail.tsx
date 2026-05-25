@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Product, WaitlistItem } from '../types';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { useCartStore, useAuthStore } from '../store';
+import { useCartStore, useAuthStore, useCategoryStore } from '../store';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PincodeChecker from '../components/PincodeChecker';
@@ -153,6 +153,11 @@ export default function ProductDetail() {
 
   const isWishlisted = user?.wishlist?.includes(product.id);
 
+  const { categories } = useCategoryStore();
+  const categoryObj = categories.find(c => c.id === product.categoryId);
+  const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
+  const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
+
   const currentVariant = product.variants?.find(v => v.id === selectedVariant);
   const basePrice = product.discountPrice || product.price;
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
@@ -161,12 +166,30 @@ export default function ProductDetail() {
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Breadcrumbs */}
-      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 flex-wrap">
          <Link to="/" className="hover:text-green-600 transition-colors">Home</Link>
          <ChevronRight className="w-3 h-3" />
          <Link to="/products" className="hover:text-green-600 transition-colors">Shop</Link>
+         {categoryObj && (
+           <>
+             <ChevronRight className="w-3 h-3" />
+             <Link to={`/products?category=${categoryObj.id}`} className="hover:text-green-600 transition-colors">{categoryObj.name}</Link>
+           </>
+         )}
+         {subCategoryObj && (
+           <>
+             <ChevronRight className="w-3 h-3" />
+             <span className="text-gray-400">{subCategoryObj.name}</span>
+           </>
+         )}
+         {nestedSubCategoryObj && (
+           <>
+             <ChevronRight className="w-3 h-3" />
+             <span className="text-gray-400">{nestedSubCategoryObj.name}</span>
+           </>
+         )}
          <ChevronRight className="w-3 h-3" />
-         <span className="text-gray-900">{product.name}</span>
+         <span className="text-gray-900 truncate max-w-[200px]">{product.name}</span>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-white sm:rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-12">
