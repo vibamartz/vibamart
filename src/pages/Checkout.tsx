@@ -554,8 +554,8 @@ export default function Checkout() {
                           type="button"
                           onClick={() => setEditAddressForm({ ...editAddressForm, label: lbl })}
                           className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${(editAddressForm.label || 'Home') === lbl
-                              ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                              : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
+                            ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                            : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
                             }`}
                         >
                           {lbl}
@@ -698,8 +698,8 @@ export default function Checkout() {
                             key={idx}
                             onClick={() => setAddress(addr)}
                             className={`p-5 rounded-2xl border-2 text-left cursor-pointer transition-all relative group flex flex-col justify-between ${isSelected
-                                ? 'border-primary bg-primary/5 shadow-md shadow-primary/5'
-                                : 'border-gray-100 hover:border-gray-200 bg-white hover:shadow-sm'
+                              ? 'border-primary bg-primary/5 shadow-md shadow-primary/5'
+                              : 'border-gray-100 hover:border-gray-200 bg-white hover:shadow-sm'
                               }`}
                           >
                             <div>
