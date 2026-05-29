@@ -5,14 +5,16 @@ import {
   Mic, Camera, TrendingUp, History, ArrowRight, Bell,
   Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
-import { useAuthStore, useCartStore, useCategoryStore } from '../store';
-import { auth } from '../lib/firebase';
+import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../store';
+import { auth, db } from '../lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
+  const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const { items } = useCartStore();
@@ -75,10 +77,24 @@ export default function Navbar() {
     return () => window.removeEventListener('storage', loadRecent);
   }, [isSearchFocused]);
 
+  const logSearch = async (queryStr: string, type: 'text' | 'voice' | 'visual') => {
+    try {
+      await addDoc(collection(db, 'searchAnalytics'), {
+        query: queryStr,
+        type,
+        timestamp: new Date().toISOString(),
+        userId: user?.uid || null
+      });
+    } catch (e) {
+      console.error('Failed to log search analytics:', e);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = searchQuery.trim();
     if (query) {
+      logSearch(query, 'text');
       // Save to recent searches
       const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
       const updated = [query, ...existing.filter((s: string) => s !== query)].slice(0, 10);
@@ -86,6 +102,7 @@ export default function Navbar() {
 
       navigate(`/products?q=${query}`);
       setIsSearchFocused(false);
+      searchInputRef.current?.blur();
       setIsMenuOpen(false);
     } else if (location.pathname === '/products') {
       const params = new URLSearchParams(location.search);
@@ -145,6 +162,7 @@ export default function Navbar() {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
       toast.success(`Heard: "${transcript}"`, { id: 'voice-search' });
+      logSearch(transcript, 'voice');
       navigate(`/products?q=${transcript}`);
       setIsSearchFocused(false);
     };
@@ -217,23 +235,27 @@ export default function Navbar() {
                   <X className="w-4 h-4" />
                 </button>
               )}
-              <div className="absolute right-12 hidden sm:flex items-center gap-2 pr-2 border-r border-gray-100 mr-2">
-                <button
-                  type="button"
-                  onClick={startVoiceSearch}
-                  className={`p-1.5 transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
-                  title="Voice Search"
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setIsCameraSearchOpen(true)}
-                  className="p-1.5 text-gray-400 hover:text-primary transition-colors"
-                  title="Visual Search"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
+              <div className="absolute right-12 top-0 bottom-0 flex items-center gap-1 bg-white pl-2">
+                {settings.enableVoiceSearch && (
+                  <button
+                    type="button"
+                    onClick={startVoiceSearch}
+                    className={`p-1.5 transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
+                    title="Voice Search"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                )}
+                {settings.enableVisualSearch && (
+                  <button 
+                    type="button" 
+                    onClick={() => setIsCameraSearchOpen(true)}
+                    className="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                    title="Visual Search"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               <button
                 type="submit"
@@ -645,15 +667,18 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      <CameraSearchModal
-        isOpen={isCameraSearchOpen}
-        onClose={() => setIsCameraSearchOpen(false)}
-        onSearch={(query) => {
-          setSearchQuery(query);
-          navigate(`/products?q=${encodeURIComponent(query)}`);
-          setIsSearchFocused(false);
-        }}
-      />
+      {settings.enableVisualSearch && (
+        <CameraSearchModal
+          isOpen={isCameraSearchOpen}
+          onClose={() => setIsCameraSearchOpen(false)}
+          onSearch={(query) => {
+            setSearchQuery(query);
+            logSearch(query, 'visual');
+            navigate(`/products?q=${encodeURIComponent(query)}`);
+            setIsSearchFocused(false);
+          }}
+        />
+      )}
     </nav>
   );
 }

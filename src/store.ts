@@ -205,3 +205,55 @@ export const useCategoryStore = create<CategoryState>((set) => ({
     });
   }
 }));
+
+import { StoreSettings } from './types';
+
+const DEFAULT_SETTINGS: StoreSettings = {
+  minKeywords: 6,
+  enableVoiceSearch: true,
+  enableVisualSearch: true,
+  enableBrandFilter: true,
+  enableRatingFilter: true,
+  enableDiscountFilter: true,
+  enableAvailabilityFilter: true
+};
+
+interface SettingsState {
+  settings: StoreSettings;
+  loading: boolean;
+  initSettings: () => void;
+  updateSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
+}
+
+export const useSettingsStore = create<SettingsState>((set, get) => ({
+  settings: DEFAULT_SETTINGS,
+  loading: true,
+  initSettings: () => {
+    const docRef = doc(db, 'settings', 'storeConfig');
+    onSnapshot(docRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        set({ settings: { ...DEFAULT_SETTINGS, ...docSnap.data() as StoreSettings }, loading: false });
+      } else {
+        try {
+          await setDoc(docRef, DEFAULT_SETTINGS);
+          set({ settings: DEFAULT_SETTINGS, loading: false });
+        } catch (e) {
+          console.error('Failed to seed default settings', e);
+          set({ loading: false });
+        }
+      }
+    }, (error) => {
+      console.error('Failed to fetch settings', error);
+      set({ loading: false });
+    });
+  },
+  updateSettings: async (newSettings: Partial<StoreSettings>) => {
+    try {
+      const docRef = doc(db, 'settings', 'storeConfig');
+      await setDoc(docRef, newSettings, { merge: true });
+    } catch (e) {
+      console.error('Failed to update settings', e);
+      throw e;
+    }
+  }
+}));

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { useAuthStore, useCategoryStore } from './store';
+import { useAuthStore, useCategoryStore, useSettingsStore } from './store';
 import PermissionModal from './components/PermissionModal';
 
 // Layout & Common
@@ -35,11 +35,13 @@ function ScrollToTop() {
 export default function App() {
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
+  const { initSettings, loading: settingsLoading } = useSettingsStore();
   const [showPermissions, setShowPermissions] = useState(false);
 
   useEffect(() => {
     initAuth();
     initCategories();
+    initSettings();
     
     // Check if permissions have been acknowledged
     const acknowledged = localStorage.getItem('permissionsAcknowledged');

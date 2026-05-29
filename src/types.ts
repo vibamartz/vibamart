@@ -197,3 +197,21 @@ export interface Announcement {
   active: boolean;
   createdAt: string;
 }
+
+export interface StoreSettings {
+  minKeywords: number;
+  enableVoiceSearch: boolean;
+  enableVisualSearch: boolean;
+  enableBrandFilter: boolean;
+  enableRatingFilter: boolean;
+  enableDiscountFilter: boolean;
+  enableAvailabilityFilter: boolean;
+}
+
+export interface SearchAnalytics {
+  id: string;
+  query: string;
+  type: 'text' | 'voice' | 'visual';
+  timestamp: string;
+  userId?: string;
+}

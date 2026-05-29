@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuthStore, useCategoryStore } from '../store';
+import { useAuthStore, useCategoryStore, useSettingsStore } from '../store';
 import { Navigate, Link } from 'react-router-dom';
 import {
   BarChart3, Users, Package, ShoppingBag,
@@ -2311,95 +2311,86 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
 }
 
 function SettingsView() {
-  const [config, setConfig] = useState({
-    siteName: 'Antigravity Store',
-    logoUrl: 'https://cdn-icons-png.flaticon.com/512/3649/3649265.png',
-    supportEmail: 'support@antigravity.com',
-    currency: 'INR',
-    taxRate: 18,
-    notificationEmails: true,
-  });
+  const { settings, updateSettings } = useSettingsStore();
+  const [localSettings, setLocalSettings] = useState(settings);
 
-  const saveSettings = () => {
-    toast.success('Settings saved successfully');
-    logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated system settings');
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
+
+  const saveSettings = async () => {
+    const toastId = toast.loading('Saving settings...');
+    try {
+      await updateSettings(localSettings);
+      toast.success('Settings saved successfully', { id: toastId });
+      logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated system settings');
+    } catch (error) {
+      toast.error('Failed to save settings', { id: toastId });
+    }
   };
 
+  const Toggle = ({ label, desc, value, onChange }: any) => (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+      <div>
+        <p className="text-sm font-bold text-gray-900">{label}</p>
+        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{desc}</p>
+      </div>
+      <button
+        onClick={onChange}
+        className={`w-12 h-6 rounded-full transition-all flex items-center px-1 ${value ? 'bg-primary' : 'bg-gray-300'}`}
+      >
+        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${value ? 'translate-x-6' : ''}`} />
+      </button>
+    </div>
+  );
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-2xl">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 max-w-2xl pb-20">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900">System Settings</h2>
         <p className="text-sm text-gray-500">Configure global application behavior</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 space-y-6">
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2">Product Rules</h3>
         <div className="space-y-2">
-          <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Store Name</label>
+          <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Minimum Required Keywords</label>
           <input
+            type="number"
+            min="0"
             className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-            value={config.siteName}
-            onChange={e => setConfig(prev => ({ ...prev, siteName: e.target.value }))}
+            value={localSettings.minKeywords}
+            onChange={e => setLocalSettings(prev => ({ ...prev, minKeywords: Number(e.target.value) }))}
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Logo URL</label>
-          <input
-            className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-            value={config.logoUrl}
-            onChange={e => setConfig(prev => ({ ...prev, logoUrl: e.target.value }))}
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Search Features</h3>
+        <div className="space-y-3">
+          <Toggle 
+            label="Enable Voice Search" 
+            desc="Show microphone icon in search bar" 
+            value={localSettings.enableVoiceSearch} 
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableVoiceSearch: !prev.enableVoiceSearch }))} 
+          />
+          <Toggle 
+            label="Enable Visual Search" 
+            desc="Show camera icon for AI/Barcode search" 
+            value={localSettings.enableVisualSearch} 
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableVisualSearch: !prev.enableVisualSearch }))} 
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Support Email</label>
-          <input
-            className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-            value={config.supportEmail}
-            onChange={e => setConfig(prev => ({ ...prev, supportEmail: e.target.value }))}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Currency</label>
-            <select
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={config.currency}
-              onChange={e => setConfig(prev => ({ ...prev, currency: e.target.value }))}
-            >
-              <option value="INR">INR (₹)</option>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Tax Rate (%)</label>
-            <input
-              type="number"
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={config.taxRate}
-              onChange={e => setConfig(prev => ({ ...prev, taxRate: Number(e.target.value) }))}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-          <div>
-            <p className="text-sm font-bold text-gray-900">Notification Emails</p>
-            <p className="text-xs text-gray-500">Send automated alert emails to admins</p>
-          </div>
-          <button
-            onClick={() => setConfig(prev => ({ ...prev, notificationEmails: !prev.notificationEmails }))}
-            className={`w-12 h-6 rounded-full transition-all flex items-center px-1 ${config.notificationEmails ? 'bg-primary' : 'bg-gray-300'}`}
-          >
-            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-all ${config.notificationEmails ? 'translate-x-6' : ''}`} />
-          </button>
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Storefront Filters</h3>
+        <div className="space-y-3">
+          <Toggle label="Brand Filter" desc="Allow filtering by brand" value={localSettings.enableBrandFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableBrandFilter: !prev.enableBrandFilter }))} />
+          <Toggle label="Rating Filter" desc="Allow filtering by customer rating" value={localSettings.enableRatingFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableRatingFilter: !prev.enableRatingFilter }))} />
+          <Toggle label="Discount Filter" desc="Allow filtering by discount %" value={localSettings.enableDiscountFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableDiscountFilter: !prev.enableDiscountFilter }))} />
+          <Toggle label="Availability Filter" desc="Allow filtering by stock status" value={localSettings.enableAvailabilityFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableAvailabilityFilter: !prev.enableAvailabilityFilter }))} />
         </div>
 
         <button
           onClick={saveSettings}
-          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-xl shadow-gray-200"
+          className="w-full py-4 bg-primary mt-8 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-hover transition-all shadow-xl shadow-primary/20"
         >
           Save Configuration
         </button>
@@ -2410,12 +2401,68 @@ function SettingsView() {
 
 function AnalyticsView() {
   const data: any[] = [];
+  const [searchLogs, setSearchLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'searchAnalytics'), orderBy('timestamp', 'desc'), limit(50));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setSearchLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900">Advanced Analytics</h2>
         <p className="text-sm text-gray-500">Deep dive into store performance and user behavior</p>
+      </div>
+
+      {/* Search Analytics Card */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-3 bg-primary/10 text-primary rounded-xl">
+            <Search className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-800">Search Analytics</h3>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Recent customer searches</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 text-left">
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Query</th>
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Type</th>
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {searchLogs.length > 0 ? searchLogs.map(log => (
+                <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-4 font-medium text-gray-700">{log.query}</td>
+                  <td className="py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${
+                      log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
+                      log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
+                      'bg-blue-100 text-blue-600'
+                    }`}>
+                      {log.type}
+                    </span>
+                  </td>
+                  <td className="py-4 text-sm text-gray-500">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-gray-400 text-sm">No search data yet</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
@@ -2722,6 +2769,7 @@ const KEYWORD_SUGGESTIONS: Record<string, string[]> = {
 
 function AddProductView({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
+  const { settings } = useSettingsStore();
   const [formData, setFormData] = useState<Partial<Product>>(() => {
     const defaults = {
       name: '',
@@ -2820,8 +2868,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.tags || formData.tags.length < 6) {
-      toast.error('Minimum 6 keywords are mandatory for the product.');
+    if (!formData.tags || formData.tags.length < settings.minKeywords) {
+      toast.error(`Minimum ${settings.minKeywords} keywords are mandatory for the product.`);
       return;
     }
 
@@ -3273,7 +3321,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                   Add
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Minimum 6 required.</p>
+              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Minimum {settings.minKeywords} required.</p>
             </div>
             
             {formData.tags && formData.tags.length > 0 && (

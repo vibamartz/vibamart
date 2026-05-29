@@ -9,10 +9,11 @@ import {
   Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useCartStore, useCategoryStore } from '../store';
+import { useCartStore, useCategoryStore, useSettingsStore } from '../store';
 import ProductCard from '../components/ProductCard';
 
 export default function ProductList() {
+  const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -307,14 +308,16 @@ export default function ProductList() {
 
   const FiltersContent = () => (
     <>
-      <FilterSection title="Availability">
-        <FilterOption
-          label="In Stock Only"
-          count={getFilterCount('availability', true)}
-          checked={onlyInStock}
-          onChange={() => setOnlyInStock(!onlyInStock)}
-        />
-      </FilterSection>
+      {settings.enableAvailabilityFilter && (
+        <FilterSection title="Availability">
+          <FilterOption
+            label="In Stock Only"
+            count={getFilterCount('availability', true)}
+            checked={onlyInStock}
+            onChange={() => setOnlyInStock(!onlyInStock)}
+          />
+        </FilterSection>
+      )}
 
       <FilterSection title="Subcategory">
         {uniqueSubCategories.length > 0 ? uniqueSubCategories.map(sub => (
@@ -330,19 +333,21 @@ export default function ProductList() {
         )}
       </FilterSection>
 
-      <FilterSection title="Brand">
-        {uniqueBrands.length > 0 ? uniqueBrands.map(brand => (
-          <FilterOption
-            key={brand}
-            label={brand}
-            count={getFilterCount('brand', brand)}
-            checked={selectedBrands.includes(brand)}
-            onChange={() => toggleBrand(brand)}
-          />
-        )) : (
-          <p className="text-xs text-gray-400">No brands</p>
-        )}
-      </FilterSection>
+      {settings.enableBrandFilter && (
+        <FilterSection title="Brand">
+          {uniqueBrands.length > 0 ? uniqueBrands.map(brand => (
+            <FilterOption
+              key={brand}
+              label={brand}
+              count={getFilterCount('brand', brand)}
+              checked={selectedBrands.includes(brand)}
+              onChange={() => toggleBrand(brand)}
+            />
+          )) : (
+            <p className="text-xs text-gray-400">No brands</p>
+          )}
+        </FilterSection>
+      )}
 
       <FilterSection title="Price Range">
         <div className="space-y-4 pt-2">
@@ -362,33 +367,37 @@ export default function ProductList() {
         </div>
       </FilterSection>
 
-      <FilterSection title="Customer Ratings">
-        {[4, 3, 2].map(r => (
-          <FilterOption
-            key={r}
-            label={
-              <div className="flex items-center gap-1">
-                {r} <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> & above
-              </div>
-            }
-            count={getFilterCount('rating', r)}
-            checked={minRating === r}
-            onChange={() => setMinRating(prev => (prev === r ? 0 : r))}
-          />
-        ))}
-      </FilterSection>
+      {settings.enableRatingFilter && (
+        <FilterSection title="Customer Ratings">
+          {[4, 3, 2].map(r => (
+            <FilterOption
+              key={r}
+              label={
+                <div className="flex items-center gap-1">
+                  {r} <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" /> & above
+                </div>
+              }
+              count={getFilterCount('rating', r)}
+              checked={minRating === r}
+              onChange={() => setMinRating(prev => (prev === r ? 0 : r))}
+            />
+          ))}
+        </FilterSection>
+      )}
 
-      <FilterSection title="Discount">
-        {[40, 30, 10].map(d => (
-          <FilterOption
-            key={d}
-            label={`${d}% or more`}
-            count={getFilterCount('discount', d)}
-            checked={minDiscount === d}
-            onChange={() => setMinDiscount(prev => (prev === d ? 0 : d))}
-          />
-        ))}
-      </FilterSection>
+      {settings.enableDiscountFilter && (
+        <FilterSection title="Discount">
+          {[40, 30, 10].map(d => (
+            <FilterOption
+              key={d}
+              label={`${d}% or more`}
+              count={getFilterCount('discount', d)}
+              checked={minDiscount === d}
+              onChange={() => setMinDiscount(prev => (prev === d ? 0 : d))}
+            />
+          ))}
+        </FilterSection>
+      )}
     </>
   );
 
