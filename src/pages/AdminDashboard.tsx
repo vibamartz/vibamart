@@ -3237,17 +3237,43 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
             <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
             <div className="space-y-4">
-              <textarea
-                value={formData.tags?.join(', ') || ''}
-                onChange={e => {
-                  const tagsVal = e.target.value;
-                  const tagsArray = tagsVal.split(',').map(t => t.trim()).filter(Boolean);
-                  setFormData(p => ({ ...p, tags: tagsArray }));
-                }}
-                className="w-full bg-gray-50 border-4 border-transparent rounded-[32px] px-8 py-6 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm h-32 resize-none"
-                placeholder="apple, iphone, ios, mobile, smartphone"
-              />
-              <p className="text-[10px] text-gray-400 font-bold ml-1">Keywords separated by commas. These keywords help customers locate products via searching.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentTag}
+                  onChange={e => setCurrentTag(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const newTags = currentTag.split(',').map(t => t.trim()).filter(Boolean);
+                      if (newTags.length > 0) {
+                        const existingTags = formData.tags || [];
+                        const uniqueNewTags = newTags.filter(t => !existingTags.includes(t));
+                        setFormData(p => ({ ...p, tags: [...existingTags, ...uniqueNewTags] }));
+                      }
+                      setCurrentTag('');
+                    }
+                  }}
+                  className="flex-1 bg-gray-50 border-4 border-transparent rounded-2xl px-6 py-4 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm"
+                  placeholder="Type keyword and press Enter or comma..."
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newTags = currentTag.split(',').map(t => t.trim()).filter(Boolean);
+                    if (newTags.length > 0) {
+                      const existingTags = formData.tags || [];
+                      const uniqueNewTags = newTags.filter(t => !existingTags.includes(t));
+                      setFormData(p => ({ ...p, tags: [...existingTags, ...uniqueNewTags] }));
+                    }
+                    setCurrentTag('');
+                  }}
+                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+                >
+                  Add
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Minimum 6 required.</p>
             </div>
             
             {formData.tags && formData.tags.length > 0 && (
