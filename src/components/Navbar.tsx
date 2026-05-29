@@ -9,6 +9,9 @@ import { useAuthStore, useCartStore, useCategoryStore } from '../store';
 import { auth } from '../lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
+import CameraSearchModal from './CameraSearchModal';
+import toast from 'react-hot-toast';
+
 export default function Navbar() {
   const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
@@ -16,6 +19,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isCameraSearchOpen, setIsCameraSearchOpen] = useState(false);
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
@@ -117,10 +121,17 @@ export default function Navbar() {
     }
   }, [searchQuery]);
 
-  const startVoiceSearch = () => {
+  const startVoiceSearch = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      toast.error('Microphone access denied. Please allow microphone access in your browser settings.');
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser.");
+      toast.error("Speech recognition is not supported in this browser.");
       return;
     }
 
@@ -131,17 +142,23 @@ export default function Navbar() {
 
     recognition.onstart = () => {
       setIsListening(true);
+      toast('Listening...', { icon: '🎤', id: 'voice-search' });
     };
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
+      toast.success(`Heard: "${transcript}"`, { id: 'voice-search' });
       navigate(`/products?q=${transcript}`);
       setIsSearchFocused(false);
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error", event.error);
+      if (event.error !== 'no-speech') {
+        toast.error("Speech recognition error: " + event.error, { id: 'voice-search' });
+      } else {
+        toast.dismiss('voice-search');
+      }
       setIsListening(false);
     };
 
@@ -208,11 +225,17 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={startVoiceSearch}
-                  className={`p-1.5 transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
+                  className={`p-1.5 transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
+                  title="Voice Search"
                 >
                   <Mic className="w-4 h-4" />
                 </button>
-                <button type="button" className="p-1.5 text-gray-400 hover:text-primary transition-colors">
+                <button 
+                  type="button" 
+                  onClick={() => setIsCameraSearchOpen(true)}
+                  className="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                  title="Visual Search"
+                >
                   <Camera className="w-4 h-4" />
                 </button>
               </div>
@@ -631,6 +654,16 @@ export default function Navbar() {
           </>
         )}
       </AnimatePresence>
+
+      <CameraSearchModal
+        isOpen={isCameraSearchOpen}
+        onClose={() => setIsCameraSearchOpen(false)}
+        onSearch={(query) => {
+          setSearchQuery(query);
+          navigate(`/products?q=${encodeURIComponent(query)}`);
+          setIsSearchFocused(false);
+        }}
+      />
     </nav>
   );
 }
