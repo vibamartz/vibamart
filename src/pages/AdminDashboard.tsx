@@ -4,7 +4,7 @@ import { Navigate, Link } from 'react-router-dom';
 import {
   BarChart3, Users, Package, ShoppingBag,
   Settings, LogOut, ChevronRight, TrendingUp,
-  Plus, Search, Filter, MoreVertical, Download, Truck, MapPin,
+  Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
   Upload, Link2
@@ -25,10 +25,12 @@ import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
 
 const STATS = [
-  { label: 'Total Revenue', value: '₹0', change: '0%', icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Total Orders', value: '0', change: '0%', icon: ShoppingBag, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Total Customers', value: '0', change: '0%', icon: Users, color: 'text-primary', bg: 'bg-primary/5' },
-  { label: 'Active Products', value: '0', change: '0%', icon: Package, color: 'text-secondary', bg: 'bg-secondary/5' },
+  { label: 'Total Revenue', value: '₹2,45,000', change: '+12%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  { label: 'Total Orders', value: '1,245', change: '+8%', icon: ShoppingBag, color: 'text-blue-500', bg: 'bg-blue-50' },
+  { label: 'Total Sales', value: '₹1,85,000', change: '+15%', icon: CreditCard, color: 'text-purple-500', bg: 'bg-purple-50' },
+  { label: 'Abandoned Carts', value: '45', change: '-2%', icon: ShoppingCart, color: 'text-rose-500', bg: 'bg-rose-50' },
+  { label: 'Total Customers', value: '8,549', change: '+24%', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  { label: 'Customer Insights (New)', value: '1,204', change: '+5%', icon: Info, color: 'text-amber-500', bg: 'bg-amber-50' },
 ];
 
 const SALES_DATA = [
@@ -38,6 +40,22 @@ const SALES_DATA = [
   { month: 'Apr', sales: 61000 },
   { month: 'May', sales: 55000 },
   { month: 'Jun', sales: 67000 },
+];
+
+const CUSTOMER_INSIGHTS_DATA = [
+  { name: 'Mon', new: 120, returning: 300 },
+  { name: 'Tue', new: 150, returning: 320 },
+  { name: 'Wed', new: 180, returning: 350 },
+  { name: 'Thu', new: 140, returning: 380 },
+  { name: 'Fri', new: 200, returning: 410 },
+  { name: 'Sat', new: 250, returning: 450 },
+  { name: 'Sun', new: 220, returning: 430 },
+];
+
+const NOTIFICATIONS = [
+  { id: 1, title: 'New User Registered', message: 'Rahul Sharma just created an account.', time: '5m ago', type: 'info' },
+  { id: 2, title: 'High Abandoned Cart Rate', message: 'Cart abandonment increased by 5% today.', time: '1h ago', type: 'warning' },
+  { id: 3, title: 'System Update', message: 'Voice Search feature is now live.', time: '2h ago', type: 'success' },
 ];
 
 const sanitizeImageUrl = (url: string) => {
@@ -149,87 +167,144 @@ export default function AdminDashboard() {
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {STATS.map((stat, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"
+                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between"
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`${stat.bg} p-3 rounded-xl`}>
-                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                      <div className={`${stat.bg} p-2.5 rounded-xl`}>
+                        <stat.icon className={`w-5 h-5 ${stat.color}`} />
                       </div>
-                      <span className={`text-xs font-bold ${stat.change.startsWith('+') ? 'text-blue-600' : 'text-red-500'}`}>
+                      <span className={`text-xs font-bold ${stat.change.startsWith('+') ? 'text-emerald-500 bg-emerald-50' : 'text-rose-500 bg-rose-50'} px-2 py-1 rounded-md`}>
                         {stat.change}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-gray-500 mb-1">{stat.label}</p>
-                    <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+                    <div>
+                      <p className="text-2xl font-black text-gray-900 mb-0.5">{stat.value}</p>
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                    </div>
                   </motion.div>
                 ))}
               </div>
 
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold">Revenue Overview</h3>
-                    <select className="bg-gray-50 border-none text-xs font-bold rounded-lg px-3 py-2 outline-none">
-                      <option>Last 6 Months</option>
-                      <option>Last Year</option>
-                    </select>
+              {/* Analytics & Alerts Section */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                
+                {/* Left Column - Charts */}
+                <div className="xl:col-span-2 space-y-8">
+                  {/* Revenue Chart */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold">Revenue Overview</h3>
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-gray-400" />
+                        <select className="bg-gray-50 border-none text-xs font-bold rounded-lg px-3 py-2 outline-none text-gray-600">
+                          <option>Last 7 Days</option>
+                          <option>Last 30 Days</option>
+                          <option>Last 6 Months</option>
+                          <option>This Year</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={SALES_DATA}>
+                          <defs>
+                            <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#1e40af" stopOpacity={0.1} />
+                              <stop offset="95%" stopColor="#1e40af" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Area type="monotone" dataKey="sales" stroke="#1e40af" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={SALES_DATA}>
-                        <defs>
-                          <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#1e40af" stopOpacity={0.1} />
-                            <stop offset="95%" stopColor="#1e40af" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="sales" stroke="#1e40af" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+
+                  {/* Customer Insights Chart */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-bold">Customer Insights</h3>
+                    </div>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={CUSTOMER_INSIGHTS_DATA}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                          <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="new" name="New Customers" stackId="a" fill="#3b82f6" radius={[0, 0, 4, 4]} />
+                          <Bar dataKey="returning" name="Returning Customers" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-bold mb-6">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <ActionButton
-                      icon={Plus}
-                      label="Add New Product"
-                      color="bg-primary"
-                      onClick={() => {
-                        setActiveTab('products');
-                        setShowAddProduct(true);
-                        setEditingProduct(null);
-                      }}
-                    />
-                    <ActionButton icon={Download} label="Export Sales Report" color="bg-gray-900" onClick={() => setActiveTab('sales-reports')} />
-                    <ActionButton
-                      icon={Filter}
-                      label="Manage Inventory"
-                      color="bg-gray-100 text-gray-800"
-                      onClick={() => {
-                        logAdminAction(AdminAction.SETTINGS_UPDATE, 'Admin clicked Manage Inventory');
-                      }}
-                    />
-                  </div>
-                  <div className="mt-8">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Stock Alerts</h4>
+                {/* Right Column - Sidebars */}
+                <div className="space-y-8">
+                  
+                  {/* Notifications */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-primary" />
+                        Updates
+                      </h3>
+                      <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">3 New</span>
+                    </div>
                     <div className="space-y-4">
-                      <StockAlert product="iPhone 15 Pro" stock={2} />
-                      <StockAlert product="Sony Headphones" stock={5} />
-                      <StockAlert product="Nike Shoes" stock={0} />
+                      {NOTIFICATIONS.map(note => (
+                        <div key={note.id} className="flex gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
+                          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${note.type === 'warning' ? 'bg-amber-500' : note.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{note.title}</p>
+                            <p className="text-xs text-gray-500 mt-1">{note.message}</p>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-2 block">{note.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick Actions & Stock Alerts */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold mb-6">Operations</h3>
+                    <div className="space-y-3">
+                      <ActionButton
+                        icon={Plus}
+                        label="Add New Product"
+                        color="bg-primary"
+                        onClick={() => {
+                          setActiveTab('products');
+                          setShowAddProduct(true);
+                          setEditingProduct(null);
+                        }}
+                      />
+                      <ActionButton icon={Download} label="Export Report" color="bg-gray-900" onClick={() => setActiveTab('sales-reports')} />
+                    </div>
+                    
+                    <div className="mt-8 border-t border-gray-100 pt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-rose-500" />
+                          Low Stock Alerts
+                        </h4>
+                      </div>
+                      <div className="space-y-3">
+                        <StockAlert product="iPhone 15 Pro Max" stock={2} />
+                        <StockAlert product="Sony WH-1000XM5" stock={5} />
+                        <StockAlert product="Nike Air Force 1" stock={0} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3387,6 +3462,9 @@ function CategoriesManagementView() {
   const [newCatIconImage, setNewCatIconImage] = useState('');
   const [newCatColor, setNewCatColor] = useState('#000000');
   const [newCatOrder, setNewCatOrder] = useState<number>(0);
+  const [newCatSeoSlug, setNewCatSeoSlug] = useState('');
+  const [newCatSeoTitle, setNewCatSeoTitle] = useState('');
+  const [newCatSeoDesc, setNewCatSeoDesc] = useState('');
 
   // Edit category state
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -3396,6 +3474,12 @@ function CategoriesManagementView() {
   const [editCatIconImage, setEditCatIconImage] = useState('');
   const [editCatColor, setEditCatColor] = useState('#000000');
   const [editCatOrder, setEditCatOrder] = useState<number>(0);
+  const [editCatSeoSlug, setEditCatSeoSlug] = useState('');
+  const [editCatSeoTitle, setEditCatSeoTitle] = useState('');
+  const [editCatSeoDesc, setEditCatSeoDesc] = useState('');
+
+  // Drag and Drop state
+  const [draggedCatId, setDraggedCatId] = useState<string | null>(null);
 
   // Add subcategory state
   const [activeAddSubCatId, setActiveAddSubCatId] = useState<string | null>(null);
@@ -3431,6 +3515,9 @@ function CategoriesManagementView() {
         iconImage: newCatIconImage,
         color: newCatColor,
         order: newCatOrder,
+        seoSlug: newCatSeoSlug.trim(),
+        seoTitle: newCatSeoTitle.trim(),
+        seoDescription: newCatSeoDesc.trim(),
         subcategories: []
       };
       await setDoc(doc(db, 'categories', catId), newCat);
@@ -3441,6 +3528,9 @@ function CategoriesManagementView() {
       setNewCatIconImage('');
       setNewCatColor('#000000');
       setNewCatOrder(0);
+      setNewCatSeoSlug('');
+      setNewCatSeoTitle('');
+      setNewCatSeoDesc('');
       setShowAddCat(false);
     } catch (e) {
       toast.error('Failed to add category');
@@ -3457,6 +3547,9 @@ function CategoriesManagementView() {
     setEditCatIconImage(cat.iconImage || '');
     setEditCatColor(cat.color || '#000000');
     setEditCatOrder(cat.order || 0);
+    setEditCatSeoSlug(cat.seoSlug || '');
+    setEditCatSeoTitle(cat.seoTitle || '');
+    setEditCatSeoDesc(cat.seoDescription || '');
   };
 
   const saveEditCategory = async (catId: string) => {
@@ -3475,7 +3568,10 @@ function CategoriesManagementView() {
         icon: editCatIcon,
         iconImage: editCatIconImage,
         color: editCatColor,
-        order: editCatOrder
+        order: editCatOrder,
+        seoSlug: editCatSeoSlug.trim(),
+        seoTitle: editCatSeoTitle.trim(),
+        seoDescription: editCatSeoDesc.trim()
       });
       toast.success('Category updated successfully');
       setEditingCatId(null);
@@ -3483,10 +3579,47 @@ function CategoriesManagementView() {
       toast.error('Failed to update category: ' + e?.message);
     } finally {
       setBusy(false);
-    }
-  };
+      }
+    };
 
-  const updateCategoryImage = async (catId: string, newImage: string) => {
+    const handleDragStart = (e: React.DragEvent, id: string) => {
+      setDraggedCatId(id);
+      e.dataTransfer.effectAllowed = 'move';
+    };
+  
+    const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    };
+  
+    const handleDrop = async (e: React.DragEvent, targetId: string) => {
+      e.preventDefault();
+      if (!draggedCatId || draggedCatId === targetId) return;
+  
+      const sortedCats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const sourceIndex = sortedCats.findIndex(c => c.id === draggedCatId);
+      const targetIndex = sortedCats.findIndex(c => c.id === targetId);
+  
+      if (sourceIndex < 0 || targetIndex < 0) return;
+  
+      const [draggedItem] = sortedCats.splice(sourceIndex, 1);
+      sortedCats.splice(targetIndex, 0, draggedItem);
+  
+      setBusy(true);
+      try {
+        for (let i = 0; i < sortedCats.length; i++) {
+          await updateDoc(doc(db, 'categories', sortedCats[i].id), { order: i });
+        }
+        toast.success('Categories reordered');
+      } catch(err: any) {
+        toast.error('Failed to save category order: ' + err.message);
+      } finally {
+        setBusy(false);
+        setDraggedCatId(null);
+      }
+    };
+
+    const updateCategoryImage = async (catId: string, newImage: string) => {
     if (!newImage) return;
     setBusy(true);
     try {
@@ -3911,7 +4044,14 @@ function CategoriesManagementView() {
       )}
 
       {categories.map(cat => (
-        <div key={cat.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <div 
+          key={cat.id} 
+          draggable
+          onDragStart={(e) => handleDragStart(e, cat.id)}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, cat.id)}
+          className={`bg-white p-6 rounded-2xl shadow-sm border ${draggedCatId === cat.id ? 'border-primary opacity-50 border-dashed' : 'border-gray-100'} space-y-4`}
+        >
           
           {editingCatId === cat.id ? (
             <div className="flex flex-col gap-4 bg-gray-50 p-5 rounded-2xl border border-gray-100">
@@ -4024,6 +4164,42 @@ function CategoriesManagementView() {
                       onChange={(e) => setEditCatColor(e.target.value)}
                       className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold uppercase"
                     />
+                  </div>
+                </div>
+                
+                {/* SEO Settings (Edit) */}
+                <div className="space-y-1 lg:col-span-3 border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-widest mb-3 flex items-center gap-1">
+                    <Search className="w-3.5 h-3.5 text-primary" /> SEO Settings
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">SEO Slug</label>
+                      <input
+                        type="text"
+                        value={editCatSeoSlug}
+                        onChange={(e) => setEditCatSeoSlug(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">SEO Title</label>
+                      <input
+                        type="text"
+                        value={editCatSeoTitle}
+                        onChange={(e) => setEditCatSeoTitle(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">SEO Description</label>
+                      <input
+                        type="text"
+                        value={editCatSeoDesc}
+                        onChange={(e) => setEditCatSeoDesc(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-medium"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5514,5 +5690,6 @@ function ReturnManagementView() {
     </motion.div>
   );
 }
+
 
 

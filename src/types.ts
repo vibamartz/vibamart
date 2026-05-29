@@ -80,6 +80,9 @@ export interface Category {
   iconImage?: string;
   color?: string;
   order?: number;
+  seoSlug?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   subcategories?: SubCategory[];
 }
 
