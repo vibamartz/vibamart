@@ -68,7 +68,13 @@ export default function ProductList() {
   const getFilterCount = (filterType: string, value: any) => {
     return allProducts.filter(p => {
       // Category filter
-      if (selectedCategories.length > 0 && !selectedCategories.includes(p.categoryId)) return false;
+      if (selectedCategories.length > 0) {
+        if (selectedCategories.includes('all-deals')) {
+          if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
+        } else if (!selectedCategories.includes(p.categoryId)) {
+          return false;
+        }
+      }
 
       // SubCategory filter
       if (filterType !== 'subcategory' && selectedSubCategories.length > 0 && p.subCategoryId && !selectedSubCategories.includes(p.subCategoryId)) return false;
@@ -161,7 +167,13 @@ export default function ProductList() {
   const filteredProducts = useMemo(() => {
     let result = allProducts.filter(p => {
       // Category filter
-      if (selectedCategories.length > 0 && !selectedCategories.includes(p.categoryId)) return false;
+      if (selectedCategories.length > 0) {
+        if (selectedCategories.includes('all-deals')) {
+          if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
+        } else if (!selectedCategories.includes(p.categoryId)) {
+          return false;
+        }
+      }
 
       // SubCategory filter
       if (selectedSubCategories.length > 0 && p.subCategoryId && !selectedSubCategories.includes(p.subCategoryId)) return false;
@@ -269,7 +281,7 @@ export default function ProductList() {
   const uniqueBrands = useMemo(() => {
     const brands = new Set<string>();
     allProducts.forEach(p => {
-      if (p.brand && (!selectedCategories.length || selectedCategories.includes(p.categoryId))) {
+      if (p.brand && (!selectedCategories.length || selectedCategories.includes('all-deals') || selectedCategories.includes(p.categoryId))) {
         brands.add(p.brand);
       }
     });
@@ -279,7 +291,7 @@ export default function ProductList() {
   const uniqueSubCategories = useMemo(() => {
     const subs = new Set<string>();
     allProducts.forEach(p => {
-      if (p.subCategoryId && (!selectedCategories.length || selectedCategories.includes(p.categoryId))) {
+      if (p.subCategoryId && (!selectedCategories.length || selectedCategories.includes('all-deals') || selectedCategories.includes(p.categoryId))) {
         subs.add(p.subCategoryId);
       }
     });

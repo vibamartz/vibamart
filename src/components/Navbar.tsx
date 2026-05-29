@@ -24,8 +24,11 @@ export default function Navbar() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
 
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
+  const getCategoryIcon = (cat: any) => {
+    if (cat.name === 'Toys') return <span className="text-sm scale-110">🧸</span>;
+    if (cat.name === 'Food & Health') return <span className="text-sm scale-110">🍎</span>;
+    
+    switch (cat.icon) {
       case 'smartphone': return <span className="text-sm scale-110">📱</span>;
       case 'shirt': return <span className="text-sm scale-110">👕</span>;
       case 'laptop': return <span className="text-sm scale-110">💻</span>;
@@ -441,10 +444,6 @@ export default function Navbar() {
       <div className="border-t border-gray-100 bg-white overflow-x-auto hide-scrollbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest">
-            <Link to="/products" className="hover:text-primary transition-colors h-full flex items-center gap-2 border-b-2 border-transparent hover:border-primary pt-0.5 group">
-              <span className="text-sm scale-110">🔥</span>
-              <span>All Deals</span>
-            </Link>
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.id}
@@ -469,7 +468,7 @@ export default function Navbar() {
                   ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
                     <span className="text-sm">{cat.icon}</span>
                   ) : (
-                    getCategoryIcon(cat.icon || '')
+                    getCategoryIcon(cat)
                   )}
                 </span>
                 <span>{cat.name}</span>
@@ -585,16 +584,6 @@ export default function Navbar() {
                 <div className="pt-6 border-t border-gray-100">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-4">Categories</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <Link
-                      to="/products"
-                      className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 transition-all group/cat border border-gray-50"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 group-hover/cat:text-primary shadow-sm transition-colors text-lg">
-                        🔥
-                      </div>
-                      <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">All Deals</span>
-                    </Link>
                     {CATEGORIES.map(cat => (
                       <Link
                         key={cat.id}
@@ -621,7 +610,7 @@ export default function Navbar() {
                           ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
                             <span className="text-lg">{cat.icon}</span>
                           ) : (
-                            getCategoryIcon(cat.icon || '')
+                            getCategoryIcon(cat)
                           )}
                         </div>
                         <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest" style={{ color: cat.color }}>{cat.name}</span>
