@@ -16,6 +16,16 @@ import toast from 'react-hot-toast';
 export default function Navbar() {
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
+  const navCategories = [
+    {
+      id: 'all-deals',
+      name: 'All Deals',
+      iconImage: '🔥',
+      color: '#ef4444',
+      icon: undefined as string | undefined
+    },
+    ...CATEGORIES.filter(c => c.id !== 'all-deals')
+  ];
   const { user } = useAuthStore();
   const { items } = useCartStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -466,7 +476,7 @@ export default function Navbar() {
       <div className="border-t border-gray-100 bg-white overflow-x-auto hide-scrollbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest">
-            {CATEGORIES.map(cat => (
+            {navCategories.map(cat => (
               <Link
                 key={cat.id}
                 to={`/products?category=${cat.id}`}

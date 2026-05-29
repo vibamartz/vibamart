@@ -1,6 +1,15 @@
 import { Category } from './types';
 
 export const CATEGORIES: Category[] = [
+  {
+    id: 'all-deals',
+    name: 'All Deals',
+    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop',
+    iconImage: '🔥',
+    color: '#ef4444',
+    order: -1,
+    subcategories: []
+  },
   { 
     id: '1', 
     name: 'Mobiles', 
