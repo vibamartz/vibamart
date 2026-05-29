@@ -2711,6 +2711,15 @@ function ProductImageUploader({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const KEYWORD_SUGGESTIONS: Record<string, string[]> = {
+  'Shoes': ['sneakers', 'sports shoes', 'running shoes', 'footwear', 'casual shoes', 'gym shoes'],
+  'Electronics': ['smartphone', 'gadget', 'device', 'electronic', 'wireless', 'smart', 'bluetooth', 'tech'],
+  'Clothing': ['apparel', 'fashion', 'wear', 'outfit', 'stylish', 'trend', 'casual', 'garment', 'cotton'],
+  'Beauty': ['makeup', 'skincare', 'cosmetics', 'beauty', 'care', 'glow', 'organic', 'natural'],
+  'Home & Garden': ['home', 'decor', 'garden', 'indoor', 'living', 'furniture', 'kitchen', 'lifestyle'],
+  'Sports': ['fitness', 'workout', 'exercise', 'training', 'gear', 'equipment', 'sportswear', 'active']
+};
+
 function AddProductView({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
   const [formData, setFormData] = useState<Partial<Product>>(() => {
@@ -2810,6 +2819,12 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.tags || formData.tags.length < 6) {
+      toast.error('Minimum 6 keywords are mandatory for the product.');
+      return;
+    }
+
     setBusy(true);
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Initializing new product record...');
 
@@ -3243,6 +3258,29 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                     <button type="button" onClick={() => setFormData(p => ({ ...p, tags: p.tags?.filter(t => t !== tag) }))} className="text-primary/40 hover:text-primary"><X className="w-3 h-3" /></button>
                   </span>
                 ))}
+              </div>
+            )}
+
+            {selectedCategory && KEYWORD_SUGGESTIONS[selectedCategory.name] && (
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-[10px] text-gray-400 font-bold mb-2 uppercase tracking-widest">Suggested Keywords for {selectedCategory.name}</p>
+                <div className="flex flex-wrap gap-2">
+                  {KEYWORD_SUGGESTIONS[selectedCategory.name].map(suggestion => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => {
+                        const currentTags = formData.tags || [];
+                        if (!currentTags.includes(suggestion)) {
+                          setFormData(p => ({ ...p, tags: [...currentTags, suggestion] }));
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-gray-50 text-gray-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors"
+                    >
+                      + {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
