@@ -111,7 +111,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     >
       <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
         <img
-          src={product.images[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
+          src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />

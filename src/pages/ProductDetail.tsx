@@ -197,7 +197,7 @@ export default function ProductDetail() {
         <div className="w-full lg:flex-1 space-y-4">
            <div className="aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 lg:sticky lg:top-24">
               <img 
-                src={product.images[selectedImage]} 
+                src={product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image'} 
                 alt={product.name} 
                 className="w-full h-full object-cover"
               />
@@ -230,7 +230,7 @@ export default function ProductDetail() {
               </div>
            </div>
            <div className="grid grid-cols-4 gap-4">
-              {product.images.map((img, idx) => (
+              {(product.images || []).map((img, idx) => (
                 <button 
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
