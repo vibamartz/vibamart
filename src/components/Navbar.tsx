@@ -425,22 +425,36 @@ export default function Navbar() {
       <div className="border-t border-gray-100 bg-white overflow-x-auto hide-scrollbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest">
+            <Link to="/products" className="hover:text-primary transition-colors h-full flex items-center gap-2 border-b-2 border-transparent hover:border-primary pt-0.5 group">
+              <span className="text-sm scale-110">🔥</span>
+              <span>All Deals</span>
+            </Link>
             {CATEGORIES.map(cat => (
               <Link
                 key={cat.id}
                 to={`/products?category=${cat.id}`}
-                className="hover:text-primary transition-colors h-full flex items-center gap-2 border-b-2 border-transparent hover:border-primary pt-0.5 group"
+                className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = cat.color || '#3b82f6';
+                  e.currentTarget.style.borderColor = cat.color || '#3b82f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
               >
-                <span className="text-gray-400 group-hover:text-primary transition-colors">
-                  {getCategoryIcon(cat.icon || '')}
+                <span className="transition-colors flex items-center justify-center opacity-70 group-hover:opacity-100">
+                  {cat.iconImage ? (
+                    <img src={cat.iconImage} alt="" className="w-4 h-4 object-contain" />
+                  ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
+                    <span className="text-sm">{cat.icon}</span>
+                  ) : (
+                    getCategoryIcon(cat.icon || '')
+                  )}
                 </span>
                 <span>{cat.name}</span>
               </Link>
             ))}
-            <Link to="/products" className="hover:text-primary transition-colors h-full flex items-center gap-2 border-b-2 border-transparent hover:border-primary pt-0.5 group">
-              <Percent className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary transition-colors" />
-              <span>All Deals</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -551,17 +565,42 @@ export default function Navbar() {
                 <div className="pt-6 border-t border-gray-100">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 ml-4">Categories</p>
                   <div className="grid grid-cols-2 gap-3">
+                    <Link
+                      to="/products"
+                      className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 transition-all group/cat border border-gray-50"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 group-hover/cat:text-primary shadow-sm transition-colors text-lg">
+                        🔥
+                      </div>
+                      <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">All Deals</span>
+                    </Link>
                     {CATEGORIES.map(cat => (
                       <Link
                         key={cat.id}
                         to={`/products?category=${cat.id}`}
-                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl hover:bg-blue-50 transition-all group/cat border border-gray-50"
+                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl transition-all group/cat border border-gray-50 hover:bg-white"
+                        style={{ borderColor: 'transparent' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = cat.color || '#3b82f6';
+                          e.currentTarget.style.backgroundColor = (cat.color || '#3b82f6') + '10';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'transparent';
+                          e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }}
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 group-hover/cat:text-primary shadow-sm transition-colors">
-                          {getCategoryIcon(cat.icon || '')}
+                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 shadow-sm transition-colors">
+                          {cat.iconImage ? (
+                            <img src={cat.iconImage} alt="" className="w-5 h-5 object-contain" />
+                          ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
+                            <span className="text-lg">{cat.icon}</span>
+                          ) : (
+                            getCategoryIcon(cat.icon || '')
+                          )}
                         </div>
-                        <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">{cat.name}</span>
+                        <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest" style={{ color: cat.color }}>{cat.name}</span>
                       </Link>
                     ))}
                   </div>

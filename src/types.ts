@@ -77,6 +77,9 @@ export interface Category {
   name: string;
   image: string;
   icon?: string;
+  iconImage?: string;
+  color?: string;
+  order?: number;
   subcategories?: SubCategory[];
 }
 

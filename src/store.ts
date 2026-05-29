@@ -186,7 +186,7 @@ export const useCategoryStore = create<CategoryState>((set) => ({
           }
         });
 
-        fetchedCategories.sort((a, b) => a.id.localeCompare(b.id));
+        fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         set({ categories: fetchedCategories, loading: false });
       } else {
         // If empty, seed Firestore with initial categories

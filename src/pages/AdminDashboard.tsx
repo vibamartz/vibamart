@@ -3336,12 +3336,18 @@ function CategoriesManagementView() {
   const [newCatName, setNewCatName] = useState('');
   const [newCatImage, setNewCatImage] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('sparkles');
+  const [newCatIconImage, setNewCatIconImage] = useState('');
+  const [newCatColor, setNewCatColor] = useState('#000000');
+  const [newCatOrder, setNewCatOrder] = useState<number>(0);
 
   // Edit category state
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editCatName, setEditCatName] = useState('');
   const [editCatImage, setEditCatImage] = useState('');
   const [editCatIcon, setEditCatIcon] = useState('sparkles');
+  const [editCatIconImage, setEditCatIconImage] = useState('');
+  const [editCatColor, setEditCatColor] = useState('#000000');
+  const [editCatOrder, setEditCatOrder] = useState<number>(0);
 
   // Add subcategory state
   const [activeAddSubCatId, setActiveAddSubCatId] = useState<string | null>(null);
@@ -3369,11 +3375,14 @@ function CategoriesManagementView() {
     const catId = newCatName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
     setBusy(true);
     try {
-      const newCat = {
+      const newCat: Category = {
         id: catId,
         name: newCatName.trim(),
         image: newCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
         icon: newCatIcon || 'sparkles',
+        iconImage: newCatIconImage,
+        color: newCatColor,
+        order: newCatOrder,
         subcategories: []
       };
       await setDoc(doc(db, 'categories', catId), newCat);
@@ -3381,6 +3390,9 @@ function CategoriesManagementView() {
       setNewCatName('');
       setNewCatImage('');
       setNewCatIcon('sparkles');
+      setNewCatIconImage('');
+      setNewCatColor('#000000');
+      setNewCatOrder(0);
       setShowAddCat(false);
     } catch (e) {
       toast.error('Failed to add category');
@@ -3394,6 +3406,9 @@ function CategoriesManagementView() {
     setEditCatName(cat.name);
     setEditCatImage(cat.image);
     setEditCatIcon(cat.icon || 'sparkles');
+    setEditCatIconImage(cat.iconImage || '');
+    setEditCatColor(cat.color || '#000000');
+    setEditCatOrder(cat.order || 0);
   };
 
   const saveEditCategory = async (catId: string) => {
@@ -3409,7 +3424,10 @@ function CategoriesManagementView() {
         ...cat,
         name: editCatName.trim(),
         image: editCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
-        icon: editCatIcon
+        icon: editCatIcon,
+        iconImage: editCatIconImage,
+        color: editCatColor,
+        order: editCatOrder
       });
       toast.success('Category updated successfully');
       setEditingCatId(null);
@@ -3709,7 +3727,7 @@ function CategoriesManagementView() {
           className="bg-white p-6 rounded-2xl border border-gray-100 shadow-md space-y-4"
         >
           <h3 className="font-bold text-gray-950 uppercase tracking-widest text-[10px] mb-2">Create New Category</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Name</label>
               <input
@@ -3723,7 +3741,7 @@ function CategoriesManagementView() {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                <span>Image URL / File</span>
+                <span>Banner Image</span>
                 <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
                   <Upload className="w-3 h-3" />
                   Upload PNG/JPG
@@ -3753,7 +3771,7 @@ function CategoriesManagementView() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Name</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
               <select
                 value={newCatIcon}
                 onChange={(e) => setNewCatIcon(e.target.value)}
@@ -3766,6 +3784,63 @@ function CategoriesManagementView() {
                 <option value="home">Home</option>
                 <option value="tv">TV</option>
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                <span>Custom Icon / Emoji</span>
+                <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
+                  <Upload className="w-3 h-3" /> Upload
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        if (dataUrl) setNewCatIconImage(dataUrl);
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+              </label>
+              <input
+                type="text"
+                value={newCatIconImage.startsWith('data:') ? 'Local Uploaded File' : newCatIconImage}
+                onChange={(e) => setNewCatIconImage(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
+                placeholder="Emoji 🔥 or URL/upload"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>
+              <input
+                type="number"
+                value={newCatOrder}
+                onChange={(e) => setNewCatOrder(Number(e.target.value))}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Theme Color</label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={newCatColor}
+                  onChange={(e) => setNewCatColor(e.target.value)}
+                  className="w-12 h-[46px] bg-gray-50 border border-gray-100 rounded-xl cursor-pointer p-1"
+                />
+                <input
+                  type="text"
+                  value={newCatColor}
+                  onChange={(e) => setNewCatColor(e.target.value)}
+                  className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium uppercase"
+                />
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -3793,7 +3868,7 @@ function CategoriesManagementView() {
           {editingCatId === cat.id ? (
             <div className="flex flex-col gap-4 bg-gray-50 p-5 rounded-2xl border border-gray-100">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Editing Category: {cat.name}</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Name</label>
                   <input
@@ -3805,7 +3880,7 @@ function CategoriesManagementView() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                    <span>Image URL / File</span>
+                    <span>Banner Image</span>
                     <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
                       <Upload className="w-3 h-3" /> Upload File
                       <input
@@ -3833,7 +3908,7 @@ function CategoriesManagementView() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Name</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
                   <select
                     value={editCatIcon}
                     onChange={(e) => setEditCatIcon(e.target.value)}
@@ -3846,6 +3921,62 @@ function CategoriesManagementView() {
                     <option value="home">Home</option>
                     <option value="tv">TV</option>
                   </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                    <span>Custom Icon / Emoji</span>
+                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3 h-3" /> Upload
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const dataUrl = ev.target?.result as string;
+                            if (dataUrl) setEditCatIconImage(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </label>
+                  <input
+                    type="text"
+                    value={editCatIconImage.startsWith('data:') ? 'Local Uploaded File' : editCatIconImage}
+                    onChange={(e) => setEditCatIconImage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
+                    placeholder="Emoji 🔥 or URL/upload"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>
+                  <input
+                    type="number"
+                    value={editCatOrder}
+                    onChange={(e) => setEditCatOrder(Number(e.target.value))}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Theme Color</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={editCatColor}
+                      onChange={(e) => setEditCatColor(e.target.value)}
+                      className="w-10 h-[38px] bg-white border border-gray-200 rounded-lg cursor-pointer p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={editCatColor}
+                      onChange={(e) => setEditCatColor(e.target.value)}
+                      className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold uppercase"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
