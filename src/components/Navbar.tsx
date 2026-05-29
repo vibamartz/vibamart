@@ -461,7 +461,11 @@ export default function Navbar() {
               >
                 <span className="transition-colors flex items-center justify-center opacity-70 group-hover:opacity-100">
                   {cat.iconImage ? (
-                    <img src={cat.iconImage} alt="" className="w-4 h-4 object-contain" />
+                    cat.iconImage.startsWith('http') || cat.iconImage.startsWith('data:') ? (
+                      <img src={cat.iconImage} alt="" className="w-4 h-4 object-contain" />
+                    ) : (
+                      <span className="text-sm scale-110">{cat.iconImage}</span>
+                    )
                   ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
                     <span className="text-sm">{cat.icon}</span>
                   ) : (
@@ -609,7 +613,11 @@ export default function Navbar() {
                       >
                         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 shadow-sm transition-colors">
                           {cat.iconImage ? (
-                            <img src={cat.iconImage} alt="" className="w-5 h-5 object-contain" />
+                            cat.iconImage.startsWith('http') || cat.iconImage.startsWith('data:') ? (
+                              <img src={cat.iconImage} alt="" className="w-5 h-5 object-contain" />
+                            ) : (
+                              <span className="text-lg">{cat.iconImage}</span>
+                            )
                           ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
                             <span className="text-lg">{cat.icon}</span>
                           ) : (
