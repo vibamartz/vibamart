@@ -26,13 +26,13 @@ export default function Navbar() {
 
   const getCategoryIcon = (iconName: string) => {
     switch (iconName) {
-      case 'smartphone': return <Smartphone className="w-3.5 h-3.5" />;
-      case 'shirt': return <Shirt className="w-3.5 h-3.5" />;
-      case 'laptop': return <Laptop className="w-3.5 h-3.5" />;
-      case 'home': return <HomeIcon className="w-3.5 h-3.5" />;
-      case 'sparkles': return <Sparkles className="w-3.5 h-3.5" />;
-      case 'tv': return <Tv className="w-3.5 h-3.5" />;
-      default: return null;
+      case 'smartphone': return <span className="text-sm scale-110">📱</span>;
+      case 'shirt': return <span className="text-sm scale-110">👕</span>;
+      case 'laptop': return <span className="text-sm scale-110">💻</span>;
+      case 'home': return <span className="text-sm scale-110">🏠</span>;
+      case 'sparkles': return <span className="text-sm scale-110">✨</span>;
+      case 'tv': return <span className="text-sm scale-110">📺</span>;
+      default: return <span className="text-sm scale-110">📦</span>;
     }
   };
 
@@ -122,13 +122,6 @@ export default function Navbar() {
   }, [searchQuery]);
 
   const startVoiceSearch = async () => {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      toast.error('Microphone access denied. Please allow microphone access in your browser settings.');
-      return;
-    }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Speech recognition is not supported in this browser.");
