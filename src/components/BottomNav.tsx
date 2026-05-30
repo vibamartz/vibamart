@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Grid, Percent, Heart, User } from 'lucide-react';
-import { useAuthStore } from '../store';
+import { Home, Grid, Bell, Heart, User } from 'lucide-react';
+import { useAuthStore, useCartStore } from '../store';
 
 export default function BottomNav() {
   const location = useLocation();
@@ -10,7 +10,7 @@ export default function BottomNav() {
   const navItems = [
     { name: 'Home', icon: Home, path: '/' },
     { name: 'Categories', icon: Grid, path: '/products' },
-    { name: 'Offers', icon: Percent, path: '/products?offers=true' },
+    { name: 'Notifications', icon: Bell, path: '/profile?tab=waitlist' },
     { name: 'Wishlist', icon: Heart, path: '/wishlist' },
     { name: 'Account', icon: User, path: user ? '/profile' : '/login' },
   ];
