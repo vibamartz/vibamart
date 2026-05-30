@@ -22,7 +22,8 @@ export default function Navbar() {
       name: 'All Deals',
       iconImage: '🔥',
       color: '#ef4444',
-      icon: undefined as string | undefined
+      icon: undefined as string | undefined,
+      subcategories: []
     },
     ...CATEGORIES.filter(c => c.id !== 'all-deals')
   ];
@@ -37,17 +38,17 @@ export default function Navbar() {
   const location = useLocation();
 
   const getCategoryIcon = (cat: any) => {
-    if (cat.name === 'Toys') return <span className="text-sm scale-110">🧸</span>;
-    if (cat.name === 'Food & Health') return <span className="text-sm scale-110">🍎</span>;
+    if (cat.name === 'Toys') return <span className="text-sm scale-110">ðŸ§¸</span>;
+    if (cat.name === 'Food & Health') return <span className="text-sm scale-110">ðŸŽ</span>;
     
     switch (cat.icon) {
-      case 'smartphone': return <span className="text-sm scale-110">📱</span>;
-      case 'shirt': return <span className="text-sm scale-110">👕</span>;
-      case 'laptop': return <span className="text-sm scale-110">💻</span>;
-      case 'home': return <span className="text-sm scale-110">🏠</span>;
-      case 'sparkles': return <span className="text-sm scale-110">✨</span>;
-      case 'tv': return <span className="text-sm scale-110">📺</span>;
-      default: return <span className="text-sm scale-110">📦</span>;
+      case 'smartphone': return <span className="text-sm scale-110">ðŸ“±</span>;
+      case 'shirt': return <span className="text-sm scale-110">ðŸ‘•</span>;
+      case 'laptop': return <span className="text-sm scale-110">ðŸ’»</span>;
+      case 'home': return <span className="text-sm scale-110">ðŸ </span>;
+      case 'sparkles': return <span className="text-sm scale-110">âœ¨</span>;
+      case 'tv': return <span className="text-sm scale-110">ðŸ“º</span>;
+      default: return <span className="text-sm scale-110">ðŸ“¦</span>;
     }
   };
 
@@ -165,7 +166,7 @@ export default function Navbar() {
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast('Listening...', { icon: '🎤', id: 'voice-search' });
+      toast('Listening...', { icon: 'ðŸŽ¤', id: 'voice-search' });
     };
 
     recognition.onresult = (event: any) => {
@@ -192,187 +193,6 @@ export default function Navbar() {
 
     recognition.start();
   };
-
-  const removeRecentSearch = (e: React.MouseEvent, search: string) => {
-    e.stopPropagation();
-    const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-    const updated = existing.filter((s: string) => s !== search);
-    localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
-    setRecentSearches(updated);
-  };
-
-  const clearRecentHistory = (e: React.MouseEvent) => {
-      icon: undefined as string | undefined
-    },
-    ...CATEGORIES.filter(c => c.id !== 'all-deals')
-  ];
-  const { user } = useAuthStore();
-  const { items } = useCartStore();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isCameraSearchOpen, setIsCameraSearchOpen] = useState(false);
-  const navigate = useNavigate();
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const location = useLocation();
-
-  const getCategoryIcon = (cat: any) => {
-    if (cat.name === 'Toys') return <span className="text-sm scale-110">🧸</span>;
-    if (cat.name === 'Food & Health') return <span className="text-sm scale-110">🍎</span>;
-    
-    switch (cat.icon) {
-      case 'smartphone': return <span className="text-sm scale-110">📱</span>;
-      case 'shirt': return <span className="text-sm scale-110">👕</span>;
-      case 'laptop': return <span className="text-sm scale-110">💻</span>;
-      case 'home': return <span className="text-sm scale-110">🏠</span>;
-      case 'sparkles': return <span className="text-sm scale-110">✨</span>;
-      case 'tv': return <span className="text-sm scale-110">📺</span>;
-      default: return <span className="text-sm scale-110">📦</span>;
-    }
-  };
-
-  // Sync search query with URL params
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const q = params.get('q');
-    if (location.pathname === '/' || !q) {
-      setSearchQuery('');
-    } else {
-      setSearchQuery(q);
-    }
-  }, [location]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-
-  useEffect(() => {
-    const loadRecent = () => {
-      try {
-        const saved = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-        setRecentSearches(saved);
-      } catch { setRecentSearches([]); }
-    };
-    loadRecent();
-    window.addEventListener('storage', loadRecent);
-    return () => window.removeEventListener('storage', loadRecent);
-  }, [isSearchFocused]);
-
-  const logSearch = async (queryStr: string, type: 'text' | 'voice' | 'visual') => {
-    try {
-      await addDoc(collection(db, 'searchAnalytics'), {
-        query: queryStr,
-        type,
-        timestamp: new Date().toISOString(),
-        userId: user?.uid || null
-      });
-    } catch (e) {
-      console.error('Failed to log search analytics:', e);
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = searchQuery.trim();
-    if (query) {
-      logSearch(query, 'text');
-      // Save to recent searches
-      const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const updated = [query, ...existing.filter((s: string) => s !== query)].slice(0, 10);
-      localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
-
-      navigate(`/products?q=${query}`);
-      setIsSearchFocused(false);
-      searchInputRef.current?.blur();
-      setIsMenuOpen(false);
-    } else if (location.pathname === '/products') {
-      const params = new URLSearchParams(location.search);
-      if (params.get('q')) {
-        params.delete('q');
-        navigate(`/products?${params.toString()}`);
-      }
-      setIsMenuOpen(false);
-    }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    if (location.pathname === '/products') {
-      const params = new URLSearchParams(location.search);
-      if (params.get('q')) {
-        params.delete('q');
-        navigate(`/products?${params.toString()}`);
-      }
-    }
-    searchInputRef.current?.focus();
-  };
-
-  const [isListening, setIsListening] = useState(false);
-  const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
-
-  useEffect(() => {
-    if (searchQuery.length > 0) {
-      const filtered = CATEGORIES.filter(cat =>
-        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cat.id.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 3);
-      setSuggestedCategories(filtered);
-    } else {
-      setSuggestedCategories([]);
-    }
-  }, [searchQuery]);
-
-  const startVoiceSearch = async () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Speech recognition is not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      toast('Listening...', { icon: '🎤', id: 'voice-search' });
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-      toast.success(`Heard: "${transcript}"`, { id: 'voice-search' });
-      logSearch(transcript, 'voice');
-      navigate(`/products?q=${transcript}`);
-      setIsSearchFocused(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      if (event.error !== 'no-speech') {
-        toast.error("Speech recognition error: " + event.error, { id: 'voice-search' });
-      } else {
-        toast.dismiss('voice-search');
-      }
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
   const removeRecentSearch = (e: React.MouseEvent, search: string) => {
     e.stopPropagation();
     const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
@@ -390,160 +210,235 @@ export default function Navbar() {
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <nav className="sticky top-0 z-50 bg-primary shadow-md">
+    <nav className="sticky top-0 z-50 w-full flex flex-col">
       {/* Top Header Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2 sm:pb-3">
-        <div className="flex items-center justify-between gap-4">
+      <div className="bg-primary shadow-md z-20">
+        <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
-          {/* Logo & Location */}
-          <div className="flex flex-col min-w-0 flex-shrink-0">
-            <Link to="/" className="hover:opacity-80 transition-opacity flex items-center">
-               <div className="text-white font-black text-xl italic tracking-tighter">ViBa<span className="text-secondary">Mart</span></div>
-            </Link>
-            <button className="flex items-center gap-1 text-white/90 text-[10px] sm:text-xs mt-0.5 truncate hover:text-white group transition-colors">
-              <span className="font-medium truncate max-w-[120px] sm:max-w-[200px]">Deliver to Bangalore - 560064</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform rotate-90" />
-            </button>
+          {/* Logo & Right Actions (Mobile Layout) */}
+          <div className="flex items-center justify-between md:w-auto">
+            {/* Logo & Location */}
+            <div className="flex flex-col min-w-0 flex-shrink-0">
+              <Link to="/" className="hover:opacity-80 transition-opacity flex items-center">
+                 <div className="text-white font-black text-xl md:text-2xl italic tracking-tighter">ViBa<span className="text-secondary">Mart</span></div>
+              </Link>
+              <button className="flex items-center gap-1 text-white/90 text-[10px] sm:text-xs mt-0.5 truncate hover:text-white group transition-colors">
+                <span className="font-medium truncate max-w-[140px] sm:max-w-[200px]">Deliver to Bangalore - 560064</span>
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform rotate-90" />
+              </button>
+            </div>
+
+            {/* Right Actions (Mobile) */}
+            <div className="flex items-center gap-2 md:hidden">
+               <Link to="/profile?tab=waitlist" className="relative p-1.5 text-white hover:text-secondary transition-colors" aria-label="Notifications">
+                 <Bell className="w-5 h-5" />
+                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-primary"></span>
+               </Link>
+               <Link to="/cart" className="relative p-1.5 text-white hover:text-secondary transition-colors" aria-label="Cart">
+                 <ShoppingCart className="w-5 h-5" />
+                 {cartCount > 0 && (
+                   <span className="absolute -top-1 -right-1 bg-secondary text-primary text-[10px] font-bold rounded-full min-w-[16px] h-[16px] px-1 flex items-center justify-center border-2 border-primary">
+                     {cartCount}
+                   </span>
+                 )}
+               </Link>
+               {user ? (
+                 <Link to="/profile" className="flex items-center gap-2 p-1 hover:bg-white/10 rounded-lg transition-colors ml-1">
+                    <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-primary font-bold text-xs border border-secondary">
+                       {user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                    </div>
+                 </Link>
+               ) : (
+                 <Link to="/login" className="flex items-center text-xs font-bold text-white hover:text-secondary transition-colors px-1">
+                   Login
+                 </Link>
+               )}
+            </div>
           </div>
 
-          {/* Right Actions */}
-          <div className="flex items-center justify-end gap-1 sm:gap-4">
+          {/* Search Bar (Both Mobile & Desktop) */}
+          <div className="relative w-full md:flex-1 md:max-w-2xl md:px-4 group z-30">
+             <form onSubmit={handleSearch} className="w-full relative flex items-center shadow-sm">
+               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                 <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+               </div>
+               <input
+                 ref={searchInputRef}
+                 type="text"
+                 placeholder="Search for Products, Brands and More"
+                 className="block w-full bg-white border-0 rounded-lg py-2 sm:py-2.5 pl-10 pr-20 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary transition-all shadow-inner"
+                 value={searchQuery}
+                 onFocus={() => setIsSearchFocused(true)}
+                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+               />
+               <div className="absolute right-1 flex items-center">
+                 {searchQuery && (
+                   <button type="button" onClick={clearSearch} className="p-2 text-gray-400 hover:text-red-500 transition-colors touch-target">
+                     <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                   </button>
+                 )}
+                 {settings.enableVoiceSearch && (
+                   <button type="button" onClick={startVoiceSearch} className={`p-2 touch-target transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}>
+                     <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+                   </button>
+                 )}
+                 {settings.enableVisualSearch && (
+                   <button type="button" onClick={() => setIsCameraSearchOpen(true)} className="p-2 text-gray-400 hover:text-primary transition-colors touch-target hidden sm:block">
+                     <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+                   </button>
+                 )}
+               </div>
+             </form>
+
+             {/* Search Suggestions Dropdown */}
+             <AnimatePresence>
+                {isSearchFocused && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50 p-2 sm:p-4 max-h-[60vh] overflow-y-auto"
+                  >
+                    <div className="flex flex-col gap-4">
+                      {/* Recent Searches */}
+                      {recentSearches.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2 px-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Searches</span>
+                            <button onClick={clearRecentHistory} className="text-[10px] font-bold text-red-400 hover:text-red-600">Clear</button>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {recentSearches.map((s, i) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  setSearchQuery(s);
+                                  navigate(`/products?q=${s}`);
+                                  setIsSearchFocused(false);
+                                }}
+                                className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <History className="w-4 h-4 text-gray-300" />
+                                  <span className="text-sm font-medium text-gray-700">{s}</span>
+                                </div>
+                                <ArrowRight className="w-3 h-3 text-gray-300" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Trending */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2 px-2">
+                          <TrendingUp className="w-4 h-4 text-blue-500" />
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Trending</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 px-1">
+                          {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
+                            <button
+                              key={trend}
+                              onClick={() => {
+                                setSearchQuery(trend);
+                                navigate(`/products?q=${trend}`);
+                                setIsSearchFocused(false);
+                              }}
+                              className="px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-full text-xs font-medium text-gray-700 transition-colors border border-gray-100"
+                            >
+                              {trend}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+             </AnimatePresence>
+          </div>
+
+          {/* Right Actions (Desktop) */}
+          <div className="hidden md:flex items-center justify-end gap-2 lg:gap-4 flex-shrink-0">
              {user?.role === 'admin' && (
-               <Link to="/admin" className="hidden sm:flex text-white hover:text-secondary transition-colors items-center gap-1 p-2 touch-target" aria-label="Admin">
+               <Link to="/admin" className="text-white hover:text-secondary transition-colors flex items-center gap-1.5 p-2" aria-label="Admin">
                  <LayoutDashboard className="w-5 h-5" />
                  <span className="text-sm font-bold">Admin</span>
                </Link>
              )}
-             <Link to="/profile?tab=waitlist" className="relative p-2 touch-target text-white hover:text-secondary transition-colors" aria-label="Notifications">
-               <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+             <Link to="/profile?tab=waitlist" className="relative p-2 text-white hover:text-secondary transition-colors" aria-label="Notifications">
+               <Bell className="w-5 h-5 lg:w-6 lg:h-6" />
                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-primary"></span>
              </Link>
-             <Link to="/cart" className="relative p-2 touch-target text-white hover:text-secondary transition-colors flex items-center gap-2" aria-label="Cart">
+             <Link to="/cart" className="relative p-2 text-white hover:text-secondary transition-colors flex items-center gap-2" aria-label="Cart">
                <div className="relative">
-                 <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+                 <ShoppingCart className="w-5 h-5 lg:w-6 lg:h-6" />
                  {cartCount > 0 && (
                    <span className="absolute -top-1.5 -right-2 bg-secondary text-primary text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center border-2 border-primary">
                      {cartCount}
                    </span>
                  )}
                </div>
-               <span className="hidden sm:block text-sm font-bold">Cart</span>
+               <span className="text-sm font-bold">Cart</span>
              </Link>
              {user ? (
-               <Link to="/profile" className="flex items-center gap-2 touch-target p-1 hover:bg-white/10 rounded-lg transition-colors ml-1">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-secondary flex items-center justify-center text-primary font-bold text-sm border border-secondary">
+               <Link to="/profile" className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors ml-1">
+                  <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-secondary flex items-center justify-center text-primary font-bold text-sm border border-secondary">
                      {user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
                   </div>
-                  <span className="hidden sm:block text-sm font-bold text-white truncate max-w-[100px]">{user.displayName?.split(' ')[0]}</span>
+                  <span className="text-sm font-bold text-white truncate max-w-[100px]">{user.displayName?.split(' ')[0]}</span>
                </Link>
              ) : (
-               <Link to="/login" className="hidden sm:flex items-center text-sm font-bold text-white hover:text-secondary transition-colors px-2">
+               <Link to="/login" className="flex items-center text-sm font-bold text-white hover:text-secondary transition-colors px-2">
                  Login
                </Link>
              )}
           </div>
+
         </div>
+      </div>
 
-        {/* Search Bar Row */}
-        <div className="mt-3 relative w-full group">
-           <form onSubmit={handleSearch} className="w-full relative flex items-center shadow-sm">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-               <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-             </div>
-             <input
-               ref={searchInputRef}
-               type="text"
-               placeholder="Search for Products, Brands and More"
-               className="block w-full bg-white border-0 rounded-lg py-2.5 sm:py-3 pl-10 pr-20 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary transition-all shadow-inner"
-               value={searchQuery}
-               onFocus={() => setIsSearchFocused(true)}
-               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-               onChange={(e) => setSearchQuery(e.target.value)}
-             />
-             <div className="absolute right-1 flex items-center">
-               {searchQuery && (
-                 <button type="button" onClick={clearSearch} className="p-2 text-gray-400 hover:text-red-500 transition-colors touch-target">
-                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                 </button>
-               )}
-               {settings.enableVoiceSearch && (
-                 <button type="button" onClick={startVoiceSearch} className={`p-2 touch-target transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}>
-                   <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
-                 </button>
-               )}
-               {settings.enableVisualSearch && (
-                 <button type="button" onClick={() => setIsCameraSearchOpen(true)} className="p-2 text-gray-400 hover:text-primary transition-colors touch-target hidden sm:block">
-                   <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-                 </button>
-               )}
-             </div>
-           </form>
+      {/* Desktop Mega Menu Bar */}
+      <div className="hidden md:block bg-white border-b border-gray-200 shadow-sm relative z-10">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+          <ul className="flex items-center justify-center gap-6 lg:gap-10 h-12">
+            {navCategories.slice(0, 8).map(cat => (
+              <li key={cat.id} className="h-full flex items-center group cursor-pointer border-b-2 border-transparent hover:border-primary transition-colors">
+                <span className="text-sm font-bold text-gray-700 group-hover:text-primary flex items-center gap-1">
+                  {cat.name}
+                  {cat.subcategories && cat.subcategories.length > 0 && (
+                    <ArrowRight className="w-3 h-3 rotate-90 text-gray-400 group-hover:text-primary transition-transform group-hover:rotate-180" />
+                  )}
+                </span>
 
-           {/* Search Suggestions Dropdown */}
-           <AnimatePresence>
-              {isSearchFocused && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 5 }}
-                  className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50 p-2 sm:p-4 max-h-[60vh] overflow-y-auto"
-                >
-                  <div className="flex flex-col gap-4">
-                    {/* Recent Searches */}
-                    {recentSearches.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-2 px-2">
-                          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Searches</span>
-                          <button onClick={clearRecentHistory} className="text-[10px] font-bold text-red-400 hover:text-red-600">Clear</button>
+                {/* Mega Menu Dropdown */}
+                {cat.subcategories && cat.subcategories.length > 0 && (
+                  <div className="absolute top-12 left-0 w-full bg-white shadow-xl border-t border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-6 pointer-events-none group-hover:pointer-events-auto min-h-[300px]">
+                    <div className="max-w-[1920px] mx-auto px-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                      {cat.subcategories.map(sub => (
+                        <div key={sub.id} className="space-y-3">
+                          <Link to={`/products?category=${cat.id}&subcategory=${sub.id}`} className="font-bold text-sm text-gray-900 hover:text-primary block">
+                            {sub.name}
+                          </Link>
+                          {sub.subcategories && sub.subcategories.length > 0 && (
+                            <ul className="space-y-2">
+                              {sub.subcategories.map(nested => (
+                                <li key={nested.id}>
+                                  <Link to={`/products?category=${cat.id}&subcategory=${sub.id}&nested=${nested.id}`} className="text-sm text-gray-500 hover:text-primary hover:underline">
+                                    {nested.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                        <div className="flex flex-col gap-1">
-                          {recentSearches.map((s, i) => (
-                            <button
-                              key={i}
-                              onClick={() => {
-                                setSearchQuery(s);
-                                navigate(`/products?q=${s}`);
-                                setIsSearchFocused(false);
-                              }}
-                              className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                            >
-                              <div className="flex items-center gap-3">
-                                <History className="w-4 h-4 text-gray-300" />
-                                <span className="text-sm font-medium text-gray-700">{s}</span>
-                              </div>
-                              <ArrowRight className="w-3 h-3 text-gray-300" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Trending */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-2 px-2">
-                        <TrendingUp className="w-4 h-4 text-blue-500" />
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Trending</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 px-1">
-                        {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
-                          <button
-                            key={trend}
-                            onClick={() => {
-                              setSearchQuery(trend);
-                              navigate(`/products?q=${trend}`);
-                              setIsSearchFocused(false);
-                            }}
-                            className="px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-full text-xs font-medium text-gray-700 transition-colors border border-gray-100"
-                          >
-                            {trend}
-                          </button>
-                        ))}
-                      </div>
+                      ))}
                     </div>
                   </div>
-                </motion.div>
-              )}
-           </AnimatePresence>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
       
