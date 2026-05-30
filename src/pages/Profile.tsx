@@ -254,8 +254,8 @@ export default function Profile() {
                   <div className="w-full h-full rounded-full bg-blue-500 flex items-center justify-center text-white text-3xl font-black shadow-inner">
                     {user.displayName?.charAt(0).toUpperCase()}
                   </div>
-                  <button className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg border border-gray-100 text-gray-400 hover:text-primary transition-colors">
-                    <Edit2 className="w-3.5 h-3.5" />
+                  <button aria-label="Edit Profile Avatar" className="absolute bottom-0 right-0 p-3 bg-white rounded-full shadow-lg border border-gray-100 text-gray-400 hover:text-primary transition-colors touch-target min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
                 <h3 className="text-lg font-black text-gray-900 tracking-tight">{user.displayName}</h3>
@@ -267,7 +267,7 @@ export default function Profile() {
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id as any)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                    className={`w-full touch-target min-h-[44px] flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                       activeTab === item.id 
                       ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]' 
                       : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -280,7 +280,7 @@ export default function Profile() {
                 ))}
                 <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all mt-4"
+                  className="w-full touch-target min-h-[44px] flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all mt-4"
                 >
                   <LogOut className="w-5 h-5" />
                   Logout
@@ -315,7 +315,7 @@ export default function Profile() {
                       </div>
                       <button 
                         onClick={() => setIsEditingProfile(!isEditingProfile)}
-                        className="px-4 py-2 bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-colors border border-gray-100"
+                        className="px-4 py-2 touch-target min-h-[44px] bg-gray-50 text-gray-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-colors border border-gray-100"
                       >
                         {isEditingProfile ? 'Cancel' : 'Edit Profile'}
                       </button>
@@ -388,7 +388,7 @@ export default function Profile() {
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-8 flex justify-end">
                         <button 
                           onClick={handleUpdateProfile}
-                          className="px-8 py-3 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                          className="px-8 py-3 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
                         >
                           Save Changes
                         </button>
@@ -852,7 +852,7 @@ function AddressModal({
                     key={lbl}
                     type="button"
                     onClick={() => setAddress({ ...address, label: lbl })}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
+                    className={`px-4 py-2 touch-target min-h-[44px] rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
                       (address.label || 'Home') === lbl 
                         ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
                         : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
@@ -983,13 +983,13 @@ function AddressModal({
         <div className="mt-8 flex gap-3">
            <button 
              onClick={onClose}
-             className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all"
+             className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all"
            >
              Cancel
            </button>
            <button 
              onClick={onSave}
-             className="flex-2 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+             className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
            >
              {isEditing ? 'Update Address' : 'Save Address'}
            </button>
@@ -1025,12 +1025,13 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
                   <p className="text-lg font-black text-primary mt-1 tracking-tight">₹{product.discountPrice?.toLocaleString() || product.price.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link to={`/product/${product.id}`} className="flex-1 bg-gray-50 text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors">
+                  <Link to={`/product/${product.id}`} className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center">
                     View Specs
                   </Link>
                   <button 
                     onClick={() => onRemove(product.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    className="p-3 touch-target min-h-[44px] min-w-[44px] text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center"
+                    aria-label="Remove from wishlist"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

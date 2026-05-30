@@ -240,7 +240,8 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="absolute right-12 sm:right-[114px] p-1 text-gray-400 hover:text-red-500 transition-colors z-10"
+                  className="absolute right-12 sm:right-[114px] p-2.5 touch-target text-gray-400 hover:text-red-500 transition-colors z-10"
+                  aria-label="Clear search"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -250,8 +251,9 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={startVoiceSearch}
-                    className={`p-1.5 transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
+                    className={`p-2.5 touch-target transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
                     title="Voice Search"
+                    aria-label="Voice Search"
                   >
                     <Mic className="w-4 h-4" />
                   </button>
@@ -260,8 +262,9 @@ export default function Navbar() {
                   <button 
                     type="button" 
                     onClick={() => setIsCameraSearchOpen(true)}
-                    className="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                    className="p-2.5 touch-target text-gray-400 hover:text-primary transition-colors"
                     title="Visual Search"
+                    aria-label="Visual Search"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -269,7 +272,8 @@ export default function Navbar() {
               </div>
               <button
                 type="submit"
-                className="absolute right-1.5 p-2 bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
+                className="absolute right-1.5 p-2.5 touch-target bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
+                aria-label="Submit search"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -410,18 +414,18 @@ export default function Navbar() {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-6">
             {user?.role === 'admin' && (
-              <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors">
+              <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors p-2 touch-target" aria-label="Admin Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="text-sm font-medium">Admin</span>
               </Link>
             )}
-            <Link to="/wishlist" className="text-gray-600 hover:text-primary transition-colors relative">
+            <Link to="/wishlist" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Wishlist">
               <Heart className="w-6 h-6" />
             </Link>
-            <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative">
+            <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Cart">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
                   {cartCount}
                 </span>
               )}
@@ -450,10 +454,10 @@ export default function Navbar() {
 
           {/* Mobile Actions (Always Visible) */}
           <div className="flex md:hidden items-center gap-1 sm:gap-3">
-            <Link to="/profile?tab=waitlist" className="text-gray-600 p-2" aria-label="Waitlist">
+            <Link to="/profile?tab=waitlist" className="text-gray-600 p-2.5 touch-target flex items-center justify-center" aria-label="Waitlist">
               <Bell className="w-6 h-6" />
             </Link>
-            <Link to="/cart" className="text-gray-600 relative p-2" aria-label="Cart">
+            <Link to="/cart" className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" aria-label="Cart">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
                 <span className="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -462,9 +466,10 @@ export default function Navbar() {
               )}
             </Link>
             <button
-              className="p-2 text-gray-600 transition-transform active:scale-95"
+              className="p-2.5 touch-target text-gray-600 transition-transform active:scale-95 flex items-center justify-center"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle Menu"
+              aria-label={isMenuOpen ? "Close Menu" : "Open Menu"}
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? <X className="w-7 h-7 text-primary" /> : <Menu className="w-7 h-7" />}
             </button>

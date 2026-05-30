@@ -129,13 +129,15 @@ export default function ProductCard({ product }: ProductCardProps) {
             <>
               <button 
                 onClick={handleAddToCart}
-                className="p-2.5 bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl"
+                aria-label="Add to cart"
+                className="p-2.5 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
               >
                 <ShoppingCart className="w-4 h-4" />
               </button>
               <button 
                 onClick={handleBuyNow}
-                className="flex-1 bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
+                aria-label="Buy now"
+                className="flex-1 min-h-[44px] bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
               >
                 Buy Now
               </button>
@@ -150,7 +152,8 @@ export default function ProductCard({ product }: ProductCardProps) {
         )}
         <button 
           onClick={handleToggleWishlist}
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all shadow-sm z-10 ${
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          className={`absolute top-3 right-3 p-2.5 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
             isWishlisted 
               ? 'bg-rose-500 text-white' 
               : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'

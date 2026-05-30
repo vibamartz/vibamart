@@ -473,23 +473,26 @@ export default function Checkout() {
                       <input
                         type="text"
                         placeholder="Full Name"
+                        aria-label="Full Name"
                         value={guestInfo.name}
                         onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
-                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 rounded-xl focus:outline-none focus:border-primary/30"
+                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 min-h-[44px] rounded-xl focus:outline-none focus:border-primary/30"
                       />
                       <input
                         type="email"
                         placeholder="Email Address"
+                        aria-label="Email Address"
                         value={guestInfo.email}
                         onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
-                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 rounded-xl focus:outline-none focus:border-primary/30"
+                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 min-h-[44px] rounded-xl focus:outline-none focus:border-primary/30"
                       />
                       <input
                         type="tel"
                         placeholder="Phone Number"
+                        aria-label="Phone Number"
                         value={guestInfo.phone}
                         onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
-                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 rounded-xl focus:outline-none focus:border-primary/30"
+                        className="w-full text-xs font-bold border-2 border-gray-100 p-4 min-h-[44px] rounded-xl focus:outline-none focus:border-primary/30"
                       />
                     </div>
                     <button
@@ -500,7 +503,7 @@ export default function Checkout() {
                         }
                         setStep(2);
                       }}
-                      className="w-full bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-100"
+                      className="w-full touch-target min-h-[44px] bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-100"
                     >
                       Continue as Guest
                     </button>
@@ -538,7 +541,7 @@ export default function Checkout() {
                     </h4>
                     <button
                       onClick={handleUseCurrentLocation}
-                      className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                      className="flex touch-target min-h-[44px] items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
                     >
                       <MapPin className="w-3 h-3" />
                       Use My Location

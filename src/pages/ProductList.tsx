@@ -522,20 +522,22 @@ export default function ProductList() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden flex items-center gap-2 text-sm font-bold bg-gray-50 px-4 py-2 rounded-lg border border-gray-100"
+                  className="lg:hidden touch-target min-h-[44px] flex items-center justify-center gap-2 text-sm font-bold bg-gray-50 px-4 py-2 rounded-lg border border-gray-100"
                 >
                   <SlidersHorizontal className="w-4 h-4" /> Filters
                 </button>
                 <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-gray-400">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`}
+                    aria-label="Grid view"
+                    className={`p-2.5 touch-target flex items-center justify-center rounded-md ${viewMode === 'grid' ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`}
                   >
                     <Grid className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`}
+                    aria-label="List view"
+                    className={`p-2.5 touch-target flex items-center justify-center rounded-md ${viewMode === 'list' ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`}
                   >
                     <ListIcon className="w-4 h-4" />
                   </button>
@@ -561,7 +563,7 @@ export default function ProductList() {
 
             {/* Grid */}
             {filteredProducts.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6' : 'space-y-6'}>
+              <div className={viewMode === 'grid' ? 'grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6' : 'space-y-6'}>
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

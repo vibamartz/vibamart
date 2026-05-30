@@ -10,7 +10,7 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-400 pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-16">
           {/* Brand */}
           <div className="space-y-6">
             <Link to="/" className="hover:opacity-80 transition-opacity">
@@ -25,10 +25,10 @@ export default function Footer() {
               </Link>
             )}
             <div className="flex gap-4">
-              <SocialLink icon={Facebook} />
-              <SocialLink icon={Twitter} />
-              <SocialLink icon={Instagram} />
-              <SocialLink icon={Youtube} />
+              <SocialLink icon={Facebook} label="Facebook" />
+              <SocialLink icon={Twitter} label="Twitter" />
+              <SocialLink icon={Instagram} label="Instagram" />
+              <SocialLink icon={Youtube} label="Youtube" />
             </div>
           </div>
 
@@ -88,9 +88,9 @@ export default function Footer() {
   );
 }
 
-function SocialLink({ icon: Icon }: any) {
+function SocialLink({ icon: Icon, label = "Social Link" }: any) {
   return (
-    <a href="#" className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all">
+    <a href="#" aria-label={label} className="w-11 h-11 touch-target bg-gray-800 rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all">
        <Icon className="w-5 h-5" />
     </a>
   );

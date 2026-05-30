@@ -204,7 +204,8 @@ export default function ProductDetail() {
               <div className="absolute top-4 right-4 flex flex-col gap-2">
                  <button 
                   onClick={handleToggleWishlist}
-                  className={`p-3 backdrop-blur shadow-sm rounded-full transition-all active:scale-95 ${
+                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                  className={`p-3 touch-target min-h-[44px] backdrop-blur shadow-sm rounded-full transition-all active:scale-95 flex items-center justify-center ${
                     isWishlisted ? 'bg-rose-50 text-rose-500' : 'bg-white/90 text-gray-400 hover:text-rose-500'
                   }`}
                  >
@@ -223,7 +224,8 @@ export default function ProductDetail() {
                       toast.success('Link copied to clipboard!');
                     }
                   }}
-                  className="p-3 bg-white/90 backdrop-blur shadow-sm rounded-full text-gray-400 hover:text-green-600 transition-colors"
+                  aria-label="Share product"
+                  className="p-3 touch-target min-h-[44px] flex items-center justify-center bg-white/90 backdrop-blur shadow-sm rounded-full text-gray-400 hover:text-green-600 transition-colors"
                  >
                     <Share2 className="w-5 h-5" />
                  </button>
@@ -374,9 +376,9 @@ export default function ProductDetail() {
            <div className="flex flex-col gap-4 items-stretch mt-6">
              {product.stock > 0 && (
                <div className="bg-gray-50 border border-gray-100 rounded-xl flex items-center p-1 w-full sm:w-auto self-stretch">
-                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">-</button>
+                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-full sm:w-10 h-12 sm:h-10 touch-target min-h-[44px] flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors" aria-label="Decrease quantity">-</button>
                    <span className="w-12 text-center font-black text-lg">{quantity}</span>
-                   <button onClick={() => setQuantity(quantity + 1)} className="w-full sm:w-10 h-12 sm:h-10 flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors">+</button>
+                   <button onClick={() => setQuantity(quantity + 1)} className="w-full sm:w-10 h-12 sm:h-10 touch-target min-h-[44px] flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors" aria-label="Increase quantity">+</button>
                </div>
              )}
              <div className="flex-1 w-full flex flex-col gap-3">
@@ -385,7 +387,7 @@ export default function ProductDetail() {
                    <button 
                        onClick={handleAddToCart}
                        disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
-                       className={`flex-1 flex items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                       className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
                            (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                            : 'bg-[#ff9f00] text-white shadow-orange-100 hover:bg-[#f39700] active:scale-95'
@@ -396,7 +398,7 @@ export default function ProductDetail() {
                     <button 
                         onClick={handleBuyNow}
                        disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
-                       className={`flex-1 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                       className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
                            (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                            : 'bg-[#fb641b] text-white shadow-orange-200 hover:bg-[#f15e17] active:scale-95'

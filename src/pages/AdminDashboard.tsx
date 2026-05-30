@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2
+  Upload, Link2, Menu
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   if (user?.role !== 'admin') {
     return <Navigate to="/" />;
@@ -106,41 +107,55 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
+      <AnimatePresence>
+        {showMobileSidebar && (
+           <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
+              onClick={() => setShowMobileSidebar(false)}
+            />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-100 hidden md:flex flex-col">
-        <div className="p-6 border-b border-gray-100 italic">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col transition-transform transform ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 overflow-y-auto`}>
+        <div className="p-6 border-b border-gray-100 italic flex items-center justify-between">
           <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2">
             <Logo />
             <span className="font-bold text-gray-800">Admin</span>
           </Link>
+          <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden p-2 -mr-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-          <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => setActiveTab('products')} />
-          <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} />
-          <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => setActiveTab('returns')} />
-          <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
-          <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => setActiveTab('user-roles')} />
-          <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => setActiveTab('sales-reports')} />
-          <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => setActiveTab('payment-reports')} />
-          <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => setActiveTab('activity-logs')} />
-          <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => setActiveTab('banners')} />
-          <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} />
-          <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => setActiveTab('coupons')} />
-          <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => setActiveTab('reviews')} />
-          <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => setActiveTab('vendors')} />
-          <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => setActiveTab('announcements')} />
-          <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
-          <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+          <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
         </nav>
         <div className="p-4 border-t border-gray-100">
           <button
             onClick={() => {
               logAdminAction(AdminAction.USER_ROLE_UPDATE, 'Admin initiated logout.');
-              // In a real app, this would call auth.signOut()
             }}
-            className="flex items-center gap-3 text-gray-500 hover:text-red-600 px-4 py-3 w-full transition-colors font-medium"
+            className="flex touch-target min-h-[44px] items-center gap-3 text-gray-500 hover:text-red-600 px-4 py-3 w-full transition-colors font-medium"
           >
             <LogOut className="w-5 h-5" />
             Logout
@@ -149,21 +164,26 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8">
-          <h1 className="text-xl font-bold text-gray-800 capitalize">{activeTab}</h1>
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 shrink-0">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowMobileSidebar(true)} className="lg:hidden p-2 touch-target -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[120px] sm:max-w-xs">{activeTab.replace('-', ' ')}</h1>
+          </div>
           <div className="flex items-center gap-4">
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-4 py-2 pl-10 text-sm w-64 focus:ring-2 focus:ring-primary/20" />
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             </div>
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">
+            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
               {user.displayName?.[0] || user.email?.[0] || 'A'}
             </div>
           </div>
         </header>
 
-        <div className="p-8 space-y-8 overflow-y-auto max-h-[calc(100vh-64px)]">
+        <div className="p-4 lg:p-8 space-y-6 lg:space-y-8 overflow-y-auto flex-1">
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}
@@ -405,7 +425,7 @@ function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any, label:
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${active
+      className={`w-full flex touch-target min-h-[44px] items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${active
           ? 'bg-primary text-white shadow-lg shadow-blue-100'
           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
         }`}

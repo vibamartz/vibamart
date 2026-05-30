@@ -56,7 +56,7 @@ export default function Cart() {
                               );
                             })()}
                           </div>
-                          <button onClick={() => removeItem(item.productId, item.variantId)} className="text-gray-400 hover:text-red-500 p-1 transition-colors flex-shrink-0">
+                          <button onClick={() => removeItem(item.productId, item.variantId)} className="text-gray-400 hover:text-red-500 p-2.5 touch-target transition-colors flex-shrink-0" aria-label="Remove item">
                             <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                        </div>
@@ -65,14 +65,16 @@ export default function Cart() {
                           <div className="flex items-center gap-3 sm:gap-4 bg-gray-50 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-gray-100">
                              <button 
                                 onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variantId)}
-                                className="text-gray-500 hover:text-primary p-1 transition-colors"
+                                className="text-gray-500 hover:text-primary p-2 touch-target transition-colors"
+                                aria-label="Decrease quantity"
                              >
                                <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                              </button>
                              <span className="text-xs sm:text-sm font-black w-4 text-center">{item.quantity}</span>
                              <button 
                                 onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
-                                className="text-gray-500 hover:text-primary p-1 transition-colors"
+                                className="text-gray-500 hover:text-primary p-2 touch-target transition-colors"
+                                aria-label="Increase quantity"
                              >
                                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                              </button>
@@ -131,7 +133,7 @@ export default function Cart() {
                 <span>Total Amount</span>
                 <span>₹{grandTotal.toLocaleString()}</span>
              </div>
-             <Link to="/checkout" className="w-full bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
+             <Link to="/checkout" className="w-full touch-target min-h-[44px] bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
                 Place Order <ArrowRight className="w-5 h-5" />
              </Link>
              <p className="mt-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest leading-relaxed">

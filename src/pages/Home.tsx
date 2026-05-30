@@ -103,7 +103,7 @@ export default function Home() {
                     <div className="flex flex-wrap gap-4">
                       <Link 
                         to={banners[currentSlide].link || '/products'} 
-                        className="bg-white text-gray-900 px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
+                        className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
                       >
                         Explore Now <ArrowRight className="w-5 h-5" />
                       </Link>
@@ -188,11 +188,11 @@ export default function Home() {
             <h2 className="text-3xl font-black text-gray-900 tracking-tight">Trending Now</h2>
             <p className="text-gray-400 text-sm font-medium uppercase tracking-widest mt-1">Handpicked deals just for you</p>
           </div>
-          <Link to="/products" className="bg-white border-2 border-gray-100 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+          <Link to="/products" className="bg-white touch-target border-2 border-gray-100 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center">
             See All
           </Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-8">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="bg-gray-100 rounded-2xl sm:rounded-[32px] h-[300px] sm:h-[400px] animate-pulse" />
@@ -208,7 +208,7 @@ export default function Home() {
       {/* Features Banner */}
       <section className="bg-white border-y border-gray-100 py-10 sm:py-20">
         <div className="max-w-7xl mx-auto px-6 sm:px-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-12">
             {[
               { icon: Truck, title: 'Free Shipping', sub: 'On orders above ₹500', color: 'bg-green-50 text-green-600' },
               { icon: ShieldCheck, title: 'Secure Payment', sub: '100% protected', color: 'bg-blue-50 text-blue-600' },
