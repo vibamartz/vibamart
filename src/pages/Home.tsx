@@ -1,28 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  ShoppingBag, Star, Zap, ShieldCheck, 
-  Truck, ArrowRight, Heart, Filter,
-  Search, ChevronLeft, ChevronRight,
-  Sparkles, Flame, RefreshCcw, Headset, ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Zap,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Banner } from '../types';
-import { useCategoryStore } from '../store';
+import { useCategoryStore, useAuthStore } from '../store';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
+  const { user } = useAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
-    sessionStorage.removeItem('viba_last_search');
-
     // Fetch Banners
     const bannersQuery = query(
       collection(db, 'banners'), 
@@ -35,12 +34,11 @@ export default function Home() {
       setBanners(bannerData);
     });
 
-    // Fetch Featured Products (using a general query and filtering manually or by a flag if exists)
-    // Note: If 'featured' field doesn't exist, we just take top products
+    // Fetch Products for various sections
     const productsQuery = query(
       collection(db, 'products'),
       orderBy('createdAt', 'desc'),
-      limit(8)
+      limit(20)
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
@@ -59,25 +57,46 @@ export default function Home() {
     if (banners.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % banners.length);
-    }, 5000);
+    }, 4000);
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % banners.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length);
+  // Derive specialized product lists for demo
+  const electronics = products.filter(p => p.categoryId === '3' || p.categoryId === '1' || p.name.toLowerCase().includes('phone') || p.name.toLowerCase().includes('watch'));
+  const fashion = products.filter(p => p.categoryId === '2' || p.name.toLowerCase().includes('shirt') || p.name.toLowerCase().includes('shoe'));
+  const others = products.filter(p => !electronics.includes(p) && !fashion.includes(p));
 
   return (
-    <div className="bg-gray-50 min-h-screen space-y-6 sm:space-y-12 pb-20 overflow-x-hidden">
-      {/* Hero Section / Multi-Banner Slider */}
-      <section className="relative h-[400px] sm:h-[450px] md:h-[550px] overflow-hidden sm:rounded-[40px] sm:mt-4 sm:mx-4 shadow-2xl shadow-blue-50">
+    <div className="bg-gray-100 min-h-screen pb-20 overflow-x-hidden">
+      
+      {/* 1. Category Navigation (Horizontal Scroll) */}
+      <section className="bg-white px-2 py-3 mb-2 shadow-sm">
+        <div className="flex overflow-x-auto hide-scrollbar gap-4 px-2">
+          {CATEGORIES.map((cat) => (
+            <Link 
+              key={cat.id} 
+              to={`/products?category=${cat.id}`}
+              className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[64px]"
+            >
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center p-1 border border-gray-100 touch-target">
+                <img src={cat.image} alt={cat.name} className="w-full h-full rounded-full object-cover" />
+              </div>
+              <p className="text-[10px] font-semibold text-gray-800 text-center">{cat.name}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 2. Hero Banner Slider */}
+      <section className="relative w-full h-[180px] sm:h-[300px] md:h-[400px] bg-white mb-2">
         <AnimatePresence mode="wait">
           {banners.length > 0 ? (
             <motion.div
               key={currentSlide}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
               className="absolute inset-0"
             >
               <img 
@@ -85,149 +104,123 @@ export default function Home() {
                 className="w-full h-full object-cover"
                 alt={banners[currentSlide].title}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
-              
-              <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
-                <div className="max-w-2xl">
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-4 sm:mb-6">
-                      {banners[currentSlide].subtitle || 'Exclusive Offer'}
-                    </span>
-                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-6 tracking-tighter drop-shadow-sm">
-                      {banners[currentSlide].title}
-                    </h1>
-                    <div className="flex flex-wrap gap-4">
-                      <Link 
-                        to={banners[currentSlide].link || '/products'} 
-                        className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
-                      >
-                        Explore Now <ArrowRight className="w-5 h-5" />
-                      </Link>
-                    </div>
-                  </motion.div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                <div>
+                  <h2 className="text-white font-black text-lg sm:text-2xl shadow-sm">{banners[currentSlide].title}</h2>
+                  <p className="text-white/90 text-xs sm:text-sm font-medium">{banners[currentSlide].subtitle}</p>
                 </div>
+                <Link to={banners[currentSlide].link || '/products'} className="bg-primary text-white px-4 py-1.5 rounded-sm text-xs font-bold uppercase touch-target flex items-center justify-center">
+                  Shop Now
+                </Link>
               </div>
             </motion.div>
           ) : (
-            <div className="absolute inset-0 bg-primary flex items-center px-8 md:px-20">
-               <div className="max-w-2xl text-white space-y-6">
-                 <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-none">
-                   UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
-                 </h1>
-                 <p className="text-lg text-white/80 max-w-lg">
-                   Elevate your lifestyle with the latest tech and fashion.
-                 </p>
-                 <Link to="/products" className="inline-block bg-white text-primary px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all">
-                   Shop Now
-                 </Link>
+            <div className="absolute inset-0 bg-primary flex items-center justify-center">
+               <div className="text-white text-center">
+                 <h1 className="text-xl font-bold">ViBa Mart Offers</h1>
+                 <p className="text-xs opacity-80">Loading banners...</p>
                </div>
             </div>
           )}
         </AnimatePresence>
-
+        
         {banners.length > 1 && (
-          <>
-            <button 
-              onClick={prevSlide}
-              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-            >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            <button 
-              onClick={nextSlide}
-              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-            >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            
-            <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-10">
-              {banners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`h-1 sm:h-1.5 transition-all rounded-full ${currentSlide === i ? 'w-8 sm:w-12 bg-primary' : 'w-2 sm:w-3 bg-white/40'}`}
-                />
-              ))}
-            </div>
-          </>
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {banners.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentSlide(i)}
+                className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+              />
+            ))}
+          </div>
         )}
       </section>
 
-      {/* Categories */}
-      <section className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Shop by Category</h2>
-          <Link to="/categories" className="text-primary font-bold flex items-center hover:underline text-sm uppercase tracking-widest">
-            View All <ChevronRightIcon className="w-4 h-4 ml-1" />
-          </Link>
-        </div>
-        <div className="flex overflow-x-auto pb-6 gap-6 md:gap-10 hide-scrollbar scroll-smooth snap-x">
-          {CATEGORIES.map((cat) => (
-            <Link 
-              key={cat.id} 
-              to={`/products?category=${cat.id}`}
-              className="group flex flex-col items-center gap-3 transition-all flex-shrink-0 snap-center first:pl-2 last:pr-2"
-            >
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-white group-hover:border-primary transition-all p-0.5 bg-white shadow-sm ring-1 ring-gray-100 hover:scale-110 duration-500">
-                <img src={cat.image} alt={cat.name} className="w-full h-full rounded-full object-cover" />
-              </div>
-              <p className="text-[10px] md:text-xs font-black text-gray-400 group-hover:text-primary transition-colors tracking-[0.1em] text-center uppercase">{cat.name}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Featured Products */}
-       <section className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight">Trending Now</h2>
-            <p className="text-gray-400 text-sm font-medium uppercase tracking-widest mt-1">Handpicked deals just for you</p>
+      {/* Offer Banner Static */}
+      <section className="px-2 mb-2">
+        <div className="w-full bg-secondary rounded-md p-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="bg-white p-1.5 rounded-full"><Zap className="w-5 h-5 text-secondary" /></div>
+            <div>
+              <p className="text-primary font-black text-xs uppercase">Bank Offer</p>
+              <p className="text-gray-900 font-medium text-xs">Extra 10% Off on HDFC Cards</p>
+            </div>
           </div>
-          <Link to="/products" className="bg-white touch-target border-2 border-gray-100 px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center">
-            See All
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-8">
-          {loading ? (
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="bg-gray-100 rounded-2xl sm:rounded-[32px] h-[300px] sm:h-[400px] animate-pulse" />
-            ))
-          ) : (
-            products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))
-          )}
+          <ChevronRightIcon className="w-5 h-5 text-primary" />
         </div>
       </section>
 
-      {/* Features Banner */}
-      <section className="bg-white border-y border-gray-100 py-10 sm:py-20">
-        <div className="max-w-7xl mx-auto px-6 sm:px-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-12">
-            {[
-              { icon: Truck, title: 'Free Shipping', sub: 'On orders above ₹500', color: 'bg-green-50 text-green-600' },
-              { icon: ShieldCheck, title: 'Secure Payment', sub: '100% protected', color: 'bg-blue-50 text-blue-600' },
-              { icon: RefreshCcw, title: 'Easy Returns', sub: '7 days policy', color: 'bg-amber-50 text-amber-600' },
-              { icon: Headset, title: '24/7 Support', sub: 'Dedicated help', color: 'bg-purple-50 text-purple-600' }
-            ].map((feature, i) => (
-              <div key={i} className="flex flex-col sm:flex-row items-center sm:items-start md:items-center gap-4 sm:gap-6 text-center sm:text-left">
-                <div className={`${feature.color} p-4 sm:p-5 rounded-2xl sm:rounded-[24px]`}>
-                  <feature.icon className="w-6 h-6 sm:w-8 sm:h-8" />
+      {/* 3. Personalized Section */}
+      {user && (
+        <section className="bg-white p-3 mb-2 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900">{user.displayName?.split(' ')[0] || 'User'}, Still Looking For These?</h2>
+            <Link to="/products" className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center touch-target"><ChevronRightIcon className="w-4 h-4" /></Link>
+          </div>
+          <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-2">
+            {products.slice(0, 5).map(product => (
+              <div key={product.id} className="min-w-[140px] max-w-[140px] flex-shrink-0 border border-gray-100 rounded-md p-2">
+                <div className="h-28 w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center relative overflow-hidden">
+                  <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain" />
                 </div>
-                <div className="flex flex-col">
-                  <p className="font-black text-gray-900 tracking-tight text-xs sm:text-base leading-tight">{feature.title}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 font-medium">{feature.sub}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{product.name}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-sm font-bold text-gray-900">₹{product.discountPrice || product.price}</span>
+                  {product.discountPrice && (
+                    <span className="text-[9px] text-gray-400 line-through">₹{product.price}</span>
+                  )}
                 </div>
+                <div className="text-[10px] text-green-600 font-bold mt-0.5">Special Offer</div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
+      )}
+
+      {/* 4. Promotional Cards */}
+      <section className="grid grid-cols-3 gap-2 px-2 mb-2">
+        {[
+          { title: 'Daily Deals', icon: Tag, color: 'bg-rose-50', text: 'text-rose-600' },
+          { title: 'Flash Sale', icon: Zap, color: 'bg-amber-50', text: 'text-amber-600' },
+          { title: 'Trending', icon: TrendingUp, color: 'bg-blue-50', text: 'text-blue-600' }
+        ].map((promo, i) => (
+          <Link key={i} to="/products" className={`${promo.color} rounded-md p-3 flex flex-col items-center justify-center gap-2 touch-target shadow-sm border border-gray-50`}>
+            <promo.icon className={`w-6 h-6 ${promo.text}`} />
+            <span className={`text-[10px] font-bold ${promo.text} text-center`}>{promo.title}</span>
+          </Link>
+        ))}
       </section>
+
+      {/* 5. Product Sections */}
+      <ProductSliderSection title="Best of Electronics" products={electronics.length > 0 ? electronics : products} />
+      <ProductSliderSection title="Fashion Picks" products={fashion.length > 0 ? fashion : products} />
+      <ProductSliderSection title="Home Essentials" products={others.length > 0 ? others : products} />
+
     </div>
+  );
+}
+
+// Helper Component for Horizontal Product Sliders
+function ProductSliderSection({ title, products }: { title: string, products: Product[] }) {
+  if (!products || products.length === 0) return null;
+  
+  return (
+    <section className="bg-white p-3 mb-2 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-bold text-gray-900">{title}</h2>
+        <Link to="/products" className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center touch-target">
+          <ChevronRightIcon className="w-4 h-4" />
+        </Link>
+      </div>
+      <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-2">
+        {products.map(product => (
+          <div key={product.id} className="min-w-[150px] max-w-[150px] flex-shrink-0">
+            <ProductCard product={product} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

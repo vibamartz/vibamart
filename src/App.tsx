@@ -8,6 +8,7 @@ import PermissionModal from './components/PermissionModal';
 // Layout & Common
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import BottomNav from './components/BottomNav';
 
 // Pages
 import Home from './pages/Home';
@@ -71,7 +72,7 @@ export default function App() {
       <ScrollToTop />
       <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
         <Navbar />
-        <main className="flex-1">
+        <main className="flex-1 pb-16 md:pb-0">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<ProductList />} />
@@ -91,6 +92,7 @@ export default function App() {
           </Routes>
         </main>
         <Footer />
+        <BottomNav />
         <Toaster 
           position="bottom-right"
           toastOptions={{
