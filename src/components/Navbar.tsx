@@ -201,6 +201,7 @@ export default function Navbar() {
     setRecentSearches(updated);
   };
 
+
   const clearRecentHistory = (e: React.MouseEvent) => {
     e.stopPropagation();
     localStorage.setItem('viba_recent_searches', JSON.stringify([]));
@@ -218,7 +219,7 @@ export default function Navbar() {
           {/* Logo & Location */}
           <div className="flex flex-col min-w-0 flex-shrink-0">
             <Link to="/" className="hover:opacity-80 transition-opacity flex items-center">
-               <div className="text-white font-black text-xl italic tracking-tighter">ViBa<span className="text-secondary">Mart</span></div>
+               <Logo variant="dark" className="scale-75 sm:scale-100 origin-left -ml-2 sm:ml-0" />
             </Link>
             <button className="flex items-center gap-1 text-white/90 text-[10px] sm:text-xs mt-0.5 truncate hover:text-white group transition-colors">
               <span className="font-medium truncate max-w-[120px] sm:max-w-[200px]">Deliver to Bangalore - 560064</span>
@@ -234,11 +235,11 @@ export default function Navbar() {
                  <span className="text-sm font-bold">Admin</span>
                </Link>
              )}
-             <Link to="/profile?tab=waitlist" className="relative p-2 touch-target text-white hover:text-secondary transition-colors" aria-label="Notifications">
+             <Link to="/profile?tab=waitlist" className="hidden sm:flex relative p-2 touch-target text-white hover:text-secondary transition-colors" aria-label="Notifications">
                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-primary"></span>
              </Link>
-             <Link to="/cart" className="relative p-2 touch-target text-white hover:text-secondary transition-colors flex items-center gap-2" aria-label="Cart">
+             <Link to="/cart" className="hidden sm:flex relative p-2 touch-target text-white hover:text-secondary transition-colors items-center gap-2" aria-label="Cart">
                <div className="relative">
                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
                  {cartCount > 0 && (
@@ -250,7 +251,7 @@ export default function Navbar() {
                <span className="hidden sm:block text-sm font-bold">Cart</span>
              </Link>
              {user ? (
-               <Link to="/profile" className="flex items-center gap-2 touch-target p-1 hover:bg-white/10 rounded-lg transition-colors ml-1">
+               <Link to="/profile" className="hidden sm:flex items-center gap-2 touch-target p-1 hover:bg-white/10 rounded-lg transition-colors ml-1">
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-secondary flex items-center justify-center text-primary font-bold text-sm border border-secondary">
                      {user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
                   </div>
@@ -265,7 +266,7 @@ export default function Navbar() {
         </div>
 
         {/* Search Bar Row */}
-        <div className="mt-3 relative w-full group">
+        <div className="mt-2 sm:mt-3 relative w-full group">
            <form onSubmit={handleSearch} className="w-full relative flex items-center shadow-sm">
              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
@@ -274,7 +275,7 @@ export default function Navbar() {
                ref={searchInputRef}
                type="text"
                placeholder="Search for Products, Brands and More"
-               className="block w-full bg-white border-0 rounded-lg py-2.5 sm:py-3 pl-10 pr-20 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary transition-all shadow-inner"
+               className="block w-full bg-white border-0 rounded-sm sm:rounded-lg py-2.5 sm:py-3 pl-10 pr-20 text-[13px] sm:text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-secondary transition-all shadow-inner"
                value={searchQuery}
                onFocus={() => setIsSearchFocused(true)}
                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
@@ -292,7 +293,7 @@ export default function Navbar() {
                  </button>
                )}
                {settings.enableVisualSearch && (
-                 <button type="button" onClick={() => setIsCameraSearchOpen(true)} className="p-2 text-gray-400 hover:text-primary transition-colors touch-target hidden sm:block">
+                 <button type="button" onClick={() => setIsCameraSearchOpen(true)} className="p-2 text-gray-400 hover:text-primary transition-colors touch-target">
                    <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
                  </button>
                )}
