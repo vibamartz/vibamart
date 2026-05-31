@@ -4,10 +4,10 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-primary: #06402B; /* Deep Green */
-  --color-primary-hover: #042E1F; /* Darker Green */
-  --color-secondary: #D4AF37; /* Gold */
-  --color-secondary-hover: #B8962D; /* Darker Gold */
+  --color-primary: #16a34a; /* green-600 */
+  --color-primary-hover: #15803d; /* green-700 */
+  --color-secondary: #facc15; /* yellow-400 */
+  --color-secondary-hover: #eab308; /* yellow-500 */
 }
 
 @utility hide-scrollbar {
