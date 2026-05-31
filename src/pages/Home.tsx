@@ -85,18 +85,18 @@ export default function Home() {
     <div className="bg-gray-100 min-h-screen pb-20 overflow-x-hidden">
       
       {/* 1. Category Navigation (Horizontal Scroll) */}
-      <section className="bg-white py-3 mb-2">
-        <div className="flex overflow-x-auto hide-scrollbar gap-4 px-3">
+      <section className="bg-white px-2 py-3 mb-2 shadow-sm">
+        <div className="flex overflow-x-auto hide-scrollbar gap-4 px-2">
           {CATEGORIES.map((cat) => (
             <Link 
               key={cat.id} 
               to={`/products?category=${cat.id}`}
               className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[64px]"
             >
-              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center p-1 border border-gray-100">
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center p-1 border border-gray-100 touch-target">
                 <img src={cat.image} alt={cat.name} className="w-full h-full rounded-full object-cover" />
               </div>
-              <p className="text-[11px] font-medium text-gray-800 text-center">{cat.name}</p>
+              <p className="text-[10px] font-semibold text-gray-800 text-center">{cat.name}</p>
             </Link>
           ))}
         </div>
@@ -154,36 +154,40 @@ export default function Home() {
       </section>
 
       {/* Offer Banner Static */}
-      <section className="bg-white p-2 mb-2">
-        <div className="w-full bg-secondary/10 rounded-sm p-3 flex items-center justify-between">
+      <section className="px-2 mb-2">
+        <div className="w-full bg-secondary rounded-md p-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="bg-white p-1 rounded-full"><Zap className="w-4 h-4 text-secondary fill-secondary" /></div>
+            <div className="bg-white p-1.5 rounded-full"><Zap className="w-5 h-5 text-secondary" /></div>
             <div>
-              <p className="text-gray-900 font-bold text-xs">Extra 10% Off on HDFC Cards</p>
-              <p className="text-gray-500 font-medium text-[10px]">T&C Apply</p>
+              <p className="text-primary font-black text-xs uppercase">Bank Offer</p>
+              <p className="text-gray-900 font-medium text-xs">Extra 10% Off on HDFC Cards</p>
             </div>
           </div>
-          <ChevronRightIcon className="w-4 h-4 text-gray-400" />
+          <ChevronRightIcon className="w-5 h-5 text-primary" />
         </div>
       </section>
 
       {/* 3. Personalized Section */}
       {user && (
-        <section className="bg-white p-3 mb-2">
+        <section className="bg-[#FFFDF7] border-y border-secondary/20 p-3 mb-2 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-900">Recently Viewed</h2>
-            <Link to="/products" className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center"><ChevronRightIcon className="w-3 h-3" /></Link>
+            <h2 className="text-sm font-bold text-gray-900">{user.displayName?.split(' ')[0] || 'User'}, Still Looking For These?</h2>
+            <Link to="/products" className="bg-secondary text-primary rounded-full w-6 h-6 flex items-center justify-center touch-target"><ChevronRightIcon className="w-4 h-4" /></Link>
           </div>
-          <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-2">
+          <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-2">
             {products.slice(0, 5).map(product => (
-              <div key={product.id} className="bg-white min-w-[120px] max-w-[120px] flex-shrink-0 border border-gray-200 rounded-sm p-2">
-                <div className="h-24 w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center relative overflow-hidden p-1">
-                  <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
+              <div key={product.id} className="bg-white min-w-[140px] max-w-[140px] flex-shrink-0 border border-secondary/20 rounded-md p-2 shadow-sm">
+                <div className="h-28 w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center relative overflow-hidden">
+                  <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain" />
                 </div>
-                <p className="text-[11px] font-medium text-gray-800 line-clamp-2 leading-snug mb-1 h-8">{product.name}</p>
-                <div className="flex flex-col">
+                <p className="text-xs font-medium text-gray-800 truncate">{product.name}</p>
+                <div className="flex items-center gap-1 mt-1">
                   <span className="text-sm font-bold text-gray-900">₹{product.discountPrice || product.price}</span>
+                  {product.discountPrice && (
+                    <span className="text-[9px] text-gray-400 line-through">₹{product.price}</span>
+                  )}
                 </div>
+                <div className="text-[10px] text-green-600 font-bold mt-0.5">Special Offer</div>
               </div>
             ))}
           </div>
@@ -207,36 +211,33 @@ export default function Home() {
       </section>
 
       {/* 5. Flash Sale Section */}
-      <section className="bg-blue-600 p-3 mb-2 text-white relative overflow-hidden">
-        <div className="flex items-center justify-between mb-3 relative z-10">
+      <section className="bg-gradient-to-b from-blue-900 to-primary p-3 mb-2 shadow-sm text-white relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/4"></div>
+        <div className="flex items-center justify-between mb-4 relative z-10">
           <div>
-            <h2 className="text-sm font-bold flex items-center gap-1 mb-1">
-              Deal of the Day <Clock className="w-3.5 h-3.5 ml-1" />
+            <h2 className="text-sm font-black flex items-center gap-1.5 mb-1">
+              <Zap className="w-4 h-4 text-secondary fill-secondary" /> 
+              Flash Sale
             </h2>
-            <div className="flex items-center gap-1 text-[11px] font-medium opacity-90">
-              <span>Sale ends in</span>
-              <span className="bg-black/20 px-1 py-0.5 rounded">{String(timeLeft.hours).padStart(2, '0')}h</span>
-              <span className="bg-black/20 px-1 py-0.5 rounded">{String(timeLeft.minutes).padStart(2, '0')}m</span>
+            <div className="flex items-center gap-1.5 text-xs font-bold font-mono">
+              <span className="bg-white/20 px-1.5 py-0.5 rounded backdrop-blur-sm">{String(timeLeft.hours).padStart(2, '0')}</span> :
+              <span className="bg-white/20 px-1.5 py-0.5 rounded backdrop-blur-sm">{String(timeLeft.minutes).padStart(2, '0')}</span> :
+              <span className="bg-white/20 px-1.5 py-0.5 rounded backdrop-blur-sm">{String(timeLeft.seconds).padStart(2, '0')}</span>
             </div>
           </div>
-          <Link to="/products" className="bg-white text-blue-600 px-3 py-1.5 rounded-sm text-xs font-bold shadow-sm">
+          <Link to="/products" className="bg-white text-primary px-3 py-1.5 rounded-sm text-xs font-bold touch-target shadow-lg">
             View All
           </Link>
         </div>
-        <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1 relative z-10">
-          {products.slice(5, 11).map(product => (
-            <div key={product.id} className="min-w-[110px] max-w-[110px] flex-shrink-0">
-               <div className="bg-white rounded-sm p-2 shadow-sm h-full flex flex-col">
-                  <div className="aspect-square w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center p-1 relative">
-                     {product.discountPrice && (
-                       <span className="absolute top-0 left-0 bg-red-500 text-white text-[8px] font-bold px-1 rounded-sm shadow-sm z-10">
-                         {Math.round(((product.price - product.discountPrice) / product.price) * 100)}% OFF
-                       </span>
-                     )}
-                     <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
+        <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-1 relative z-10">
+          {products.slice(5, 10).map(product => (
+            <div key={product.id} className="min-w-[130px] max-w-[130px] flex-shrink-0">
+               <div className="bg-white rounded-md p-2 shadow-sm">
+                  <div className="aspect-square w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center p-1">
+                     <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain" />
                   </div>
-                  <p className="text-[10px] font-medium text-gray-800 line-clamp-1 mb-1">{product.name}</p>
-                  <div className="text-xs font-bold text-gray-900 mt-auto">₹{product.discountPrice || product.price}</div>
+                  <p className="text-[11px] font-medium text-gray-800 truncate mb-1">{product.name}</p>
+                  <div className="text-sm font-black text-gray-900">₹{product.discountPrice || product.price}</div>
                </div>
             </div>
           ))}
@@ -276,23 +277,17 @@ function ProductSliderSection({ title, products }: { title: string, products: Pr
   if (!products || products.length === 0) return null;
   
   return (
-    <section className="bg-white p-3 mb-2">
+    <section className="bg-white p-3 mb-2 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-bold text-gray-900">{title}</h2>
-        <Link to="/products" className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center">
-          <ChevronRightIcon className="w-3 h-3" />
+        <Link to="/products" className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center touch-target">
+          <ChevronRightIcon className="w-4 h-4" />
         </Link>
       </div>
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-1">
+      <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-2">
         {products.map(product => (
-          <div key={product.id} className="min-w-[130px] max-w-[130px] flex-shrink-0 border border-gray-200 rounded-sm p-2 bg-white flex flex-col h-full">
-            <div className="aspect-square w-full bg-gray-50 rounded-sm mb-2 flex items-center justify-center p-1 relative overflow-hidden">
-               <img src={product.images[0]} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply" />
-            </div>
-            <p className="text-[11px] font-medium text-gray-800 line-clamp-1 mb-0.5">{product.name}</p>
-            <div className="mt-auto">
-              <span className="text-xs font-bold text-gray-900">₹{product.discountPrice || product.price}</span>
-            </div>
+          <div key={product.id} className="min-w-[150px] max-w-[150px] flex-shrink-0">
+            <ProductCard product={product} />
           </div>
         ))}
       </div>

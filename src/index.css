@@ -47,11 +47,6 @@
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
-  
-  /* Safe Area Padding for mobile notches/home indicators */
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
 }
 
 

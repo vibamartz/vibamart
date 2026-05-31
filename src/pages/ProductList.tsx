@@ -402,15 +402,45 @@ export default function ProductList() {
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24 lg:pb-8">
+    <div className="bg-gray-50 min-h-screen">
       {/* Header / Breadcrumbs */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:py-8 sm:px-6 lg:px-8">
-          <h1 className="text-xl sm:text-3xl font-black text-gray-900 mb-2 tracking-tight">Browse Products</h1>
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Browse Products</h1>
+
+          {/* Subcategories Horizontal Bar (Flipkart/Myntra Style) */}
+          {selectedCategories.length > 0 && (
+            <div className="flex gap-6 overflow-x-auto no-scrollbar py-8 mb-4">
+              {selectedCategories.flatMap(catId =>
+                CATEGORIES.find(c => c.id === catId)?.subcategories || []
+              ).map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => toggleSubCategory(sub.id)}
+                  className="flex flex-col items-center gap-3 min-w-[70px] group transition-all"
+                >
+                  <div className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${selectedSubCategories.includes(sub.id)
+                      ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-lg'
+                      : 'border-gray-100 group-hover:border-primary/50 group-hover:scale-105'
+                    }`}>
+                    <img
+                      src={sub.image || 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=200&h=200&fit=crop'}
+                      className="w-full h-full rounded-full object-cover"
+                      alt={sub.name}
+                    />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-tight text-center whitespace-wrap max-w-[80px] leading-tight transition-colors ${selectedSubCategories.includes(sub.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
+                    }`}>
+                    {sub.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Nested Subcategories Horizontal Bar with Icon/Logo */}
           {selectedSubCategories.length > 0 && (
-            <div className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar py-3 sm:py-4 mb-2 sm:mb-4 border-t border-gray-100/50">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 mb-4 border-t border-gray-100/50">
               {selectedSubCategories.flatMap(subId => {
                 const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
                 const sub = cat?.subcategories?.find(s => s.id === subId);
@@ -419,9 +449,9 @@ export default function ProductList() {
                 <button
                   key={nested.id}
                   onClick={() => toggleNestedSubCategory(nested.id)}
-                  className="flex flex-col items-center gap-2 min-w-[50px] sm:min-w-[60px] group transition-all animate-in fade-in slide-in-from-top-1 duration-200"
+                  className="flex flex-col items-center gap-2.5 min-w-[60px] group transition-all animate-in fade-in slide-in-from-top-1 duration-200"
                 >
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${selectedNestedSubCategories.includes(nested.id)
+                  <div className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${selectedNestedSubCategories.includes(nested.id)
                       ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-md'
                       : 'border-gray-100 group-hover:border-primary/50 group-hover:scale-105'
                     }`}>
@@ -431,7 +461,7 @@ export default function ProductList() {
                       alt={nested.name}
                     />
                   </div>
-                  <span className={`text-[9px] font-black uppercase tracking-tight text-center max-w-[60px] sm:max-w-[70px] leading-tight transition-colors ${selectedNestedSubCategories.includes(nested.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
+                  <span className={`text-[9px] font-black uppercase tracking-tight text-center max-w-[70px] leading-tight transition-colors ${selectedNestedSubCategories.includes(nested.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
                     }`}>
                     {nested.name}
                   </span>
@@ -487,9 +517,15 @@ export default function ProductList() {
 
           {/* Product Grid Area */}
           <div className="flex-1">
-            {/* Toolbar - Desktop Only */}
-            <div className="hidden lg:flex bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-8 items-center justify-between">
+            {/* Toolbar */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-8 flex items-center justify-between">
               <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="lg:hidden touch-target min-h-[44px] flex items-center justify-center gap-2 text-sm font-bold bg-gray-50 px-4 py-2 rounded-lg border border-gray-100"
+                >
+                  <SlidersHorizontal className="w-4 h-4" /> Filters
+                </button>
                 <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-gray-400">
                   <button
                     onClick={() => setViewMode('grid')}
@@ -527,7 +563,7 @@ export default function ProductList() {
 
             {/* Grid */}
             {filteredProducts.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-0 sm:gap-6 bg-white sm:bg-transparent' : 'space-y-6'}>
+              <div className={viewMode === 'grid' ? 'grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6' : 'space-y-6'}>
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
@@ -604,29 +640,6 @@ export default function ProductList() {
           </div>
         )}
       </AnimatePresence>
-      
-      {/* Sticky Mobile Sort & Filter Bar */}
-      <div className="lg:hidden fixed bottom-[56px] left-0 right-0 bg-white border-t border-gray-200 z-[90] flex divide-x divide-gray-200 pb-safe">
-        <div className="flex-1 relative">
-           <select
-             value={sortBy}
-             onChange={(e) => setSortBy(e.target.value)}
-             className="w-full appearance-none bg-transparent text-sm font-bold py-3 text-center outline-none text-gray-800"
-           >
-             <option value="popularity">Sort: Popular</option>
-             <option value="price-asc">Sort: Price Low</option>
-             <option value="price-desc">Sort: Price High</option>
-             <option value="newest">Sort: Newest</option>
-           </select>
-        </div>
-        <button 
-          onClick={() => setShowFilters(true)}
-          className="flex-1 py-3 text-sm font-bold text-gray-800 flex items-center justify-center gap-2"
-        >
-          <Filter className="w-4 h-4" /> Filter
-        </button>
-      </div>
-
     </div>
   );
 }
