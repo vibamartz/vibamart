@@ -58,7 +58,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const currentPrice = ((product.discountPrice || product.price) + (selectedVariant?.extraPrice || 0));
 
   return (
-    <Link to={`/product/${product.id}`} className="block bg-white rounded-md border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative h-full flex flex-col overflow-hidden group touch-target">
+    <Link to={`/product/${product.id}`} className="block bg-white border border-gray-100 hover:shadow-md transition-shadow relative h-full flex flex-col group touch-target">
       
       {/* Image Section */}
       <div className="relative aspect-[4/5] bg-gray-50 flex items-center justify-center p-2">
@@ -78,7 +78,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Info Section */}
       <div className="p-2 sm:p-3 flex flex-col flex-1">
-        <h3 className="text-xs sm:text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-1">
+        <h3 className="text-[11px] sm:text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-1 text-left">
           {product.name}
         </h3>
         
@@ -91,23 +91,24 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Price Row */}
-        <div className="mt-auto">
-          <div className="flex items-baseline gap-1.5 flex-wrap">
+        <div className="mt-auto flex flex-col items-start text-left">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm sm:text-base font-bold text-gray-900">
               ₹{currentPrice.toLocaleString()}
             </span>
             {product.discountPrice && (
               <>
                 <span className="text-[10px] sm:text-xs text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
-                <span className="text-[10px] sm:text-xs font-bold text-primary">{discountPercentage}% off</span>
+                <span className="text-[10px] sm:text-xs font-bold text-green-600">{discountPercentage}% off</span>
               </>
             )}
           </div>
-          <div className="text-[10px] text-gray-500 mt-1">Free delivery</div>
+          <div className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">Free delivery</div>
           
+          {/* Add to Cart - Desktop only */}
           <button 
-            onClick={handleAddToCart}
-            className="w-full mt-2 bg-white border border-gray-200 text-primary py-1.5 rounded-sm text-xs font-bold uppercase touch-target active:bg-primary active:text-white transition-colors"
+            onClick={(e) => { e.preventDefault(); handleAddToCart(e); }}
+            className="hidden md:block w-full mt-2 bg-white border border-gray-200 text-primary py-1.5 rounded-sm text-xs font-bold uppercase touch-target active:bg-primary active:text-white transition-colors hover:bg-gray-50 z-10 relative"
           >
             Add
           </button>
