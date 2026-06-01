@@ -4815,8 +4815,13 @@ function BannersManagementView() {
               </div>
             </div>
             <div className="p-6 pt-0 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest bg-gray-50 px-2.5 py-1 rounded-lg">Order: {banner.order}</span>
+                {banner.link && (
+                  <span className="text-[10px] font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg truncate max-w-[140px]" title={banner.link}>
+                    → {banner.link}
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => toggleBannerStatus(banner)}
@@ -4936,11 +4941,12 @@ function AddBannerModal({ banner, onClose }: { banner: Banner | null, onClose: (
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Redirect Path</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Redirect Path / URL</label>
               <input
                 className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all"
                 value={formData.link}
                 onChange={e => setFormData(p => ({ ...p, link: e.target.value }))}
+                placeholder="e.g. /products or https://example.com"
               />
             </div>
           </div>

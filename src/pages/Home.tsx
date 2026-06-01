@@ -6,7 +6,7 @@ import {
   Search, ChevronLeft, ChevronRight,
   Sparkles, Flame, RefreshCcw, Headset, ChevronRight as ChevronRightIcon
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -16,6 +16,18 @@ import { useCategoryStore, useSettingsStore } from '../store';
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
   const { settings } = useSettingsStore();
+  const navigate = useNavigate();
+
+  const navigateBanner = (link?: string) => {
+    if (!link) return;
+    // External URL detection
+    if (/^https?:\/\//i.test(link) || link.startsWith('www.')) {
+      const url = link.startsWith('www.') ? `https://${link}` : link;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(link);
+    }
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,11 +91,12 @@ export default function Home() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="absolute inset-0"
+                onClick={() => navigateBanner(banners[currentSlide].link)}
+                className="absolute inset-0 group cursor-pointer active:scale-[0.99] transition-all duration-150"
               >
                 <img
                   src={banners[currentSlide].image}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   alt={banners[currentSlide].title}
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
@@ -102,19 +115,21 @@ export default function Home() {
                         {banners[currentSlide].title}
                       </h1>
                       <div className="flex flex-wrap gap-4">
-                        <Link
-                          to={banners[currentSlide].link || '/products'}
+                        <div
                           className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
                         >
                           Explore Now <ArrowRight className="w-5 h-5" />
-                        </Link>
+                        </div>
                       </div>
                     </motion.div>
                   </div>
                 </div>
               </motion.div>
             ) : (
-              <div className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20">
+              <div
+                onClick={() => navigate('/products')}
+                className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150"
+              >
                 <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
                   <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
                     UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
@@ -122,9 +137,9 @@ export default function Home() {
                   <p className="text-xs sm:text-lg text-white/80 max-w-lg">
                     Elevate your lifestyle with the latest tech and fashion.
                   </p>
-                  <Link to="/products" className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
+                  <div className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
                     Shop Now
-                  </Link>
+                  </div>
                 </div>
               </div>
             )}
@@ -133,13 +148,13 @@ export default function Home() {
           {banners.length > 1 && (
             <>
               <button
-                onClick={prevSlide}
+                onClick={(e) => { e.stopPropagation(); prevSlide(); }}
                 className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
               >
                 <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <button
-                onClick={nextSlide}
+                onClick={(e) => { e.stopPropagation(); nextSlide(); }}
                 className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
               >
                 <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -149,7 +164,7 @@ export default function Home() {
                 {banners.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => setCurrentSlide(i)}
+                    onClick={(e) => { e.stopPropagation(); setCurrentSlide(i); }}
                     className={`h-1 sm:h-1.5 transition-all rounded-full ${currentSlide === i ? 'w-8 sm:w-12 bg-primary' : 'w-2 sm:w-3 bg-white/40'}`}
                   />
                 ))}
