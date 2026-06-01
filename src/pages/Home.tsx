@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ShoppingBag, Star, Zap, ShieldCheck, 
+import {
+  ShoppingBag, Star, Zap, ShieldCheck,
   Truck, ArrowRight, Heart, Filter,
   Search, ChevronLeft, ChevronRight,
   Sparkles, Flame, RefreshCcw, Headset, ChevronRight as ChevronRightIcon
@@ -25,11 +25,11 @@ export default function Home() {
 
     // Fetch Banners
     const bannersQuery = query(
-      collection(db, 'banners'), 
+      collection(db, 'banners'),
       where('active', '==', true),
       orderBy('order', 'asc')
     );
-    
+
     const unsubscribeBanners = onSnapshot(bannersQuery, (snapshot) => {
       const bannerData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
       setBanners(bannerData);
@@ -69,7 +69,7 @@ export default function Home() {
   return (
     <div className="bg-gray-50 min-h-screen space-y-6 sm:space-y-12 pb-20 overflow-x-hidden">
       {/* Hero Section / Multi-Banner Slider */}
-      <section className="relative h-[400px] sm:h-[450px] md:h-[550px] overflow-hidden sm:rounded-[40px] sm:mt-4 sm:mx-4 shadow-2xl shadow-blue-50">
+      <section className="max-w-7xl mx-0 sm:mx-4 lg:mx-auto relative h-[260px] sm:h-[300px] md:h-[350px] lg:h-[450px] overflow-hidden sm:rounded-[40px] sm:mt-4 shadow-2xl shadow-blue-50">
         <AnimatePresence mode="wait">
           {banners.length > 0 ? (
             <motion.div
@@ -80,13 +80,13 @@ export default function Home() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="absolute inset-0"
             >
-              <img 
-                src={banners[currentSlide].image} 
+              <img
+                src={banners[currentSlide].image}
                 className="w-full h-full object-cover"
                 alt={banners[currentSlide].title}
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
-              
+
               <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
                 <div className="max-w-2xl">
                   <motion.div
@@ -94,15 +94,15 @@ export default function Home() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                   >
-                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-4 sm:mb-6">
+                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
                       {banners[currentSlide].subtitle || 'Exclusive Offer'}
                     </span>
-                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-6 tracking-tighter drop-shadow-sm">
+                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
                       {banners[currentSlide].title}
                     </h1>
                     <div className="flex flex-wrap gap-4">
-                      <Link 
-                        to={banners[currentSlide].link || '/products'} 
+                      <Link
+                        to={banners[currentSlide].link || '/products'}
                         className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
                       >
                         Explore Now <ArrowRight className="w-5 h-5" />
@@ -113,38 +113,38 @@ export default function Home() {
               </div>
             </motion.div>
           ) : (
-            <div className="absolute inset-0 bg-primary flex items-center px-8 md:px-20">
-               <div className="max-w-2xl text-white space-y-6">
-                 <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-none">
-                   UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
-                 </h1>
-                 <p className="text-lg text-white/80 max-w-lg">
-                   Elevate your lifestyle with the latest tech and fashion.
-                 </p>
-                 <Link to="/products" className="inline-block bg-white text-primary px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all">
-                   Shop Now
-                 </Link>
-               </div>
+            <div className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20">
+              <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
+                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
+                  UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
+                </h1>
+                <p className="text-xs sm:text-lg text-white/80 max-w-lg">
+                  Elevate your lifestyle with the latest tech and fashion.
+                </p>
+                <Link to="/products" className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
+                  Shop Now
+                </Link>
+              </div>
             </div>
           )}
         </AnimatePresence>
 
         {banners.length > 1 && (
           <>
-            <button 
+            <button
               onClick={prevSlide}
               className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
             >
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <button 
+            <button
               onClick={nextSlide}
               className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
             >
               <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            
-            <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-10">
+
+            <div className="absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-10">
               {banners.map((_, i) => (
                 <button
                   key={i}
@@ -167,8 +167,8 @@ export default function Home() {
         </div>
         <div className="flex overflow-x-auto pb-6 gap-6 md:gap-10 hide-scrollbar scroll-smooth snap-x">
           {CATEGORIES.map((cat) => (
-            <Link 
-              key={cat.id} 
+            <Link
+              key={cat.id}
               to={`/products?category=${cat.id}`}
               className="group flex flex-col items-center gap-3 transition-all flex-shrink-0 snap-center first:pl-2 last:pr-2"
             >
@@ -182,7 +182,7 @@ export default function Home() {
       </section>
 
       {/* Featured Products */}
-       <section className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tight">Trending Now</h2>
