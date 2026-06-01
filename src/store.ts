@@ -215,7 +215,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   enableBrandFilter: true,
   enableRatingFilter: true,
   enableDiscountFilter: true,
-  enableAvailabilityFilter: true
+  enableAvailabilityFilter: true,
+  enableBanner: true
 };
 
 interface SettingsState {

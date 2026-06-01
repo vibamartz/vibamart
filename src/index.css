@@ -21,6 +21,11 @@
 @layer base {
   body {
     @apply text-gray-900 antialiased bg-gray-50;
+    min-width: 1280px;
+  }
+  
+  #root {
+    min-width: 1280px;
   }
   
   /* Global Accessibility: Ensure standard focus rings for keyboard navigation */

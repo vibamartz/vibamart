@@ -2475,6 +2475,16 @@ function SettingsView() {
           />
         </div>
 
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Homepage Banner</h3>
+        <div className="space-y-3">
+          <Toggle 
+            label="Enable Homepage Banner" 
+            desc="Show the promotional banner slider on the homepage" 
+            value={localSettings.enableBanner} 
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableBanner: !prev.enableBanner }))} 
+          />
+        </div>
+
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Storefront Filters</h3>
         <div className="space-y-3">
           <Toggle label="Brand Filter" desc="Allow filtering by brand" value={localSettings.enableBrandFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableBrandFilter: !prev.enableBrandFilter }))} />

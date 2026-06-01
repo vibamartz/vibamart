@@ -11,10 +11,11 @@ import ProductCard from '../components/ProductCard';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Product, Banner } from '../types';
-import { useCategoryStore } from '../store';
+import { useCategoryStore, useSettingsStore } from '../store';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
+  const { settings } = useSettingsStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,93 +70,95 @@ export default function Home() {
   return (
     <div className="bg-gray-50 min-h-screen space-y-6 sm:space-y-12 pb-20 overflow-x-hidden">
       {/* Hero Section / Multi-Banner Slider */}
-      <section className="max-w-7xl mx-0 sm:mx-4 lg:mx-auto relative h-[260px] sm:h-[300px] md:h-[350px] lg:h-[450px] overflow-hidden sm:rounded-[40px] sm:mt-4 shadow-2xl shadow-blue-50">
-        <AnimatePresence mode="wait">
-          {banners.length > 0 ? (
-            <motion.div
-              key={currentSlide}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="absolute inset-0"
-            >
-              <img
-                src={banners[currentSlide].image}
-                className="w-full h-full object-cover"
-                alt={banners[currentSlide].title}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+      {settings.enableBanner && (
+        <section className="max-w-7xl mx-0 sm:mx-4 lg:mx-auto relative h-[260px] sm:h-[300px] md:h-[350px] lg:h-[450px] overflow-hidden sm:rounded-[40px] sm:mt-4 shadow-2xl shadow-blue-50">
+          <AnimatePresence mode="wait">
+            {banners.length > 0 ? (
+              <motion.div
+                key={currentSlide}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="absolute inset-0"
+              >
+                <img
+                  src={banners[currentSlide].image}
+                  className="w-full h-full object-cover"
+                  alt={banners[currentSlide].title}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
 
-              <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
-                <div className="max-w-2xl">
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
-                      {banners[currentSlide].subtitle || 'Exclusive Offer'}
-                    </span>
-                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
-                      {banners[currentSlide].title}
-                    </h1>
-                    <div className="flex flex-wrap gap-4">
-                      <Link
-                        to={banners[currentSlide].link || '/products'}
-                        className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
-                      >
-                        Explore Now <ArrowRight className="w-5 h-5" />
-                      </Link>
-                    </div>
-                  </motion.div>
+                <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
+                  <div className="max-w-2xl">
+                    <motion.div
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
+                        {banners[currentSlide].subtitle || 'Exclusive Offer'}
+                      </span>
+                      <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
+                        {banners[currentSlide].title}
+                      </h1>
+                      <div className="flex flex-wrap gap-4">
+                        <Link
+                          to={banners[currentSlide].link || '/products'}
+                          className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
+                        >
+                          Explore Now <ArrowRight className="w-5 h-5" />
+                        </Link>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20">
+                <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
+                    UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
+                  </h1>
+                  <p className="text-xs sm:text-lg text-white/80 max-w-lg">
+                    Elevate your lifestyle with the latest tech and fashion.
+                  </p>
+                  <Link to="/products" className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
+                    Shop Now
+                  </Link>
                 </div>
               </div>
-            </motion.div>
-          ) : (
-            <div className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20">
-              <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
-                  UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
-                </h1>
-                <p className="text-xs sm:text-lg text-white/80 max-w-lg">
-                  Elevate your lifestyle with the latest tech and fashion.
-                </p>
-                <Link to="/products" className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
-                  Shop Now
-                </Link>
+            )}
+          </AnimatePresence>
+
+          {banners.length > 1 && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+              >
+                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+              >
+                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+
+              <div className="absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-10">
+                {banners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentSlide(i)}
+                    className={`h-1 sm:h-1.5 transition-all rounded-full ${currentSlide === i ? 'w-8 sm:w-12 bg-primary' : 'w-2 sm:w-3 bg-white/40'}`}
+                  />
+                ))}
               </div>
-            </div>
+            </>
           )}
-        </AnimatePresence>
-
-        {banners.length > 1 && (
-          <>
-            <button
-              onClick={prevSlide}
-              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-            >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-            >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-
-            <div className="absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 z-10">
-              {banners.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`h-1 sm:h-1.5 transition-all rounded-full ${currentSlide === i ? 'w-8 sm:w-12 bg-primary' : 'w-2 sm:w-3 bg-white/40'}`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Categories */}
       <section className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">

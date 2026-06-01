@@ -209,6 +209,7 @@ export interface StoreSettings {
   enableRatingFilter: boolean;
   enableDiscountFilter: boolean;
   enableAvailabilityFilter: boolean;
+  enableBanner: boolean;
 }
 
 export interface SearchAnalytics {
