@@ -4718,10 +4718,27 @@ function BannersManagementView() {
 
   useEffect(() => {
     const q = query(collection(db, 'banners'), orderBy('order', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
-      setBanners(data);
-      setLoading(false);
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (snapshot.empty) {
+        const defaultBanner: Banner = {
+          id: 'default_hero_banner',
+          title: 'UP TO 80% OFF ON ELECTRONICS',
+          subtitle: 'Elevate your lifestyle with the latest tech and fashion.',
+          image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&h=900&fit=crop',
+          link: '/products',
+          active: true,
+          order: 1
+        };
+        try {
+          await setDoc(doc(db, 'banners', defaultBanner.id), defaultBanner);
+        } catch (e) {
+          console.error("Failed to seed default banner:", e);
+        }
+      } else {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+        setBanners(data);
+        setLoading(false);
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'banners');
     });
