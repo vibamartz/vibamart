@@ -104,12 +104,17 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountAmount = product.discountPrice ? product.price - product.discountPrice : 0;
   const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
 
+  const handleCardClick = () => {
+    navigate(`/product/${product.id}`);
+  };
+
   return (
     <motion.div
       whileHover={{ y: -5, scale: 1.02 }}
-      className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full"
+      onClick={handleCardClick}
+      className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
     >
-      <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
+      <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-50" onClick={(e) => e.stopPropagation()}>
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
           alt={product.name}
@@ -119,7 +124,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
           {hasBeenOrdered ? (
             <button 
-              onClick={handleTrackOrder}
+              onClick={(e) => { e.stopPropagation(); handleTrackOrder(e); }}
               className="flex-1 bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-xl"
             >
               <Truck className="w-3.5 h-3.5" />
@@ -128,14 +133,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           ) : (
             <>
               <button 
-                onClick={handleAddToCart}
+                onClick={(e) => { e.stopPropagation(); handleAddToCart(e); }}
                 aria-label="Add to cart"
                 className="p-2.5 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
               >
                 <ShoppingCart className="w-4 h-4" />
               </button>
               <button 
-                onClick={handleBuyNow}
+                onClick={(e) => { e.stopPropagation(); handleBuyNow(e); }}
                 aria-label="Buy now"
                 className="flex-1 min-h-[44px] bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
               >
@@ -151,7 +156,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </span>
         )}
         <button 
-          onClick={handleToggleWishlist}
+          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
           className={`absolute top-3 right-3 p-2.5 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
             isWishlisted 
@@ -164,9 +169,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       </Link>
 
       <div className="p-4 flex flex-col flex-1">
-        <Link to={`/product/${product.id}`} className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
+        <span className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
           {product.name}
-        </Link>
+        </span>
         <div className="flex items-center gap-1 mb-3">
           <div className="flex bg-green-600/10 text-green-700 text-xs items-center gap-1 px-2 py-0.5 rounded font-bold">
             {product.rating} <Star className="w-3 h-3 fill-current" />
@@ -175,7 +180,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {product.variants && product.variants.length > 0 && (
-          <div className="mb-4 space-y-2">
+          <div className="mb-4 space-y-2" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
               {selectedVariant && selectedVariant.stock < 10 && selectedVariant.stock > 0 && (

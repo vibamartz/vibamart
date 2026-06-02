@@ -195,7 +195,7 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-white sm:rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-12">
         {/* Left: Image Gallery */}
         <div className="w-full lg:flex-1 space-y-4">
-           <div className="aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 lg:sticky lg:top-24">
+           <div className="relative aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 lg:sticky lg:top-24">
               <img 
                 src={product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image'} 
                 alt={product.name} 
