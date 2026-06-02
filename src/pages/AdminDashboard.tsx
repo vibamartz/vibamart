@@ -2973,8 +2973,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.tags || formData.tags.length < settings.minKeywords) {
-      toast.error(`Minimum ${settings.minKeywords} keywords are mandatory for the product.`);
+    if (formData.tags && formData.tags.length > 0 && formData.tags.length < settings.minKeywords) {
+      toast.error(`You've added some keywords but the minimum is ${settings.minKeywords}. Please add more or remove all.`);
       return;
     }
 
@@ -3426,7 +3426,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                   Add
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Minimum {settings.minKeywords} required.</p>
+              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Optional — if added, minimum {settings.minKeywords}.</p>
             </div>
             
             {formData.tags && formData.tags.length > 0 && (
