@@ -34,7 +34,7 @@ export default function GoogleMapsLoader({ children }: GoogleMapsLoaderProps) {
   }
 
   return (
-    <APIProvider apiKey={API_KEY} version="weekly">
+    <APIProvider apiKey={API_KEY} version="quarterly" libraries={['marker', 'places']}>
       {children}
     </APIProvider>
   );
