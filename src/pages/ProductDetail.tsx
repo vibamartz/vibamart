@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Product, WaitlistItem } from '../types';
-import { generateProductSlug, getProductUrl } from '../utils/product';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore } from '../store';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PincodeChecker from '../components/PincodeChecker';
-import ProductCard from '../components/ProductCard';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   doc, getDoc, collection, addDoc, query, where, getDocs, updateDoc,
-  arrayUnion, arrayRemove, limit 
+  arrayUnion, arrayRemove, limit, documentId 
 } from 'firebase/firestore';
+import { getProductSlug } from '../utils/slug';
+import ProductCard from '../components/ProductCard';
 
 export default function ProductDetail() {
-  const { idOrSlug } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     const fetchAssociatedOrder = async () => {
-      if (!user || !product?.id || !hasBeenOrdered) return;
+      if (!user || !id || !hasBeenOrdered) return;
       try {
         const q = query(
           collection(db, "orders"),
@@ -42,7 +42,7 @@ export default function ProductDetail() {
         const matches: any[] = [];
         snap.forEach(docSnap => {
           const data = docSnap.data();
-          if (data.items?.some((item: any) => item.productId === product.id)) {
+          if (data.items?.some((item: any) => item.productId === id)) {
             matches.push({ id: docSnap.id, ...data });
           }
         });
@@ -55,90 +55,69 @@ export default function ProductDetail() {
       }
     };
     fetchAssociatedOrder();
-  }, [user, product?.id, hasBeenOrdered]);
-
-  const trackRecentlyViewed = (productId: string) => {
-    try {
-      const stored = localStorage.getItem('viba_recently_viewed');
-      let list: string[] = stored ? JSON.parse(stored) : [];
-      list = [productId, ...list.filter(id => id !== productId)].slice(0, 5);
-      localStorage.setItem('viba_recently_viewed', JSON.stringify(list));
-    } catch (e) {
-      console.warn('Failed to track recently viewed product:', e);
-    }
-  };
+  }, [user, id, hasBeenOrdered]);
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!idOrSlug) return;
+      if (!id) return;
       try {
-        setLoading(true);
-        let foundProduct: Product | null = null;
-
-        // 1. Try to fetch by document ID
-        const prodRef = doc(db, 'products', idOrSlug);
+        // 1. Try finding by ID first
+        const prodRef = doc(db, 'products', id);
         const snap = await getDoc(prodRef);
         if (snap.exists()) {
-          foundProduct = { id: snap.id, ...snap.data() } as Product;
-        } else {
-          // 2. Query where slug == idOrSlug
-          const qSlug = query(collection(db, 'products'), where('slug', '==', idOrSlug));
-          const snapSlug = await getDocs(qSlug);
-          if (!snapSlug.empty) {
-            const docSnap = snapSlug.docs[0];
-            foundProduct = { id: docSnap.id, ...docSnap.data() } as Product;
-          } else {
-            // 3. Fallback: Search in-memory slugs of all products
-            const qAll = query(collection(db, 'products'));
-            const snapAll = await getDocs(qAll);
-            const matchedDoc = snapAll.docs.find(docSnap => {
-              const data = docSnap.data();
-              return generateProductSlug(data.name || '') === idOrSlug;
-            });
-            if (matchedDoc) {
-              foundProduct = { id: matchedDoc.id, ...matchedDoc.data() } as Product;
-              
-              // Self-healing database write
-              try {
-                await updateDoc(doc(db, 'products', matchedDoc.id), {
-                  slug: idOrSlug
-                });
-              } catch (saveErr) {
-                console.warn('Failed self-healing slug update:', saveErr);
-              }
-            }
-          }
-        }
-
-        if (foundProduct) {
-          if (foundProduct.status === 'draft') {
-            navigate('/product-not-found', { replace: true });
-            return;
-          }
-
-          setProduct(foundProduct);
-          setSelectedVariant(foundProduct.variants?.[0]?.id);
+          const data = { id: snap.id, ...snap.data() } as Product;
+          setProduct(data);
+          setSelectedVariant(data.variants?.[0]?.id);
           
-          if (user && foundProduct.stock === 0) {
-            const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', foundProduct.id));
+          if (user && data.stock === 0) {
+            const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', id));
             const wsnap = await getDocs(wq);
             setIsOnWaitlist(!wsnap.empty);
           }
-
-          trackRecentlyViewed(foundProduct.id);
         } else {
-          navigate('/product-not-found', { replace: true });
+          // 2. If not found by ID, scan products to match the slugified name
+          const q = query(collection(db, 'products'));
+          const querySnapshot = await getDocs(q);
+          let foundProduct: Product | null = null;
+          querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (getProductSlug(data.name || '') === id || docSnap.id === id) {
+              foundProduct = { id: docSnap.id, ...data } as Product;
+            }
+          });
+
+          if (foundProduct) {
+            setProduct(foundProduct);
+            setSelectedVariant(foundProduct.variants?.[0]?.id);
+            
+            if (user && foundProduct.stock === 0) {
+              const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', foundProduct.id));
+              const wsnap = await getDocs(wq);
+              setIsOnWaitlist(!wsnap.empty);
+            }
+          } else {
+            setProduct(null);
+          }
         }
       } catch (err) {
-        console.error(err);
-        navigate('/product-not-found', { replace: true });
+        console.error("Error fetching product details:", err);
+        setProduct(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [idOrSlug, user]);
+  }, [id, user]);
+
+  // Track recently viewed products
+  useEffect(() => {
+    if (product) {
+      const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+      const updated = [product.id, ...existing.filter((pid: string) => pid !== product.id)].slice(0, 8);
+      localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+    }
+  }, [product]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -146,7 +125,7 @@ export default function ProductDetail() {
     </div>
   );
 
-  if (!product) return <div>Product not found</div>;
+  if (!product) return <Navigate to="/product-not-found" replace />;
 
   const handleBuyNow = () => {
     const success = addItem(product, quantity, selectedVariant);
@@ -538,7 +517,7 @@ export default function ProductDetail() {
                  'Eco-friendly Packaging',
                  'Secured Payment Options'
                ].map((highlight, i) => (
-                 <div key={i} className="flex items-center gap-3">
+                  <div key={i} className="flex items-center gap-3">
                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                    <span className="text-sm font-bold text-gray-600 tracking-tight">{highlight}</span>
                  </div>
@@ -569,13 +548,13 @@ export default function ProductDetail() {
                </div>
              </div>
            )}
-        </div>
+         </div>
       </div>
 
       {/* Similar Products Section */}
       <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
 
-      {/* Recently Viewed Products Section */}
+      {/* Recently Viewed Section */}
       <RecentlyViewed currentProductId={product.id} />
     </div>
   );
@@ -614,7 +593,7 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
   if (!loading && products.length === 0) return null;
 
   return (
-    <div className="mt-24 border-t border-gray-100 pt-24 pb-20">
+    <div className="mt-24 border-t border-gray-100 pt-24 pb-12">
       <div className="flex items-center justify-between mb-12">
         <div className="space-y-1">
           <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recommended for You</h2>
@@ -634,65 +613,10 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
           ))
         ) : (
           products.map(p => (
-            <Link 
-              key={p.id} 
-              to={getProductUrl(p)}
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="group"
-            >
-              <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-gray-200 transition-all duration-700 hover:-translate-y-4">
-                <div className="aspect-[4/5] overflow-hidden relative">
-                  <img 
-                    src={p.images[0]} 
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                  />
-                  <div className="absolute top-6 right-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest text-gray-900 shadow-xl border border-white/50">
-                    ₹{p.price.toLocaleString()}
-                  </div>
-                  {p.discountPrice && (
-                    <div className="absolute top-6 left-6 bg-rose-500 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">
-                      Deal
-                    </div>
-                  )}
-                </div>
-                <div className="p-8">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">{p.brand}</p>
-                  <h3 className="text-lg font-black text-gray-900 truncate tracking-tight transition-colors group-hover:text-primary">{p.name}</h3>
-                  <div className="mt-4 flex items-center gap-1.5">
-                    <div className="flex text-amber-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-3 h-3 ${i < Math.floor(p.rating) ? 'fill-current' : 'text-gray-200'}`} />
-                      ))}
-                    </div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{p.numReviews}</span>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                      <div className="w-1 h-1 rounded-full bg-green-600 shrink-0" />
-                      Rs. 15 Charge On COD
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
+            <ProductCard key={p.id} product={p} />
           ))
         )}
       </div>
-    </div>
-  );
-}
-
-function ServiceIcon({ icon: Icon, title, desc }: any) {
-  return (
-    <div className="flex items-start gap-3">
-       <div className="bg-gray-50 p-2 rounded-xl">
-          <Icon className="w-5 h-5 text-gray-400" />
-       </div>
-       <div>
-          <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">{title}</p>
-          <p className="text-[10px] font-bold text-gray-500 tracking-wider leading-none uppercase">{desc}</p>
-       </div>
     </div>
   );
 }
@@ -703,31 +627,24 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
 
   useEffect(() => {
     const fetchRecent = async () => {
-      setLoading(true);
+      const savedIds = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+      const targetIds = savedIds.filter((pid: string) => pid !== currentProductId).slice(0, 4);
+      if (targetIds.length === 0) {
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const stored = localStorage.getItem('viba_recently_viewed');
-        const ids: string[] = stored ? JSON.parse(stored) : [];
-        const recentIds = ids.filter(id => id !== currentProductId).slice(0, 4);
-
-        if (recentIds.length === 0) {
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        const fetched: Product[] = [];
-        for (const id of recentIds) {
-          try {
-            const docRef = doc(db, 'products', id);
-            const snap = await getDoc(docRef);
-            if (snap.exists() && snap.data().status === 'active') {
-              fetched.push({ id: snap.id, ...snap.data() } as Product);
-            }
-          } catch (e) {
-            console.warn(`Failed to fetch recently viewed product with ID ${id}:`, e);
-          }
-        }
-        setProducts(fetched);
+        const q = query(
+          collection(db, 'products'),
+          where(documentId(), 'in', targetIds)
+        );
+        const snapshot = await getDocs(q);
+        const fetchedProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        // Sort to match order in localStorage targetIds
+        fetchedProducts.sort((a, b) => targetIds.indexOf(a.id) - targetIds.indexOf(b.id));
+        setProducts(fetchedProducts);
       } catch (err) {
         console.error('Error fetching recently viewed products:', err);
       } finally {
@@ -741,7 +658,7 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
   if (!loading && products.length === 0) return null;
 
   return (
-    <div className="mt-24 border-t border-gray-100 pt-24 pb-20">
+    <div className="mt-12 border-t border-gray-100 pt-12 pb-20">
       <div className="flex items-center justify-between mb-12">
         <div className="space-y-1">
           <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recently Viewed</h2>
@@ -759,6 +676,20 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+function ServiceIcon({ icon: Icon, title, desc }: any) {
+  return (
+    <div className="flex items-start gap-3">
+       <div className="bg-gray-50 p-2 rounded-xl">
+          <Icon className="w-5 h-5 text-gray-400" />
+       </div>
+       <div>
+          <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">{title}</p>
+          <p className="text-[10px] font-bold text-gray-500 tracking-wider leading-none uppercase">{desc}</p>
+       </div>
     </div>
   );
 }

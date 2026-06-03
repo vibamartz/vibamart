@@ -13,7 +13,6 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
-import ProductNotFound from './pages/ProductNotFound';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
@@ -23,6 +22,7 @@ import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
 import OrderTracking from './pages/OrderTracking';
 import FAQ from './pages/FAQ';
+import ProductNotFound from './pages/ProductNotFound';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -76,8 +76,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<ProductList />} />
-            <Route path="/product/:idOrSlug" element={<ProductDetail />} />
-            <Route path="/product-not-found" element={<ProductNotFound />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/order-success" element={<OrderSuccess />} />
@@ -88,6 +87,7 @@ export default function App() {
             <Route path="/track-order" element={<OrderTracking />} />
             <Route path="/track-order/:orderId" element={<OrderTracking />} />
             <Route path="/faq" element={<FAQ />} />
+            <Route path="/product-not-found" element={<ProductNotFound />} />
             {/* Fallback */}
             <Route path="*" element={<Home />} />
           </Routes>

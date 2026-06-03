@@ -19,7 +19,7 @@ import { Order, Address, UserProfile, WaitlistItem, Product } from '../types';
 import { lookupZipcode } from '../services/zipcode';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import { getProductUrl } from '../utils/product';
+import { getProductSlug } from '../utils/slug';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
@@ -1001,6 +1001,8 @@ function AddressModal({
 }
 
 function WishlistSection({ products, onRemove }: { products: Product[], onRemove: (id: string) => void }) {
+  const navigate = useNavigate();
+
   return (
     <motion.div key="wishlist" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
       <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex items-center justify-between">
@@ -1016,7 +1018,11 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
       {products.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {products.map((product) => (
-            <div key={product.id} className="bg-white p-4 rounded-[32px] border border-gray-100 shadow-sm flex gap-4 group hover:border-primary/20 transition-all">
+            <div 
+              key={product.id} 
+              onClick={() => navigate(`/product/${getProductSlug(product.name)}`)}
+              className="bg-white p-4 rounded-[32px] border border-gray-100 shadow-sm flex gap-4 group hover:border-primary/20 hover:shadow-lg hover:scale-[1.01] transition-all cursor-pointer"
+            >
               <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
                 <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               </div>
@@ -1026,11 +1032,15 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
                   <p className="text-lg font-black text-primary mt-1 tracking-tight">₹{product.discountPrice?.toLocaleString() || product.price.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link to={getProductUrl(product)} className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center">
+                  <Link 
+                    to={`/product/${getProductSlug(product.name)}`} 
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center"
+                  >
                     View Specs
                   </Link>
                   <button 
-                    onClick={() => onRemove(product.id)}
+                    onClick={(e) => { e.stopPropagation(); onRemove(product.id); }}
                     className="p-3 touch-target min-h-[44px] min-w-[44px] text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center"
                     aria-label="Remove from wishlist"
                   >

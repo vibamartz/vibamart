@@ -2,8 +2,8 @@ import React from 'react';
 import { useCartStore } from '../store';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getProductUrl } from '../utils/product';
 import { motion } from 'motion/react';
+import { getProductSlug } from '../utils/slug';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, total } = useCartStore();
@@ -46,7 +46,7 @@ export default function Cart() {
                     <div className="flex-1 flex flex-col min-w-0">
                        <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0">
-                            <Link to={getProductUrl(item.product)} className="text-base sm:text-lg font-bold text-gray-800 hover:text-primary transition-colors line-clamp-2 sm:line-clamp-1">{item.product.name}</Link>
+                            <Link to={`/product/${getProductSlug(item.product.name)}`} className="text-base sm:text-lg font-bold text-gray-800 hover:text-primary transition-colors line-clamp-2 sm:line-clamp-1">{item.product.name}</Link>
                             <p className="text-[10px] sm:text-xs text-gray-400 mt-1 uppercase tracking-wider font-bold">Official Store</p>
                             {item.variantId && (() => {
                               const variant = item.product.variants?.find(v => v.id === item.variantId);
