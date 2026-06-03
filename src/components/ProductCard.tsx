@@ -107,15 +107,12 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
 
   return (
-    <div 
+    <motion.div
       onClick={() => navigate(`/product/${product.id}`)}
-      className="block h-full no-underline text-inherit"
+      whileHover={{ y: -5, scale: 1.02 }}
+      className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
     >
-      <motion.div
-        whileHover={{ y: -5, scale: 1.02 }}
-        className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
-      >
-        <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
+      <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
@@ -229,7 +226,6 @@ export default function ProductCard({ product }: ProductCardProps) {
             </div>
           </div>
         </div>
-      </motion.div>
-    </div>
+    </motion.div>
   );
 }
