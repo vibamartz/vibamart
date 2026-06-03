@@ -11,7 +11,6 @@ import {
   doc, getDoc, collection, addDoc, query, where, getDocs, updateDoc,
   arrayUnion, arrayRemove, limit, documentId 
 } from 'firebase/firestore';
-import { getProductSlug } from '../utils/slug';
 import ProductCard from '../components/ProductCard';
 
 export default function ProductDetail() {
@@ -61,7 +60,6 @@ export default function ProductDetail() {
     const fetchProduct = async () => {
       if (!id) return;
       try {
-        // 1. Try finding by ID first
         const prodRef = doc(db, 'products', id);
         const snap = await getDoc(prodRef);
         if (snap.exists()) {
@@ -75,29 +73,7 @@ export default function ProductDetail() {
             setIsOnWaitlist(!wsnap.empty);
           }
         } else {
-          // 2. If not found by ID, scan products to match the slugified name
-          const q = query(collection(db, 'products'));
-          const querySnapshot = await getDocs(q);
-          let foundProduct: Product | null = null;
-          querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if (getProductSlug(data.name || '') === id || docSnap.id === id) {
-              foundProduct = { id: docSnap.id, ...data } as Product;
-            }
-          });
-
-          if (foundProduct) {
-            setProduct(foundProduct);
-            setSelectedVariant(foundProduct.variants?.[0]?.id);
-            
-            if (user && foundProduct.stock === 0) {
-              const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', foundProduct.id));
-              const wsnap = await getDocs(wq);
-              setIsOnWaitlist(!wsnap.empty);
-            }
-          } else {
-            setProduct(null);
-          }
+          setProduct(null);
         }
       } catch (err) {
         console.error("Error fetching product details:", err);

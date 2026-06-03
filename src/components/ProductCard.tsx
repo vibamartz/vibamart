@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Product, ProductVariant } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
 import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck } from 'lucide-react';
-import { getProductSlug } from '../utils/slug';
 import { useCartStore, useAuthStore } from '../store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -109,7 +108,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link 
-      to={`/product/${getProductSlug(product.name)}`}
+      to={`/product/${product.id}`}
       className="block h-full no-underline text-inherit"
     >
       <motion.div
