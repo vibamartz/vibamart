@@ -26,6 +26,7 @@ export default function ProductDetail() {
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
   const [isLocationAvailable, setIsLocationAvailable] = useState(true);
   const [associatedOrder, setAssociatedOrder] = useState<any | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const hasBeenOrdered = product ? orderedProductIds?.includes(product.id) : false;
 
@@ -56,9 +57,14 @@ export default function ProductDetail() {
     fetchAssociatedOrder();
   }, [user, id, hasBeenOrdered]);
 
+  // Fetch product by ID only — no user dependency to avoid double-fetch race condition
   useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setProduct(null);
+    setNotFound(false);
+
     const fetchProduct = async () => {
-      if (!id) return;
       try {
         const prodRef = doc(db, 'products', id);
         const snap = await getDoc(prodRef);
@@ -66,25 +72,34 @@ export default function ProductDetail() {
           const data = { id: snap.id, ...snap.data() } as Product;
           setProduct(data);
           setSelectedVariant(data.variants?.[0]?.id);
-          
-          if (user && data.stock === 0) {
-            const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', id));
-            const wsnap = await getDocs(wq);
-            setIsOnWaitlist(!wsnap.empty);
-          }
         } else {
-          setProduct(null);
+          setNotFound(true);
         }
       } catch (err) {
         console.error("Error fetching product details:", err);
-        setProduct(null);
+        setNotFound(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [id, user]);
+  }, [id]);
+
+  // Check waitlist separately when user is available
+  useEffect(() => {
+    if (!user || !id || !product || product.stock > 0) return;
+    const checkWaitlist = async () => {
+      try {
+        const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', id));
+        const wsnap = await getDocs(wq);
+        setIsOnWaitlist(!wsnap.empty);
+      } catch (err) {
+        console.error("Error checking waitlist:", err);
+      }
+    };
+    checkWaitlist();
+  }, [user, id, product]);
 
   // Track recently viewed products
   useEffect(() => {
@@ -101,7 +116,7 @@ export default function ProductDetail() {
     </div>
   );
 
-  if (!product) return <Navigate to="/product-not-found" replace />;
+  if (notFound || !product) return <Navigate to="/product-not-found" replace />;
 
   const handleBuyNow = () => {
     const success = addItem(product, quantity, selectedVariant);
