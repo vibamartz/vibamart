@@ -108,7 +108,11 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <motion.div
-      onClick={() => navigate(`/product/${product.id}`)}
+      onClick={() => {
+        alert("Navigating to product: " + product.id);
+        console.log("Card clicked, navigating to:", `/product/${product.id}`);
+        navigate(`/product/${product.id}`);
+      }}
       whileHover={{ y: -5, scale: 1.02 }}
       className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
     >
