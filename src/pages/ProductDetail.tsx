@@ -20,6 +20,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const { addItem } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
+  const { categories } = useCategoryStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
   const [quantity, setQuantity] = useState(1);
@@ -185,7 +186,6 @@ export default function ProductDetail() {
 
   const isWishlisted = user?.wishlist?.includes(product.id);
 
-  const { categories } = useCategoryStore();
   const categoryObj = categories.find(c => c.id === product.categoryId);
   const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
   const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
