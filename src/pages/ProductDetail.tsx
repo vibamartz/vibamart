@@ -104,9 +104,13 @@ export default function ProductDetail() {
   // Track recently viewed products
   useEffect(() => {
     if (product) {
-      const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-      const updated = [product.id, ...existing.filter((pid: string) => pid !== product.id)].slice(0, 8);
-      localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+      try {
+        const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+        const updated = [product.id, ...existing.filter((pid: string) => pid !== product.id)].slice(0, 8);
+        localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+      } catch (err) {
+        console.error("Error updating recently viewed:", err);
+      }
     }
   }, [product]);
 

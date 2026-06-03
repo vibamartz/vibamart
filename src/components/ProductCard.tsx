@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, ProductVariant } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../store';
 import { motion } from 'motion/react';
@@ -107,16 +107,15 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
 
   return (
-    <motion.div
-      onClick={() => {
-        alert("Navigating to product: " + product.id);
-        console.log("Card clicked, navigating to:", `/product/${product.id}`);
-        navigate(`/product/${product.id}`);
-      }}
-      whileHover={{ y: -5, scale: 1.02 }}
-      className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
+    <Link 
+      to={`/product/${product.id}`}
+      className="block h-full no-underline text-inherit"
     >
-      <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
+      <motion.div
+        whileHover={{ y: -5, scale: 1.02 }}
+        className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
+      >
+        <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
@@ -230,6 +229,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             </div>
           </div>
         </div>
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 }

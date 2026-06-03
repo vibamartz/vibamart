@@ -33,6 +33,37 @@ function ScrollToTop() {
   return null;
 }
 
+// Simple Error Boundary
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-red-50 text-red-900">
+          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+          <pre className="bg-white p-4 rounded border border-red-200 overflow-auto max-w-full">
+            {this.state.error?.toString()}
+            {'\n'}
+            {this.state.error?.stack}
+          </pre>
+        </div>
+      );
+    }
+    return (this as any).props.children;
+  }
+}
+
 export default function App() {
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
@@ -44,7 +75,6 @@ export default function App() {
     initCategories();
     initSettings();
     
-    // Check if permissions have been acknowledged
     const acknowledged = localStorage.getItem('permissionsAcknowledged');
     if (!acknowledged) {
       setShowPermissions(true);
@@ -68,52 +98,53 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
-        <Navbar />
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/products" element={<ProductList />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/order-success" element={<OrderSuccess />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/track-order" element={<OrderTracking />} />
-            <Route path="/track-order/:orderId" element={<OrderTracking />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/product-not-found" element={<ProductNotFound />} />
-            {/* Fallback */}
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </main>
-        <Footer />
-        <Toaster 
-          position="bottom-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#1a1a1a',
-              color: '#fff',
-              borderRadius: '16px',
-              fontWeight: 600,
-              fontSize: '14px',
-              padding: '16px 24px',
-            },
-          }}
-        />
-        <PermissionModal 
-          isOpen={showPermissions} 
-          onClose={() => setShowPermissions(false)}
-          onAccept={handlePermissionsAccept}
-        />
-        <SpeedInsights />
-      </div>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <ScrollToTop />
+        <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
+          <Navbar />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/products" element={<ProductList />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/track-order" element={<OrderTracking />} />
+              <Route path="/track-order/:orderId" element={<OrderTracking />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/product-not-found" element={<ProductNotFound />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </main>
+          <Footer />
+          <Toaster 
+            position="bottom-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#1a1a1a',
+                color: '#fff',
+                borderRadius: '16px',
+                fontWeight: 600,
+                fontSize: '14px',
+                padding: '16px 24px',
+              },
+            }}
+          />
+          <PermissionModal 
+            isOpen={showPermissions} 
+            onClose={() => setShowPermissions(false)}
+            onAccept={handlePermissionsAccept}
+          />
+          <SpeedInsights />
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
