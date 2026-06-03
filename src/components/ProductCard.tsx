@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, ProductVariant } from '../types';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../store';
 import { motion } from 'motion/react';
@@ -107,8 +107,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
 
   return (
-    <Link 
-      to={`/product/${product.id}`}
+    <div 
+      onClick={() => navigate(`/product/${product.id}`)}
       className="block h-full no-underline text-inherit"
     >
       <motion.div
@@ -230,6 +230,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
       </motion.div>
-    </Link>
+    </div>
   );
 }
