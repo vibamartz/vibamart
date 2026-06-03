@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Product, WaitlistItem } from '../types';
+import { generateProductSlug, getProductUrl } from '../utils/product';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore } from '../store';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PincodeChecker from '../components/PincodeChecker';
+import ProductCard from '../components/ProductCard';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   doc, getDoc, collection, addDoc, query, where, getDocs, updateDoc,
@@ -13,7 +15,7 @@ import {
 } from 'firebase/firestore';
 
 export default function ProductDetail() {
-  const { id } = useParams();
+  const { idOrSlug } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     const fetchAssociatedOrder = async () => {
-      if (!user || !id || !hasBeenOrdered) return;
+      if (!user || !product?.id || !hasBeenOrdered) return;
       try {
         const q = query(
           collection(db, "orders"),
@@ -40,7 +42,7 @@ export default function ProductDetail() {
         const matches: any[] = [];
         snap.forEach(docSnap => {
           const data = docSnap.data();
-          if (data.items?.some((item: any) => item.productId === id)) {
+          if (data.items?.some((item: any) => item.productId === product.id)) {
             matches.push({ id: docSnap.id, ...data });
           }
         });
@@ -53,34 +55,90 @@ export default function ProductDetail() {
       }
     };
     fetchAssociatedOrder();
-  }, [user, id, hasBeenOrdered]);
+  }, [user, product?.id, hasBeenOrdered]);
+
+  const trackRecentlyViewed = (productId: string) => {
+    try {
+      const stored = localStorage.getItem('viba_recently_viewed');
+      let list: string[] = stored ? JSON.parse(stored) : [];
+      list = [productId, ...list.filter(id => id !== productId)].slice(0, 5);
+      localStorage.setItem('viba_recently_viewed', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to track recently viewed product:', e);
+    }
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!id) return;
+      if (!idOrSlug) return;
       try {
-        const prodRef = doc(db, 'products', id);
+        setLoading(true);
+        let foundProduct: Product | null = null;
+
+        // 1. Try to fetch by document ID
+        const prodRef = doc(db, 'products', idOrSlug);
         const snap = await getDoc(prodRef);
         if (snap.exists()) {
-          const data = { id: snap.id, ...snap.data() } as Product;
-          setProduct(data);
-          setSelectedVariant(data.variants?.[0]?.id);
+          foundProduct = { id: snap.id, ...snap.data() } as Product;
+        } else {
+          // 2. Query where slug == idOrSlug
+          const qSlug = query(collection(db, 'products'), where('slug', '==', idOrSlug));
+          const snapSlug = await getDocs(qSlug);
+          if (!snapSlug.empty) {
+            const docSnap = snapSlug.docs[0];
+            foundProduct = { id: docSnap.id, ...docSnap.data() } as Product;
+          } else {
+            // 3. Fallback: Search in-memory slugs of all products
+            const qAll = query(collection(db, 'products'));
+            const snapAll = await getDocs(qAll);
+            const matchedDoc = snapAll.docs.find(docSnap => {
+              const data = docSnap.data();
+              return generateProductSlug(data.name || '') === idOrSlug;
+            });
+            if (matchedDoc) {
+              foundProduct = { id: matchedDoc.id, ...matchedDoc.data() } as Product;
+              
+              // Self-healing database write
+              try {
+                await updateDoc(doc(db, 'products', matchedDoc.id), {
+                  slug: idOrSlug
+                });
+              } catch (saveErr) {
+                console.warn('Failed self-healing slug update:', saveErr);
+              }
+            }
+          }
+        }
+
+        if (foundProduct) {
+          if (foundProduct.status === 'draft') {
+            navigate('/product-not-found', { replace: true });
+            return;
+          }
+
+          setProduct(foundProduct);
+          setSelectedVariant(foundProduct.variants?.[0]?.id);
           
-          if (user && data.stock === 0) {
-            const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', id));
+          if (user && foundProduct.stock === 0) {
+            const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', foundProduct.id));
             const wsnap = await getDocs(wq);
             setIsOnWaitlist(!wsnap.empty);
           }
+
+          trackRecentlyViewed(foundProduct.id);
+        } else {
+          navigate('/product-not-found', { replace: true });
         }
       } catch (err) {
         console.error(err);
+        navigate('/product-not-found', { replace: true });
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [id, user]);
+  }, [idOrSlug, user]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -516,6 +574,9 @@ export default function ProductDetail() {
 
       {/* Similar Products Section */}
       <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+
+      {/* Recently Viewed Products Section */}
+      <RecentlyViewed currentProductId={product.id} />
     </div>
   );
 }
@@ -575,7 +636,7 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
           products.map(p => (
             <Link 
               key={p.id} 
-              to={`/product/${p.id}`}
+              to={getProductUrl(p)}
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               className="group"
             >
@@ -632,6 +693,72 @@ function ServiceIcon({ icon: Icon, title, desc }: any) {
           <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">{title}</p>
           <p className="text-[10px] font-bold text-gray-500 tracking-wider leading-none uppercase">{desc}</p>
        </div>
+    </div>
+  );
+}
+
+function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      setLoading(true);
+      try {
+        const stored = localStorage.getItem('viba_recently_viewed');
+        const ids: string[] = stored ? JSON.parse(stored) : [];
+        const recentIds = ids.filter(id => id !== currentProductId).slice(0, 4);
+
+        if (recentIds.length === 0) {
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+
+        const fetched: Product[] = [];
+        for (const id of recentIds) {
+          try {
+            const docRef = doc(db, 'products', id);
+            const snap = await getDoc(docRef);
+            if (snap.exists() && snap.data().status === 'active') {
+              fetched.push({ id: snap.id, ...snap.data() } as Product);
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch recently viewed product with ID ${id}:`, e);
+          }
+        }
+        setProducts(fetched);
+      } catch (err) {
+        console.error('Error fetching recently viewed products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, [currentProductId]);
+
+  if (!loading && products.length === 0) return null;
+
+  return (
+    <div className="mt-24 border-t border-gray-100 pt-24 pb-20">
+      <div className="flex items-center justify-between mb-12">
+        <div className="space-y-1">
+          <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recently Viewed</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Products you looked at recently</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {loading ? (
+          [...Array(4)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-gray-50 rounded-[2.5rem] aspect-[4/5] border border-gray-100" />
+          ))
+        ) : (
+          products.map(p => (
+            <ProductCard key={p.id} product={p} />
+          ))
+        )}
+      </div>
     </div>
   );
 }

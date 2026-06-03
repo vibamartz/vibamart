@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthStore, useCategoryStore, useSettingsStore } from '../store';
 import { Navigate, Link } from 'react-router-dom';
+import { generateProductSlug } from '../utils/product';
 import {
   BarChart3, Users, Package, ShoppingBag,
   Settings, LogOut, ChevronRight, TrendingUp,
@@ -2986,10 +2987,12 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
+      const slug = generateProductSlug(formData.name || '');
 
       const rawData = {
         ...formData,
         id: pid,
+        slug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
         mrp: mrp || price,

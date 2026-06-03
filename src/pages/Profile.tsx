@@ -19,6 +19,7 @@ import { Order, Address, UserProfile, WaitlistItem, Product } from '../types';
 import { lookupZipcode } from '../services/zipcode';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
+import { getProductUrl } from '../utils/product';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
@@ -1025,7 +1026,7 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
                   <p className="text-lg font-black text-primary mt-1 tracking-tight">₹{product.discountPrice?.toLocaleString() || product.price.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link to={`/product/${product.id}`} className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center">
+                  <Link to={getProductUrl(product)} className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center">
                     View Specs
                   </Link>
                   <button 

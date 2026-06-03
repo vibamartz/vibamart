@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, ProductVariant } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
+import { getProductUrl } from '../utils/product';
 import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../store';
 import { motion } from 'motion/react';
@@ -104,27 +105,31 @@ export default function ProductCard({ product }: ProductCardProps) {
   const discountAmount = product.discountPrice ? product.price - product.discountPrice : 0;
   const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
 
-  const handleCardClick = () => {
-    navigate(`/product/${product.id}`);
-  };
+  const productUrl = getProductUrl(product);
 
   return (
     <motion.div
       whileHover={{ y: -5, scale: 1.02 }}
-      onClick={handleCardClick}
       className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
     >
-      <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] overflow-hidden bg-gray-50" onClick={(e) => e.stopPropagation()}>
+      {/* Absolute overlay link covering the entire card area */}
+      <Link 
+        to={productUrl} 
+        className="absolute inset-0 z-10" 
+        aria-label={`View details of ${product.name}`} 
+      />
+
+      <div className="relative aspect-[4/5] overflow-hidden bg-gray-50 z-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
         
-        <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
+        <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-20 flex gap-2">
           {hasBeenOrdered ? (
             <button 
-              onClick={(e) => { e.stopPropagation(); handleTrackOrder(e); }}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleTrackOrder(e); }}
               className="flex-1 bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-xl"
             >
               <Truck className="w-3.5 h-3.5" />
@@ -133,14 +138,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           ) : (
             <>
               <button 
-                onClick={(e) => { e.stopPropagation(); handleAddToCart(e); }}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleAddToCart(e); }}
                 aria-label="Add to cart"
                 className="p-2.5 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
               >
                 <ShoppingCart className="w-4 h-4" />
               </button>
               <button 
-                onClick={(e) => { e.stopPropagation(); handleBuyNow(e); }}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleBuyNow(e); }}
                 aria-label="Buy now"
                 className="flex-1 min-h-[44px] bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
               >
@@ -151,14 +156,14 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {discountPercentage > 0 && (
-          <span className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded">
+          <span className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded z-20">
             {discountPercentage}% OFF
           </span>
         )}
         <button 
-          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleToggleWishlist(e); }}
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className={`absolute top-3 right-3 p-2.5 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
+          className={`absolute top-3 right-3 p-2.5 touch-target rounded-full transition-all shadow-sm z-20 flex items-center justify-center ${
             isWishlisted 
               ? 'bg-rose-500 text-white' 
               : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'
@@ -166,9 +171,9 @@ export default function ProductCard({ product }: ProductCardProps) {
         >
           <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
         </button>
-      </Link>
+      </div>
 
-      <div className="p-4 flex flex-col flex-1">
+      <div className="p-4 flex flex-col flex-1 z-0">
         <span className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
           {product.name}
         </span>
@@ -180,7 +185,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {product.variants && product.variants.length > 0 && (
-          <div className="mb-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+          <div className="mb-4 space-y-2 relative z-20" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
               {selectedVariant && selectedVariant.stock < 10 && selectedVariant.stock > 0 && (
@@ -196,7 +201,7 @@ export default function ProductCard({ product }: ProductCardProps) {
               >
                 {product.variants.map((v) => (
                   <option key={v.id} value={v.id} disabled={v.stock === 0}>
-                    {v.name} {v.extraPrice > 0 ? `(+₹${v.extraPrice})` : ''} {v.stock === 0 ? '(Out of Stock)' : ''}
+                    {v.name} {v.extraPrice && v.extraPrice > 0 ? `(+₹${v.extraPrice})` : ''} {v.stock === 0 ? '(Out of Stock)' : ''}
                   </option>
                 ))}
               </select>

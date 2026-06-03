@@ -31,6 +31,7 @@ export interface Address {
 export interface Product {
   id: string;
   name: string;
+  slug?: string;
   brand?: string;
   description: string;
   fullDescription?: string;
