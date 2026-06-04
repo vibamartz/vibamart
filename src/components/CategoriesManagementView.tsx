@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Category } from '../types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save } from 'lucide-react';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { CATEGORIES as INITIAL_CATEGORIES } from '../constants';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -30,12 +31,16 @@ export default function CategoriesManagementView() {
   const dragOverItem = useRef<number | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+    const q = collection(db, 'categories');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const catsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Category));
+      
+      // Sort in memory to ensure items without 'order' aren't excluded by Firestore
+      catsData.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      
       setCategories(catsData);
       setLoading(false);
     }, (error) => {
@@ -192,6 +197,34 @@ export default function CategoriesManagementView() {
     }
   };
 
+  const handleRestoreDefaults = async () => {
+    if (!window.confirm("This will restore any missing default categories. Continue?")) return;
+    setIsSaving(true);
+    try {
+      const batch = writeBatch(db);
+      let added = 0;
+      INITIAL_CATEGORIES.forEach((cat) => {
+        const exists = categories.some(c => c.id === cat.id);
+        if (!exists) {
+          const catRef = doc(db, 'categories', cat.id);
+          batch.set(catRef, cat);
+          added++;
+        }
+      });
+      if (added > 0) {
+        await batch.commit();
+        toast.success(`Restored ${added} default categories!`);
+      } else {
+        toast.success("All default categories are already present.");
+      }
+    } catch (error) {
+      console.error("Restore error:", error);
+      toast.error("Failed to restore default categories.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Helper to auto-generate slug
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
@@ -219,13 +252,23 @@ export default function CategoriesManagementView() {
           <h2 className="text-xl font-bold text-gray-900">Category Management</h2>
           <p className="text-sm text-gray-500">Organize and manage your product categories.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
-        >
-          <Plus className="w-5 h-5" />
-          Add Category
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRestoreDefaults}
+            disabled={isSaving}
+            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+          >
+            <RotateCcw className={`w-5 h-5 ${isSaving ? 'animate-spin' : ''}`} />
+            Restore Defaults
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+            Add Category
+          </button>
+        </div>
       </div>
 
       {/* Category List */}
