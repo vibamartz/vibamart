@@ -49,6 +49,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             } else {
               set({ user: data, loading: false });
             }
+
+            // Sync cart from Firebase if present
+            if (data.cart && Array.isArray(data.cart)) {
+              useCartStore.getState().setItems(data.cart);
+            }
           } else {
             set({ user: null, loading: false });
           }
@@ -83,6 +88,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 interface CartState {
   items: CartItem[];
+  setItems: (items: CartItem[]) => void;
   addItem: (product: Product, quantity: number, variantId?: string) => boolean;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
@@ -90,8 +96,22 @@ interface CartState {
   total: () => number;
 }
 
+const syncCartToFirebase = (items: CartItem[]) => {
+  const user = auth.currentUser;
+  if (user) {
+    const userRef = doc(db, 'users', user.uid);
+    setDoc(userRef, { cart: items }, { merge: true }).catch(err => {
+      console.error("Failed to sync cart to Firebase:", err);
+    });
+  }
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   items: JSON.parse(localStorage.getItem("viba_cart") || "[]"),
+  setItems: (items) => {
+    set({ items });
+    localStorage.setItem("viba_cart", JSON.stringify(items));
+  },
   addItem: (product, quantity, variantId) => {
     const items = get().items;
 
@@ -126,12 +146,14 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    syncCartToFirebase(newItems);
     return true;
   },
   removeItem: (productId, variantId) => {
     const newItems = get().items.filter(i => !(i.productId === productId && i.variantId === variantId));
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    syncCartToFirebase(newItems);
   },
   updateQuantity: (productId, quantity, variantId) => {
     const newItems = get().items.map(i =>
@@ -141,10 +163,12 @@ export const useCartStore = create<CartState>((set, get) => ({
     );
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    syncCartToFirebase(newItems);
   },
   clearCart: () => {
     set({ items: [] });
     localStorage.removeItem("viba_cart");
+    syncCartToFirebase([]);
   },
   total: () => {
     return get().items.reduce((acc, item) => {

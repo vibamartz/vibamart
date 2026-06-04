@@ -12,6 +12,7 @@ export interface UserProfile {
   createdAt: string;
   wishlist?: string[];
   permissions?: string[];
+  cart?: CartItem[];
 }
 
 export interface Address {

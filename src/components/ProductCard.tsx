@@ -14,7 +14,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const { addItem } = useCartStore();
+  const { addItem, items } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const hasBeenOrdered = orderedProductIds?.includes(product.id);
 
@@ -23,6 +23,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   );
 
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId);
+  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariantId);
 
   const navigate = useNavigate();
 
@@ -130,6 +131,14 @@ export default function ProductCard({ product }: ProductCardProps) {
               >
                 <Truck className="w-3.5 h-3.5" />
                 Track Order
+              </button>
+            ) : isInCart ? (
+              <button 
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); navigate('/cart'); }}
+                className="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Go to Cart
               </button>
             ) : (
               <>

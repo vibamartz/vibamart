@@ -18,7 +18,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const { addItem } = useCartStore();
+  const { addItem, items } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const { categories } = useCategoryStore();
   const [selectedImage, setSelectedImage] = useState(0);
@@ -194,6 +194,7 @@ export default function ProductDetail() {
   const basePrice = product.discountPrice || product.price;
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
   const discountPercentage = Math.round(((product.price - basePrice) / product.price) * 100);
+  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -417,15 +418,21 @@ export default function ProductDetail() {
                  {product.stock > 0 ? (
                   <>
                    <button 
-                       onClick={handleAddToCart}
-                       disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
+                       onClick={() => {
+                         if (isInCart) {
+                           navigate('/cart');
+                         } else {
+                           handleAddToCart();
+                         }
+                       }}
+                       disabled={!isLocationAvailable || (!isInCart && (currentVariant ? currentVariant.stock === 0 : product.stock === 0))}
                        className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
-                           (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
+                           (!isLocationAvailable || (!isInCart && (currentVariant ? currentVariant.stock === 0 : product.stock === 0)))
                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                            : 'bg-[#ff9f00] text-white shadow-orange-100 hover:bg-[#f39700] active:scale-95'
                        }`}
                    >
-                       <ShoppingCart className="w-5 h-5" /> Add to Cart
+                       <ShoppingCart className="w-5 h-5" /> {isInCart ? 'Go to Cart' : 'Add to Cart'}
                     </button>
                     <button 
                         onClick={handleBuyNow}
