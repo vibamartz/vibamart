@@ -23,6 +23,9 @@ import { Role, UserProfile, Product, ProductVariant, Order, OrderStatus, Coupon,
 import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../constants';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
+import NewCategoriesManagementView from '../components/CategoriesManagementView';
+import NewProductManagementView from '../components/ProductManagementView';
+import NewBannersManagementView from '../components/BannersManagementView';
 
 const STATS = [
   { label: 'Total Revenue', value: '₹2,45,000', change: '+12%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -364,30 +367,7 @@ export default function AdminDashboard() {
           {activeTab === 'payment-reports' && <ReportsView type="payment" />}
           {activeTab === 'activity-logs' && <ActivityLogsView />}
           {activeTab === 'user-roles' && <UserManagementView />}
-          {activeTab === 'products' && (
-            showAddProduct ? (
-              <AddProductView
-                product={editingProduct}
-                onDelete={handleDeleteProduct}
-                onClose={() => {
-                  setShowAddProduct(false);
-                  setEditingProduct(null);
-                }}
-              />
-            ) : (
-              <ProductManagementView
-                onAddProduct={() => {
-                  setEditingProduct(null);
-                  setShowAddProduct(true);
-                }}
-                onEditProduct={(p) => {
-                  setEditingProduct(p);
-                  setShowAddProduct(true);
-                }}
-                onDeleteProduct={handleDeleteProduct}
-              />
-            )
-          )}
+          {activeTab === 'products' && <NewProductManagementView />}
 
           {activeTab === 'orders' && <OrdersManagementView selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} setActiveTab={setActiveTab} />}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
@@ -395,8 +375,8 @@ export default function AdminDashboard() {
           {activeTab === 'customers' && <CustomersManagementView />}
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'settings' && <SettingsView />}
-          {activeTab === 'banners' && <BannersManagementView />}
-          {activeTab === 'categories' && <CategoriesManagementView />}
+          {activeTab === 'banners' && <NewBannersManagementView />}
+          {activeTab === 'categories' && <NewCategoriesManagementView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
           {activeTab === 'vendors' && <VendorsManagementView />}

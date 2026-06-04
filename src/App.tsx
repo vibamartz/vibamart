@@ -18,6 +18,7 @@ import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
 import Login from './Login';
 import AdminDashboard from './pages/AdminDashboard';
+import SellerDashboard from './pages/SellerDashboard';
 import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
 import OrderTracking from './pages/OrderTracking';
@@ -113,6 +114,7 @@ export default function App() {
               <Route path="/order-success" element={<OrderSuccess />} />
               <Route path="/login" element={<Login />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/seller" element={<SellerDashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/track-order" element={<OrderTracking />} />

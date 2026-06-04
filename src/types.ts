@@ -40,21 +40,24 @@ export interface Product {
   discountPercentage?: number;
   gst?: number;
   categoryId: string;
+  categories?: string[];
   subCategoryId?: string;
   nestedSubCategoryId?: string;
   vendorId: string;
-  images: string[];
+  images: string[]; // Up to 6 images
   primaryImage?: string;
   sku?: string;
   tags?: string[]; // Keywords / search tags
   stock: number;
-  status: 'active' | 'draft' | 'out_of_stock';
+  status: 'active' | 'inactive' | 'draft' | 'out_of_stock';
   rating: number;
   numReviews: number;
   variants?: ProductVariant[];
   features?: string[];
   color?: string; // Common color if no variants or default
   size?: string; // Common size if no variants or default
+  specifications?: { key: string; value: string }[];
+  taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
   createdAt: string;
 }
@@ -83,6 +86,7 @@ export interface Category {
   seoSlug?: string;
   seoTitle?: string;
   seoDescription?: string;
+  isVisible?: boolean;
   subcategories?: SubCategory[];
 }
 
@@ -177,6 +181,9 @@ export interface Banner {
   link?: string;
   active: boolean;
   order: number;
+  platform?: 'mobile' | 'desktop';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Review {
