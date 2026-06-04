@@ -83,5 +83,11 @@ service cloud.firestore {
         existing().status == 'pending'
       );
     }
+
+    // SETTINGS
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

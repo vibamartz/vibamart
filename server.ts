@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
+import whatsappOrderHandler from "./api/notifications/whatsapp-order";
 
 dotenv.config();
 
@@ -78,6 +79,11 @@ async function startServer() {
   app.post("/api/payment/verify", (req, res) => {
     // Mock Razorpay verification
     res.json({ success: true, message: "Payment verified" });
+  });
+
+  // WhatsApp Notification
+  app.post("/api/notifications/whatsapp-order", async (req, res) => {
+    await whatsappOrderHandler(req, res);
   });
 
   // Vite middleware for development

@@ -342,6 +342,12 @@ export default function Checkout() {
 
         const docRef = await addDoc(collection(db, 'orders'), orderData);
 
+        // Trigger WhatsApp Notification asynchronously in the background
+        axios.post('/api/notifications/whatsapp-order', {
+          orderId: docRef.id,
+          orderData
+        }).catch(err => console.error('Failed to trigger WhatsApp notification:', err));
+
         // Always save the order address to the user's profile for future checkouts
         if (user && address.street) {
           const isDuplicate = user.addresses?.some(

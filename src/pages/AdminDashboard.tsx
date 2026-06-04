@@ -2473,6 +2473,30 @@ function SettingsView() {
           <Toggle label="Availability Filter" desc="Allow filtering by stock status" value={localSettings.enableAvailabilityFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableAvailabilityFilter: !prev.enableAvailabilityFilter }))} />
         </div>
 
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">WhatsApp Notifications</h3>
+        <div className="space-y-4">
+          <Toggle 
+            label="Enable Order Notifications" 
+            desc="Send admin alerts on new orders via WhatsApp" 
+            value={localSettings.enableWhatsappNotifications || false} 
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableWhatsappNotifications: !prev.enableWhatsappNotifications }))} 
+          />
+          <div className="space-y-2 px-4">
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Admin WhatsApp Numbers (Comma separated with country code)</label>
+            <input
+              type="text"
+              placeholder="+919876543210, +1234567890"
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-green-500/20 transition-all font-bold"
+              value={(localSettings.whatsappNumbers || []).join(', ')}
+              onChange={e => setLocalSettings(prev => ({ 
+                ...prev, 
+                whatsappNumbers: e.target.value.split(',').map(n => n.trim()).filter(n => n.length > 0)
+              }))}
+            />
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Include country code (e.g. +91) for all numbers.</p>
+          </div>
+        </div>
+
         <button
           onClick={saveSettings}
           className="w-full py-4 bg-primary mt-8 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-hover transition-all shadow-xl shadow-primary/20"

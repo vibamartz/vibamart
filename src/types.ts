@@ -218,6 +218,8 @@ export interface StoreSettings {
   enableDiscountFilter: boolean;
   enableAvailabilityFilter: boolean;
   enableBanner: boolean;
+  whatsappNumbers?: string[];
+  enableWhatsappNotifications?: boolean;
 }
 
 export interface SearchAnalytics {
