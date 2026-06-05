@@ -23,40 +23,7 @@ export default function ProductDetail() {
   const { categories } = useCategoryStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
-  const [quantity, setQuantity] = useState(1);
-  const [isOnWaitlist, setIsOnWaitlist] = useState(false);
-  const [isLocationAvailable, setIsLocationAvailable] = useState(true);
-  const [associatedOrder, setAssociatedOrder] = useState<any | null>(null);
   const [notFound, setNotFound] = useState(false);
-
-  const hasBeenOrdered = product ? orderedProductIds?.includes(product.id) : false;
-
-  useEffect(() => {
-    const fetchAssociatedOrder = async () => {
-      if (!user || !id || !hasBeenOrdered) return;
-      try {
-        const q = query(
-          collection(db, "orders"),
-          where("customerId", "==", user.uid)
-        );
-        const snap = await getDocs(q);
-        const matches: any[] = [];
-        snap.forEach(docSnap => {
-          const data = docSnap.data();
-          if (data.items?.some((item: any) => item.productId === id)) {
-            matches.push({ id: docSnap.id, ...data });
-          }
-        });
-        if (matches.length > 0) {
-          matches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setAssociatedOrder(matches[0]);
-        }
-      } catch (err) {
-        console.error("Error fetching order status:", err);
-      }
-    };
-    fetchAssociatedOrder();
-  }, [user, id, hasBeenOrdered]);
 
   // Fetch product by ID only — no user dependency to avoid double-fetch race condition
   useEffect(() => {
@@ -124,20 +91,24 @@ export default function ProductDetail() {
   if (notFound || !product) return <Navigate to="/product-not-found" replace />;
 
   const handleBuyNow = () => {
-    const success = addItem(product, quantity, selectedVariant);
-    if (success) {
+    if (isInCart) {
+      navigate('/checkout');
+      return;
+    }
+    const result = addItem(product, 1, selectedVariant);
+    if (result.success) {
       navigate('/checkout');
     } else {
-      toast.error('Could not add to cart. Out of stock or limit reached.');
+      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock or limit reached.');
     }
   };
 
   const handleAddToCart = () => {
-    const success = addItem(product, quantity, selectedVariant);
-    if (success) {
-      toast.success('Added to cart!');
+    const result = addItem(product, 1, selectedVariant);
+    if (result.success) {
+      toast.success('Product added to cart');
     } else {
-      toast.error('Could not add to cart. Out of stock or limit reached.');
+      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock or limit reached.');
     }
   };
 
@@ -348,72 +319,8 @@ export default function ProductDetail() {
                </div>
             )}
 
-           {hasBeenOrdered && associatedOrder && (
-             /* ── Order Status Panel — ONLY shown after order placement ── */
-             <motion.div 
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.4, ease: 'easeOut' }}
-               className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200/60 rounded-2xl p-5 space-y-4"
-             >
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-200">
-                   <PackageCheck className="w-5 h-5 text-white" />
-                 </div>
-                 <div>
-                   <p className="text-xs font-black text-green-800 uppercase tracking-widest">Order Placed</p>
-                   <p className="text-[10px] font-bold text-green-600/70 uppercase tracking-wider">You have ordered this item</p>
-                 </div>
-               </div>
-
-               {/* Status Pill */}
-               <div className="flex items-center gap-3 flex-wrap">
-                 <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                   associatedOrder.status === 'delivered' ? 'bg-green-600 text-white' :
-                   associatedOrder.status === 'cancelled' ? 'bg-red-100 text-red-600' :
-                   associatedOrder.status === 'shipped' ? 'bg-blue-100 text-blue-600' :
-                   associatedOrder.status === 'processing' ? 'bg-amber-100 text-amber-700' :
-                   'bg-emerald-100 text-emerald-700'
-                 }`}>
-                   {associatedOrder.status === 'delivered' ? <CheckCircle2 className="w-3 h-3" /> :
-                    associatedOrder.status === 'cancelled' ? <XCircle className="w-3 h-3" /> :
-                    associatedOrder.status === 'shipped' ? <Truck className="w-3 h-3" /> :
-                    <Clock className="w-3 h-3" />}
-                   {associatedOrder.status || 'Confirmed'}
-                 </div>
-                 {associatedOrder.createdAt && (
-                   <span className="text-[10px] font-bold text-green-600/60 uppercase tracking-wider">
-                     {new Date(associatedOrder.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                   </span>
-                 )}
-               </div>
-
-               {/* Order ID + Track Order Button */}
-               <div className="flex items-center justify-between bg-white/60 rounded-xl px-4 py-3">
-                 <div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order ID</p>
-                   <p className="text-xs font-black text-gray-900 tracking-tight">#{associatedOrder.id.startsWith('VBM') ? associatedOrder.id : associatedOrder.id.slice(-8).toUpperCase()}</p>
-                 </div>
-                 <Link 
-                   to={`/track-order/${associatedOrder.id}`}
-                   className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center gap-2 hover:bg-green-700 transition-all active:scale-95 shadow-lg shadow-green-200"
-                 >
-                   <Truck className="w-3.5 h-3.5" />
-                   Track Order
-                 </Link>
-               </div>
-             </motion.div>
-           )}
-
            {/* ── Add to Cart / Buy Now ── */}
            <div className="flex flex-col gap-4 items-stretch mt-6">
-             {product.stock > 0 && (
-               <div className="bg-gray-50 border border-gray-100 rounded-xl flex items-center p-1 w-full sm:w-auto self-stretch">
-                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-full sm:w-10 h-12 sm:h-10 touch-target min-h-[44px] flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors" aria-label="Decrease quantity">-</button>
-                   <span className="w-12 text-center font-black text-lg">{quantity}</span>
-                   <button onClick={() => setQuantity(quantity + 1)} className="w-full sm:w-10 h-12 sm:h-10 touch-target min-h-[44px] flex items-center justify-center text-xl font-bold hover:text-green-600 transition-colors" aria-label="Increase quantity">+</button>
-               </div>
-             )}
              <div className="flex-1 w-full flex flex-col gap-3">
                  {product.stock > 0 ? (
                   <>

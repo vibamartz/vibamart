@@ -89,7 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 interface CartState {
   items: CartItem[];
   setItems: (items: CartItem[]) => void;
-  addItem: (product: Product, quantity: number, variantId?: string) => boolean;
+  addItem: (product: Product, quantity: number, variantId?: string) => { success: boolean, exists?: boolean };
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
@@ -121,33 +121,27 @@ export const useCartStore = create<CartState>((set, get) => ({
     // Validation: if variantId is provided but variant not found, don't add
     if (variantId && !variant) {
       console.warn(`Attempted to add invalid variant ${variantId} for product ${product.id}`);
-      return false;
+      return { success: false };
     }
 
     // Validation: Check stock for the selected variant or base product
     const availableStock = variant ? variant.stock : product.stock;
     const existing = items.find(i => i.productId === product.id && i.variantId === variantId);
-    const currentQtyInCart = existing ? existing.quantity : 0;
 
-    if (currentQtyInCart + quantity > availableStock) {
-      return false;
-    }
-
-    let newItems;
     if (existing) {
-      newItems = items.map(i =>
-        (i.productId === product.id && i.variantId === variantId)
-          ? { ...i, quantity: i.quantity + quantity }
-          : i
-      );
-    } else {
-      newItems = [...items, { productId: product.id, variantId, quantity, product }];
+      return { success: false, exists: true };
     }
+
+    if (quantity > availableStock) {
+      return { success: false };
+    }
+
+    const newItems = [...items, { productId: product.id, variantId, quantity, product }];
 
     set({ items: newItems });
     localStorage.setItem("viba_cart", JSON.stringify(newItems));
     syncCartToFirebase(newItems);
-    return true;
+    return { success: true };
   },
   removeItem: (productId, variantId) => {
     const newItems = get().items.filter(i => !(i.productId === productId && i.variantId === variantId));

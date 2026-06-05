@@ -444,9 +444,8 @@ export default function Profile() {
                     ) : (
                       <div className="space-y-4">
                         {orders.map(order => (
-                          <Link 
+                          <div 
                             key={order.id} 
-                            to={`/track-order/${order.id}`}
                             className="group block bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99]"
                           >
                              <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
@@ -517,12 +516,23 @@ export default function Profile() {
                                  </div>
                                </div>
                                 <div className="flex gap-2">
-                                  <div className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest group-hover:bg-primary transition-all shadow-lg flex items-center gap-2">
+                                  <Link 
+                                    to={`/track-order/${order.id}`}
+                                    className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
+                                  >
                                     View Details <ChevronRight className="w-3 h-3" />
-                                  </div>
+                                  </Link>
+                                  {['confirmed', 'packed', 'shipped', 'out for delivery', 'delivered', 'processing'].includes(order.status?.toLowerCase() || '') && (
+                                    <Link 
+                                      to={`/track-order/${order.id}`}
+                                      className="px-6 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg flex items-center gap-2"
+                                    >
+                                      <Truck className="w-4 h-4" /> Track Order
+                                    </Link>
+                                  )}
                                 </div>
                              </div>
-                          </Link>
+                          </div>
                         ))}
                       </div>
                     )}
