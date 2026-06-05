@@ -392,7 +392,7 @@ export default function Checkout() {
 
         clearCart();
         toast.success('Order placed successfully!');
-        navigate('/order-success', { state: { orderId: docRef.id } });
+        navigate('/order-success', { state: { orderId: uniqueId } });
       };
 
       if (paymentMethod === 'cod') {
