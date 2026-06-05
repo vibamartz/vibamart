@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AddEditProductForm from './AddEditProductForm';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction, AdminAction } from '../services/adminLogService';
@@ -7,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export default function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }: {
+function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   onAddProduct?: () => void,
   onEditProduct?: (p: Product) => void,
   onDeleteProduct?: (id: string, name: string) => Promise<boolean>
@@ -454,4 +455,27 @@ export default function ProductManagementView({ onAddProduct, onEditProduct, onD
       </div>
     </motion.div>
   );
-}
+}
+export default function ProductManagementView() {
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE "${productName}"? This cannot be undone.`)) return false;
+    const toastId = toast.loading('Deleting product...');
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+      toast.success('Product deleted successfully', { id: toastId });
+      return true;
+    } catch (err) {
+      toast.error('Deletion failed', { id: toastId });
+      return false;
+    }
+  };
+
+  if (showAddProduct) {
+    return <AddEditProductForm product={editingProduct} onDelete={handleDeleteProduct} onClose={() => { setShowAddProduct(false); setEditingProduct(null); }} />;
+  }
+
+  return <ProductListView onAddProduct={() => { setEditingProduct(null); setShowAddProduct(true); }} onEditProduct={(p) => { setEditingProduct(p); setShowAddProduct(true); }} onDeleteProduct={handleDeleteProduct} />;
+}
