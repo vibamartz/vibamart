@@ -109,6 +109,7 @@ export interface WaitlistItem {
 
 export interface Order {
   id: string;
+  customOrderId?: string;
   customerId: string;
   items: OrderItem[];
   total: number;

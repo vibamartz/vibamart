@@ -443,8 +443,8 @@ export default function Profile() {
                           >
                              <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
                                <div className="flex flex-col">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Order ID</span>
-                                 <span className="text-sm font-black text-gray-900 italic">#{order.id.slice(-8).toUpperCase()}</span>
+                                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Order ID</span>
+                                 <span className="text-sm font-black text-gray-900 italic">#{order.id.startsWith('VBM') ? order.id : order.id.slice(-8).toUpperCase()}</span>
                                </div>
                                <div className="flex gap-4">
                                  <div className="flex flex-col items-end">

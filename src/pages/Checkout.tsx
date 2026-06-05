@@ -19,7 +19,7 @@ const UPI_APPS = [
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, setDoc, getDoc } from 'firebase/firestore';
 import { Order, OrderItem, Address } from '../types';
 import axios from 'axios';
 import { lookupZipcode } from '../services/zipcode';
@@ -28,6 +28,37 @@ declare global {
   interface Window {
     Razorpay: any;
   }
+}
+
+async function generateUniqueOrderId(): Promise<string> {
+  const prefix = "VBM";
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}${mm}${dd}`;
+  
+  let isUnique = false;
+  let attempts = 0;
+  let orderId = "";
+  
+  while (!isUnique && attempts < 100) {
+    attempts++;
+    const randomDigits = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    orderId = `${prefix}${dateStr}${randomDigits}`;
+    
+    const docRef = doc(db, 'orders', orderId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      isUnique = true;
+    }
+  }
+  
+  if (!isUnique) {
+    throw new Error("Failed to generate a unique Order ID. Please try again.");
+  }
+  
+  return orderId;
 }
 
 export default function Checkout() {
@@ -340,7 +371,26 @@ export default function Checkout() {
         if (contactName) orderData.contactName = contactName;
         if (contactPhone) orderData.contactPhone = contactPhone;
 
-        const docRef = await addDoc(collection(db, 'orders'), orderData);
+        const uniqueId = await generateUniqueOrderId();
+        orderData.customOrderId = uniqueId;
+        await setDoc(doc(db, 'orders', uniqueId), orderData);
+        const docRef = { id: uniqueId };
+
+        // Add admin notification in database
+        try {
+          await addDoc(collection(db, 'adminNotifications'), {
+            title: "New Order Received",
+            message: `Order #${docRef.id} placed by ${orderData.contactName || orderData.address?.fullName || 'Guest'}`,
+            orderId: docRef.id,
+            customerName: orderData.contactName || orderData.address?.fullName || "Guest",
+            customerPhone: orderData.contactPhone || orderData.address?.phone || "N/A",
+            total: orderData.total,
+            createdAt: new Date().toISOString(),
+            read: false
+          });
+        } catch (err) {
+          console.error("Failed to create admin notification:", err);
+        }
 
         // Trigger WhatsApp Notification asynchronously in the background
         axios.post('/api/notifications/whatsapp-order', {

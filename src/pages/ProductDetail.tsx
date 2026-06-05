@@ -392,7 +392,7 @@ export default function ProductDetail() {
                <div className="flex items-center justify-between bg-white/60 rounded-xl px-4 py-3">
                  <div>
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order ID</p>
-                   <p className="text-xs font-black text-gray-900 tracking-tight">#{associatedOrder.id.slice(-8).toUpperCase()}</p>
+                   <p className="text-xs font-black text-gray-900 tracking-tight">#{associatedOrder.id.startsWith('VBM') ? associatedOrder.id : associatedOrder.id.slice(-8).toUpperCase()}</p>
                  </div>
                  <Link 
                    to={`/track-order/${associatedOrder.id}`}

@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare
+  Upload, Link2, Menu, MessageSquare, Copy
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -70,6 +70,11 @@ const sanitizeImageUrl = (url: string) => {
   return '';
 };
 
+function getDisplayOrderId(id: string | null | undefined): string {
+  if (!id) return '';
+  return id.startsWith('VBM') ? id : id.slice(-8).toUpperCase();
+}
+
 export default function AdminDashboard() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -77,6 +82,8 @@ export default function AdminDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
   // Parent shared states for live orders and returns
   const [orders, setOrders] = useState<Order[]>([]);
@@ -172,7 +179,7 @@ export default function AdminDashboard() {
     
     const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
     
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
+    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${getDisplayOrderId(order.id)}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
     
     const encodedText = encodeURIComponent(text);
     const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
@@ -242,6 +249,121 @@ export default function AdminDashboard() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Live Firebase listener for admin notifications
+  useEffect(() => {
+    const q = query(collection(db, 'adminNotifications'), orderBy('createdAt', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notificationsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAdminNotifications(notificationsData);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Track the last unread notifications count to play audio
+  const lastUnreadCountRef = useRef(0);
+  
+  useEffect(() => {
+    const currentUnread = adminNotifications.filter(n => !n.read).length;
+    if (currentUnread > lastUnreadCountRef.current) {
+      // Play sound
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-500.wav');
+        audio.volume = 0.5;
+        audio.play();
+      } catch (e) {
+        console.warn('Audio playback failed:', e);
+      }
+
+      // Show toast notifications for the newly added unread notifications
+      const newestNotif = adminNotifications[0];
+      if (newestNotif && !newestNotif.read) {
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-enter' : 'animate-leave'
+            } max-w-md w-full bg-white shadow-xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 p-4 border border-gray-100`}
+          >
+            <div className="flex-1 w-0">
+              <div className="flex items-start">
+                <span className="text-xl shrink-0 mt-0.5">🛒</span>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-bold text-gray-900">
+                    New Order Received - Order #{newestNotif.orderId ? newestNotif.orderId.slice(-5).toUpperCase() : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-550">
+                    {newestNotif.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-100">
+              <button
+                onClick={async () => {
+                  toast.dismiss(t.id);
+                  try {
+                    await updateDoc(doc(db, 'adminNotifications', newestNotif.id), { read: true });
+                  } catch (e) {
+                    console.error('Failed to mark read:', e);
+                  }
+                  const orderObj = orders.find(o => o.id === newestNotif.orderId);
+                  if (orderObj) {
+                    setSelectedOrder(orderObj);
+                    setActiveTab('order-details');
+                  } else {
+                    setActiveTab('orders');
+                  }
+                }}
+                className="w-full border border-transparent rounded-none rounded-r-2xl p-4 flex items-center justify-center text-xs font-black uppercase tracking-wider text-primary hover:text-blue-500 focus:outline-none"
+              >
+                View
+              </button>
+            </div>
+          </div>
+        ), { id: newestNotif.id, duration: 8000 });
+      }
+    }
+    lastUnreadCountRef.current = currentUnread;
+  }, [adminNotifications, orders]);
+
+  const unreadCount = useMemo(() => {
+    return adminNotifications.filter(n => !n.read).length;
+  }, [adminNotifications]);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const batchPromises = adminNotifications
+        .filter(n => !n.read)
+        .map(n => updateDoc(doc(db, 'adminNotifications', n.id), { read: true }));
+      await Promise.all(batchPromises);
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notif: any) => {
+    try {
+      if (!notif.read) {
+        await updateDoc(doc(db, 'adminNotifications', notif.id), { read: true });
+      }
+      setShowNotificationDropdown(false);
+      if (notif.orderId) {
+        const orderObj = orders.find(o => o.id === notif.orderId);
+        if (orderObj) {
+          setSelectedOrder(orderObj);
+          setActiveTab('order-details');
+        } else {
+          setActiveTab('orders');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to handle notification click:', error);
+    }
+  };
 
   // Live Firebase snapshot listener for return requests
   useEffect(() => {
@@ -374,6 +496,78 @@ export default function AdminDashboard() {
               <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-4 py-2 pl-10 text-sm w-64 focus:ring-2 focus:ring-primary/20" />
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             </div>
+
+            {/* Notification Bell Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotificationDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setShowNotificationDropdown(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl z-20 py-2 overflow-hidden text-left"
+                    >
+                      <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                        <span className="text-xs font-bold text-gray-800">Notifications ({unreadCount})</span>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+                        {adminNotifications.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-xs text-gray-400 italic">No notifications</div>
+                        ) : (
+                          adminNotifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col gap-1 relative ${!notif.read ? 'bg-primary/5' : ''}`}
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5">
+                                  {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0"></span>}
+                                  {notif.title}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-gray-650 font-medium">
+                                {notif.message}
+                              </span>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-0.5">
+                                {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
               {user.displayName?.[0] || user.email?.[0] || 'A'}
             </div>
@@ -519,7 +713,7 @@ export default function AdminDashboard() {
                               <div className="flex justify-between items-start">
                                 <span className="text-[11px] font-black text-gray-900 flex items-center gap-1.5 leading-tight">
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse shrink-0"></span>
-                                  🔔 New Order Received (#{order.id.slice(-8).toUpperCase()})
+                                  🔔 New Order Received (#{getDisplayOrderId(order.id)})
                                 </span>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button
@@ -559,7 +753,7 @@ export default function AdminDashboard() {
                           orders.filter(o => o.status === 'pending').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
-                                <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
                                 <p className="text-[10px] text-gray-600 font-bold mt-1">👤 {order.contactName}</p>
                                 <p className="text-[10px] text-gray-500 font-medium">💰 ₹{order.total.toLocaleString()}</p>
                               </div>
@@ -592,7 +786,7 @@ export default function AdminDashboard() {
                           orders.filter(o => o.status === 'accepted').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
-                                <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
                                 <p className="text-[10px] text-gray-600 font-bold mt-1">👤 {order.contactName}</p>
                                 <p className="text-[10px] text-gray-500 font-medium">💰 ₹{order.total.toLocaleString()}</p>
                               </div>
@@ -625,7 +819,7 @@ export default function AdminDashboard() {
                           orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
-                                <p className="text-xs font-black text-gray-750">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-xs font-black text-gray-750">#{getDisplayOrderId(order.id)}</p>
                                 <p className="text-[10px] text-gray-500 font-bold mt-1">👤 {order.contactName}</p>
                                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${order.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
                                   {order.status}
@@ -653,7 +847,7 @@ export default function AdminDashboard() {
                             <div key={ret.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Return Request</p>
-                                <p className="text-xs font-black text-gray-900 mt-1">Order: #{ret.orderId.slice(-8).toUpperCase()}</p>
+                                <p className="text-xs font-black text-gray-900 mt-1">Order: #{getDisplayOrderId(ret.orderId)}</p>
                                 <p className="text-[10px] text-gray-650 font-medium truncate max-w-[150px]">Reason: {ret.reason}</p>
                               </div>
                               <button
@@ -729,7 +923,7 @@ export default function AdminDashboard() {
                       ) : (
                         orders.slice(0, 5).map(o => (
                           <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 text-sm font-bold text-gray-705">#{o.id.slice(-8).toUpperCase()}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-705">#{getDisplayOrderId(o.id)}</td>
                             <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.contactName || 'Guest'}</td>
                             <td className="px-6 py-4 text-sm text-gray-500">{new Date(o.createdAt).toLocaleDateString()}</td>
                             <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{(o.total || 0).toLocaleString()}</td>
@@ -846,7 +1040,7 @@ export default function AdminDashboard() {
                 {popupOrders.map(order => (
                   <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-amber-200 transition-all flex justify-between items-center text-left">
                     <div>
-                      <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
                       <p className="text-xs text-gray-650 font-bold mt-1">👤 {order.contactName}</p>
                       <p className="text-[10px] text-gray-400 font-bold mt-0.5">📞 {order.contactPhone}</p>
                       <p className="text-xs font-bold text-primary mt-1">💰 ₹{(order.total || 0).toLocaleString()}</p>
@@ -1160,8 +1354,11 @@ function ReportStat({ label, value, icon: Icon, color }: any) {
 }
 
 function ActivityLogsView() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'admin' | 'notifications'>('admin');
+  const [adminLogs, setAdminLogs] = useState<any[]>([]);
+  const [notificationLogs, setNotificationLogs] = useState<any[]>([]);
+  const [loadingAdmin, setLoadingAdmin] = useState(true);
+  const [loadingNotif, setLoadingNotif] = useState(true);
 
   React.useEffect(() => {
     const q = query(
@@ -1175,10 +1372,33 @@ function ActivityLogsView() {
         id: doc.id,
         ...doc.data()
       }));
-      setLogs(logsData);
-      setLoading(false);
+      setAdminLogs(logsData);
+      setLoadingAdmin(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'adminLogs');
+      setLoadingAdmin(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  React.useEffect(() => {
+    const q = query(
+      collection(db, 'notificationLogs'),
+      orderBy('timestamp', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setNotificationLogs(logsData);
+      setLoadingNotif(false);
+    }, (error) => {
+      console.error('Failed to load notification logs:', error);
+      setLoadingNotif(false);
     });
 
     return () => unsubscribe();
@@ -1191,55 +1411,128 @@ function ActivityLogsView() {
       className="space-y-6"
     >
       <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900">Admin Activity Logs</h2>
-        <p className="text-sm text-gray-500">Real-time audit trail of administrative actions</p>
+        <h2 className="text-xl font-bold text-gray-900">System Logs</h2>
+        <p className="text-sm text-gray-500">Real-time audit trails and system notifications logs</p>
+      </div>
+
+      {/* Sub-tab Toggle */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveSubTab('admin')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            activeSubTab === 'admin'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
+          }`}
+        >
+          Admin Activity Logs
+        </button>
+        <button
+          onClick={() => setActiveSubTab('notifications')}
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            activeSubTab === 'notifications'
+              ? 'bg-primary text-white shadow-md'
+              : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
+          }`}
+        >
+          Notification Logs
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-              <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Admin</th>
-                <th className="px-6 py-4">Action</th>
-                <th className="px-6 py-4">Description</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
+          {activeSubTab === 'admin' ? (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-500">Loading logs...</td>
+                  <th className="px-6 py-4">Timestamp</th>
+                  <th className="px-6 py-4">Admin</th>
+                  <th className="px-6 py-4">Action</th>
+                  <th className="px-6 py-4">Description</th>
                 </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No activity logs found.</td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-xs text-gray-500">
-                      {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : 'Just now'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900">{log.adminEmail}</span>
-                        <span className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {log.adminId.slice(0, 8)}...</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {log.description}
-                    </td>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loadingAdmin ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">Loading logs...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : adminLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No activity logs found.</td>
+                  </tr>
+                ) : (
+                  adminLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : 'Just now'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-gray-900">{log.adminEmail}</span>
+                          <span className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {log.adminId.slice(0, 8)}...</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-gray-100 text-gray-600 uppercase tracking-wider">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {log.description}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Timestamp</th>
+                  <th className="px-6 py-4">Order ID</th>
+                  <th className="px-6 py-4">WhatsApp Numbers</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Error Detail</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loadingNotif ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading notification logs...</td>
+                  </tr>
+                ) : notificationLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">No notification logs found.</td>
+                  </tr>
+                ) : (
+                  notificationLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Just now'}
+                      </td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-900">
+                        #{getDisplayOrderId(log.orderId) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-700">
+                        {log.numbers && log.numbers.length > 0 ? log.numbers.join(', ') : 'None'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                          log.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-red-500 font-medium">
+                        {log.error || '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </motion.div>
@@ -2220,7 +2513,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     }
 
     if (searchQuery) {
-      const queryLower = searchQuery.toLowerCase();
+      const queryLower = searchQuery.toLowerCase().replace(/^#/, '');
       data = data.filter(o =>
         o.id.toLowerCase().includes(queryLower) ||
         o.contactName?.toLowerCase().includes(queryLower) ||
@@ -2263,7 +2556,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     
     const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
     
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
+    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${getDisplayOrderId(order.id)}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
     
     const encodedText = encodeURIComponent(text);
     const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
@@ -2323,6 +2616,60 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     }
   };
 
+  const exportOrdersToCSV = () => {
+    if (orders.length === 0) {
+      toast.error('No orders available to export');
+      return;
+    }
+    const headers = [
+      'Order ID',
+      'Date',
+      'Customer Name',
+      'Customer Email',
+      'Customer Phone',
+      'Address',
+      'Items',
+      'Total Amount',
+      'Payment Method',
+      'Payment Status',
+      'Order Status'
+    ].join(',');
+
+    const rows = orders.map(o => {
+      const displayId = o.id.startsWith('VBM') ? o.id : o.id.slice(-8).toUpperCase();
+      const dateStr = new Date(o.createdAt).toLocaleString();
+      const addressStr = `"${o.address?.house || ''}, ${o.address?.street || ''}, ${o.address?.city || ''}, ${o.address?.state || ''} - ${o.address?.zip || ''}"`;
+      const itemsStr = `"${o.items?.map(item => `${item.name} (Qty: ${item.quantity})`).join('; ') || ''}"`;
+      return [
+        displayId,
+        `"${dateStr}"`,
+        `"${o.contactName || 'Guest'}"`,
+        `"${o.contactEmail || 'N/A'}"`,
+        `"${o.contactPhone || 'N/A'}"`,
+        addressStr,
+        itemsStr,
+        o.total,
+        o.paymentMethod,
+        o.paymentStatus,
+        o.status
+      ].join(',');
+    }).join('\n');
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers + "\n" + rows;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `vibamart_orders_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    logAdminAction(
+      AdminAction.EXPORT_REPORT,
+      `Exported ${orders.length} orders to CSV.`
+    );
+  };
+
   const statusStyles: any = {
     pending: 'bg-amber-100 text-amber-600',
     accepted: 'bg-blue-100 text-blue-600',
@@ -2371,12 +2718,16 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                 {sortDirection === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               </button>
             </div>
-            <button className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={exportOrdersToCSV}
+              className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
+              title="Export Orders CSV"
+            >
               <Download className="w-5 h-5" />
             </button>
           </div>
         </div>
-
+ 
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
           {statusOptions.map((s) => (
             <button
@@ -2389,7 +2740,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
           ))}
         </div>
       </div>
-
+ 
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -2411,7 +2762,20 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                 <tr key={order.id} className="group hover:bg-gray-50/50 transition-all">
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm font-black text-gray-900 tracking-tight">#{order.id.slice(-8).toUpperCase()}</span>
+                      <div className="flex items-center gap-1.5 group/id">
+                        <span className="text-sm font-black text-gray-900 tracking-tight">#{getDisplayOrderId(order.id)}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(getDisplayOrderId(order.id));
+                            toast.success(`Copied Order ID: ${getDisplayOrderId(order.id)}`);
+                          }}
+                          className="p-1 text-gray-400 hover:text-primary transition-all rounded flex items-center justify-center"
+                          title="Copy Order ID"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </td>
@@ -2875,7 +3239,7 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
               ) : orders.map(order => (
                 <div key={order.id} className="flex justify-between items-center p-5 bg-gray-50 rounded-[2rem] border border-gray-100 group hover:bg-white hover:shadow-xl transition-all duration-500">
                   <div className="flex flex-col gap-1">
-                    <span className="text-sm font-black text-gray-900 tracking-tight">#{order.id.slice(-8).toUpperCase()}</span>
+                    <span className="text-sm font-black text-gray-900 tracking-tight">#{getDisplayOrderId(order.id)}</span>
                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="text-right">
@@ -2910,6 +3274,17 @@ function SettingsView() {
   const [newNumber, setNewNumber] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [triggerStatus, setTriggerStatus] = useState<{ running: boolean; whatsappConfigured: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/notifications/status')
+      .then(res => res.json())
+      .then(data => setTriggerStatus(data))
+      .catch(err => {
+        console.error('Failed to check trigger status:', err);
+        setTriggerStatus({ running: false, whatsappConfigured: false });
+      });
+  }, []);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -3135,6 +3510,26 @@ function SettingsView() {
               </button>
             </div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Include country code (e.g. +91) for all numbers.</p>
+          </div>
+        </div>
+
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Notification Trigger Status</h3>
+        <div className="p-4 bg-gray-50 rounded-2xl space-y-2 mt-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-gray-700">Notification API Server:</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
+              triggerStatus?.running ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+            }`}>
+              {triggerStatus?.running ? 'Running' : 'Offline'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-gray-700">WhatsApp Credentials:</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
+              triggerStatus?.whatsappConfigured ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
+            }`}>
+              {triggerStatus?.whatsappConfigured ? 'Configured' : 'Missing / Incomplete'}
+            </span>
           </div>
         </div>
 
@@ -6319,7 +6714,7 @@ function ReturnManagementView() {
                   <tr key={ret.id} className="group hover:bg-gray-50/50 transition-all">
                     <td className="px-4 py-6">
                       <div className="flex flex-col">
-                        <span className="text-sm font-black text-gray-900 tracking-tight">#{ret.id.slice(-8).toUpperCase()}</span>
+                        <span className="text-sm font-black text-gray-900 tracking-tight">#{ret.id.startsWith('VBM') ? ret.id : ret.id.slice(-8).toUpperCase()}</span>
                         <span className={`text-[9px] font-black uppercase tracking-widest mt-1.5 w-fit px-2.5 py-1 rounded-lg ${statusColors[ret.status]}`}>{ret.status.replace('_', ' ')}</span>
                       </div>
                     </td>

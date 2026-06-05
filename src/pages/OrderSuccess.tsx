@@ -5,7 +5,17 @@ import { motion } from 'motion/react';
 
 export default function OrderSuccess() {
   const location = useLocation();
-  const orderId = location.state?.orderId || "VBM-" + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  
+  const generateFallbackId = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `VBM${yyyy}${mm}${dd}${random}`;
+  };
+
+  const orderId = location.state?.orderId || generateFallbackId();
 
   return (
     <div className="min-h-[85vh] bg-gray-50 flex items-center justify-center p-4">

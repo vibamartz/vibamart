@@ -78,7 +78,7 @@ export default function OrderTracking() {
               type="text" 
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Enter Order ID (e.g. VBM-123456)"
+              placeholder="Enter Order ID (e.g. VBM202606051234)"
               className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:outline-none focus:border-primary transition-all font-bold text-center"
               required
             />
@@ -118,7 +118,7 @@ export default function OrderTracking() {
               type="text" 
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Enter Order ID"
+              placeholder="Enter Order ID (e.g. VBM202606051234)"
               className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:outline-none focus:border-primary transition-all font-bold text-center"
               required
             />

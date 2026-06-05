@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { X, Truck, ArrowLeft, MessageSquare } from 'lucide-react';
+import { X, Truck, ArrowLeft, MessageSquare, Copy } from 'lucide-react';
 import { Order } from '../types';
+import toast from 'react-hot-toast';
 
 export default function AdminOrderDetailsView({ order, onBack }: { order: Order, onBack: () => void }) {
   const handleSendWhatsApp = (order: Order) => {
@@ -18,7 +19,7 @@ export default function AdminOrderDetailsView({ order, onBack }: { order: Order,
     
     const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
     
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
+    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.startsWith('VBM') ? order.id : order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
     
     const encodedText = encodeURIComponent(text);
     const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
@@ -34,7 +35,19 @@ export default function AdminOrderDetailsView({ order, onBack }: { order: Order,
            <div className="flex items-center justify-between mb-8">
               <div>
                  <h3 className="text-xl font-black text-gray-900">Order Details</h3>
-                 <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">#{order.id.toUpperCase()}</p>
+                 <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">#{order.id.toUpperCase()}</p>
+                    <button
+                       onClick={() => {
+                          navigator.clipboard.writeText(order.id);
+                          toast.success(`Copied Order ID: ${order.id}`);
+                       }}
+                       className="p-1 text-gray-400 hover:text-black transition-colors rounded flex items-center justify-center"
+                       title="Copy Order ID"
+                    >
+                       <Copy className="w-3.5 h-3.5" />
+                    </button>
+                 </div>
               </div>
            </div>
            

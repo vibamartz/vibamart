@@ -86,6 +86,18 @@ async function startServer() {
     await whatsappOrderHandler(req, res);
   });
 
+  // Check notification trigger status
+  app.get("/api/notifications/status", (req, res) => {
+    const token = process.env.WHATSAPP_API_TOKEN;
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const isConfigured = !!(token && phoneId && token !== 'YOUR_TOKEN' && phoneId !== 'YOUR_PHONE_ID');
+    res.json({
+      running: true,
+      whatsappConfigured: isConfigured,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

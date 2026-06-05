@@ -133,6 +133,16 @@ service cloud.firestore {
       allow create: if isAdmin() && isValidAdminLog(incoming());
      }
 
+    match /adminNotifications/{notifId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /notificationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if true;
+    }
+
     match /banners/{bannerId} {
       allow read: if true;
       allow write: if isAdmin();
