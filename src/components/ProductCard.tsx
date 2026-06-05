@@ -104,8 +104,8 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const discountAmount = product.discountPrice ? product.price - product.discountPrice : 0;
-  const discountPercentage = product.discountPrice ? Math.round((discountAmount / product.price) * 100) : 0;
+  const discountAmount = product.discountPrice && product.price ? product.price - product.discountPrice : 0;
+  const discountPercentage = product.discountPrice && product.price ? Math.round((discountAmount / product.price) * 100) : 0;
 
   return (
     <Link 
@@ -221,15 +221,15 @@ export default function ProductCard({ product }: ProductCardProps) {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-gray-900">
-                  ₹{((product.discountPrice || product.price) + (selectedVariant?.extraPrice || 0)).toLocaleString()}
+                  ₹{((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)).toLocaleString()}
                 </span>
-                {product.discountPrice && (
+                {product.discountPrice && product.price && (
                   <span className="text-xs text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
-                {product.discountPrice && (
+                {product.discountPrice && product.price && (
                   <span className="text-[10px] text-green-600 font-black">
                     • Save ₹{(product.price - product.discountPrice).toLocaleString()}
                   </span>

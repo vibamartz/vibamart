@@ -1037,7 +1037,7 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
               <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                 <div>
                   <h3 className="font-bold text-gray-900 truncate text-sm">{product.name}</h3>
-                  <p className="text-lg font-black text-primary mt-1 tracking-tight">₹{product.discountPrice?.toLocaleString() || product.price.toLocaleString()}</p>
+                  <p className="text-lg font-black text-primary mt-1 tracking-tight">₹{product.discountPrice?.toLocaleString() || product.price?.toLocaleString() || '0'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Link 

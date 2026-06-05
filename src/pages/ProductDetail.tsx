@@ -288,8 +288,8 @@ export default function ProductDetail() {
                    )}
                    {discountPercentage > 0 && <span className="text-2xl font-black text-green-600 uppercase">{discountPercentage}% OFF</span>}
                 </div>
-                {product.discountPrice && (
-                  <p className="text-sm font-bold text-green-600">
+                {product.discountPrice && product.price && (
+                  <p className="text-[10px] text-green-600 font-bold uppercase tracking-[0.2em] bg-green-50 px-3 py-1.5 rounded-lg w-max">
                     You save ₹{(product.price - product.discountPrice).toLocaleString()}
                   </p>
                 )}
