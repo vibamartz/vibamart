@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuthStore, useCategoryStore, useSettingsStore } from '../store';
 import { Navigate, Link } from 'react-router-dom';
 import {
@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu
+  Upload, Link2, Menu, MessageSquare
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -77,6 +77,200 @@ export default function AdminDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
+  // Parent shared states for live orders and returns
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingReturns, setLoadingReturns] = useState(true);
+  const [popupOrders, setPopupOrders] = useState<Order[]>([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [hasShownPopup, setHasShownPopup] = useState(false);
+  const [notificationTab, setNotificationTab] = useState<'alerts' | 'pending' | 'confirmed' | 'cancelled' | 'returns'>('alerts');
+
+  // Track initial snapshot load to avoid toaster spamming
+  const isInitialLoad = useRef(true);
+
+  // Helper to parse date formats safely
+  const safeNewDate = useCallback((val: any) => {
+    if (!val) return new Date();
+    if (typeof val.toDate === 'function') return val.toDate();
+    if (val.seconds) return new Date(val.seconds * 1000);
+    return new Date(val);
+  }, []);
+
+  const dynamicStats = useMemo(() => {
+    return [
+      { 
+        label: 'Total Revenue', 
+        value: `₹${orders.reduce((sum, o) => sum + (o.status === 'fulfilled' || o.status === 'delivered' ? (o.total || 0) : 0), 0).toLocaleString()}`, 
+        change: '+12%', 
+        icon: TrendingUp, 
+        color: 'text-emerald-500', 
+        bg: 'bg-emerald-50' 
+      },
+      { 
+        label: 'Total Orders', 
+        value: orders.length.toString(), 
+        change: `+${orders.filter(o => {
+          const orderDate = safeNewDate(o.createdAt);
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          return orderDate > sevenDaysAgo;
+        }).length} new`, 
+        icon: ShoppingBag, 
+        color: 'text-blue-500', 
+        bg: 'bg-blue-50' 
+      },
+      { 
+        label: 'Pending Orders', 
+        value: orders.filter(o => o.status === 'pending').length.toString(), 
+        change: 'Awaiting', 
+        icon: AlertTriangle, 
+        color: 'text-amber-500', 
+        bg: 'bg-amber-50' 
+      },
+      { 
+        label: 'Return Requests', 
+        value: returns.filter(r => r.status === 'requested').length.toString(), 
+        change: 'Active', 
+        icon: TrendingUp, 
+        color: 'text-rose-500', 
+        bg: 'bg-rose-50' 
+      },
+      { 
+        label: 'Total Customers', 
+        value: Array.from(new Set(orders.map(o => o.customerId))).length.toString(), 
+        change: '+10%', 
+        icon: Users, 
+        color: 'text-indigo-500', 
+        bg: 'bg-indigo-50' 
+      },
+      { 
+        label: 'Total Returns', 
+        value: returns.length.toString(), 
+        change: 'Total', 
+        icon: Info, 
+        color: 'text-purple-500', 
+        bg: 'bg-purple-50' 
+      },
+    ];
+  }, [orders, returns, safeNewDate]);
+
+  // Helper for manual WhatsApp customer outreach
+  const handleSendWhatsApp = (order: Order) => {
+    const customerName = order.contactName || order.address?.fullName || 'Customer';
+    const customerPhone = order.contactPhone || order.address?.phone || '';
+    
+    if (!customerPhone) {
+      toast.error('Customer phone number not available');
+      return;
+    }
+    
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    
+    const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
+    
+    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
+    
+    const encodedText = encodeURIComponent(text);
+    const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
+    window.open(url, '_blank');
+  };
+
+  // Live Firebase snapshot listener for orders
+  useEffect(() => {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Order));
+      
+      if (!isInitialLoad.current) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const newOrder = { id: change.doc.id, ...change.doc.data() } as Order;
+            if (newOrder.status === 'pending') {
+              toast((t) => (
+                <div className="flex flex-col gap-1 text-left">
+                  <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    🔔 New Order Received (#{newOrder.id.slice(-5).toUpperCase()})
+                  </div>
+                  <div className="text-[11px] text-gray-600 mt-1">👤 Customer: {newOrder.contactName || 'Guest'}</div>
+                  <div className="text-[11px] text-gray-600">📞 Phone: {newOrder.contactPhone || 'N/A'}</div>
+                  <div className="text-[11px] text-gray-600">💰 Amount: ₹{(newOrder.total || 0).toLocaleString()}</div>
+                  <div className="flex gap-2 justify-end mt-2">
+                    <button 
+                      onClick={() => {
+                        setSelectedOrder(newOrder);
+                        setActiveTab('order-details');
+                        toast.dismiss(t.id);
+                      }}
+                      className="px-2.5 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow"
+                    >
+                      View
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleSendWhatsApp(newOrder);
+                        toast.dismiss(t.id);
+                      }}
+                      className="px-2.5 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow"
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
+                </div>
+              ), { duration: 8000 });
+            }
+          }
+        });
+      }
+
+      setOrders(ordersData);
+      setLoadingOrders(false);
+      isInitialLoad.current = false;
+    }, (error) => {
+      console.error("Failed to sync orders:", error);
+      setLoadingOrders(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Live Firebase snapshot listener for return requests
+  useEffect(() => {
+    const q = query(collection(db, 'returns'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const returnsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as ReturnRequest));
+      setReturns(returnsData);
+      setLoadingReturns(false);
+    }, (error) => {
+      console.error("Failed to sync returns:", error);
+      setLoadingReturns(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Show login popup for pending orders
+  useEffect(() => {
+    if (!loadingOrders && orders.length > 0 && !hasShownPopup) {
+      const pending = orders.filter(o => o.status === 'pending');
+      if (pending.length > 0) {
+        setPopupOrders(pending);
+        setShowPopup(true);
+      }
+      setHasShownPopup(true);
+    }
+  }, [loadingOrders, orders, hasShownPopup]);
 
   if (user?.role !== 'admin') {
     return <Navigate to="/" />;
@@ -191,7 +385,7 @@ export default function AdminDashboard() {
             <>
               {/* Stats Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                {STATS.map((stat, idx) => (
+                {dynamicStats.map((stat, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, y: 20 }}
@@ -203,7 +397,7 @@ export default function AdminDashboard() {
                       <div className={`${stat.bg} p-2.5 rounded-xl`}>
                         <stat.icon className={`w-5 h-5 ${stat.color}`} />
                       </div>
-                      <span className={`text-xs font-bold ${stat.change.startsWith('+') ? 'text-emerald-500 bg-emerald-50' : 'text-rose-500 bg-rose-50'} px-2 py-1 rounded-md`}>
+                      <span className={`text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md`}>
                         {stat.change}
                       </span>
                     </div>
@@ -276,26 +470,204 @@ export default function AdminDashboard() {
                 {/* Right Column - Sidebars */}
                 <div className="space-y-8">
                   
-                  {/* Notifications */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-bold flex items-center gap-2">
+                  {/* Notification Center */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col max-h-[550px]">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <h3 className="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
                         <Bell className="w-5 h-5 text-primary" />
-                        Updates
+                        Notification Center
                       </h3>
-                      <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">3 New</span>
+                      <span className="bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                        {orders.filter(o => o.status === 'pending').length} New
+                      </span>
                     </div>
-                    <div className="space-y-4">
-                      {NOTIFICATIONS.map(note => (
-                        <div key={note.id} className="flex gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
-                          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${note.type === 'warning' ? 'bg-amber-500' : note.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">{note.title}</p>
-                            <p className="text-xs text-gray-500 mt-1">{note.message}</p>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-2 block">{note.time}</span>
-                          </div>
-                        </div>
-                      ))}
+                    
+                    {/* Tab Navigation */}
+                    <div className="flex gap-1 overflow-x-auto pb-2 mb-4 shrink-0 border-b border-gray-100 scrollbar-none">
+                      {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
+                        const counts: Record<string, number> = {
+                          alerts: orders.slice(0, 5).length,
+                          pending: orders.filter(o => o.status === 'pending').length,
+                          confirmed: orders.filter(o => o.status === 'accepted').length,
+                          cancelled: orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').length,
+                          returns: returns.filter(r => r.status === 'requested').length
+                        };
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => setNotificationTab(tab)}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                              notificationTab === tab
+                                ? 'bg-primary text-white shadow-md shadow-primary/15'
+                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            {tab} ({counts[tab]})
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Tab Content */}
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+                      {notificationTab === 'alerts' && (
+                        orders.slice(0, 5).length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No recent order alerts</p>
+                        ) : (
+                          orders.slice(0, 5).map(order => (
+                            <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-2 text-left relative group">
+                              <div className="flex justify-between items-start">
+                                <span className="text-[11px] font-black text-gray-900 flex items-center gap-1.5 leading-tight">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse shrink-0"></span>
+                                  🔔 New Order Received (#{order.id.slice(-8).toUpperCase()})
+                                </span>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setActiveTab('order-details');
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-primary rounded bg-white border border-gray-100"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleSendWhatsApp(order)}
+                                    className="p-1 text-green-500 hover:text-green-600 rounded bg-white border border-gray-100"
+                                  >
+                                    <MessageSquare className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-[11px] text-gray-600 space-y-0.5">
+                                <p className="flex items-center gap-1">👤 <span className="font-bold text-gray-800">{order.contactName}</span></p>
+                                <p className="flex items-center gap-1">📞 <span className="font-medium text-gray-700">{order.contactPhone || 'N/A'}</span></p>
+                                <p className="flex items-center gap-1">💰 <span className="font-black text-gray-900">₹{order.total.toLocaleString()}</span></p>
+                              </div>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mt-1">
+                                {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))
+                        )
+                      )}
+
+                      {notificationTab === 'pending' && (
+                        orders.filter(o => o.status === 'pending').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No pending orders</p>
+                        ) : (
+                          orders.filter(o => o.status === 'pending').map(order => (
+                            <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
+                              <div>
+                                <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-[10px] text-gray-600 font-bold mt-1">👤 {order.contactName}</p>
+                                <p className="text-[10px] text-gray-500 font-medium">💰 ₹{order.total.toLocaleString()}</p>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setActiveTab('order-details');
+                                  }}
+                                  className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleSendWhatsApp(order)}
+                                  className="p-2 bg-white text-green-500 rounded-xl border border-gray-100 hover:text-green-600 transition-all"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )
+                      )}
+
+                      {notificationTab === 'confirmed' && (
+                        orders.filter(o => o.status === 'accepted').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No confirmed orders</p>
+                        ) : (
+                          orders.filter(o => o.status === 'accepted').map(order => (
+                            <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
+                              <div>
+                                <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-[10px] text-gray-600 font-bold mt-1">👤 {order.contactName}</p>
+                                <p className="text-[10px] text-gray-500 font-medium">💰 ₹{order.total.toLocaleString()}</p>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setActiveTab('order-details');
+                                  }}
+                                  className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleSendWhatsApp(order)}
+                                  className="p-2 bg-white text-green-500 rounded-xl border border-gray-100 hover:text-green-600 transition-all"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )
+                      )}
+
+                      {notificationTab === 'cancelled' && (
+                        orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No cancelled orders</p>
+                        ) : (
+                          orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').map(order => (
+                            <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
+                              <div>
+                                <p className="text-xs font-black text-gray-750">#{order.id.slice(-8).toUpperCase()}</p>
+                                <p className="text-[10px] text-gray-500 font-bold mt-1">👤 {order.contactName}</p>
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${order.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
+                                  {order.status}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setActiveTab('order-details');
+                                }}
+                                className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))
+                        )
+                      )}
+
+                      {notificationTab === 'returns' && (
+                        returns.filter(r => r.status === 'requested').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No return requests</p>
+                        ) : (
+                          returns.filter(r => r.status === 'requested').map(ret => (
+                            <div key={ret.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
+                              <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Return Request</p>
+                                <p className="text-xs font-black text-gray-900 mt-1">Order: #{ret.orderId.slice(-8).toUpperCase()}</p>
+                                <p className="text-[10px] text-gray-650 font-medium truncate max-w-[150px]">Reason: {ret.reason}</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setActiveTab('returns');
+                                }}
+                                className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow"
+                              >
+                                Manage
+                              </button>
+                            </div>
+                          ))
+                        )
+                      )}
                     </div>
                   </div>
 
@@ -352,10 +724,47 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      <OrderRow id="#ORD-9842" customer="Rahul Sharma" date="May 12, 2024" amount="₹42,500" status="delivered" />
-                      <OrderRow id="#ORD-9841" customer="Priya Singh" date="May 12, 2024" amount="₹1,200" status="shipped" />
-                      <OrderRow id="#ORD-9840" customer="Amit Patel" date="May 11, 2024" amount="₹12,499" status="pending" />
-                      <OrderRow id="#ORD-9839" customer="Sneha Kapur" date="May 10, 2024" amount="₹3,450" status="processing" />
+                      {orders.length === 0 ? (
+                        <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-450 font-bold uppercase tracking-wider">No orders placed yet</td></tr>
+                      ) : (
+                        orders.slice(0, 5).map(o => (
+                          <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 text-sm font-bold text-gray-705">#{o.id.slice(-8).toUpperCase()}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.contactName || 'Guest'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{new Date(o.createdAt).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{(o.total || 0).toLocaleString()}</td>
+                            <td className="px-6 py-4">
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                o.status === 'pending' ? 'bg-amber-100 text-amber-600' :
+                                o.status === 'accepted' ? 'bg-blue-100 text-blue-600' :
+                                o.status === 'shipped' ? 'bg-purple-100 text-purple-600' :
+                                o.status === 'fulfilled' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {o.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrder(o);
+                                    setActiveTab('order-details');
+                                  }}
+                                  className="text-xs font-bold text-primary hover:underline"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => handleSendWhatsApp(o)}
+                                  className="text-xs font-bold text-green-600 hover:underline"
+                                >
+                                  WhatsApp
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -369,7 +778,15 @@ export default function AdminDashboard() {
           {activeTab === 'user-roles' && <UserManagementView />}
           {activeTab === 'products' && <NewProductManagementView />}
 
-          {activeTab === 'orders' && <OrdersManagementView selectedOrder={selectedOrder} setSelectedOrder={setSelectedOrder} setActiveTab={setActiveTab} />}
+          {activeTab === 'orders' && (
+            <OrdersManagementView 
+              selectedOrder={selectedOrder} 
+              setSelectedOrder={setSelectedOrder} 
+              setActiveTab={setActiveTab} 
+              orders={orders} 
+              loading={loadingOrders} 
+            />
+          )}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
           {activeTab === 'returns' && <ReturnManagementView />}
           {activeTab === 'customers' && <CustomersManagementView />}
@@ -397,6 +814,80 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+
+      {/* Login Pending Orders Popup */}
+      <AnimatePresence>
+        {showPopup && popupOrders.length > 0 && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowPopup(false)} 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }} 
+              className="bg-white rounded-[2.5rem] p-8 max-w-lg w-full relative z-10 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-4">
+                <div className="bg-amber-50 p-3 rounded-2xl text-amber-500 animate-pulse">
+                  <Bell className="w-6 h-6 animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 leading-tight">Action Required</h3>
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-0.5">{popupOrders.length} Pending Order{popupOrders.length > 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              
+              <div className="overflow-y-auto flex-1 space-y-3 pr-2 scrollbar-thin">
+                {popupOrders.map(order => (
+                  <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-amber-200 transition-all flex justify-between items-center text-left">
+                    <div>
+                      <p className="text-xs font-black text-gray-900">#{order.id.slice(-8).toUpperCase()}</p>
+                      <p className="text-xs text-gray-650 font-bold mt-1">👤 {order.contactName}</p>
+                      <p className="text-[10px] text-gray-400 font-bold mt-0.5">📞 {order.contactPhone}</p>
+                      <p className="text-xs font-bold text-primary mt-1">💰 ₹{(order.total || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setActiveTab('order-details');
+                          setShowPopup(false);
+                        }}
+                        className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary-hover shadow-md"
+                      >
+                        Process
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSendWhatsApp(order);
+                          setShowPopup(false);
+                        }}
+                        className="px-3 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 shadow-md flex items-center gap-1"
+                      >
+                        WhatsApp
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="px-6 py-3 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition-all"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1702,9 +2193,13 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
   );
 }
 
-function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab }: { selectedOrder: Order | null, setSelectedOrder: (o: Order | null) => void, setActiveTab: (t: string) => void }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, orders: allOrders, loading }: { 
+  selectedOrder: Order | null, 
+  setSelectedOrder: (o: Order | null) => void, 
+  setActiveTab: (t: string) => void,
+  orders: Order[],
+  loading: boolean 
+}) {
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -1715,49 +2210,65 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab }:
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [trackingForm, setTrackingForm] = useState({ trackingId: '', carrier: '', estimatedDelivery: '' });
 
-  useEffect(() => {
-    let q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+  // Filter and sort locally based on allOrders from parent props
+  const orders = React.useMemo(() => {
+    let data = [...allOrders];
+
+    // Filter
     if (filter !== 'all') {
-      q = query(collection(db, 'orders'), where('status', '==', filter));
+      data = data.filter(o => o.status === filter);
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    if (searchQuery) {
+      const queryLower = searchQuery.toLowerCase();
+      data = data.filter(o =>
+        o.id.toLowerCase().includes(queryLower) ||
+        o.contactName?.toLowerCase().includes(queryLower) ||
+        o.contactEmail?.toLowerCase().includes(queryLower)
+      );
+    }
 
-      // Filter
-      if (searchQuery) {
-        data = data.filter(o =>
-          o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          o.contactName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          o.contactEmail?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+    // Sort
+    data.sort((a, b) => {
+      let valA: any = a[sortBy];
+      let valB: any = b[sortBy];
+
+      if (sortBy === 'createdAt') {
+        valA = new Date(a.createdAt).getTime();
+        valB = new Date(b.createdAt).getTime();
+      } else if (sortBy === 'contactName') {
+        valA = a.contactName?.toLowerCase() || '';
+        valB = b.contactName?.toLowerCase() || '';
       }
 
-      // Sort
-      data.sort((a, b) => {
-        let valA: any = a[sortBy];
-        let valB: any = b[sortBy];
-
-        if (sortBy === 'createdAt') {
-          valA = new Date(a.createdAt).getTime();
-          valB = new Date(b.createdAt).getTime();
-        } else if (sortBy === 'contactName') {
-          valA = a.contactName?.toLowerCase();
-          valB = b.contactName?.toLowerCase();
-        }
-
-        if (sortDirection === 'asc') return valA > valB ? 1 : -1;
-        return valA < valB ? 1 : -1;
-      });
-
-      setOrders(data);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'orders');
+      if (sortDirection === 'asc') return valA > valB ? 1 : -1;
+      return valA < valB ? 1 : -1;
     });
 
-    return () => unsubscribe();
-  }, [filter, searchQuery, sortBy, sortDirection]);
+    return data;
+  }, [allOrders, filter, searchQuery, sortBy, sortDirection]);
+
+  // Helper for manual WhatsApp customer outreach
+  const handleSendWhatsApp = (order: Order) => {
+    const customerName = order.contactName || order.address?.fullName || 'Customer';
+    const customerPhone = order.contactPhone || order.address?.phone || '';
+    
+    if (!customerPhone) {
+      toast.error('Customer phone number not available');
+      return;
+    }
+    
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    
+    const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
+    
+    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
+    
+    const encodedText = encodeURIComponent(text);
+    const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
+    window.open(url, '_blank');
+  };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, message?: string, location?: string) => {
     try {
@@ -1931,6 +2442,14 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab }:
                         className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:text-primary hover:border-primary/20 hover:shadow-lg transition-all"
                       >
                         <Eye className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleSendWhatsApp(order)}
+                        title="Send WhatsApp Alert"
+                        className="p-3 bg-white border border-green-100 text-green-500 rounded-xl hover:text-green-600 hover:border-green-200 hover:bg-green-50 hover:shadow-lg transition-all"
+                      >
+                        <MessageSquare className="w-4 h-4" />
                       </button>
 
                       <div className="h-6 w-px bg-gray-100 mx-1" />
@@ -2388,6 +2907,9 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
 function SettingsView() {
   const { settings, updateSettings } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState(settings);
+  const [newNumber, setNewNumber] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState('');
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -2402,6 +2924,58 @@ function SettingsView() {
     } catch (error) {
       toast.error('Failed to save settings', { id: toastId });
     }
+  };
+
+  const addNumber = () => {
+    const clean = newNumber.trim();
+    if (!clean) return;
+    if (!/^\+?[0-9]{8,15}$/.test(clean)) {
+      toast.error('Invalid phone number format. Include country code (e.g. +919876543210)');
+      return;
+    }
+    const currentList = localSettings.whatsappNumbers || [];
+    if (currentList.includes(clean)) {
+      toast.error('Number already exists');
+      return;
+    }
+    setLocalSettings(prev => ({
+      ...prev,
+      whatsappNumbers: [...currentList, clean]
+    }));
+    setNewNumber('');
+    toast.success('Number added. Make sure to Save Configuration.');
+  };
+
+  const removeNumber = (index: number) => {
+    const currentList = localSettings.whatsappNumbers || [];
+    const updated = currentList.filter((_, idx) => idx !== index);
+    setLocalSettings(prev => ({
+      ...prev,
+      whatsappNumbers: updated
+    }));
+    toast.success('Number removed. Make sure to Save Configuration.');
+  };
+
+  const startEditing = (index: number, val: string) => {
+    setEditingIndex(index);
+    setEditingValue(val);
+  };
+
+  const saveEditedNumber = (index: number) => {
+    const clean = editingValue.trim();
+    if (!clean) return;
+    if (!/^\+?[0-9]{8,15}$/.test(clean)) {
+      toast.error('Invalid phone number format');
+      return;
+    }
+    const currentList = [...(localSettings.whatsappNumbers || [])];
+    currentList[index] = clean;
+    setLocalSettings(prev => ({
+      ...prev,
+      whatsappNumbers: currentList
+    }));
+    setEditingIndex(null);
+    toast.success('Number updated. Make sure to Save Configuration.');
   };
 
   const Toggle = ({ label, desc, value, onChange }: any) => (
@@ -2481,18 +3055,85 @@ function SettingsView() {
             value={localSettings.enableWhatsappNotifications || false} 
             onChange={() => setLocalSettings(prev => ({ ...prev, enableWhatsappNotifications: !prev.enableWhatsappNotifications }))} 
           />
-          <div className="space-y-2 px-4">
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Admin WhatsApp Numbers (Comma separated with country code)</label>
-            <input
-              type="text"
-              placeholder="+919876543210, +1234567890"
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-green-500/20 transition-all font-bold"
-              value={(localSettings.whatsappNumbers || []).join(', ')}
-              onChange={e => setLocalSettings(prev => ({ 
-                ...prev, 
-                whatsappNumbers: e.target.value.split(',').map(n => n.trim()).filter(n => n.length > 0)
-              }))}
-            />
+          
+          <div className="space-y-4 px-4">
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Admin WhatsApp Numbers</label>
+            
+            {/* List of Configured Numbers */}
+            <div className="space-y-2">
+              {(localSettings.whatsappNumbers || []).length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No admin WhatsApp numbers configured.</p>
+              ) : (
+                (localSettings.whatsappNumbers || []).map((num, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all">
+                    {editingIndex === idx ? (
+                      <div className="flex gap-2 flex-1 mr-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none"
+                          value={editingValue}
+                          onChange={e => setEditingValue(e.target.value)}
+                        />
+                        <button
+                          onClick={() => saveEditedNumber(idx)}
+                          className="px-3 py-1.5 bg-green-650 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingIndex(null)}
+                          className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-xs font-bold text-gray-700">{num}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startEditing(idx, num)}
+                            className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Number"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => removeNumber(idx)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Number"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Input to add a new number */}
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                placeholder="e.g. +919876543210"
+                className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-green-500/20 transition-all font-bold text-xs"
+                value={newNumber}
+                onChange={e => setNewNumber(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNumber(); } }}
+              />
+              <button
+                type="button"
+                onClick={addNumber}
+                className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-all shadow-md"
+              >
+                Add Number
+              </button>
+            </div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Include country code (e.g. +91) for all numbers.</p>
           </div>
         </div>
@@ -5686,7 +6327,7 @@ function ReturnManagementView() {
                       <p className="text-xs text-gray-500 font-medium line-clamp-2 max-w-xs leading-relaxed">{ret.reason}</p>
                     </td>
                     <td className="px-4 py-6">
-                      <span className="text-sm font-black text-gray-900 italic">₹{ret.refundAmount.toLocaleString()}</span>
+                      <span className="text-sm font-black text-gray-900 italic">₹{(ret.refundAmount || 0).toLocaleString()}</span>
                     </td>
                     <td className="px-4 py-6 text-right">
                       <div className="flex justify-end gap-2">
@@ -5720,7 +6361,7 @@ function ReturnManagementView() {
             <div className="relative z-10">
               <PieChart className="w-10 h-10 text-white/40 mb-6" />
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Total Refund Capital</p>
-              <p className="text-4xl font-black tracking-tighter italic">₹{(returns.reduce((acc, r) => acc + r.refundAmount, 0)).toLocaleString()}</p>
+              <p className="text-4xl font-black tracking-tighter italic">₹{(returns.reduce((acc, r) => acc + (r.refundAmount || 0), 0)).toLocaleString()}</p>
               <div className="mt-10 pt-8 border-t border-white/10 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black uppercase opacity-40">Success Rate</span>
