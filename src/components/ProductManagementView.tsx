@@ -1,96 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Product } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Edit2, Trash2, Filter, Image as ImageIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction, AdminAction } from '../services/adminLogService';
+import { Product, ProductVariant } from '../types';
 import toast from 'react-hot-toast';
-import AddEditProductForm from './AddEditProductForm';
-import { useAuthStore } from '../store';
+import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check } from 'lucide-react';
+import { motion } from 'motion/react';
 
-export default function ProductManagementView() {
-  const { user } = useAuthStore();
+export default function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }: {
+  onAddProduct?: () => void,
+  onEditProduct?: (p: Product) => void,
+  onDeleteProduct?: (id: string, name: string) => Promise<boolean>
+}) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modal State
-  const [showForm, setShowForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
+  const [editingVariant, setEditingVariant] = useState<{ productId: string, variantId: string, name: string, material: string, price: number, stock: number } | null>(null);
+  const [addingVariantTo, setAddingVariantTo] = useState<string | null>(null);
+  const [newVariant, setNewVariant] = useState({ name: '', material: '', price: 0, stock: 0 });
 
   useEffect(() => {
-    // In a real app, you might filter by vendorId if the user is a vendor.
-    // const q = user?.role === 'vendor' ? query(collection(db, 'products'), where('vendorId', '==', user.uid), orderBy('createdAt', 'desc')) : query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prodData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product));
-      setProducts(prodData);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(data);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching products:", error);
-      toast.error("Failed to load products.");
-      setLoading(false);
+      handleFirestoreError(error, OperationType.LIST, 'products');
     });
-
     return () => unsubscribe();
-  }, [user]);
+  }, []);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to permanently delete "${name}"?`)) {
-      try {
-        await deleteDoc(doc(db, 'products', id));
-        toast.success('Product deleted successfully');
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        toast.error('Failed to delete product');
-      }
+  const toggleExpand = (productId: string) => {
+    setExpandedProducts(prev =>
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
+    );
+  };
+
+  const handleAddVariant = async (productId: string) => {
+    if (!newVariant.name) return;
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const toastId = toast.loading('Adding variant...');
+    try {
+      const v: ProductVariant = {
+        id: window.crypto.randomUUID().replace(/-/g, '').slice(0, 9),
+        name: newVariant.name,
+        material: newVariant.material,
+        price: newVariant.price,
+        stock: newVariant.stock
+      };
+
+      const updatedVariants = [...(product.variants || []), v];
+      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `Added new variant "${v.name}" to product: ${product.name}`,
+        productId,
+        'products'
+      );
+
+      toast.success('Variant added', { id: toastId });
+      setNewVariant({ name: '', extraPrice: 0, stock: 0 });
+      setAddingVariantTo(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to add variant', { id: toastId });
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleUpdateVariant = async (productId: string, variantId: string) => {
+    if (!editingVariant) return;
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const toastId = toast.loading('Updating variant...');
+    try {
+      const updatedVariants = (product.variants || []).map(v =>
+        v.id === variantId ? { ...v, name: editingVariant.name, material: editingVariant.material, price: editingVariant.price, stock: editingVariant.stock } : v
+      );
+
+      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `Updated variant "${editingVariant.name}" for product: ${product.name}`,
+        productId,
+        'products'
+      );
+
+      toast.success('Variant updated successfully', { id: toastId });
+      setEditingVariant(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update variant', { id: toastId });
+    }
+  };
+
+  const handleQuickStockUpdate = async (productId: string, variantId: string, newStock: number) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const variant = product.variants?.find(v => v.id === variantId);
+    if (!variant || variant.stock === newStock) return;
+
+    try {
+      const updatedVariants = (product.variants || []).map(v =>
+        v.id === variantId ? { ...v, stock: newStock } : v
+      );
+
+      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `Directly updated stock for variant "${variant.name}" (Product: ${product.name}) to ${newStock}`,
+        productId,
+        'products'
+      );
+
+      toast.success('Stock updated');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update stock');
+    }
+  };
+
+  const handleDeleteVariant = async (productId: string, variantId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const variant = product.variants?.find(v => v.id === variantId);
+    if (!variant) return;
+
+    if (!window.confirm(`Delete variant "${variant.name}"?`)) return;
+
+    const toastId = toast.loading('Deleting variant...');
+    try {
+      const updatedVariants = (product.variants || []).filter(v => v.id !== variantId);
+      await updateDoc(doc(db, 'products', productId), {
+        variants: updatedVariants,
+        updatedAt: new Date().toISOString()
+      });
+
+      try {
+        await logAdminAction(
+          AdminAction.PRODUCT_UPDATE,
+          `Deleted variant "${variant.name}" from product: ${product.name}`,
+          productId,
+          'products'
+        );
+      } catch (logErr) {
+        console.warn('Logging failed but variant deletion succeeded:', logErr);
+      }
+
+      toast.success('Variant deleted successfully', { id: toastId });
+    } catch (err) {
+      console.error('Variant deletion failed:', err);
+      toast.error('Failed to delete variant: ' + (err instanceof Error ? err.message : 'Unknown error'), { id: toastId });
+      handleFirestoreError(err, OperationType.UPDATE, `products/${productId}`);
+    }
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
+      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Product Management</h2>
-          <p className="text-sm text-gray-500">Add, edit, and manage your inventory.</p>
+          <h2 className="text-xl font-bold text-gray-900">Inventory & Variants</h2>
+          <p className="text-sm text-gray-500">Manage product stock and variants in detail</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative w-full sm:w-64">
-            <input 
-              type="text" 
-              placeholder="Search products..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          </div>
-          <button className="hidden sm:flex items-center gap-2 bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
+        <div className="flex gap-4">
           <button
-            onClick={() => {
-              setEditingProduct(null);
-              setShowForm(true);
-            }}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+            onClick={onAddProduct}
+            className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
           >
-            <Plus className="w-5 h-5" />
-            Add Product
+            <Plus className="w-4 h-4" />
+            Add New Product
           </button>
         </div>
       </div>
@@ -100,111 +184,274 @@ export default function ProductManagementView() {
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
               <tr>
-                <th className="px-6 py-4">Product</th>
-                <th className="px-6 py-4">SKU / Brand</th>
-                <th className="px-6 py-4">Price</th>
-                <th className="px-6 py-4 text-center">Stock</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 w-10"></th>
+                <th className="px-6 py-4">Product Info</th>
+                <th className="px-6 py-4">Total Stock</th>
+                <th className="px-6 py-4">Variants Count</th>
+                <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-500 font-medium">Loading products...</td>
-                </tr>
-              ) : filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 font-medium">No products found. Add a new product to get started.</td>
-                </tr>
-              ) : (
-                filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl border border-gray-200 overflow-hidden bg-white shrink-0 flex items-center justify-center">
-                          {product.images?.[0] || product.primaryImage ? (
-                            <img src={product.images?.[0] || product.primaryImage} alt={product.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <ImageIcon className="w-5 h-5 text-gray-300" />
-                          )}
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
+              ) : products.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No products found.</td></tr>
+              ) : products.map(product => {
+                const isExpanded = expandedProducts.includes(product.id);
+                return (
+                  <React.Fragment key={product.id}>
+                    <tr className={`hover:bg-gray-50 transition-colors cursor-pointer ${isExpanded ? 'bg-gray-50/50' : ''}`} onClick={() => toggleExpand(product.id)}>
+                      <td className="px-6 py-4">
+                        {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                            <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900 line-clamp-2 max-w-[250px]">{product.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{product.variants?.length ? `${product.variants.length} Variants` : 'Single Product'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-mono text-gray-600 mb-0.5">{product.sku || 'N/A'}</div>
-                      <div className="text-xs font-medium text-gray-500">{product.brand || 'No Brand'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-indigo-900">₹{product.discountPrice?.toLocaleString() || product.price?.toLocaleString()}</div>
-                      {product.mrp && product.mrp > (product.discountPrice || product.price) && (
-                        <div className="text-xs text-gray-400 line-through">₹{product.mrp.toLocaleString()}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {product.variants?.length ? (
-                         <span className="text-sm font-bold text-gray-700">{product.variants.reduce((acc, v) => acc + (v.stock || 0), 0)}</span>
-                      ) : (
-                        <span className={`text-sm font-bold ${product.stock > 10 ? 'text-emerald-600' : product.stock > 0 ? 'text-amber-500' : 'text-rose-500'}`}>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
                           {product.stock}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        product.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 
-                        product.status === 'inactive' ? 'bg-gray-100 text-gray-600' :
-                        product.status === 'out_of_stock' ? 'bg-rose-50 text-rose-600' :
-                        'bg-amber-50 text-amber-600'
-                      }`}>
-                        {product.status === 'active' ? <CheckCircle2 className="w-3 h-3" /> : 
-                         product.status === 'inactive' ? <XCircle className="w-3 h-3" /> : null}
-                        {product.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => {
-                            setEditingProduct(product);
-                            setShowForm(true);
-                          }}
-                          className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
-                          title="Edit Product"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id, product.name)}
-                          className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
-                          title="Delete Product"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
+                          {product.variants?.length || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                            {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditProduct?.(product);
+                            }}
+                            className="p-1 text-gray-400 hover:text-primary transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (onDeleteProduct) {
+                                await onDeleteProduct(product.id, product.name);
+                              }
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {isExpanded && (
+                      <tr className="bg-gray-50/30">
+                        <td colSpan={5} className="px-8 py-6">
+                          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Variants Table</h4>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddingVariantTo(addingVariantTo === product.id ? null : product.id);
+                                  setNewVariant({ name: '', material: '', price: product.price, stock: 0 });
+                                }}
+                                className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline transition-colors ${addingVariantTo === product.id ? 'text-red-500' : 'text-primary'}`}
+                              >
+                                {addingVariantTo === product.id ? <><X className="w-3 h-3" /> Cancel</> : <><Plus className="w-3 h-3" /> Quick Add</>}
+                              </button>
+                            </div>
+                            <table className="w-full text-left bg-white">
+                              <thead className="bg-gray-50/50 text-[9px] uppercase font-bold text-gray-400 tracking-wider">
+                                <tr>
+                                  <th className="px-6 py-3">Variant Name</th>
+                                  <th className="px-6 py-3">Material</th>
+                                  <th className="px-6 py-3">Price</th>
+                                  <th className="px-6 py-3">Stock</th>
+                                  <th className="px-6 py-3 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {addingVariantTo === product.id && (
+                                  <tr className="bg-primary/5">
+                                    <td className="px-6 py-3">
+                                      <input
+                                        autoFocus
+                                        placeholder="XL / Red"
+                                        className="w-full bg-white border border-primary/20 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/10"
+                                        value={newVariant.name}
+                                        onChange={e => setNewVariant(p => ({ ...p, name: e.target.value }))}
+                                      />
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <input
+                                        placeholder="Cotton"
+                                        className="w-full bg-white border border-primary/20 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/10"
+                                        value={newVariant.material}
+                                        onChange={e => setNewVariant(p => ({ ...p, material: e.target.value }))}
+                                      />
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs text-gray-400">₹</span>
+                                        <input
+                                          type="number"
+                                          className="w-20 bg-white border border-primary/20 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/10"
+                                          value={newVariant.price}
+                                          onChange={e => setNewVariant(p => ({ ...p, price: Number(e.target.value) }))}
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <input
+                                        type="number"
+                                        className="w-20 bg-white border border-primary/20 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/10"
+                                        value={newVariant.stock}
+                                        onChange={e => setNewVariant(p => ({ ...p, stock: Number(e.target.value) }))}
+                                      />
+                                    </td>
+                                    <td className="px-6 py-3 text-right">
+                                      <button
+                                        onClick={() => handleAddVariant(product.id)}
+                                        disabled={!newVariant.name}
+                                        className="bg-primary text-white text-[10px] font-black px-4 py-1.5 rounded-lg shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all disabled:opacity-50"
+                                      >
+                                        Save
+                                      </button>
+                                    </td>
+                                  </tr>
+                                )}
+                                {(!product.variants || product.variants.length === 0) && addingVariantTo !== product.id ? (
+                                  <tr>
+                                    <td colSpan={5} className="px-6 py-6 text-center text-xs text-gray-400 italic">
+                                      No variants configured for this product.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  product.variants.map(variant => {
+                                    const isEditing = editingVariant?.variantId === variant.id;
+                                    return (
+                                      <tr key={variant.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-3">
+                                          {isEditing ? (
+                                            <input
+                                              className="w-full bg-gray-50 border-none rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/20"
+                                              value={editingVariant.name || ''}
+                                              onChange={e => setEditingVariant(p => p ? { ...p, name: e.target.value } : null)}
+                                            />
+                                          ) : (
+                                            <span className="text-xs font-bold text-gray-700">{variant.name}</span>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                          {isEditing ? (
+                                            <input
+                                              className="w-full bg-gray-50 border-none rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/20"
+                                              value={editingVariant.material || ''}
+                                              onChange={e => setEditingVariant(p => p ? { ...p, material: e.target.value } : null)}
+                                            />
+                                          ) : (
+                                            <span className="text-xs text-gray-500">{variant.material || '-'}</span>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                          {isEditing ? (
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-gray-400">₹</span>
+                                              <input
+                                                type="number"
+                                                className="w-20 bg-gray-50 border-none rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/20"
+                                                value={editingVariant.price || 0}
+                                                onChange={e => setEditingVariant(p => p ? { ...p, price: Number(e.target.value) } : null)}
+                                              />
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs font-bold text-blue-600">₹{(variant.price || 0).toLocaleString()}</span>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-3">
+                                          {isEditing ? (
+                                            <input
+                                              type="number"
+                                              className="w-20 bg-gray-50 border-none rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary/20"
+                                              value={editingVariant.stock || 0}
+                                              onChange={e => setEditingVariant(p => p ? { ...p, stock: Number(e.target.value) } : null)}
+                                            />
+                                          ) : (
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="number"
+                                                defaultValue={variant.stock}
+                                                key={`${product.id}-${variant.id}-${variant.stock}`}
+                                                onBlur={(e) => handleQuickStockUpdate(product.id, variant.id, Number(e.target.value))}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    handleQuickStockUpdate(product.id, variant.id, Number((e.target as HTMLInputElement).value));
+                                                    (e.target as HTMLInputElement).blur();
+                                                  }
+                                                }}
+                                                className={`w-20 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none transition-all ${variant.stock <= 5 ? 'text-red-500 border-red-100' : 'text-gray-700'}`}
+                                              />
+                                              {variant.stock <= 5 && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-3 text-right">
+                                          <div className="flex items-center justify-end gap-2">
+                                            {isEditing ? (
+                                              <>
+                                                <button onClick={() => setEditingVariant(null)} className="p-1.5 text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => handleUpdateVariant(product.id, variant.id)} className="p-1.5 text-blue-500 hover:text-blue-600"><Check className="w-3.5 h-3.5" /></button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingVariant({ productId: product.id, variantId: variant.id, name: variant.name || '', material: variant.material || '', price: variant.price || 0, stock: variant.stock });
+                                                  }}
+                                                  className="p-1.5 text-gray-400 hover:text-primary transition-colors"
+                                                >
+                                                  <Edit3 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteVariant(product.id, variant.id);
+                                                  }}
+                                                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                                                >
+                                                  <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Add/Edit Modal Form */}
-      <AnimatePresence>
-        {showForm && (
-          <AddEditProductForm 
-            product={editingProduct} 
-            onClose={() => setShowForm(false)} 
-            onSuccess={() => setShowForm(false)} 
-          />
-        )}
-      </AnimatePresence>
     </motion.div>
   );
-}
+}

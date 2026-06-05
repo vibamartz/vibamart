@@ -24,6 +24,8 @@ export default function ProductDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
   const [notFound, setNotFound] = useState(false);
+  const [isOnWaitlist, setIsOnWaitlist] = useState(false);
+  const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(null);
 
   // Fetch product by ID only — no user dependency to avoid double-fetch race condition
   useEffect(() => {

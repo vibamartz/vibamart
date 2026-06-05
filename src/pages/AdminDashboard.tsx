@@ -3511,7 +3511,7 @@ function AnalyticsView() {
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_MB = 10;
 
-function ProductImageUploader({
+export function ProductImageUploader({
   images,
   onChange,
 }: {
@@ -3764,7 +3764,7 @@ function ProductImageUploader({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const KEYWORD_SUGGESTIONS: Record<string, string[]> = {
+export const KEYWORD_SUGGESTIONS: Record<string, string[]> = {
   'Shoes': ['sneakers', 'sports shoes', 'running shoes', 'footwear', 'casual shoes', 'gym shoes'],
   'Electronics': ['smartphone', 'gadget', 'device', 'electronic', 'wireless', 'smart', 'bluetooth', 'tech'],
   'Clothing': ['apparel', 'fashion', 'wear', 'outfit', 'stylish', 'trend', 'casual', 'garment', 'cotton'],
