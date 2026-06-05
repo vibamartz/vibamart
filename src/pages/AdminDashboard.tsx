@@ -6,7 +6,7 @@ import {
   Settings, LogOut, ChevronRight, TrendingUp,
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
-  Shield, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
+  Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
   Upload, Link2, Menu, MessageSquare, Copy
 } from 'lucide-react';
 import {
@@ -164,27 +164,7 @@ export default function AdminDashboard() {
     ];
   }, [orders, returns, safeNewDate]);
 
-  // Helper for manual WhatsApp customer outreach
-  const handleSendWhatsApp = (order: Order) => {
-    const customerName = order.contactName || order.address?.fullName || 'Customer';
-    const customerPhone = order.contactPhone || order.address?.phone || '';
-    
-    if (!customerPhone) {
-      toast.error('Customer phone number not available');
-      return;
-    }
-    
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    
-    const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
-    
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${getDisplayOrderId(order.id)}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
-    
-    const encodedText = encodeURIComponent(text);
-    const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
-    window.open(url, '_blank');
-  };
+
 
   // Live Firebase snapshot listener for orders
   useEffect(() => {
@@ -223,15 +203,7 @@ export default function AdminDashboard() {
                     >
                       View
                     </button>
-                    <button 
-                      onClick={() => {
-                        handleSendWhatsApp(newOrder);
-                        toast.dismiss(t.id);
-                      }}
-                      className="px-2.5 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow"
-                    >
-                      WhatsApp
-                    </button>
+
                   </div>
                 </div>
               ), { duration: 8000 });
@@ -252,7 +224,7 @@ export default function AdminDashboard() {
 
   // Live Firebase listener for admin notifications
   useEffect(() => {
-    const q = query(collection(db, 'adminNotifications'), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notificationsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -297,6 +269,17 @@ export default function AdminDashboard() {
                   <p className="mt-1 text-xs text-gray-550">
                     {newestNotif.message}
                   </p>
+                  {(newestNotif.paymentMethod || newestNotif.status) && (
+                    <p className="mt-1 text-[10px] text-gray-500 font-bold flex items-center gap-2">
+                      {newestNotif.status && <span className="uppercase bg-gray-100 px-1.5 py-0.5 rounded">{newestNotif.status}</span>}
+                      {newestNotif.paymentMethod && <span>Payment: {newestNotif.paymentMethod}</span>}
+                      {newestNotif.smsStatus && (
+                        <span className={`px-1.5 py-0.5 rounded uppercase ${newestNotif.smsStatus === 'sent' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                          SMS {newestNotif.smsStatus}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -305,7 +288,7 @@ export default function AdminDashboard() {
                 onClick={async () => {
                   toast.dismiss(t.id);
                   try {
-                    await updateDoc(doc(db, 'adminNotifications', newestNotif.id), { read: true });
+                    await updateDoc(doc(db, 'notifications', newestNotif.id), { read: true });
                   } catch (e) {
                     console.error('Failed to mark read:', e);
                   }
@@ -337,7 +320,7 @@ export default function AdminDashboard() {
     try {
       const batchPromises = adminNotifications
         .filter(n => !n.read)
-        .map(n => updateDoc(doc(db, 'adminNotifications', n.id), { read: true }));
+        .map(n => updateDoc(doc(db, 'notifications', n.id), { read: true }));
       await Promise.all(batchPromises);
       toast.success('All notifications marked as read');
     } catch (error) {
@@ -348,7 +331,7 @@ export default function AdminDashboard() {
   const handleNotificationClick = async (notif: any) => {
     try {
       if (!notif.read) {
-        await updateDoc(doc(db, 'adminNotifications', notif.id), { read: true });
+        await updateDoc(doc(db, 'notifications', notif.id), { read: true });
       }
       setShowNotificationDropdown(false);
       if (notif.orderId) {
@@ -555,6 +538,17 @@ export default function AdminDashboard() {
                               <span className="text-[11px] text-gray-650 font-medium">
                                 {notif.message}
                               </span>
+                              {(notif.paymentMethod || notif.status) && (
+                                <div className="text-[10px] text-gray-500 font-bold mt-1 flex items-center gap-2">
+                                  {notif.status && <span className="uppercase bg-gray-200 px-1.5 py-0.5 rounded">{notif.status}</span>}
+                                  {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
+                                  {notif.smsStatus && (
+                                    <span className={`px-1.5 py-0.5 rounded uppercase ${notif.smsStatus === 'sent' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                                      SMS {notif.smsStatus}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-0.5">
                                 {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
@@ -725,12 +719,7 @@ export default function AdminDashboard() {
                                   >
                                     <Eye className="w-3 h-3" />
                                   </button>
-                                  <button
-                                    onClick={() => handleSendWhatsApp(order)}
-                                    className="p-1 text-green-500 hover:text-green-600 rounded bg-white border border-gray-100"
-                                  >
-                                    <MessageSquare className="w-3 h-3" />
-                                  </button>
+
                                 </div>
                               </div>
                               <div className="text-[11px] text-gray-600 space-y-0.5">
@@ -767,12 +756,7 @@ export default function AdminDashboard() {
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => handleSendWhatsApp(order)}
-                                  className="p-2 bg-white text-green-500 rounded-xl border border-gray-100 hover:text-green-600 transition-all"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
+
                               </div>
                             </div>
                           ))
@@ -800,12 +784,7 @@ export default function AdminDashboard() {
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => handleSendWhatsApp(order)}
-                                  className="p-2 bg-white text-green-500 rounded-xl border border-gray-100 hover:text-green-600 transition-all"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
+
                               </div>
                             </div>
                           ))
@@ -948,12 +927,7 @@ export default function AdminDashboard() {
                                 >
                                   View
                                 </button>
-                                <button
-                                  onClick={() => handleSendWhatsApp(o)}
-                                  className="text-xs font-bold text-green-600 hover:underline"
-                                >
-                                  WhatsApp
-                                </button>
+
                               </div>
                             </td>
                           </tr>
@@ -1056,15 +1030,7 @@ export default function AdminDashboard() {
                       >
                         Process
                       </button>
-                      <button
-                        onClick={() => {
-                          handleSendWhatsApp(order);
-                          setShowPopup(false);
-                        }}
-                        className="px-3 py-1.5 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 shadow-md flex items-center gap-1"
-                      >
-                        WhatsApp
-                      </button>
+
                     </div>
                   </div>
                 ))}
@@ -1491,7 +1457,7 @@ function ActivityLogsView() {
                 <tr>
                   <th className="px-6 py-4">Timestamp</th>
                   <th className="px-6 py-4">Order ID</th>
-                  <th className="px-6 py-4">WhatsApp Numbers</th>
+
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Error Detail</th>
                 </tr>
@@ -1514,9 +1480,7 @@ function ActivityLogsView() {
                       <td className="px-6 py-4 text-xs font-bold text-gray-900">
                         #{getDisplayOrderId(log.orderId) || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-700">
-                        {log.numbers && log.numbers.length > 0 ? log.numbers.join(', ') : 'None'}
-                      </td>
+
                       <td className="px-6 py-4">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
                           log.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -2541,27 +2505,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     return data;
   }, [allOrders, filter, searchQuery, sortBy, sortDirection]);
 
-  // Helper for manual WhatsApp customer outreach
-  const handleSendWhatsApp = (order: Order) => {
-    const customerName = order.contactName || order.address?.fullName || 'Customer';
-    const customerPhone = order.contactPhone || order.address?.phone || '';
-    
-    if (!customerPhone) {
-      toast.error('Customer phone number not available');
-      return;
-    }
-    
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    
-    const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
-    
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${getDisplayOrderId(order.id)}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
-    
-    const encodedText = encodeURIComponent(text);
-    const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
-    window.open(url, '_blank');
-  };
+
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, message?: string, location?: string) => {
     try {
@@ -2806,14 +2750,6 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                         className="p-3 bg-white border border-gray-100 text-gray-400 rounded-xl hover:text-primary hover:border-primary/20 hover:shadow-lg transition-all"
                       >
                         <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleSendWhatsApp(order)}
-                        title="Send WhatsApp Alert"
-                        className="p-3 bg-white border border-green-100 text-green-500 rounded-xl hover:text-green-600 hover:border-green-200 hover:bg-green-50 hover:shadow-lg transition-all"
-                      >
-                        <MessageSquare className="w-4 h-4" />
                       </button>
 
                       <div className="h-6 w-px bg-gray-100 mx-1" />
@@ -3098,8 +3034,21 @@ function CustomersManagementView() {
                         {customer.displayName?.[0] || customer.email?.[0] || 'C'}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-gray-900">{customer.displayName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900">{customer.displayName}</span>
+                          {customer.isVerified && (
+                            <span className="bg-green-100 text-green-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-500">{customer.email}</span>
+                        {customer.accountStatus && (
+                          <span className={`text-[9px] uppercase tracking-wider font-bold mt-0.5 ${customer.accountStatus === 'active' ? 'text-green-500' : 'text-red-500'}`}>
+                            {customer.accountStatus}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -3271,10 +3220,13 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
 function SettingsView() {
   const { settings, updateSettings } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState(settings);
-  const [newNumber, setNewNumber] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingValue, setEditingValue] = useState('');
-  const [triggerStatus, setTriggerStatus] = useState<{ running: boolean; whatsappConfigured: boolean } | null>(null);
+  const [adminSmsConfig, setAdminSmsConfig] = useState({
+    adminPhoneNumber: '',
+    twilioAccountSid: '',
+    twilioAuthToken: '',
+    twilioPhoneNumber: ''
+  });
+  const [triggerStatus, setTriggerStatus] = useState<{ running: boolean; } | null>(null);
 
   useEffect(() => {
     fetch('/api/notifications/status')
@@ -3282,8 +3234,20 @@ function SettingsView() {
       .then(data => setTriggerStatus(data))
       .catch(err => {
         console.error('Failed to check trigger status:', err);
-        setTriggerStatus({ running: false, whatsappConfigured: false });
+        setTriggerStatus({ running: false });
       });
+
+    const fetchAdminSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'admin'));
+        if (docSnap.exists()) {
+          setAdminSmsConfig(prev => ({ ...prev, ...docSnap.data() }));
+        }
+      } catch (err) {
+        console.error("Failed to load admin settings", err);
+      }
+    };
+    fetchAdminSettings();
   }, []);
 
   useEffect(() => {
@@ -3294,6 +3258,7 @@ function SettingsView() {
     const toastId = toast.loading('Saving settings...');
     try {
       await updateSettings(localSettings);
+      await setDoc(doc(db, 'settings', 'admin'), adminSmsConfig, { merge: true });
       toast.success('Settings saved successfully', { id: toastId });
       logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated system settings');
     } catch (error) {
@@ -3301,57 +3266,7 @@ function SettingsView() {
     }
   };
 
-  const addNumber = () => {
-    const clean = newNumber.trim();
-    if (!clean) return;
-    if (!/^\+?[0-9]{8,15}$/.test(clean)) {
-      toast.error('Invalid phone number format. Include country code (e.g. +919876543210)');
-      return;
-    }
-    const currentList = localSettings.whatsappNumbers || [];
-    if (currentList.includes(clean)) {
-      toast.error('Number already exists');
-      return;
-    }
-    setLocalSettings(prev => ({
-      ...prev,
-      whatsappNumbers: [...currentList, clean]
-    }));
-    setNewNumber('');
-    toast.success('Number added. Make sure to Save Configuration.');
-  };
 
-  const removeNumber = (index: number) => {
-    const currentList = localSettings.whatsappNumbers || [];
-    const updated = currentList.filter((_, idx) => idx !== index);
-    setLocalSettings(prev => ({
-      ...prev,
-      whatsappNumbers: updated
-    }));
-    toast.success('Number removed. Make sure to Save Configuration.');
-  };
-
-  const startEditing = (index: number, val: string) => {
-    setEditingIndex(index);
-    setEditingValue(val);
-  };
-
-  const saveEditedNumber = (index: number) => {
-    const clean = editingValue.trim();
-    if (!clean) return;
-    if (!/^\+?[0-9]{8,15}$/.test(clean)) {
-      toast.error('Invalid phone number format');
-      return;
-    }
-    const currentList = [...(localSettings.whatsappNumbers || [])];
-    currentList[index] = clean;
-    setLocalSettings(prev => ({
-      ...prev,
-      whatsappNumbers: currentList
-    }));
-    setEditingIndex(null);
-    toast.success('Number updated. Make sure to Save Configuration.');
-  };
 
   const Toggle = ({ label, desc, value, onChange }: any) => (
     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
@@ -3422,96 +3337,7 @@ function SettingsView() {
           <Toggle label="Availability Filter" desc="Allow filtering by stock status" value={localSettings.enableAvailabilityFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableAvailabilityFilter: !prev.enableAvailabilityFilter }))} />
         </div>
 
-        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">WhatsApp Notifications</h3>
-        <div className="space-y-4">
-          <Toggle 
-            label="Enable Order Notifications" 
-            desc="Send admin alerts on new orders via WhatsApp" 
-            value={localSettings.enableWhatsappNotifications || false} 
-            onChange={() => setLocalSettings(prev => ({ ...prev, enableWhatsappNotifications: !prev.enableWhatsappNotifications }))} 
-          />
-          
-          <div className="space-y-4 px-4">
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Admin WhatsApp Numbers</label>
-            
-            {/* List of Configured Numbers */}
-            <div className="space-y-2">
-              {(localSettings.whatsappNumbers || []).length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No admin WhatsApp numbers configured.</p>
-              ) : (
-                (localSettings.whatsappNumbers || []).map((num, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all">
-                    {editingIndex === idx ? (
-                      <div className="flex gap-2 flex-1 mr-2">
-                        <input
-                          type="text"
-                          className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none"
-                          value={editingValue}
-                          onChange={e => setEditingValue(e.target.value)}
-                        />
-                        <button
-                          onClick={() => saveEditedNumber(idx)}
-                          className="px-3 py-1.5 bg-green-650 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingIndex(null)}
-                          className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-xs font-bold text-gray-700">{num}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => startEditing(idx, num)}
-                            className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit Number"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => removeNumber(idx)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Number"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
 
-            {/* Input to add a new number */}
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                placeholder="e.g. +919876543210"
-                className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-green-500/20 transition-all font-bold text-xs"
-                value={newNumber}
-                onChange={e => setNewNumber(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNumber(); } }}
-              />
-              <button
-                type="button"
-                onClick={addNumber}
-                className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-all shadow-md"
-              >
-                Add Number
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Include country code (e.g. +91) for all numbers.</p>
-          </div>
-        </div>
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Notification Trigger Status</h3>
         <div className="p-4 bg-gray-50 rounded-2xl space-y-2 mt-2">
@@ -3523,13 +3349,48 @@ function SettingsView() {
               {triggerStatus?.running ? 'Running' : 'Offline'}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-700">WhatsApp Credentials:</span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
-              triggerStatus?.whatsappConfigured ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
-            }`}>
-              {triggerStatus?.whatsappConfigured ? 'Configured' : 'Missing / Incomplete'}
-            </span>
+
+        </div>
+
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Admin SMS Configuration</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Admin Mobile Number</label>
+            <input
+              type="text"
+              placeholder="+91..."
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
+              value={adminSmsConfig.adminPhoneNumber}
+              onChange={e => setAdminSmsConfig(prev => ({ ...prev, adminPhoneNumber: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Account SID</label>
+            <input
+              type="text"
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
+              value={adminSmsConfig.twilioAccountSid}
+              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioAccountSid: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Auth Token</label>
+            <input
+              type="password"
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
+              value={adminSmsConfig.twilioAuthToken}
+              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioAuthToken: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Phone Number</label>
+            <input
+              type="text"
+              placeholder="+1234567890"
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
+              value={adminSmsConfig.twilioPhoneNumber}
+              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioPhoneNumber: e.target.value }))}
+            />
           </div>
         </div>
 

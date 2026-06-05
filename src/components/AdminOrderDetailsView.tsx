@@ -1,30 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { X, Truck, ArrowLeft, MessageSquare, Copy } from 'lucide-react';
+import { X, Truck, ArrowLeft, Copy } from 'lucide-react';
 import { Order } from '../types';
 import toast from 'react-hot-toast';
 
 export default function AdminOrderDetailsView({ order, onBack }: { order: Order, onBack: () => void }) {
-  const handleSendWhatsApp = (order: Order) => {
-    const customerName = order.contactName || order.address?.fullName || 'Customer';
-    const customerPhone = order.contactPhone || order.address?.phone || '';
-    
-    if (!customerPhone) {
-      alert('Customer phone number not available');
-      return;
-    }
-    
-    const cleanPhone = customerPhone.replace(/\D/g, '');
-    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    
-    const itemsText = order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join(', ');
-    
-    const text = `Hello ${customerName},\n\nThis is ViBa Mart. We have received your order *#${order.id.startsWith('VBM') ? order.id : order.id.slice(-8).toUpperCase()}*!\n\n*Order Details:*\n- Items: ${itemsText}\n- Total Amount: ₹${order.total.toLocaleString()}\n- Payment Status: ${order.paymentStatus.toUpperCase()}\n- Delivery Address: ${order.address.house}, ${order.address.street}, ${order.address.city}, ${order.address.state} - ${order.address.zip}\n\nWe will update you as soon as the order is processed. Thank you for shopping with us!`;
-    
-    const encodedText = encodeURIComponent(text);
-    const url = `https://wa.me/${formattedPhone}?text=${encodedText}`;
-    window.open(url, '_blank');
-  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 max-w-4xl mx-auto space-y-8">
@@ -57,15 +37,7 @@ export default function AdminOrderDetailsView({ order, onBack }: { order: Order,
                  <p className="text-sm font-black text-gray-900">{order.contactName}</p>
                  <p className="text-xs text-gray-500 font-medium">{order.contactEmail}</p>
                  <p className="text-xs text-gray-500 font-medium">{order.contactPhone}</p>
-                 {order.contactPhone && (
-                    <button
-                       onClick={() => handleSendWhatsApp(order)}
-                       className="mt-3 flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 border border-green-100 rounded-xl hover:bg-green-100 hover:text-green-755 transition-all font-bold text-xs shadow-sm animate-none"
-                    >
-                       <MessageSquare className="w-4 h-4" />
-                       Send WhatsApp
-                    </button>
-                 )}
+
               </div>
               <div>
                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4">Delivery Address</h4>

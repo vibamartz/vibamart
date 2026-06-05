@@ -13,6 +13,8 @@ export interface UserProfile {
   wishlist?: string[];
   permissions?: string[];
   cart?: CartItem[];
+  isVerified?: boolean;
+  accountStatus?: 'active' | 'suspended';
 }
 
 export interface Address {
@@ -219,8 +221,6 @@ export interface StoreSettings {
   enableDiscountFilter: boolean;
   enableAvailabilityFilter: boolean;
   enableBanner: boolean;
-  whatsappNumbers?: string[];
-  enableWhatsappNotifications?: boolean;
 }
 
 export interface SearchAnalytics {

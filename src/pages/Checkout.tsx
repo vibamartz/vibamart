@@ -13,7 +13,6 @@ const UPI_APPS = [
   { id: 'bharatpe', name: 'BharatPe', icon: 'https://logo.clearbit.com/bharatpe.com' },
   { id: 'cred', name: 'CRED', icon: 'https://logo.clearbit.com/cred.club' },
   { id: 'mobikwik', name: 'Mobikwik', icon: 'https://logo.clearbit.com/mobikwik.com' },
-  { id: 'whatsapp', name: 'WhatsApp Pay', icon: 'https://logo.clearbit.com/whatsapp.com' },
   { id: 'freecharge', name: 'Freecharge', icon: 'https://logo.clearbit.com/freecharge.in' },
 ];
 import toast from 'react-hot-toast';
@@ -374,29 +373,7 @@ export default function Checkout() {
         const uniqueId = await generateUniqueOrderId();
         orderData.customOrderId = uniqueId;
         await setDoc(doc(db, 'orders', uniqueId), orderData);
-        const docRef = { id: uniqueId };
-
-        // Add admin notification in database
-        try {
-          await addDoc(collection(db, 'adminNotifications'), {
-            title: "New Order Received",
-            message: `Order #${docRef.id} placed by ${orderData.contactName || orderData.address?.fullName || 'Guest'}`,
-            orderId: docRef.id,
-            customerName: orderData.contactName || orderData.address?.fullName || "Guest",
-            customerPhone: orderData.contactPhone || orderData.address?.phone || "N/A",
-            total: orderData.total,
-            createdAt: new Date().toISOString(),
-            read: false
-          });
-        } catch (err) {
-          console.error("Failed to create admin notification:", err);
-        }
-
-        // Trigger WhatsApp Notification asynchronously in the background
-        axios.post('/api/notifications/whatsapp-order', {
-          orderId: docRef.id,
-          orderData
-        }).catch(err => console.error('Failed to trigger WhatsApp notification:', err));
+        // Cloud Function will automatically generate admin notification and send SMS.
 
         // Always save the order address to the user's profile for future checkouts
         if (user && address.street) {

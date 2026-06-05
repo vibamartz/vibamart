@@ -259,7 +259,15 @@ export default function Profile() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">{user.displayName}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-gray-900 tracking-tight">{user.displayName}</h3>
+                  {user.isVerified && (
+                    <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest flex items-center gap-1 shadow-sm">
+                      <ShieldCheck className="w-3 h-3" />
+                      Verified
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs font-medium text-gray-400 mt-1 uppercase tracking-widest">{user.role}</p>
               </div>
 

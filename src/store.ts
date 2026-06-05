@@ -240,9 +240,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   enableRatingFilter: true,
   enableDiscountFilter: true,
   enableAvailabilityFilter: true,
-  enableBanner: true,
-  whatsappNumbers: [],
-  enableWhatsappNotifications: false
+  enableBanner: true
 };
 
 interface SettingsState {

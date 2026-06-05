@@ -237,6 +237,8 @@ export default function Login() {
         displayName: providedName || firebaseUser.displayName || `User ${firebaseUser.phoneNumber?.slice(-4)}`,
         photoURL: firebaseUser.photoURL || '',
         role: firebaseUser.email === 'vk311779@gmail.com' ? 'admin' : 'customer',
+        isVerified: true,
+        accountStatus: 'active',
         createdAt: new Date().toISOString(),
       };
       await setDoc(userRef, newUser);
@@ -245,7 +247,11 @@ export default function Login() {
       const userData = userSnap.data() as any;
       if (firebaseUser.email === 'vk311779@gmail.com' && userData.role !== 'admin') {
         userData.role = 'admin';
-        await setDoc(userRef, { role: 'admin' }, { merge: true });
+        await setDoc(userRef, { role: 'admin', isVerified: true, accountStatus: 'active' }, { merge: true });
+      } else {
+        await setDoc(userRef, { isVerified: true, accountStatus: 'active' }, { merge: true });
+        userData.isVerified = true;
+        userData.accountStatus = 'active';
       }
       setUser(userData);
     }
