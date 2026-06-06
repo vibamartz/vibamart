@@ -2,19 +2,6 @@ import React, { useState } from 'react';
 import { useCartStore, useAuthStore } from '../store';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { MapPin, CreditCard, ChevronRight, ShieldCheck, Truck, Smartphone, Building2, Globe, Save, Check } from 'lucide-react';
-
-const UPI_APPS = [
-  { id: 'bhim', name: 'BHIM UPI', icon: 'https://logo.clearbit.com/bhimupi.org.in' },
-  { id: 'paytm', name: 'Paytm', icon: 'https://logo.clearbit.com/paytm.com' },
-  { id: 'gpay', name: 'Google Pay', icon: 'https://logo.clearbit.com/pay.google.com' },
-  { id: 'phonepe', name: 'PhonePe', icon: 'https://logo.clearbit.com/phonepe.com' },
-  { id: 'navi', name: 'Navi', icon: 'https://logo.clearbit.com/navi.com' },
-  { id: 'amazon', name: 'Amazon Pay', icon: 'https://logo.clearbit.com/amazon.in' },
-  { id: 'bharatpe', name: 'BharatPe', icon: 'https://logo.clearbit.com/bharatpe.com' },
-  { id: 'cred', name: 'CRED', icon: 'https://logo.clearbit.com/cred.club' },
-  { id: 'mobikwik', name: 'Mobikwik', icon: 'https://logo.clearbit.com/mobikwik.com' },
-  { id: 'freecharge', name: 'Freecharge', icon: 'https://logo.clearbit.com/freecharge.in' },
-];
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
@@ -79,8 +66,7 @@ export default function Checkout() {
     zip: "",
     label: "Home"
   });
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | 'upi_apps'>('razorpay');
-  const [selectedUpiApp, setSelectedUpiApp] = useState('gpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [saveAddress, setSaveAddress] = useState(false);
   const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
   const [editAddressForm, setEditAddressForm] = useState<Address>({
@@ -874,53 +860,6 @@ export default function Checkout() {
                     isActive={paymentMethod === 'razorpay'}
                   />
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
-                  <Smartphone className="w-3 h-3" />
-                  UPI
-                </h4>
-                <div onClick={() => setPaymentMethod('upi_apps')} className="cursor-pointer">
-                  <PaymentOption
-                    icon={Smartphone}
-                    label="Select specific UPI App"
-                    isActive={paymentMethod === 'upi_apps'}
-                  />
-                </div>
-
-                <AnimatePresence>
-                  {paymentMethod === 'upi_apps' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-                        {UPI_APPS.map(app => (
-                          <label
-                            key={app.id}
-                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${selectedUpiApp === app.id ? 'border-primary bg-primary/5 shadow-md' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'}`}
-                          >
-                            <input
-                              type="radio"
-                              name="upi_app"
-                              value={app.id}
-                              checked={selectedUpiApp === app.id}
-                              onChange={() => setSelectedUpiApp(app.id)}
-                              className="w-4 h-4 text-primary bg-gray-100 border-gray-300 focus:ring-primary focus:ring-2 cursor-pointer"
-                            />
-                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-50 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
-                              <img src={app.icon} alt={app.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(app.name)}&background=random&color=fff&rounded=true&bold=true`; }} />
-                            </div>
-                            <span className="text-sm font-bold text-gray-800">{app.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               <div className="space-y-3">
