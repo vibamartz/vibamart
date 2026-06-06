@@ -1,25 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './lib/firebase';
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult,
-} from 'firebase/auth';
+import { signInWithCustomToken, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { motion, AnimatePresence } from 'motion/react';
-import { Phone, ArrowLeft, CheckCircle2, RefreshCw, User, Mail, ShieldCheck } from 'lucide-react';
+import { Phone, ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './components/Logo';
-
-declare global {
-  interface Window {
-    recaptchaVerifier: RecaptchaVerifier;
-  }
-}
+import axios from 'axios';
 
 type Step = 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
@@ -46,17 +35,14 @@ export default function Login() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
 
-  // Firebase
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [tempFirebaseUser, setTempFirebaseUser] = useState<any>(null);
+  // Firebase Auth
+  const [tempFirebaseUser, setTempFirebaseUser] = useState<User | null>(null);
 
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
-  // Cleanup recaptcha + timer on unmount
   useEffect(() => {
     return () => {
-      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
@@ -73,15 +59,6 @@ export default function Login() {
         return t - 1;
       });
     }, 1000);
-  };
-
-  const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {},
-      });
-    }
   };
 
   const formatPhone = (raw: string) => {
@@ -101,35 +78,20 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      if (isResend && window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        // @ts-ignore – force re-init
-        window.recaptchaVerifier = undefined;
-      }
-      setupRecaptcha();
-      const result = await signInWithPhoneNumber(auth, formatted, window.recaptchaVerifier);
-      setConfirmationResult(result);
-      setStep('otp');
-      setOtpDigits(['', '', '', '', '', '']);
-      startResendTimer();
-      toast.success(isResend ? 'OTP resent!' : 'OTP sent to your mobile!');
-      setTimeout(() => otpRefs.current[0]?.focus(), 200);
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid phone number format. Please check and try again.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        toast.error('Phone auth not enabled. Enable it in Firebase Console → Authentication.', { duration: 7000 });
-      } else if (err.code === 'auth/billing-not-enabled') {
-        toast.error('SMS requires Firebase Blaze plan. Upgrade your project billing in Firebase Console.', { duration: 8000 });
-      } else if (err.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please wait a few minutes and try again.', { duration: 6000 });
-      } else if (err.code === 'auth/captcha-check-failed') {
-        toast.error('reCAPTCHA verification failed. Please refresh and try again.');
+      const response = await axios.post('/api/auth/send-otp', { phone: formatted });
+      if (response.data.success) {
+        setStep('otp');
+        setOtpDigits(['', '', '', '', '', '']);
+        startResendTimer();
+        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your mobile!');
+        setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
-        toast.error(`OTP failed: ${err.code || err.message || 'Unknown error'}`, { duration: 6000 });
+        throw new Error(response.data.error || 'Failed to send OTP');
       }
-      if (window.recaptchaVerifier) window.recaptchaVerifier.clear();
+    } catch (err: any) {
+      console.error("sendOtp Error:", err);
+      const msg = err.response?.data?.error || err.message || 'Failed to send OTP';
+      toast.error(`OTP failed: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -140,7 +102,6 @@ export default function Login() {
     await sendOtp(false);
   };
 
-  // OTP digit input handlers
   const handleOtpChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);
     const newDigits = [...otpDigits];
@@ -180,26 +141,35 @@ export default function Login() {
       toast.error('Please enter the complete 6-digit OTP');
       return;
     }
+    const formatted = formatPhone(phone);
+    
     setLoading(true);
     try {
-      if (!confirmationResult) throw new Error('No confirmation result');
-      const result = await confirmationResult.confirm(otpCode);
-      const firebaseUser = result.user;
+      const response = await axios.post('/api/auth/verify-otp', { phone: formatted, code: otpCode });
+      
+      if (response.data.success && response.data.customToken) {
+        // Sign into Firebase securely using custom token
+        const result = await signInWithCustomToken(auth, response.data.customToken);
+        const firebaseUser = result.user;
 
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
 
-      if (!userSnap.exists()) {
-        setTempFirebaseUser(firebaseUser);
-        setStep('profile');
+        if (!userSnap.exists()) {
+          setTempFirebaseUser(firebaseUser);
+          setStep('profile');
+        } else {
+          await syncUser(firebaseUser);
+          toast.success('Welcome back! 🎉');
+          navigate('/');
+        }
       } else {
-        await syncUser(firebaseUser);
-        toast.success('Welcome back! 🎉');
-        navigate('/');
+        throw new Error(response.data.error || 'Invalid OTP');
       }
     } catch (err: any) {
-      console.error(err);
-      toast.error('Invalid OTP. Please try again.');
+      console.error("verifyOtp Error:", err);
+      const msg = err.response?.data?.error || err.message || 'Failed to verify OTP';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -225,7 +195,7 @@ export default function Login() {
     }
   };
 
-  const syncUser = async (firebaseUser: any, providedName?: string, providedEmail?: string) => {
+  const syncUser = async (firebaseUser: User, providedName?: string, providedEmail?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
 
@@ -257,38 +227,11 @@ export default function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      const result = await signInWithPopup(auth, provider);
-      await syncUser(result.user);
-      toast.success('Signed in with Google! 🎉');
-      navigate('/');
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        toast.error('Sign-in was cancelled. Please try again.');
-      } else if (err.code === 'auth/unauthorized-domain') {
-        toast.error('Domain not authorized. Add "localhost" to Firebase Console → Authentication → Authorized Domains.', { duration: 8000 });
-      } else if (err.code === 'auth/popup-blocked') {
-        toast.error('Popup was blocked by your browser. Please allow popups for this site.');
-      } else {
-        toast.error(`Google sign-in failed: ${err.code || err.message || 'Unknown error'}`, { duration: 6000 });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const otpCode = otpDigits.join('');
   const isOtpComplete = otpCode.length === 6;
 
   return (
     <div className="min-h-[90vh] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
-      <div id="recaptcha-container" />
-
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -343,28 +286,6 @@ export default function Login() {
                       ? 'Sign in to access your orders & wishlist'
                       : 'Join ViBa Mart and start shopping today'}
                   </p>
-
-                  {/* Google */}
-                  <button
-                    onClick={handleGoogleLogin}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 text-gray-700 px-5 py-3.5 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-200 transition-all disabled:opacity-50 group mb-6"
-                  >
-                    <img src="https://www.google.com/favicon.ico" className="w-5 h-5 group-hover:scale-110 transition-transform" alt="Google" />
-                    {loading ? 'Connecting...' : 'Continue with Google'}
-                  </button>
-
-                  {/* Divider */}
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-gray-100" />
-                    </div>
-                    <div className="relative flex justify-center">
-                      <span className="bg-white px-4 text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                        or use phone number
-                      </span>
-                    </div>
-                  </div>
 
                   {/* Phone form */}
                   <form onSubmit={handleRequestOtp} className="space-y-4">
@@ -511,7 +432,7 @@ export default function Login() {
                   {/* Icon */}
                   <div className="flex justify-center mb-6">
                     <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                      <User className="w-8 h-8 text-emerald-600" />
+                      <UserIcon className="w-8 h-8 text-emerald-600" />
                     </div>
                   </div>
 
@@ -527,7 +448,7 @@ export default function Login() {
                         Full Name <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
                         <input
                           type="text"
                           value={displayName}
@@ -589,7 +510,7 @@ export default function Login() {
 
         {/* Footer note */}
         <p className="text-center text-[11px] text-gray-400 font-medium mt-4">
-          🔒 Secured by Firebase Authentication
+          🔒 Secured by Twilio Verify & Firebase
         </p>
       </motion.div>
     </div>

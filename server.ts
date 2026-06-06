@@ -5,8 +5,27 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
+import twilio from "twilio";
+import admin from "firebase-admin";
 
 dotenv.config();
+
+let twilioClient: twilio.Twilio;
+try {
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  }
+} catch (e) {
+  console.warn("Twilio not fully initialized, missing env vars");
+}
+
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+} catch (e) {
+  console.warn("Firebase Admin missing credentials, custom token generation will fail unless set.", e);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,6 +105,75 @@ async function startServer() {
       running: true,
       timestamp: new Date().toISOString()
     });
+  });
+
+  // Auth: Send OTP
+  app.post("/api/auth/send-otp", async (req, res) => {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, error: "Phone number is required" });
+    }
+    
+    if (!twilioClient || !process.env.TWILIO_VERIFY_SERVICE_SID) {
+      return res.status(500).json({ success: false, error: "Twilio credentials are not configured on the server" });
+    }
+
+    try {
+      const verification = await twilioClient.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications.create({ to: phone, channel: "sms" });
+      
+      res.json({ success: true, status: verification.status });
+    } catch (error: any) {
+      console.error("Twilio send-otp error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to send OTP" });
+    }
+  });
+
+  // Auth: Verify OTP
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    const { phone, code } = req.body;
+    if (!phone || !code) {
+      return res.status(400).json({ success: false, error: "Phone and code are required" });
+    }
+
+    if (!twilioClient || !process.env.TWILIO_VERIFY_SERVICE_SID) {
+      return res.status(500).json({ success: false, error: "Twilio verify service SID is not configured" });
+    }
+
+    try {
+      const verificationCheck = await twilioClient.verify.v2
+        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verificationChecks.create({ to: phone, code });
+
+      if (verificationCheck.status === "approved") {
+        // Find or create user in Firebase Auth
+        let uid = "";
+        try {
+          const userRecord = await admin.auth().getUserByPhoneNumber(phone);
+          uid = userRecord.uid;
+        } catch (error: any) {
+          if (error.code === 'auth/user-not-found') {
+            const newUser = await admin.auth().createUser({
+              phoneNumber: phone,
+            });
+            uid = newUser.uid;
+          } else {
+            throw error;
+          }
+        }
+
+        // Generate Custom Token for frontend to sign in
+        const customToken = await admin.auth().createCustomToken(uid);
+        
+        return res.json({ success: true, customToken });
+      } else {
+        return res.status(400).json({ success: false, error: "Invalid OTP code" });
+      }
+    } catch (error: any) {
+      console.error("Twilio verify-otp error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to verify OTP" });
+    }
   });
 
   // Vite middleware for development
