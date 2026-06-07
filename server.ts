@@ -5,19 +5,11 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
-import twilio from "twilio";
+import axios from "axios";
 import admin from "firebase-admin";
+import nodemailer from "nodemailer";
 
 dotenv.config();
-
-let twilioClient: twilio.Twilio;
-try {
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  }
-} catch (e) {
-  console.warn("Twilio not fully initialized, missing env vars");
-}
 
 try {
   if (!admin.apps.length) {
@@ -107,72 +99,112 @@ async function startServer() {
     });
   });
 
-  // Auth: Send OTP
-  app.post("/api/auth/send-otp", async (req, res) => {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ success: false, error: "Phone number is required" });
-    }
-    
-    if (!twilioClient || !process.env.TWILIO_VERIFY_SERVICE_SID) {
-      return res.status(500).json({ success: false, error: "Twilio credentials are not configured on the server" });
+  // Setup Nodemailer transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.ethereal.email",
+    port: Number(process.env.SMTP_PORT) || 587,
+    auth: {
+      user: process.env.SMTP_USER || "test",
+      pass: process.env.SMTP_PASS || "test",
+    },
+  });
+
+  // Auth: Send Email OTP
+  app.post("/api/auth/send-email-otp", async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: "Email is required" });
     }
 
     try {
-      const verification = await twilioClient.verify.v2
-        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-        .verifications.create({ to: phone, channel: "sms" });
-      
-      res.json({ success: true, status: verification.status });
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins from now
+
+      // Store in Firestore otps collection
+      const db = admin.firestore();
+      await db.collection("otps").doc(email).set({
+        otp,
+        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      });
+
+      // Send Email
+      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+        await transporter.sendMail({
+          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: "Your ViBa Mart Login OTP",
+          text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
+          html: `<b>Your OTP is ${otp}</b><br/>It is valid for 5 minutes.`,
+        });
+      } else {
+        // Fallback for testing when no SMTP is configured
+        console.log(`[DEVELOPMENT] OTP for ${email} is: ${otp}`);
+      }
+
+      res.json({ success: true, status: "pending" });
     } catch (error: any) {
-      console.error("Twilio send-otp error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to send OTP" });
+      console.error("Send Email OTP error:", error);
+      res.status(500).json({ success: false, error: "Failed to send OTP" });
     }
   });
 
-  // Auth: Verify OTP
-  app.post("/api/auth/verify-otp", async (req, res) => {
-    const { phone, code } = req.body;
-    if (!phone || !code) {
-      return res.status(400).json({ success: false, error: "Phone and code are required" });
-    }
-
-    if (!twilioClient || !process.env.TWILIO_VERIFY_SERVICE_SID) {
-      return res.status(500).json({ success: false, error: "Twilio verify service SID is not configured" });
+  // Auth: Verify Email OTP
+  app.post("/api/auth/verify-email-otp", async (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ success: false, error: "Email and code are required" });
     }
 
     try {
-      const verificationCheck = await twilioClient.verify.v2
-        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-        .verificationChecks.create({ to: phone, code });
+      const db = admin.firestore();
+      const otpDocRef = db.collection("otps").doc(email);
+      const otpDoc = await otpDocRef.get();
 
-      if (verificationCheck.status === "approved") {
-        // Find or create user in Firebase Auth
-        let uid = "";
-        try {
-          const userRecord = await admin.auth().getUserByPhoneNumber(phone);
-          uid = userRecord.uid;
-        } catch (error: any) {
-          if (error.code === 'auth/user-not-found') {
-            const newUser = await admin.auth().createUser({
-              phoneNumber: phone,
-            });
-            uid = newUser.uid;
-          } else {
-            throw error;
-          }
-        }
+      if (!otpDoc.exists) {
+        return res.status(400).json({ success: false, error: "OTP expired or not found" });
+      }
 
-        // Generate Custom Token for frontend to sign in
-        const customToken = await admin.auth().createCustomToken(uid);
-        
-        return res.json({ success: true, customToken });
-      } else {
+      const data = otpDoc.data();
+      if (!data) return res.status(400).json({ success: false, error: "Invalid OTP" });
+
+      if (data.otp !== code) {
         return res.status(400).json({ success: false, error: "Invalid OTP code" });
       }
+
+      const now = admin.firestore.Timestamp.now();
+      if (data.expiresAt.toMillis() < now.toMillis()) {
+        await otpDocRef.delete();
+        return res.status(400).json({ success: false, error: "OTP has expired" });
+      }
+
+      // Valid OTP. Delete it.
+      await otpDocRef.delete();
+
+      // Find or create user in Firebase Auth
+      let uid = "";
+      try {
+        const userRecord = await admin.auth().getUserByEmail(email);
+        uid = userRecord.uid;
+      } catch (error: any) {
+        if (error.code === "auth/user-not-found") {
+          const newUser = await admin.auth().createUser({
+            email,
+            emailVerified: true,
+          });
+          uid = newUser.uid;
+        } else {
+          throw error;
+        }
+      }
+
+      // Generate Custom Token for frontend to sign in
+      const customToken = await admin.auth().createCustomToken(uid);
+      
+      return res.json({ success: true, customToken });
     } catch (error: any) {
-      console.error("Twilio verify-otp error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to verify OTP" });
+      console.error("Verify Email OTP error:", error);
+      res.status(500).json({ success: false, error: "Failed to verify OTP" });
     }
   });
 

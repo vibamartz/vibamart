@@ -1,4 +1,4 @@
-import twilio from "twilio";
+import axios from "axios";
 import admin from "firebase-admin";
 
 if (!admin.apps.length) {
@@ -28,26 +28,29 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { phone, code } = req.body;
+  let { phone, code } = req.body;
   if (!phone || !code) {
     return res.status(400).json({ success: false, error: "Phone and code are required" });
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+  phone = phone.replace('+', '');
 
-  if (!accountSid || !authToken || !serviceSid) {
-    return res.status(500).json({ success: false, error: "Twilio credentials are not configured on the server" });
+  if (!process.env.MSG91_AUTH_KEY) {
+    return res.status(500).json({ success: false, error: "MSG91 auth key is not configured" });
   }
 
   try {
-    const twilioClient = twilio(accountSid, authToken);
-    const verificationCheck = await twilioClient.verify.v2
-      .services(serviceSid)
-      .verificationChecks.create({ to: phone, code });
+    const response = await axios.get(
+      `https://control.msg91.com/api/v5/otp/verify?otp=${code}&mobile=${phone}`,
+      {
+        headers: {
+          authkey: process.env.MSG91_AUTH_KEY
+        }
+      }
+    );
 
-    if (verificationCheck.status === "approved") {
+    // MSG91 returns { "message": "OTP verified success", "type": "success" } or "error"
+    if (response.data.type === "success" || response.data.message === "OTP verified success" || response.data.message === "OTP verified successfully") {
       // Find or create user in Firebase Auth
       let uid = "";
       try {
@@ -72,7 +75,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, error: "Invalid OTP code" });
     }
   } catch (error: any) {
-    console.error("Twilio verify-otp error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to verify OTP" });
+    console.error("MSG91 verify-otp error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: error.response?.data?.message || error.message || "Failed to verify OTP" });
   }
 }
