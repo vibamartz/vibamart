@@ -530,8 +530,12 @@ export default function Checkout() {
                     </div>
                     <button
                       onClick={() => {
-                        if (!guestInfo.email || !guestInfo.name) {
-                          toast.error("Please fill name and email");
+                        if (!guestInfo.email || !guestInfo.name || !guestInfo.phone) {
+                          toast.error("Please fill name, email and phone number");
+                          return;
+                        }
+                        if (guestInfo.phone.trim().length < 7) {
+                          toast.error("Please enter a valid phone number");
                           return;
                         }
                         setStep(2);
