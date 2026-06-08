@@ -159,6 +159,48 @@ async function startServer() {
     }
   });
 
+  // Notifications: Delivery Email
+  app.post("/api/notifications/delivery", async (req, res) => {
+    const { orderId, customerEmail, customerName, deliveryDate, items, total } = req.body;
+
+    if (!orderId || !customerEmail) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+
+    try {
+      const itemsList = items?.map((item: any) => `<li>${item.name} - Qty: ${item.quantity}</li>`).join('') || '';
+      
+      const emailHtml = `
+        <h2>Hello ${customerName || 'Customer'},</h2>
+        <p>We are excited to inform you that your order <strong>#${orderId}</strong> has been successfully delivered on ${deliveryDate || new Date().toLocaleDateString()}.</p>
+        <h3>Order Summary:</h3>
+        <ul>
+          ${itemsList}
+        </ul>
+        <p><strong>Total Amount:</strong> ₹${total}</p>
+        <br/>
+        <p>Thank you for shopping with ViBa Mart! We hope you enjoy your purchase.</p>
+        <p>Best Regards,<br/>The ViBa Mart Team</p>
+      `;
+
+      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+        await transporter.sendMail({
+          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+          to: customerEmail,
+          subject: "Your Order Has Been Delivered Successfully",
+          html: emailHtml,
+        });
+        res.json({ success: true, message: "Delivery email sent successfully." });
+      } else {
+        console.log(`[DEVELOPMENT] Delivery email for ${customerEmail}:\n${emailHtml}`);
+        res.json({ success: true, message: "Delivery email logged in development." });
+      }
+    } catch (error: any) {
+      console.error("Delivery email error:", error);
+      res.status(500).json({ success: false, error: "Failed to send delivery email" });
+    }
+  });
+
   // Auth: Verify Email OTP
   app.post("/api/auth/verify-email-otp", async (req, res) => {
     const { email, code } = req.body;

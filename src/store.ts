@@ -33,6 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       if (firebaseUser) {
+        useCartStore.getState().setUid(firebaseUser.uid);
         // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
@@ -50,11 +51,17 @@ export const useAuthStore = create<AuthState>((set) => ({
               set({ user: data, loading: false });
             }
 
-            // Sync cart from Firebase if present
+            // Sync cart from Firebase if present, or write local cart to Firebase
             if (data.cart && Array.isArray(data.cart)) {
               useCartStore.getState().setItems(data.cart);
+            } else {
+              const currentCart = useCartStore.getState().items;
+              if (currentCart.length > 0) {
+                setDoc(docRef, { cart: currentCart }, { merge: true });
+              }
             }
           } else {
+            useCartStore.getState().setUid(null);
             set({ user: null, loading: false });
           }
         }, (error) => {
@@ -80,6 +87,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.warn("Failed to listen to customer orders:", error);
         });
       } else {
+        useCartStore.getState().setUid(null);
         set({ user: null, orderedProductIds: [], loading: false });
       }
     });
@@ -88,6 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 interface CartState {
   items: CartItem[];
+  setUid: (uid: string | null) => void;
   setItems: (items: CartItem[]) => void;
   addItem: (product: Product, quantity: number, variantId?: string) => { success: boolean, exists?: boolean };
   removeItem: (productId: string, variantId?: string) => void;
@@ -96,10 +105,12 @@ interface CartState {
   total: () => number;
 }
 
+let currentUid: string | null = null;
+const getCartKey = () => currentUid ? `viba_cart_${currentUid}` : "viba_cart_guest";
+
 const syncCartToFirebase = (items: CartItem[]) => {
-  const user = auth.currentUser;
-  if (user) {
-    const userRef = doc(db, 'users', user.uid);
+  if (currentUid) {
+    const userRef = doc(db, 'users', currentUid);
     setDoc(userRef, { cart: items }, { merge: true }).catch(err => {
       console.error("Failed to sync cart to Firebase:", err);
     });
@@ -107,10 +118,16 @@ const syncCartToFirebase = (items: CartItem[]) => {
 };
 
 export const useCartStore = create<CartState>((set, get) => ({
-  items: JSON.parse(localStorage.getItem("viba_cart") || "[]"),
+  items: JSON.parse(localStorage.getItem("viba_cart_guest") || "[]"),
+  setUid: (uid) => {
+    currentUid = uid;
+    const newKey = getCartKey();
+    const localItems = JSON.parse(localStorage.getItem(newKey) || "[]");
+    set({ items: localItems });
+  },
   setItems: (items) => {
     set({ items });
-    localStorage.setItem("viba_cart", JSON.stringify(items));
+    localStorage.setItem(getCartKey(), JSON.stringify(items));
   },
   addItem: (product, quantity, variantId) => {
     const items = get().items;
@@ -139,14 +156,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     const newItems = [...items, { productId: product.id, variantId, quantity, product }];
 
     set({ items: newItems });
-    localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    localStorage.setItem(getCartKey(), JSON.stringify(newItems));
     syncCartToFirebase(newItems);
     return { success: true };
   },
   removeItem: (productId, variantId) => {
     const newItems = get().items.filter(i => !(i.productId === productId && i.variantId === variantId));
     set({ items: newItems });
-    localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    localStorage.setItem(getCartKey(), JSON.stringify(newItems));
     syncCartToFirebase(newItems);
   },
   updateQuantity: (productId, quantity, variantId) => {
@@ -156,12 +173,12 @@ export const useCartStore = create<CartState>((set, get) => ({
         : i
     );
     set({ items: newItems });
-    localStorage.setItem("viba_cart", JSON.stringify(newItems));
+    localStorage.setItem(getCartKey(), JSON.stringify(newItems));
     syncCartToFirebase(newItems);
   },
   clearCart: () => {
     set({ items: [] });
-    localStorage.removeItem("viba_cart");
+    localStorage.removeItem(getCartKey());
     syncCartToFirebase([]);
   },
   total: () => {

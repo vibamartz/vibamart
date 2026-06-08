@@ -8,15 +8,14 @@ import { motion } from 'motion/react';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
   pending: { icon: Clock, color: 'text-amber-500', label: 'Order Placed' },
-  accepted: { icon: CheckCircle, color: 'text-blue-500', label: 'Order Confirmed' },
-  processing: { icon: Package, color: 'text-blue-500', label: 'Processing' },
-  shipped: { icon: Truck, color: 'text-indigo-500', label: 'In Transit' },
-  pickup_ready: { icon: MapPin, color: 'text-purple-500', label: 'Ready for Pickup' },
-  fulfilled: { icon: CheckCircle, color: 'text-emerald-500', label: 'Fulfilled' },
+  confirmed: { icon: CheckCircle, color: 'text-blue-500', label: 'Order Confirmed' },
+  packed: { icon: Package, color: 'text-indigo-500', label: 'Packed' },
+  shipped: { icon: Truck, color: 'text-purple-500', label: 'Shipped' },
+  out_for_delivery: { icon: MapPin, color: 'text-orange-500', label: 'Out for Delivery' },
   delivered: { icon: CheckCircle, color: 'text-emerald-500', label: 'Delivered' },
-  cancelled: { icon: AlertCircle, color: 'text-red-500', label: 'Cancelled' },
-  rejected: { icon: X, color: 'text-red-600', label: 'Rejected' },
-  returned: { icon: Clock, color: 'text-gray-500', label: 'Returned' }
+  cancelled: { icon: AlertCircle, color: 'text-gray-500', label: 'Cancelled' },
+  returned: { icon: AlertCircle, color: 'text-red-500', label: 'Returned' },
+  refunded: { icon: AlertCircle, color: 'text-pink-500', label: 'Refunded' }
 };
 
 export default function OrderTracking() {
@@ -136,7 +135,7 @@ export default function OrderTracking() {
   }
 
   const currentStatus = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-  const steps: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered'];
+  const steps: OrderStatus[] = ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
   const currentStepIndex = steps.indexOf(order.status);
 
   return (

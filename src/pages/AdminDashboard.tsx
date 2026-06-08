@@ -20,6 +20,7 @@ import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, deleteDo
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction, AdminAction } from '../services/adminLogService';
 import { Role, UserProfile, Product, ProductVariant, Order, OrderStatus, Coupon, Banner, Review, Announcement, ReturnRequest, Category, SubCategory } from '../types';
+import axios from 'axios';
 import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../constants';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
@@ -110,7 +111,7 @@ export default function AdminDashboard() {
     return [
       { 
         label: 'Total Revenue', 
-        value: `₹${orders.reduce((sum, o) => sum + (o.status === 'fulfilled' || o.status === 'delivered' ? (o.total || 0) : 0), 0).toLocaleString()}`, 
+        value: `₹${orders.reduce((sum, o) => sum + (o.status === 'delivered' ? (o.total || 0) : 0), 0).toLocaleString()}`, 
         change: '+12%', 
         icon: TrendingUp, 
         color: 'text-emerald-500', 
@@ -676,8 +677,8 @@ export default function AdminDashboard() {
                         const counts: Record<string, number> = {
                           alerts: orders.slice(0, 5).length,
                           pending: orders.filter(o => o.status === 'pending').length,
-                          confirmed: orders.filter(o => o.status === 'accepted').length,
-                          cancelled: orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').length,
+                          confirmed: orders.filter(o => o.status === 'confirmed').length,
+                          cancelled: orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length,
                           returns: returns.filter(r => r.status === 'requested').length
                         };
                         return (
@@ -764,10 +765,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'confirmed' && (
-                        orders.filter(o => o.status === 'accepted').length === 0 ? (
+                        orders.filter(o => o.status === 'confirmed').length === 0 ? (
                           <p className="text-xs text-gray-400 italic py-6 text-center">No confirmed orders</p>
                         ) : (
-                          orders.filter(o => o.status === 'accepted').map(order => (
+                          orders.filter(o => o.status === 'confirmed').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
@@ -792,15 +793,15 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'cancelled' && (
-                        orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').length === 0 ? (
+                        orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length === 0 ? (
                           <p className="text-xs text-gray-400 italic py-6 text-center">No cancelled orders</p>
                         ) : (
-                          orders.filter(o => o.status === 'cancelled' || o.status === 'rejected').map(order => (
+                          orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-xs font-black text-gray-750">#{getDisplayOrderId(order.id)}</p>
                                 <p className="text-[10px] text-gray-500 font-bold mt-1">👤 {order.contactName}</p>
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${order.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
+                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${order.status === 'refunded' ? 'bg-pink-50 text-pink-500' : 'bg-gray-100 text-gray-500'}`}>
                                   {order.status}
                                 </span>
                               </div>
@@ -908,10 +909,7 @@ export default function AdminDashboard() {
                             <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{(o.total || 0).toLocaleString()}</td>
                             <td className="px-6 py-4">
                               <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                                o.status === 'pending' ? 'bg-amber-100 text-amber-600' :
-                                o.status === 'accepted' ? 'bg-blue-100 text-blue-600' :
-                                o.status === 'shipped' ? 'bg-purple-100 text-purple-600' :
-                                o.status === 'fulfilled' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                                o.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
                               }`}>
                                 {o.status}
                               </span>
@@ -2522,11 +2520,29 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
 
       await updateDoc(orderRef, {
         status,
+        ...(status === 'delivered' && !order.deliveryEmailSent ? { deliveryEmailSent: true } : {}),
         statusHistory: arrayUnion(newHistoryItem)
       });
 
       await logAdminAction(AdminAction.SETTINGS_UPDATE, `Updated Order #${orderId} status to ${status}`, orderId, 'orders');
       toast.success(`Order ${status.replace('_', ' ')} successfully`);
+
+      if (status === 'delivered' && !order.deliveryEmailSent) {
+        try {
+          await axios.post('/api/notifications/delivery', {
+            orderId: order.id,
+            customerEmail: order.contactEmail,
+            customerName: order.contactName,
+            deliveryDate: new Date().toLocaleDateString(),
+            items: order.items,
+            total: order.total
+          });
+          toast.success("Delivery email sent successfully");
+        } catch (emailErr) {
+          console.error("Failed to send delivery email", emailErr);
+          toast.error("Status updated but failed to send delivery email");
+        }
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to update order status');
@@ -2614,17 +2630,19 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     );
   };
 
-  const statusStyles: any = {
+  const statusStyles: Record<OrderStatus, string> = {
     pending: 'bg-amber-100 text-amber-600',
-    accepted: 'bg-blue-100 text-blue-600',
+    confirmed: 'bg-blue-100 text-blue-600',
+    packed: 'bg-indigo-100 text-indigo-600',
     shipped: 'bg-purple-100 text-purple-600',
-    pickup_ready: 'bg-indigo-100 text-indigo-600',
-    fulfilled: 'bg-green-100 text-green-600',
+    out_for_delivery: 'bg-orange-100 text-orange-600',
+    delivered: 'bg-green-100 text-green-600',
     cancelled: 'bg-gray-100 text-gray-600',
-    rejected: 'bg-red-100 text-red-600',
+    returned: 'bg-red-100 text-red-600',
+    refunded: 'bg-pink-100 text-pink-600',
   };
 
-  const statusOptions: (OrderStatus | 'all')[] = ['all', 'pending', 'accepted', 'shipped', 'pickup_ready', 'fulfilled', 'cancelled', 'rejected'];
+  const statusOptions: (OrderStatus | 'all')[] = ['all', 'pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -2757,13 +2775,21 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                       {/* Status Transitions */}
                       {order.status === 'pending' && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'accepted')}
+                          onClick={() => updateOrderStatus(order.id, 'confirmed')}
                           className="px-4 py-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-primary-hover shadow-lg shadow-primary/20"
                         >
-                          Accept
+                          Confirm
                         </button>
                       )}
-                      {order.status === 'accepted' && (
+                      {order.status === 'confirmed' && (
+                        <button
+                          onClick={() => updateOrderStatus(order.id, 'packed')}
+                          className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100"
+                        >
+                          Pack
+                        </button>
+                      )}
+                      {order.status === 'packed' && (
                         <button
                           onClick={() => {
                             setSelectedOrder(order);
@@ -2781,24 +2807,24 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                       )}
                       {order.status === 'shipped' && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'pickup_ready')}
-                          className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100"
+                          onClick={() => updateOrderStatus(order.id, 'out_for_delivery')}
+                          className="px-4 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-100"
                         >
-                          Ready
+                          Out for Delivery
                         </button>
                       )}
-                      {order.status === 'pickup_ready' && (
+                      {order.status === 'out_for_delivery' && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'fulfilled')}
+                          onClick={() => updateOrderStatus(order.id, 'delivered')}
                           className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 shadow-lg shadow-green-100"
                         >
-                          Fulfill
+                          Deliver
                         </button>
                       )}
 
-                      {(order.status === 'pending' || order.status === 'accepted') && (
+                      {(order.status === 'pending' || order.status === 'confirmed') && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'rejected')}
+                          onClick={() => updateOrderStatus(order.id, 'cancelled')}
                           className="p-3 text-red-400 hover:text-red-600 transition-colors"
                         >
                           <X className="w-5 h-5" />
@@ -2963,7 +2989,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => {
-                      updateOrderStatus(selectedOrder.id, 'processing');
+                      updateOrderStatus(selectedOrder.id, 'confirmed');
                       setShowDetailModal(false);
                     }}
                     className="flex-1 bg-primary text-white py-5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95"
@@ -3193,9 +3219,9 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-gray-900">₹{order.total.toLocaleString()}</p>
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${order.status === 'fulfilled' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${order.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'
                       }`}>
-                      {order.status}
+                      {order.status.replace('_', ' ')}
                     </span>
                   </div>
                 </div>

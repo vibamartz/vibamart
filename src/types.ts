@@ -127,6 +127,7 @@ export interface Order {
   carrier?: string;
   estimatedDelivery?: string;
   statusHistory?: StatusUpdate[];
+  deliveryEmailSent?: boolean;
 }
 
 export interface StatusUpdate {
@@ -160,7 +161,7 @@ export interface OrderItem {
   image: string;
 }
 
-export type OrderStatus = "pending" | "accepted" | "processing" | "shipped" | "pickup_ready" | "fulfilled" | "delivered" | "cancelled" | "rejected" | "returned";
+export type OrderStatus = "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "returned" | "refunded";
 
 export interface CartItem {
   productId: string;
