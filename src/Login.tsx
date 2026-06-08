@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './components/Logo';
 import axios from 'axios';
@@ -33,6 +33,7 @@ export default function Login() {
 
   // Profile (signup)
   const [displayName, setDisplayName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
 
   // Firebase Auth
   const [tempFirebaseUser, setTempFirebaseUser] = useState<User | null>(null);
@@ -193,10 +194,14 @@ export default function Login() {
       toast.error('Please enter your full name');
       return;
     }
+    if (!contactNumber || contactNumber.trim().length < 7) {
+      toast.error('Please enter a valid contact number');
+      return;
+    }
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
-      await syncUser(tempFirebaseUser, displayName.trim());
+      await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
       toast.success('Account created! Welcome to ViBa Mart 🛍️');
       navigate('/');
     } catch (err: any) {
@@ -207,7 +212,7 @@ export default function Login() {
     }
   };
 
-  const syncUser = async (firebaseUser: User, providedName?: string) => {
+  const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
     const now = new Date().toISOString();
@@ -218,6 +223,7 @@ export default function Login() {
         uid: firebaseUser.uid,
         email: userEmail,
         displayName: providedName || firebaseUser.displayName || `User ${Math.floor(Math.random() * 10000)}`,
+        phone: providedPhone || '',
         photoURL: firebaseUser.photoURL || '',
         role: userEmail === 'vk311779@gmail.com' ? 'admin' : 'customer',
         isVerified: true,
@@ -240,6 +246,15 @@ export default function Login() {
       if (isAdmin && userData.role !== 'admin') {
         updateData.role = 'admin';
         userData.role = 'admin';
+      }
+
+      if (providedPhone && !userData.phone) {
+        updateData.phone = providedPhone;
+        userData.phone = providedPhone;
+      }
+      if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
+        updateData.displayName = providedName;
+        userData.displayName = providedName;
       }
 
       await setDoc(userRef, updateData, { merge: true });
@@ -483,9 +498,26 @@ export default function Login() {
                       </div>
                     </div>
 
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
+                        Contact Number <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
+                        <input
+                          type="tel"
+                          value={contactNumber}
+                          onChange={(e) => setContactNumber(e.target.value)}
+                          placeholder="e.g. 9876543210"
+                          className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
+                          required
+                        />
+                      </div>
+                    </div>
+
                     <button
                       type="submit"
-                      disabled={loading || displayName.trim().length < 2}
+                      disabled={loading || displayName.trim().length < 2 || contactNumber.trim().length < 7}
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2"
                     >
                       <CheckCircle2 className="w-5 h-5" />

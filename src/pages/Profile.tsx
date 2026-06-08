@@ -58,7 +58,15 @@ export default function Profile() {
 
   const handleSaveAddress = async () => {
     if (!user) return;
-    if (!newAddress.fullName || !newAddress.phone || !newAddress.house || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
+    if (!newAddress.fullName || newAddress.fullName.trim() === "") {
+      toast.error('Full Name is required.');
+      return;
+    }
+    if (!newAddress.phone || newAddress.phone.trim().length < 7) {
+      toast.error('A valid Contact Number is required.');
+      return;
+    }
+    if (!newAddress.house || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
       toast.error('Please fill all required address fields');
       return;
     }
@@ -134,6 +142,10 @@ export default function Profile() {
     const tab = params.get('tab');
     if (tab && ['overview', 'orders', 'addresses', 'waitlist', 'wishlist', 'settings'].includes(tab)) {
       setActiveTab(tab as any);
+    }
+    const editProfile = params.get('edit');
+    if (editProfile === 'true') {
+      setIsEditingProfile(true);
     }
   }, [window.location.search]);
 

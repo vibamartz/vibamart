@@ -112,6 +112,12 @@ export default function Checkout() {
   // Load default address from user profile when available
   React.useEffect(() => {
     if (user) {
+      if (!user.displayName || user.displayName.startsWith('User ') || !user.phone) {
+        toast.error("Please complete your Name and Contact Number before placing an order.", { duration: 5000 });
+        navigate('/profile?tab=overview&edit=true');
+        return;
+      }
+
       // Auto-advance past login step for logged-in users
       if (step === 1) {
         setStep(2);
@@ -143,7 +149,15 @@ export default function Checkout() {
   }, [user]);
 
   const handleSaveFormAddress = async () => {
-    if (!editAddressForm.fullName || !editAddressForm.phone || !editAddressForm.house || !editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
+    if (!editAddressForm.fullName || editAddressForm.fullName.trim() === "") {
+      toast.error("Full Name is required.");
+      return;
+    }
+    if (!editAddressForm.phone || editAddressForm.phone.trim().length < 7) {
+      toast.error("A valid Contact Number is required.");
+      return;
+    }
+    if (!editAddressForm.house || !editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
       toast.error("Please fill all required address fields");
       return;
     }
