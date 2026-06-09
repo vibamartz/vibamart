@@ -33,6 +33,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       if (firebaseUser) {
+        const lastUid = localStorage.getItem("viba_last_uid");
+        if (lastUid && lastUid !== firebaseUser.uid) {
+          // User switched accounts directly (e.g., via Google Auth) without logging out.
+          // Clear previous user's local session to prevent leakage.
+          localStorage.removeItem(`viba_cart_${lastUid}`);
+        }
+        localStorage.setItem("viba_last_uid", firebaseUser.uid);
+        
         useCartStore.getState().setUid(firebaseUser.uid);
         // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
@@ -88,6 +96,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.warn("Failed to listen to customer orders:", error);
         });
       } else {
+        const lastUid = localStorage.getItem("viba_last_uid");
+        if (lastUid) {
+          // Completely clear the local session data for the previous account to prevent leakage
+          localStorage.removeItem(`viba_cart_${lastUid}`);
+        }
         localStorage.removeItem("viba_last_uid");
         useCartStore.getState().setUid(null);
         set({ user: null, orderedProductIds: [], loading: false });
