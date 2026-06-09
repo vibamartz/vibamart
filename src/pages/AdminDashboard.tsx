@@ -3246,26 +3246,6 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
 function SettingsView() {
   const { settings, updateSettings } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState(settings);
-  const [adminSmsConfig, setAdminSmsConfig] = useState({
-    adminPhoneNumber: '',
-    twilioAccountSid: '',
-    twilioAuthToken: '',
-    twilioPhoneNumber: ''
-  });
-
-
-    const fetchAdminSettings = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, 'settings', 'admin'));
-        if (docSnap.exists()) {
-          setAdminSmsConfig(prev => ({ ...prev, ...docSnap.data() }));
-        }
-      } catch (err) {
-        console.error("Failed to load admin settings", err);
-      }
-    };
-    fetchAdminSettings();
-  }, []);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -3275,7 +3255,6 @@ function SettingsView() {
     const toastId = toast.loading('Saving settings...');
     try {
       await updateSettings(localSettings);
-      await setDoc(doc(db, 'settings', 'admin'), adminSmsConfig, { merge: true });
       toast.success('Settings saved successfully', { id: toastId });
       logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated system settings');
     } catch (error) {
@@ -3354,49 +3333,6 @@ function SettingsView() {
           <Toggle label="Availability Filter" desc="Allow filtering by stock status" value={localSettings.enableAvailabilityFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableAvailabilityFilter: !prev.enableAvailabilityFilter }))} />
         </div>
 
-
-
-        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Admin SMS Configuration</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Admin Mobile Number</label>
-            <input
-              type="text"
-              placeholder="+91..."
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={adminSmsConfig.adminPhoneNumber}
-              onChange={e => setAdminSmsConfig(prev => ({ ...prev, adminPhoneNumber: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Account SID</label>
-            <input
-              type="text"
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={adminSmsConfig.twilioAccountSid}
-              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioAccountSid: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Auth Token</label>
-            <input
-              type="password"
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={adminSmsConfig.twilioAuthToken}
-              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioAuthToken: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Twilio Phone Number</label>
-            <input
-              type="text"
-              placeholder="+1234567890"
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
-              value={adminSmsConfig.twilioPhoneNumber}
-              onChange={e => setAdminSmsConfig(prev => ({ ...prev, twilioPhoneNumber: e.target.value }))}
-            />
-          </div>
-        </div>
 
         <button
           onClick={saveSettings}
