@@ -128,6 +128,7 @@ export interface Order {
   estimatedDelivery?: string;
   statusHistory?: StatusUpdate[];
   deliveryEmailSent?: boolean;
+  cancellationReason?: string;
 }
 
 export interface StatusUpdate {
@@ -144,9 +145,10 @@ export interface ReturnRequest {
   productIds?: string[];
   userId: string;
   reason: string;
+  comments?: string;
   images?: string[];
   refundAmount?: number;
-  status: 'requested' | 'pending' | 'approved' | 'rejected' | 'pickup_scheduled' | 'collected' | 'returned' | 'refunded';
+  status: 'requested' | 'under_review' | 'approved' | 'rejected' | 'received_back' | 'refund_processed' | 'pending' | 'pickup_scheduled' | 'collected' | 'returned' | 'refunded';
   trackingId?: string;
   createdAt: string;
   updatedAt?: string;
@@ -222,6 +224,7 @@ export interface StoreSettings {
   enableDiscountFilter: boolean;
   enableAvailabilityFilter: boolean;
   enableBanner: boolean;
+  returnWindowDays?: number;
 }
 
 export interface SearchAnalytics {

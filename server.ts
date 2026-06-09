@@ -231,6 +231,277 @@ async function startServer() {
     }
   });
 
+  // Simple auth middleware using Firebase ID token
+  const verifyAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, error: "Unauthorized: No token provided" });
+    }
+    const idToken = authHeader.split("Bearer ")[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      (req as any).user = decodedToken;
+      next();
+    } catch (error) {
+      console.error("Token verification error:", error);
+      res.status(401).json({ success: false, error: "Unauthorized: Invalid token" });
+    }
+  };
+
+  // Orders: Cancel Order
+  app.post("/api/orders/cancel", verifyAuth, async (req, res) => {
+    const { orderId, reason } = req.body;
+    const uid = (req as any).user.uid;
+
+    if (!orderId || !reason) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const orderRef = db.collection("orders").doc(orderId);
+      
+      await db.runTransaction(async (transaction) => {
+        const orderDoc = await transaction.get(orderRef);
+        if (!orderDoc.exists) {
+          throw new Error("Order not found");
+        }
+
+        const orderData = orderDoc.data()!;
+        if (orderData.customerId !== uid) {
+          throw new Error("Unauthorized to cancel this order");
+        }
+
+        const allowedStatuses = ["pending", "confirmed", "packed"];
+        if (!allowedStatuses.includes(orderData.status)) {
+          throw new Error(`Cannot cancel order in ${orderData.status} status`);
+        }
+
+        // Restore stock
+        for (const item of orderData.items) {
+          const productRef = db.collection("products").doc(item.productId);
+          const productDoc = await transaction.get(productRef);
+          if (productDoc.exists) {
+            const pData = productDoc.data()!;
+            let newStock = (pData.stock || 0) + item.quantity;
+            let updates: any = { stock: newStock };
+            
+            if (item.variantId && pData.variants) {
+               const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
+               if (variantIndex !== -1) {
+                  let variants = [...pData.variants];
+                  variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
+                  updates.variants = variants;
+               }
+            }
+            transaction.update(productRef, updates);
+          }
+        }
+
+        transaction.update(orderRef, {
+          status: "cancelled",
+          cancellationReason: reason,
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "cancelled",
+            timestamp: new Date().toISOString(),
+            message: "Cancelled by customer"
+          })
+        });
+      });
+
+      // Fetch email and send confirmation
+      const orderDoc = await orderRef.get();
+      const orderData = orderDoc.data()!;
+      const customerEmail = orderData.contactEmail || (req as any).user.email;
+      
+      if (customerEmail) {
+        const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
+        <p>Your order <strong>#${orderId}</strong> has been successfully cancelled.</p>
+        <p>Reason: ${reason}</p>
+        <p>If you paid online, your refund will be processed within 5-7 business days.</p>`;
+        
+        if (process.env.SMTP_HOST && !isPlaceholder) {
+          await transporter.sendMail({
+            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            to: customerEmail,
+            subject: "Order Cancellation Confirmation",
+            html: emailHtml,
+          });
+        } else {
+          console.log(`[DEVELOPMENT] Cancellation email for ${customerEmail}:\n${emailHtml}`);
+        }
+      }
+
+      res.json({ success: true, message: "Order cancelled successfully" });
+    } catch (error: any) {
+      console.error("Cancel order error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
+    }
+  });
+
+  // Returns: Request Return
+  app.post("/api/returns/request", verifyAuth, async (req, res) => {
+    const { orderId, reason, comments, images, productIds } = req.body;
+    const uid = (req as any).user.uid;
+
+    if (!orderId || !reason || !images || images.length === 0) {
+      return res.status(400).json({ success: false, error: "Missing required fields (orderId, reason, images)" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderDoc = await orderRef.get();
+      
+      if (!orderDoc.exists) {
+        return res.status(404).json({ success: false, error: "Order not found" });
+      }
+      
+      const orderData = orderDoc.data()!;
+      if (orderData.customerId !== uid) {
+        return res.status(403).json({ success: false, error: "Unauthorized" });
+      }
+      
+      if (orderData.status !== "delivered") {
+        return res.status(400).json({ success: false, error: "Only delivered orders can be returned" });
+      }
+
+      const settingsDoc = await db.collection("settings").doc("store").get();
+      const returnWindowDays = settingsDoc.exists && settingsDoc.data()?.returnWindowDays ? settingsDoc.data()?.returnWindowDays : 7;
+      
+      const deliveredStatus = orderData.statusHistory?.find((s: any) => s.status === "delivered");
+      const deliveryDate = deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(orderData.createdAt); 
+      
+      const windowMs = returnWindowDays * 24 * 60 * 60 * 1000;
+      if (Date.now() - deliveryDate.getTime() > windowMs) {
+        return res.status(400).json({ success: false, error: "Return window has expired" });
+      }
+
+      const existingReturns = await db.collection("returns").where("orderId", "==", orderId).get();
+      if (!existingReturns.empty) {
+        return res.status(400).json({ success: false, error: "Return request already exists for this order" });
+      }
+
+      const returnDoc = {
+        orderId,
+        userId: uid,
+        reason,
+        comments: comments || "",
+        images,
+        productIds: productIds || orderData.items.map((i: any) => i.productId),
+        status: "requested",
+        createdAt: new Date().toISOString(),
+        refundAmount: orderData.total
+      };
+
+      const docRef = await db.collection("returns").add(returnDoc);
+      
+      const customerEmail = orderData.contactEmail || (req as any).user.email;
+      if (customerEmail) {
+        const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
+        <p>We have received your return request for order <strong>#${orderId}</strong>.</p>
+        <p>Our team will review the details and images provided within 48 hours.</p>`;
+        
+        if (process.env.SMTP_HOST && !isPlaceholder) {
+          await transporter.sendMail({
+            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            to: customerEmail,
+            subject: "Return Request Received",
+            html: emailHtml,
+          });
+        }
+      }
+
+      res.json({ success: true, returnId: docRef.id });
+    } catch (error: any) {
+      console.error("Return request error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to submit return request" });
+    }
+  });
+
+  // Returns: Admin Update Status
+  app.post("/api/returns/update-status", verifyAuth, async (req, res) => {
+    const { returnId, status } = req.body;
+    
+    const decodedToken = (req as any).user;
+    let isAdmin = false;
+    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+      isAdmin = true;
+    } else {
+      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: "Admin access required" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const returnRef = db.collection("returns").doc(returnId);
+      const returnDoc = await returnRef.get();
+      
+      if (!returnDoc.exists) {
+        return res.status(404).json({ success: false, error: "Return not found" });
+      }
+      
+      await returnRef.update({ 
+        status,
+        updatedAt: new Date().toISOString()
+      });
+      
+      const rData = returnDoc.data()!;
+      const orderDoc = await db.collection("orders").doc(rData.orderId).get();
+      const orderData = orderDoc.data();
+
+      if (status === 'refund_processed' && orderData) {
+        await db.collection("orders").doc(rData.orderId).update({
+          status: 'refunded',
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "refunded",
+            timestamp: new Date().toISOString(),
+            message: "Refund processed successfully"
+          })
+        });
+      }
+
+      if (orderData && (orderData.contactEmail || decodedToken.email)) {
+        const customerEmail = orderData.contactEmail || decodedToken.email;
+        let subject = "";
+        let msg = "";
+        if (status === 'approved') {
+          subject = "Return Request Approved";
+          msg = "Your return request has been approved. Please pack the items, our delivery partner will pick them up soon.";
+        } else if (status === 'rejected') {
+          subject = "Return Request Rejected";
+          msg = "Unfortunately, your return request has been rejected. Please check your account for details.";
+        } else if (status === 'refund_processed') {
+          subject = "Refund Processed";
+          msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+        }
+
+        if (subject) {
+          const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+          const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2><p>${msg}</p>`;
+          if (process.env.SMTP_HOST && !isPlaceholder) {
+            await transporter.sendMail({
+              from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+              to: customerEmail,
+              subject,
+              html: emailHtml,
+            });
+          }
+        }
+      }
+
+      res.json({ success: true, message: "Status updated" });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Auth: Verify Email OTP
   app.post("/api/auth/verify-email-otp", async (req, res) => {
     const { email, code } = req.body;

@@ -27,6 +27,7 @@ import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
 import NewCategoriesManagementView from '../components/CategoriesManagementView';
 import NewProductManagementView from '../components/ProductManagementView';
 import NewBannersManagementView from '../components/BannersManagementView';
+import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 
 const STATS = [
   { label: 'Total Revenue', value: '₹2,45,000', change: '+12%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -954,7 +955,29 @@ export default function AdminDashboard() {
             />
           )}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
-          {activeTab === 'returns' && <ReturnManagementView />}
+          {activeTab === 'returns' && (
+            <AdminReturnsManagementView 
+              returns={returns}
+              onUpdateStatus={async (id, status) => {
+                const idToken = await auth.currentUser?.getIdToken();
+                const res = await fetch('/api/returns/update-status', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                  },
+                  body: JSON.stringify({ returnId: id, status })
+                });
+                const data = await res.json();
+                if (data.success) {
+                  toast.success('Status updated successfully');
+                } else {
+                  toast.error(data.error || 'Failed to update status');
+                  throw new Error(data.error);
+                }
+              }}
+            />
+          )}
           {activeTab === 'customers' && <CustomersManagementView />}
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'settings' && <SettingsView />}

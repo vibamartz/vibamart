@@ -46,6 +46,16 @@ export default function Profile() {
   });
   const navigate = useNavigate();
 
+  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [returnReason, setReturnReason] = useState('Wrong Product Received');
+  const [returnComments, setReturnComments] = useState('');
+  const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handlePasswordReset = async () => {
     if (!user?.email) return;
     try {
@@ -162,6 +172,20 @@ export default function Profile() {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
     });
 
+    // Fetch Return Requests
+    const returnsQuery = query(
+      collection(db, 'returns'),
+      where('userId', '==', user.uid)
+    );
+    const unsubReturns = onSnapshot(returnsQuery, (snapshot) => {
+      const returnsData: Record<string, string> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        returnsData[data.orderId] = data.status;
+      });
+      setReturnRequests(returnsData);
+    });
+
     // Fetch Waitlist with product details
     const waitlistQuery = query(
       collection(db, 'waitlist'),
@@ -198,6 +222,7 @@ export default function Profile() {
 
     return () => {
       unsubOrders();
+      unsubReturns();
       unsubWaitlist();
       unsubProfile();
     };
@@ -242,6 +267,89 @@ export default function Profile() {
   const handleLogout = async () => {
       await auth.signOut();
       navigate('/');
+  };
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrderId || !cancelReason) return;
+    setIsSubmitting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Order cancelled successfully');
+        setShowCancelModal(false);
+        setSelectedOrderId(null);
+        setCancelReason('');
+      } else {
+        toast.error(data.error || 'Failed to cancel order');
+      }
+    } catch (err) {
+      toast.error('An error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRequestReturn = async () => {
+    if (!selectedOrderId || !returnReason || returnImages.length === 0) {
+      toast.error('Please fill all required fields and upload at least one image');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/returns/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          orderId: selectedOrderId, 
+          reason: returnReason,
+          comments: returnComments,
+          images: returnImages 
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Return requested successfully');
+        setShowReturnModal(false);
+        setSelectedOrderId(null);
+        setReturnReason('Wrong Product Received');
+        setReturnComments('');
+        setReturnImages([]);
+      } else {
+        toast.error(data.error || 'Failed to request return');
+      }
+    } catch (err) {
+      toast.error('An error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReturnImages(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setReturnImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const menuItems = [
@@ -527,7 +635,28 @@ export default function Profile() {
                                     <span className="text-sm font-bold text-gray-600 uppercase tracking-wider">{order.paymentMethod}</span>
                                  </div>
                                </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                  {['pending', 'confirmed', 'packed'].includes(order.status) && (
+                                    <button
+                                      onClick={() => { setSelectedOrderId(order.id); setShowCancelModal(true); }}
+                                      className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center gap-2"
+                                    >
+                                      Cancel Order
+                                    </button>
+                                  )}
+                                  {order.status === 'delivered' && !returnRequests[order.id] && (
+                                    <button
+                                      onClick={() => { setSelectedOrderId(order.id); setShowReturnModal(true); }}
+                                      className="px-6 py-2.5 bg-orange-50 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-100 transition-all border border-orange-100 flex items-center gap-2"
+                                    >
+                                      Request Return
+                                    </button>
+                                  )}
+                                  {returnRequests[order.id] && (
+                                    <span className="px-4 py-2.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2">
+                                      Return: {returnRequests[order.id].replace('_', ' ')}
+                                    </span>
+                                  )}
                                   <Link 
                                     to={`/track-order/${order.id}`}
                                     className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
@@ -812,6 +941,93 @@ export default function Profile() {
         onSave={handleSaveAddress}
         isEditing={editingAddressIndex !== null}
       />
+
+      {/* Cancel Order Modal */}
+      <AnimatePresence>
+        {showCancelModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCancelModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl relative z-10">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Cancel Order</h3>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Cancellation</label>
+                  <select value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="" disabled>Select Reason</option>
+                    <option value="Changed my mind">Changed my mind</option>
+                    <option value="Ordered by mistake">Ordered by mistake</option>
+                    <option value="Found better price elsewhere">Found better price elsewhere</option>
+                    <option value="Delivery is taking too long">Delivery is taking too long</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowCancelModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Close
+                  </button>
+                  <button onClick={handleCancelOrder} disabled={isSubmitting || !cancelReason} className="flex-2 py-4 touch-target min-h-[44px] bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-red-500/20 hover:bg-red-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Return Modal */}
+      <AnimatePresence>
+        {showReturnModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReturnModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Request Return</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Please note that returns are only accepted for wrong or defective products.</p>
+              
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Return *</label>
+                  <select value={returnReason} onChange={e => setReturnReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="Wrong Product Received">Wrong Product Received</option>
+                    <option value="Defective/Damaged Product Received">Defective/Damaged Product Received</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Comments (Optional)</label>
+                  <textarea value={returnComments} onChange={e => setReturnComments(e.target.value)} rows={3} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" placeholder="Explain the issue..." />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Proof Images (Required) *</label>
+                  <div className="flex gap-4 overflow-x-auto pb-2">
+                    {returnImages.map((img, idx) => (
+                      <div key={idx} className="relative w-20 h-20 flex-shrink-0 rounded-2xl border border-gray-200 overflow-hidden">
+                        <img src={img} alt="proof" className="w-full h-full object-cover" />
+                        <button onClick={() => removeImage(idx)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                    {returnImages.length < 3 && (
+                      <label className="w-20 h-20 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-primary hover:border-primary transition-colors cursor-pointer">
+                        <Plus className="w-6 h-6" />
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowReturnModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Cancel
+                  </button>
+                  <button onClick={handleRequestReturn} disabled={isSubmitting || returnImages.length === 0} className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
