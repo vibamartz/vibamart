@@ -101,13 +101,6 @@ async function startServer() {
     res.json({ success: true, message: "Payment verified" });
   });
 
-  // Check notification trigger status
-  app.get("/api/notifications/status", (req, res) => {
-    res.json({
-      running: true,
-      timestamp: new Date().toISOString()
-    });
-  });
 
   // Setup Nodemailer transporter
   const transporter = nodemailer.createTransport({

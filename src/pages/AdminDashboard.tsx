@@ -3252,16 +3252,7 @@ function SettingsView() {
     twilioAuthToken: '',
     twilioPhoneNumber: ''
   });
-  const [triggerStatus, setTriggerStatus] = useState<{ running: boolean; } | null>(null);
 
-  useEffect(() => {
-    fetch('/api/notifications/status')
-      .then(res => res.json())
-      .then(data => setTriggerStatus(data))
-      .catch(err => {
-        console.error('Failed to check trigger status:', err);
-        setTriggerStatus({ running: false });
-      });
 
     const fetchAdminSettings = async () => {
       try {
@@ -3364,19 +3355,6 @@ function SettingsView() {
         </div>
 
 
-
-        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Notification Trigger Status</h3>
-        <div className="p-4 bg-gray-50 rounded-2xl space-y-2 mt-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-700">Notification API Server:</span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${
-              triggerStatus?.running ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-            }`}>
-              {triggerStatus?.running ? 'Running' : 'Offline'}
-            </span>
-          </div>
-
-        </div>
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Admin SMS Configuration</h3>
         <div className="space-y-4">
