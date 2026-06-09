@@ -138,8 +138,10 @@ async function startServer() {
         expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       });
 
+      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+      
       // Send Email
-      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+      if (process.env.SMTP_HOST && !isPlaceholder) {
         await transporter.sendMail({
           from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
           to: email,
@@ -183,16 +185,51 @@ async function startServer() {
         <p>Best Regards,<br/>The ViBa Mart Team</p>
       `;
 
-      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+      const db = admin.firestore();
+      
+      // Prevent duplicate emails
+      const existingLogs = await db.collection("emailLogs")
+        .where("orderId", "==", orderId)
+        .where("type", "==", "delivery_confirmation")
+        .limit(1)
+        .get();
+        
+      if (!existingLogs.empty) {
+        return res.json({ success: true, message: "Delivery email was already sent previously." });
+      }
+
+      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+
+      if (process.env.SMTP_HOST && !isPlaceholder) {
         await transporter.sendMail({
           from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
           to: customerEmail,
           subject: "Your Order Has Been Delivered Successfully",
           html: emailHtml,
         });
+        
+        // Store email delivery log
+        await db.collection("emailLogs").add({
+          orderId,
+          recipient: customerEmail,
+          type: "delivery_confirmation",
+          status: "sent",
+          sentAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
         res.json({ success: true, message: "Delivery email sent successfully." });
       } else {
         console.log(`[DEVELOPMENT] Delivery email for ${customerEmail}:\n${emailHtml}`);
+        
+        // Store email delivery log for development
+        await db.collection("emailLogs").add({
+          orderId,
+          recipient: customerEmail,
+          type: "delivery_confirmation",
+          status: "development_log_only",
+          sentAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
         res.json({ success: true, message: "Delivery email logged in development." });
       }
     } catch (error: any) {
