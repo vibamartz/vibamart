@@ -86,7 +86,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isVerified() && isValidUser(incoming()) && userId == request.auth.uid;
       allow update: if isVerified() && (
-        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'phone', 'address', 'wishlist', 'addresses'])) ||
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'phone', 'address', 'wishlist', 'addresses', 'cart'])) ||
         isAdmin()
       );
     }

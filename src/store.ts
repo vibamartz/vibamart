@@ -61,6 +61,7 @@ export const useAuthStore = create<AuthState>((set) => ({
               }
             }
           } else {
+            localStorage.removeItem("viba_last_uid");
             useCartStore.getState().setUid(null);
             set({ user: null, loading: false });
           }
@@ -87,6 +88,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.warn("Failed to listen to customer orders:", error);
         });
       } else {
+        localStorage.removeItem("viba_last_uid");
         useCartStore.getState().setUid(null);
         set({ user: null, orderedProductIds: [], loading: false });
       }
@@ -105,22 +107,29 @@ interface CartState {
   total: () => number;
 }
 
-let currentUid: string | null = null;
+let currentUid: string | null = localStorage.getItem("viba_last_uid");
 const getCartKey = () => currentUid ? `viba_cart_${currentUid}` : "viba_cart_guest";
 
 const syncCartToFirebase = (items: CartItem[]) => {
   if (currentUid) {
     const userRef = doc(db, 'users', currentUid);
-    setDoc(userRef, { cart: items }, { merge: true }).catch(err => {
+    // Strip undefined values which Firebase rejects synchronously
+    const cleanItems = JSON.parse(JSON.stringify(items));
+    setDoc(userRef, { cart: cleanItems }, { merge: true }).catch(err => {
       console.error("Failed to sync cart to Firebase:", err);
     });
   }
 };
 
 export const useCartStore = create<CartState>((set, get) => ({
-  items: JSON.parse(localStorage.getItem("viba_cart_guest") || "[]"),
+  items: JSON.parse(localStorage.getItem(getCartKey()) || "[]"),
   setUid: (uid) => {
     currentUid = uid;
+    if (uid) {
+      localStorage.setItem("viba_last_uid", uid);
+    } else {
+      localStorage.removeItem("viba_last_uid");
+    }
     const newKey = getCartKey();
     const localItems = JSON.parse(localStorage.getItem(newKey) || "[]");
     set({ items: localItems });
