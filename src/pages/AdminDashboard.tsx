@@ -2541,11 +2541,17 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
         location: location || "Logistics Center"
       };
 
-      await updateDoc(orderRef, {
+      const updatePayload: any = {
         status,
         ...(status === 'delivered' && !order.deliveryEmailSent ? { deliveryEmailSent: true } : {}),
         statusHistory: arrayUnion(newHistoryItem)
-      });
+      };
+
+      if (status === 'delivered' && order.paymentMethod?.toLowerCase() === 'cash on delivery') {
+        updatePayload.paymentStatus = 'paid';
+      }
+
+      await updateDoc(orderRef, updatePayload);
 
       await logAdminAction(AdminAction.SETTINGS_UPDATE, `Updated Order #${orderId} status to ${status}`, orderId, 'orders');
       toast.success(`Order ${status.replace('_', ' ')} successfully`);
