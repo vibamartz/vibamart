@@ -6,7 +6,8 @@ import {
   Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck
 } from 'lucide-react';
 import { useAuthStore } from '../store';
-import { db, auth } from '../lib/firebase';
+import { db, auth, storage } from '../lib/firebase';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { 
   getAuth, 
   sendPasswordResetEmail 
@@ -54,6 +55,7 @@ export default function Profile() {
   const [returnReason, setReturnReason] = useState('Wrong Product Received');
   const [returnComments, setReturnComments] = useState('');
   const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [selectedReturnProducts, setSelectedReturnProducts] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePasswordReset = async () => {
@@ -299,12 +301,18 @@ export default function Profile() {
   };
 
   const handleRequestReturn = async () => {
-    if (!selectedOrderId || !returnReason || returnImages.length === 0) {
-      toast.error('Please fill all required fields and upload at least one image');
+    if (!selectedOrderId || !returnReason || returnImages.length === 0 || selectedReturnProducts.length === 0) {
+      toast.error('Please fill all required fields, select items, and upload at least one image');
       return;
     }
     setIsSubmitting(true);
     try {
+      const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
+        const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
+        await uploadString(imageRef, imgBase64, 'data_url');
+        return await getDownloadURL(imageRef);
+      }));
+
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/returns/request', {
         method: 'POST',
@@ -314,9 +322,10 @@ export default function Profile() {
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
+          productIds: selectedReturnProducts,
           reason: returnReason,
           comments: returnComments,
-          images: returnImages 
+          images: uploadedImageUrls 
         })
       });
       const data = await response.json();
@@ -327,6 +336,7 @@ export default function Profile() {
         setReturnReason('Wrong Product Received');
         setReturnComments('');
         setReturnImages([]);
+        setSelectedReturnProducts([]);
       } else {
         toast.error(data.error || 'Failed to request return');
       }
@@ -646,7 +656,11 @@ export default function Profile() {
                                   )}
                                   {order.status === 'delivered' && !returnRequests[order.id] && (
                                     <button
-                                      onClick={() => { setSelectedOrderId(order.id); setShowReturnModal(true); }}
+                                      onClick={() => { 
+                                        setSelectedOrderId(order.id); 
+                                        setSelectedReturnProducts(order.items.map(i => i.productId));
+                                        setShowReturnModal(true); 
+                                      }}
                                       className="px-6 py-2.5 bg-orange-50 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-100 transition-all border border-orange-100 flex items-center gap-2"
                                     >
                                       Request Return
@@ -986,6 +1000,33 @@ export default function Profile() {
               
               <div className="space-y-4">
                 <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Select Items to Return *</label>
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3 max-h-[200px] overflow-y-auto">
+                    {orders.find(o => o.id === selectedOrderId)?.items.map((item, idx) => (
+                      <label key={idx} className="flex items-center gap-3 cursor-pointer group">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedReturnProducts.includes(item.productId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedReturnProducts(prev => [...prev, item.productId]);
+                            } else {
+                              setSelectedReturnProducts(prev => prev.filter(id => id !== item.productId));
+                            }
+                          }}
+                          className="w-5 h-5 rounded-md text-primary focus:ring-primary border-gray-300" 
+                        />
+                        <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                          <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Return *</label>
                   <select value={returnReason} onChange={e => setReturnReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
                     <option value="Wrong Product Received">Wrong Product Received</option>
@@ -1019,7 +1060,7 @@ export default function Profile() {
                   <button onClick={() => setShowReturnModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
                     Cancel
                   </button>
-                  <button onClick={handleRequestReturn} disabled={isSubmitting || returnImages.length === 0} className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                  <button onClick={handleRequestReturn} disabled={isSubmitting || returnImages.length === 0 || selectedReturnProducts.length === 0} className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
                     {isSubmitting ? 'Submitting...' : 'Submit Request'}
                   </button>
                 </div>

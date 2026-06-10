@@ -11,13 +11,14 @@ export default function AdminReturnsManagementView({
   onUpdateStatus 
 }: { 
   returns: ReturnRequest[],
-  onUpdateStatus: (id: string, status: string) => Promise<void>
+  onUpdateStatus: (id: string, status: string, adminNotes: string) => Promise<void>
 }) {
   const [selectedReturn, setSelectedReturn] = useState<ReturnRequest | null>(null);
   const [orderCache, setOrderCache] = useState<Record<string, Order>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [adminNotes, setAdminNotes] = useState('');
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -46,8 +47,8 @@ export default function AdminReturnsManagementView({
     if (!selectedReturn) return;
     setIsUpdating(true);
     try {
-      await onUpdateStatus(selectedReturn.id, status);
-      setSelectedReturn({ ...selectedReturn, status: status as any });
+      await onUpdateStatus(selectedReturn.id, status, adminNotes);
+      setSelectedReturn({ ...selectedReturn, status: status as any, adminNotes });
     } finally {
       setIsUpdating(false);
     }
@@ -156,6 +157,9 @@ export default function AdminReturnsManagementView({
                     <div className="flex justify-between"><span className="text-sm text-gray-500">Status</span><span className="text-sm font-bold uppercase tracking-widest text-primary">{selectedReturn.status.replace('_', ' ')}</span></div>
                     <div className="flex justify-between"><span className="text-sm text-gray-500">Reason</span><span className="text-sm font-bold text-gray-900">{selectedReturn.reason}</span></div>
                     <div className="flex justify-between"><span className="text-sm text-gray-500">Comments</span><span className="text-sm font-medium text-gray-700 max-w-[200px] text-right">{selectedReturn.comments || 'None'}</span></div>
+                    {selectedReturn.adminNotes && (
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Admin Notes</span><span className="text-sm font-bold text-primary max-w-[200px] text-right">{selectedReturn.adminNotes}</span></div>
+                    )}
                   </div>
                 </div>
 
@@ -209,6 +213,18 @@ export default function AdminReturnsManagementView({
                       <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-bold text-center">Request Rejected</div>
                     )}
                   </div>
+                  {['requested', 'under_review', 'approved', 'received_back'].includes(selectedReturn.status) && (
+                    <div className="mt-4">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Add Admin Note</label>
+                      <textarea 
+                        value={adminNotes} 
+                        onChange={e => setAdminNotes(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm focus:bg-white focus:border-primary outline-none transition-all"
+                        placeholder="Internal notes..."
+                        rows={2}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {orderCache[selectedReturn.orderId] && (

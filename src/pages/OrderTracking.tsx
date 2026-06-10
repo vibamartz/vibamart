@@ -14,6 +14,8 @@ const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: stri
   out_for_delivery: { icon: MapPin, color: 'text-orange-500', label: 'Out for Delivery' },
   delivered: { icon: CheckCircle, color: 'text-emerald-500', label: 'Delivered' },
   cancelled: { icon: AlertCircle, color: 'text-gray-500', label: 'Cancelled' },
+  cancel_requested: { icon: Clock, color: 'text-orange-500', label: 'Cancellation Requested' },
+  cancel_rejected: { icon: AlertCircle, color: 'text-red-500', label: 'Cancellation Rejected' },
   returned: { icon: AlertCircle, color: 'text-red-500', label: 'Returned' },
   refunded: { icon: AlertCircle, color: 'text-pink-500', label: 'Refunded' }
 };

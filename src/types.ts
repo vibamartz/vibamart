@@ -163,7 +163,7 @@ export interface OrderItem {
   image: string;
 }
 
-export type OrderStatus = "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "returned" | "refunded";
+export type OrderStatus = "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancel_requested" | "cancel_rejected" | "cancelled" | "returned" | "refunded";
 
 export interface CartItem {
   productId: string;
@@ -225,6 +225,7 @@ export interface StoreSettings {
   enableAvailabilityFilter: boolean;
   enableBanner: boolean;
   returnWindowDays?: number;
+  enableManualCancellation?: boolean;
 }
 
 export interface SearchAnalytics {

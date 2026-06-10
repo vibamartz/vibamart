@@ -28,6 +28,8 @@ import NewCategoriesManagementView from '../components/CategoriesManagementView'
 import NewProductManagementView from '../components/ProductManagementView';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
+import AdminCancellationManagementView from '../components/AdminCancellationManagementView';
+import AdminRefundManagementView from '../components/AdminRefundManagementView';
 
 const STATS = [
   { label: 'Total Revenue', value: '₹2,45,000', change: '+12%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -440,6 +442,8 @@ export default function AdminDashboard() {
           <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
@@ -955,10 +959,12 @@ export default function AdminDashboard() {
             />
           )}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
+          {activeTab === 'cancellations' && <AdminCancellationManagementView />}
+          {activeTab === 'refunds' && <AdminRefundManagementView />}
           {activeTab === 'returns' && (
             <AdminReturnsManagementView 
               returns={returns}
-              onUpdateStatus={async (id, status) => {
+              onUpdateStatus={async (id, status, adminNotes) => {
                 const idToken = await auth.currentUser?.getIdToken();
                 const res = await fetch('/api/returns/update-status', {
                   method: 'POST',
@@ -966,7 +972,7 @@ export default function AdminDashboard() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${idToken}`
                   },
-                  body: JSON.stringify({ returnId: id, status })
+                  body: JSON.stringify({ returnId: id, status, adminNotes })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -988,7 +994,7 @@ export default function AdminDashboard() {
           {activeTab === 'vendors' && <VendorsManagementView />}
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'banners' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'banners' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />
               <h3 className="text-lg font-bold text-gray-800">Coming Soon</h3>
@@ -2667,11 +2673,13 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     out_for_delivery: 'bg-orange-100 text-orange-600',
     delivered: 'bg-green-100 text-green-600',
     cancelled: 'bg-gray-100 text-gray-600',
+    cancel_requested: 'bg-orange-100 text-orange-600',
+    cancel_rejected: 'bg-red-100 text-red-600',
     returned: 'bg-red-100 text-red-600',
     refunded: 'bg-pink-100 text-pink-600',
   };
 
-  const statusOptions: (OrderStatus | 'all')[] = ['all', 'pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'];
+  const statusOptions: (OrderStatus | 'all')[] = ['all', 'pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'cancel_requested', 'cancel_rejected', 'returned', 'refunded'];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">

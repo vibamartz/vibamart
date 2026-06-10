@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer, initializeFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 // @ts-ignore
 const firebaseConfig = process.env.FIREBASE_CONFIG || {};
 
@@ -14,6 +15,7 @@ export const db = initializeFirestore(app, {
 }, (firebaseConfig as any).firestoreDatabaseId);
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Connectivity check

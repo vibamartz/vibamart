@@ -112,6 +112,8 @@ async function startServer() {
     },
   });
 
+
+
   // Auth: Send Email OTP
   app.post("/api/auth/send-email-otp", async (req, res) => {
     const { email } = req.body;
@@ -277,36 +279,52 @@ async function startServer() {
           throw new Error(`Cannot cancel order in ${orderData.status} status`);
         }
 
-        // Restore stock
-        for (const item of orderData.items) {
-          const productRef = db.collection("products").doc(item.productId);
-          const productDoc = await transaction.get(productRef);
-          if (productDoc.exists) {
-            const pData = productDoc.data()!;
-            let newStock = (pData.stock || 0) + item.quantity;
-            let updates: any = { stock: newStock };
-            
-            if (item.variantId && pData.variants) {
-               const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
-               if (variantIndex !== -1) {
-                  let variants = [...pData.variants];
-                  variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
-                  updates.variants = variants;
-               }
-            }
-            transaction.update(productRef, updates);
-          }
-        }
+        // Check if manual cancellation is enabled
+        const settingsDoc = await transaction.get(db.collection("settings").doc("store"));
+        const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
-        transaction.update(orderRef, {
-          status: "cancelled",
-          cancellationReason: reason,
-          statusHistory: admin.firestore.FieldValue.arrayUnion({
+        if (enableManualCancellation) {
+          transaction.update(orderRef, {
+            status: "cancel_requested",
+            cancellationReason: reason,
+            statusHistory: admin.firestore.FieldValue.arrayUnion({
+              status: "cancel_requested",
+              timestamp: new Date().toISOString(),
+              message: "Cancellation requested by customer"
+            })
+          });
+        } else {
+          // Restore stock
+          for (const item of orderData.items) {
+            const productRef = db.collection("products").doc(item.productId);
+            const productDoc = await transaction.get(productRef);
+            if (productDoc.exists) {
+              const pData = productDoc.data()!;
+              let newStock = (pData.stock || 0) + item.quantity;
+              let updates: any = { stock: newStock };
+              
+              if (item.variantId && pData.variants) {
+                 const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
+                 if (variantIndex !== -1) {
+                    let variants = [...pData.variants];
+                    variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
+                    updates.variants = variants;
+                 }
+              }
+              transaction.update(productRef, updates);
+            }
+          }
+
+          transaction.update(orderRef, {
             status: "cancelled",
-            timestamp: new Date().toISOString(),
-            message: "Cancelled by customer"
-          })
-        });
+            cancellationReason: reason,
+            statusHistory: admin.firestore.FieldValue.arrayUnion({
+              status: "cancelled",
+              timestamp: new Date().toISOString(),
+              message: "Cancelled by customer"
+            })
+          });
+        }
       });
 
       // Fetch email and send confirmation
@@ -316,10 +334,13 @@ async function startServer() {
       
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+        const settingsDoc = await db.collection("settings").doc("store").get();
+        const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
+
         const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-        <p>Your order <strong>#${orderId}</strong> has been successfully cancelled.</p>
+        <p>Your order <strong>#${orderId}</strong> cancellation request has been ${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
         <p>Reason: ${reason}</p>
-        <p>If you paid online, your refund will be processed within 5-7 business days.</p>`;
+        ${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}`;
         
         if (process.env.SMTP_HOST && !isPlaceholder) {
           await transporter.sendMail({
@@ -337,6 +358,124 @@ async function startServer() {
     } catch (error: any) {
       console.error("Cancel order error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
+    }
+  });
+
+  // Orders: Admin Approve Cancellation
+  app.post("/api/orders/approve-cancellation", verifyAuth, async (req, res) => {
+    const { orderId } = req.body;
+    const decodedToken = (req as any).user;
+    
+    // Simple admin check
+    let isAdmin = false;
+    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+      isAdmin = true;
+    } else {
+      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+    }
+    
+    if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
+
+    try {
+      const db = admin.firestore();
+      const orderRef = db.collection("orders").doc(orderId);
+      
+      await db.runTransaction(async (transaction) => {
+        const orderDoc = await transaction.get(orderRef);
+        if (!orderDoc.exists) throw new Error("Order not found");
+        const orderData = orderDoc.data()!;
+        
+        if (orderData.status !== "cancel_requested") {
+          throw new Error("Order is not pending cancellation");
+        }
+
+        // Restore stock
+        for (const item of orderData.items) {
+          const productRef = db.collection("products").doc(item.productId);
+          const productDoc = await transaction.get(productRef);
+          if (productDoc.exists) {
+            const pData = productDoc.data()!;
+            let newStock = (pData.stock || 0) + item.quantity;
+            let updates: any = { stock: newStock };
+            if (item.variantId && pData.variants) {
+               const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
+               if (variantIndex !== -1) {
+                  let variants = [...pData.variants];
+                  variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
+                  updates.variants = variants;
+               }
+            }
+            transaction.update(productRef, updates);
+          }
+        }
+
+        transaction.update(orderRef, {
+          status: "cancelled",
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
+            status: "cancelled",
+            timestamp: new Date().toISOString(),
+            message: "Cancellation approved by admin"
+          })
+        });
+      });
+
+      // Email customer
+      const orderDoc = await orderRef.get();
+      const orderData = orderDoc.data()!;
+      const customerEmail = orderData.contactEmail;
+      if (customerEmail && process.env.SMTP_HOST) {
+        await transporter.sendMail({
+          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+          to: customerEmail,
+          subject: "Order Cancellation Approved",
+          html: `<h2>Hello ${orderData.contactName || 'Customer'},</h2><p>Your cancellation request for order <strong>#${orderId}</strong> has been approved.</p><p>If you paid online, your refund will be processed shortly.</p>`,
+        });
+      }
+
+      res.json({ success: true, message: "Cancellation approved successfully" });
+    } catch (error: any) {
+      console.error("Approve cancellation error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to approve cancellation" });
+    }
+  });
+
+  // Orders: Admin Reject Cancellation
+  app.post("/api/orders/reject-cancellation", verifyAuth, async (req, res) => {
+    const { orderId } = req.body;
+    const decodedToken = (req as any).user;
+    
+    // Simple admin check
+    let isAdmin = false;
+    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+      isAdmin = true;
+    } else {
+      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+    }
+    
+    if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
+
+    try {
+      const db = admin.firestore();
+      const orderRef = db.collection("orders").doc(orderId);
+      
+      const orderDoc = await orderRef.get();
+      if (!orderDoc.exists) throw new Error("Order not found");
+      
+      await orderRef.update({
+        status: "cancel_rejected",
+        statusHistory: admin.firestore.FieldValue.arrayUnion({
+          status: "cancel_rejected",
+          timestamp: new Date().toISOString(),
+          message: "Cancellation rejected by admin"
+        })
+      });
+
+      res.json({ success: true, message: "Cancellation rejected" });
+    } catch (error: any) {
+      console.error("Reject cancellation error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to reject cancellation" });
     }
   });
 
@@ -379,9 +518,24 @@ async function startServer() {
       }
 
       const existingReturns = await db.collection("returns").where("orderId", "==", orderId).get();
-      if (!existingReturns.empty) {
-        return res.status(400).json({ success: false, error: "Return request already exists for this order" });
+      const newProducts = productIds || orderData.items.map((i: any) => i.productId);
+      let overlap = false;
+      existingReturns.forEach(doc => {
+        const existingProducts = doc.data().productIds || [];
+        if (existingProducts.some((id: string) => newProducts.includes(id))) {
+          overlap = true;
+        }
+      });
+      if (overlap) {
+        return res.status(400).json({ success: false, error: "A return request already exists for one or more selected items" });
       }
+
+      let calculatedRefund = 0;
+      orderData.items.forEach((item: any) => {
+        if (newProducts.includes(item.productId)) {
+          calculatedRefund += (item.price * item.quantity);
+        }
+      });
 
       const returnDoc = {
         orderId,
@@ -389,10 +543,10 @@ async function startServer() {
         reason,
         comments: comments || "",
         images,
-        productIds: productIds || orderData.items.map((i: any) => i.productId),
+        productIds: newProducts,
         status: "requested",
         createdAt: new Date().toISOString(),
-        refundAmount: orderData.total
+        refundAmount: calculatedRefund
       };
 
       const docRef = await db.collection("returns").add(returnDoc);
@@ -423,7 +577,7 @@ async function startServer() {
 
   // Returns: Admin Update Status
   app.post("/api/returns/update-status", verifyAuth, async (req, res) => {
-    const { returnId, status } = req.body;
+    const { returnId, status, adminNotes } = req.body;
     
     const decodedToken = (req as any).user;
     let isAdmin = false;
@@ -447,10 +601,16 @@ async function startServer() {
         return res.status(404).json({ success: false, error: "Return not found" });
       }
       
-      await returnRef.update({ 
+      const updateData: any = { 
         status,
         updatedAt: new Date().toISOString()
-      });
+      };
+      
+      if (adminNotes !== undefined) {
+        updateData.adminNotes = adminNotes;
+      }
+      
+      await returnRef.update(updateData);
       
       const rData = returnDoc.data()!;
       const orderDoc = await db.collection("orders").doc(rData.orderId).get();
