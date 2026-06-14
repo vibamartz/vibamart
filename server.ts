@@ -65,7 +65,8 @@ async function startServer() {
   });
   app.use(limiter);
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API routes
   app.get("/api/health", (req, res) => {
@@ -862,6 +863,20 @@ async function startServer() {
       console.error("Verify Email OTP error:", error);
       res.status(500).json({ success: false, error: "Failed to verify OTP" });
     }
+  });
+
+  // Catch-all for undefined API routes to return 404 JSON instead of falling through to Vite (which may cause infinite proxy loops)
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ success: false, error: `API route not found: ${req.method} ${req.url}` });
+  });
+
+  // Global error handler for API routes
+  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Unhandled API Error:", err);
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.message || "Internal Server Error"
+    });
   });
 
   // Vite middleware for development
