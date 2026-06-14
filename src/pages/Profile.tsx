@@ -48,6 +48,9 @@ export default function Profile() {
   const navigate = useNavigate();
 
   const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
+  const [refundRequests, setRefundRequests] = useState<Record<string, string>>({});
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState('Order Cancelled/Returned');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -174,18 +177,24 @@ export default function Profile() {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
     });
 
-    // Fetch Return Requests
-    const returnsQuery = query(
-      collection(db, 'returns'),
+    // Fetch Return and Refund Requests
+    const requestsQuery = query(
+      collection(db, 'requests'),
       where('userId', '==', user.uid)
     );
-    const unsubReturns = onSnapshot(returnsQuery, (snapshot) => {
+    const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
       const returnsData: Record<string, string> = {};
+      const refundsData: Record<string, string> = {};
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        returnsData[data.orderId] = data.status;
+        if (data.type === 'return') {
+            returnsData[data.orderId] = data.status;
+        } else if (data.type === 'refund') {
+            refundsData[data.orderId] = data.status;
+        }
       });
       setReturnRequests(returnsData);
+      setRefundRequests(refundsData);
     });
 
     // Fetch Waitlist with product details
@@ -224,7 +233,7 @@ export default function Profile() {
 
     return () => {
       unsubOrders();
-      unsubReturns();
+      unsubRequests();
       unsubWaitlist();
       unsubProfile();
     };
@@ -284,7 +293,8 @@ export default function Profile() {
         },
         body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
       });
-      const data = await response.json();
+      let data;
+      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
       if (data.success) {
         toast.success('Order cancelled successfully');
         setShowCancelModal(false);
@@ -293,8 +303,8 @@ export default function Profile() {
       } else {
         toast.error(data.error || 'Failed to cancel order');
       }
-    } catch (err) {
-      toast.error('An error occurred');
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during cancellation');
     } finally {
       setIsSubmitting(false);
     }
@@ -328,7 +338,8 @@ export default function Profile() {
           images: uploadedImageUrls 
         })
       });
-      const data = await response.json();
+      let data;
+      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
       if (data.success) {
         toast.success('Return requested successfully');
         setShowReturnModal(false);
@@ -340,8 +351,44 @@ export default function Profile() {
       } else {
         toast.error(data.error || 'Failed to request return');
       }
-    } catch (err) {
-      toast.error('An error occurred');
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during return request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRequestRefund = async () => {
+    if (!selectedOrderId || !refundReason) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/refunds/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          orderId: selectedOrderId, 
+          reason: refundReason
+        })
+      });
+      let data;
+      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
+      if (data.success) {
+        toast.success('Refund requested successfully');
+        setShowRefundModal(false);
+        setSelectedOrderId(null);
+        setRefundReason('');
+      } else {
+        toast.error(data.error || 'Failed to request refund');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during refund request');
     } finally {
       setIsSubmitting(false);
     }
@@ -671,6 +718,19 @@ export default function Profile() {
                                       Return: {returnRequests[order.id].replace('_', ' ')}
                                     </span>
                                   )}
+                                  {['cancelled', 'returned'].includes(order.status) && !refundRequests[order.id] && order.paymentStatus !== 'refunded' && (
+                                    <button
+                                      onClick={() => { setSelectedOrderId(order.id); setShowRefundModal(true); }}
+                                      className="px-6 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-100 transition-all border border-pink-100 flex items-center gap-2"
+                                    >
+                                      Request Refund
+                                    </button>
+                                  )}
+                                  {refundRequests[order.id] && (
+                                    <span className="px-4 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2">
+                                      Refund: {refundRequests[order.id].replace('_', ' ')}
+                                    </span>
+                                  )}
                                   <Link 
                                     to={`/track-order/${order.id}`}
                                     className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
@@ -981,6 +1041,37 @@ export default function Profile() {
                   </button>
                   <button onClick={handleCancelOrder} disabled={isSubmitting || !cancelReason} className="flex-2 py-4 touch-target min-h-[44px] bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-red-500/20 hover:bg-red-600 active:scale-95 transition-all disabled:opacity-50">
                     {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Refund Modal */}
+      <AnimatePresence>
+        {showRefundModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRefundModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl relative z-10">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Request Refund</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Please note that you can only request a refund for cancelled or returned orders.</p>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Refund *</label>
+                  <select value={refundReason} onChange={e => setRefundReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="Order Cancelled">Order Cancelled</option>
+                    <option value="Order Returned">Order Returned</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowRefundModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Close
+                  </button>
+                  <button onClick={handleRequestRefund} disabled={isSubmitting || !refundReason} className="flex-2 py-4 touch-target min-h-[44px] bg-pink-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-pink-500/20 hover:bg-pink-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Requesting...' : 'Confirm Refund'}
                   </button>
                 </div>
               </div>

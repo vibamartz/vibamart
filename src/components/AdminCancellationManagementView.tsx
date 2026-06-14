@@ -1,84 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, Search, Package } from 'lucide-react';
+import { Check, X, Search, Package, Eye } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Order } from '../types';
 import toast from 'react-hot-toast';
 
 export default function AdminCancellationManagementView() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'cancel_requested' | 'cancelled' | 'cancel_rejected'>('cancel_requested');
+  const [filter, setFilter] = useState<'all' | 'requested' | 'approved' | 'rejected'>('requested');
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Only fetch orders that have something to do with cancellation
     const q = query(
-      collection(db, 'orders'),
-      orderBy('createdAt', 'desc')
+      collection(db, 'requests'),
+      where('type', '==', 'cancellation')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-      // Filter locally because we can't reliably index 'status' with 'IN' alongside 'orderBy' without manual index
-      const cancellationOrders = data.filter(o => 
-        o.status === 'cancel_requested' || 
-        o.status === 'cancel_rejected' || 
-        (o.status === 'cancelled' && o.cancellationReason)
-      );
-      setOrders(cancellationOrders);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // sort by date locally
+      data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setRequests(data);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleApprove = async (orderId: string) => {
-    const tid = toast.loading('Approving cancellation...');
+  const handleUpdateStatus = async (requestId: string, status: string) => {
+    const tid = toast.loading('Updating...');
     try {
       const idToken = await auth.currentUser?.getIdToken();
-      const res = await fetch('/api/orders/approve-cancellation', {
+      const res = await fetch('/api/requests/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ orderId })
+        body: JSON.stringify({ requestId, status })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('Cancellation approved', { id: tid });
+        toast.success(`Status updated to ${status}`, { id: tid });
       } else {
-        toast.error(data.error || 'Approval failed', { id: tid });
+        toast.error(data.error || 'Update failed', { id: tid });
       }
     } catch (err) {
       toast.error('Network error', { id: tid });
     }
   };
 
-  const handleReject = async (orderId: string) => {
-    const tid = toast.loading('Rejecting cancellation...');
-    try {
-      const idToken = await auth.currentUser?.getIdToken();
-      const res = await fetch('/api/orders/reject-cancellation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ orderId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Cancellation rejected', { id: tid });
-      } else {
-        toast.error(data.error || 'Rejection failed', { id: tid });
-      }
-    } catch (err) {
-      toast.error('Network error', { id: tid });
-    }
-  };
-
-  const filteredOrders = orders.filter(o => {
-    if (filter !== 'all' && o.status !== filter) return false;
+  const filteredRequests = requests.filter(r => {
+    if (filter !== 'all' && r.status !== filter) return false;
     if (searchTerm) {
-      return o.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             (o.contactEmail && o.contactEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+      return r.orderId.toLowerCase().includes(searchTerm.toLowerCase());
     }
     return true;
   });
@@ -103,7 +76,7 @@ export default function AdminCancellationManagementView() {
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
             </div>
             <div className="flex bg-gray-50 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1">
-              {(['all', 'cancel_requested', 'cancelled', 'cancel_rejected'] as const).map(s => (
+              {(['all', 'requested', 'approved', 'rejected'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setFilter(s)}
@@ -121,48 +94,43 @@ export default function AdminCancellationManagementView() {
             <thead className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
               <tr>
                 <th className="px-4 py-6">Order ID</th>
-                <th className="px-4 py-6">Customer</th>
-                <th className="px-4 py-6">Reason</th>
+                <th className="px-4 py-6">Date & Reason</th>
+                <th className="px-4 py-6">Status</th>
                 <th className="px-4 py-6 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold italic">Loading...</td></tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold">No cancellations found.</td></tr>
-              ) : filteredOrders.map(order => (
-                <tr key={order.id} className="group hover:bg-gray-50/50 transition-all">
+                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold italic">Loading requests...</td></tr>
+              ) : filteredRequests.length === 0 ? (
+                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold">No requests found.</td></tr>
+              ) : filteredRequests.map(req => (
+                <tr key={req.id} className="group hover:bg-gray-50/50 transition-all">
                   <td className="px-4 py-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-gray-900 tracking-tight">#{order.id.startsWith('VBM') ? order.id : order.id.slice(-8).toUpperCase()}</span>
-                      <span className={`text-[9px] font-black uppercase tracking-widest mt-1.5 w-fit px-2.5 py-1 rounded-lg ${
-                        order.status === 'cancel_requested' ? 'bg-amber-100 text-amber-600' :
-                        order.status === 'cancelled' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                      }`}>
-                        {order.status.replace('_', ' ')}
-                      </span>
-                    </div>
+                    <span className="text-sm font-black text-gray-900 tracking-tight">#{req.orderId.slice(-8).toUpperCase()}</span>
                   </td>
                   <td className="px-4 py-6">
-                    <p className="text-sm font-bold text-gray-900">{order.contactName}</p>
-                    <p className="text-xs text-gray-500">{order.contactEmail}</p>
+                    <p className="text-xs font-bold text-gray-600 mb-1">{new Date(req.createdAt).toLocaleString()}</p>
+                    <p className="text-[11px] text-gray-500 max-w-[200px] truncate">{req.reason}</p>
                   </td>
                   <td className="px-4 py-6">
-                    <p className="text-xs text-gray-500 font-medium line-clamp-2 max-w-xs">{order.cancellationReason}</p>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
+                      req.status === 'approved' ? 'bg-green-100 text-green-600' :
+                      req.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                    }`}>
+                      {req.status}
+                    </span>
                   </td>
                   <td className="px-4 py-6 text-right">
-                    {order.status === 'cancel_requested' ? (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => handleApprove(order.id)} className="p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-600 hover:text-white transition-all shadow-sm" title="Approve">
-                          <Check className="w-5 h-5" /> 
+                    {req.status === 'requested' && (
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => handleUpdateStatus(req.id, 'approved')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-colors" title="Approve">
+                          <Check className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleReject(order.id)} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm" title="Reject">
-                          <X className="w-5 h-5" />
+                        <button onClick={() => handleUpdateStatus(req.id, 'rejected')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-colors" title="Reject">
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
-                    ) : (
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resolved</span>
                     )}
                   </td>
                 </tr>

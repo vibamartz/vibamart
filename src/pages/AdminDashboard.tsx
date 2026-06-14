@@ -352,18 +352,20 @@ export default function AdminDashboard() {
     }
   };
 
-  // Live Firebase snapshot listener for return requests
+  // Live Firebase snapshot listener for all requests
   useEffect(() => {
-    const q = query(collection(db, 'returns'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const returnsData = snapshot.docs.map(doc => ({
+      const allRequests = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as ReturnRequest));
+      
+      const returnsData = allRequests.filter(r => r.type === 'return');
       setReturns(returnsData);
       setLoadingReturns(false);
     }, (error) => {
-      console.error("Failed to sync returns:", error);
+      console.error("Failed to sync requests:", error);
       setLoadingReturns(false);
     });
     return () => unsubscribe();
@@ -966,13 +968,13 @@ export default function AdminDashboard() {
               returns={returns}
               onUpdateStatus={async (id, status, adminNotes) => {
                 const idToken = await auth.currentUser?.getIdToken();
-                const res = await fetch('/api/returns/update-status', {
+                const res = await fetch('/api/requests/update-status', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${idToken}`
                   },
-                  body: JSON.stringify({ returnId: id, status, adminNotes })
+                  body: JSON.stringify({ requestId: id, status, adminNotes })
                 });
                 const data = await res.json();
                 if (data.success) {

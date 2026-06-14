@@ -263,38 +263,49 @@ async function startServer() {
       const db = admin.firestore();
       const orderRef = db.collection("orders").doc(orderId);
       
-      await db.runTransaction(async (transaction) => {
-        const orderDoc = await transaction.get(orderRef);
-        if (!orderDoc.exists) {
-          throw new Error("Order not found");
-        }
+      const orderDoc = await orderRef.get();
+      if (!orderDoc.exists) {
+        return res.status(404).json({ success: false, error: "Order not found" });
+      }
 
-        const orderData = orderDoc.data()!;
-        if (orderData.customerId !== uid) {
-          throw new Error("Unauthorized to cancel this order");
-        }
+      const orderData = orderDoc.data()!;
+      if (orderData.customerId !== uid) {
+        return res.status(403).json({ success: false, error: "Unauthorized to cancel this order" });
+      }
 
-        const allowedStatuses = ["pending", "confirmed", "packed"];
-        if (!allowedStatuses.includes(orderData.status)) {
-          throw new Error(`Cannot cancel order in ${orderData.status} status`);
-        }
+      const allowedStatuses = ["pending", "confirmed", "packed"];
+      if (!allowedStatuses.includes(orderData.status)) {
+        return res.status(400).json({ success: false, error: `Cannot cancel order in ${orderData.status} status` });
+      }
 
-        // Check if manual cancellation is enabled
-        const settingsDoc = await transaction.get(db.collection("settings").doc("store"));
-        const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
+      // Check if manual cancellation is enabled
+      const settingsDoc = await db.collection("settings").doc("store").get();
+      const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
-        if (enableManualCancellation) {
-          transaction.update(orderRef, {
+      const requestDoc = {
+        userId: uid,
+        orderId,
+        type: 'cancellation',
+        reason,
+        status: enableManualCancellation ? 'requested' : 'approved',
+        createdAt: new Date().toISOString()
+      };
+      
+      const docRef = await db.collection("requests").add(requestDoc);
+
+      if (enableManualCancellation) {
+        await orderRef.update({
+          status: "cancel_requested",
+          cancellationReason: reason,
+          statusHistory: admin.firestore.FieldValue.arrayUnion({
             status: "cancel_requested",
-            cancellationReason: reason,
-            statusHistory: admin.firestore.FieldValue.arrayUnion({
-              status: "cancel_requested",
-              timestamp: new Date().toISOString(),
-              message: "Cancellation requested by customer"
-            })
-          });
-        } else {
-          // Restore stock
+            timestamp: new Date().toISOString(),
+            message: "Cancellation requested by customer"
+          })
+        });
+      } else {
+        // Direct cancel
+        await db.runTransaction(async (transaction) => {
           for (const item of orderData.items) {
             const productRef = db.collection("products").doc(item.productId);
             const productDoc = await transaction.get(productRef);
@@ -314,7 +325,6 @@ async function startServer() {
               transaction.update(productRef, updates);
             }
           }
-
           transaction.update(orderRef, {
             status: "cancelled",
             cancellationReason: reason,
@@ -324,18 +334,13 @@ async function startServer() {
               message: "Cancelled by customer"
             })
           });
-        }
-      });
+        });
+      }
 
       // Fetch email and send confirmation
-      const orderDoc = await orderRef.get();
-      const orderData = orderDoc.data()!;
       const customerEmail = orderData.contactEmail || (req as any).user.email;
-      
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-        const settingsDoc = await db.collection("settings").doc("store").get();
-        const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
         const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
         <p>Your order <strong>#${orderId}</strong> cancellation request has been ${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
@@ -354,7 +359,7 @@ async function startServer() {
         }
       }
 
-      res.json({ success: true, message: "Order cancelled successfully" });
+      res.json({ success: true, message: "Order cancelled successfully", requestId: docRef.id });
     } catch (error: any) {
       console.error("Cancel order error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
@@ -517,7 +522,7 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Return window has expired" });
       }
 
-      const existingReturns = await db.collection("returns").where("orderId", "==", orderId).get();
+      const existingReturns = await db.collection("requests").where("orderId", "==", orderId).where("type", "==", "return").get();
       const newProducts = productIds || orderData.items.map((i: any) => i.productId);
       let overlap = false;
       existingReturns.forEach(doc => {
@@ -540,6 +545,7 @@ async function startServer() {
       const returnDoc = {
         orderId,
         userId: uid,
+        type: 'return',
         reason,
         comments: comments || "",
         images,
@@ -549,7 +555,7 @@ async function startServer() {
         refundAmount: calculatedRefund
       };
 
-      const docRef = await db.collection("returns").add(returnDoc);
+      const docRef = await db.collection("requests").add(returnDoc);
       
       const customerEmail = orderData.contactEmail || (req as any).user.email;
       if (customerEmail) {
@@ -575,9 +581,65 @@ async function startServer() {
     }
   });
 
-  // Returns: Admin Update Status
-  app.post("/api/returns/update-status", verifyAuth, async (req, res) => {
-    const { returnId, status, adminNotes } = req.body;
+  // Refunds: Request Refund
+  app.post("/api/refunds/request", verifyAuth, async (req, res) => {
+    const { orderId, reason, comments } = req.body;
+    const uid = (req as any).user.uid;
+
+    if (!orderId || !reason) {
+      return res.status(400).json({ success: false, error: "Missing required fields (orderId, reason)" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderDoc = await orderRef.get();
+      
+      if (!orderDoc.exists) {
+        return res.status(404).json({ success: false, error: "Order not found" });
+      }
+      
+      const orderData = orderDoc.data()!;
+      if (orderData.customerId !== uid) {
+        return res.status(403).json({ success: false, error: "Unauthorized" });
+      }
+      
+      // Allow refund if cancelled or returned but not yet refunded
+      if (orderData.status !== "cancelled" && orderData.status !== "returned") {
+        return res.status(400).json({ success: false, error: "Only cancelled or returned orders are eligible for refund" });
+      }
+
+      if (orderData.paymentStatus === "refunded") {
+        return res.status(400).json({ success: false, error: "Order is already refunded" });
+      }
+
+      const existingRefunds = await db.collection("requests").where("orderId", "==", orderId).where("type", "==", "refund").get();
+      if (!existingRefunds.empty) {
+        return res.status(400).json({ success: false, error: "A refund request already exists for this order" });
+      }
+
+      const refundDoc = {
+        userId: uid,
+        orderId,
+        type: 'refund',
+        reason,
+        comments: comments || "",
+        status: "requested",
+        createdAt: new Date().toISOString(),
+        refundAmount: orderData.total
+      };
+
+      const docRef = await db.collection("requests").add(refundDoc);
+      res.json({ success: true, requestId: docRef.id });
+    } catch (error: any) {
+      console.error("Refund request error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to submit refund request" });
+    }
+  });
+
+  // Requests: Admin Update Status
+  app.post("/api/requests/update-status", verifyAuth, async (req, res) => {
+    const { requestId, status, adminNotes } = req.body;
     
     const decodedToken = (req as any).user;
     let isAdmin = false;
@@ -594,11 +656,11 @@ async function startServer() {
 
     try {
       const db = admin.firestore();
-      const returnRef = db.collection("returns").doc(returnId);
-      const returnDoc = await returnRef.get();
+      const reqRef = db.collection("requests").doc(requestId);
+      const reqDoc = await reqRef.get();
       
-      if (!returnDoc.exists) {
-        return res.status(404).json({ success: false, error: "Return not found" });
+      if (!reqDoc.exists) {
+        return res.status(404).json({ success: false, error: "Request not found" });
       }
       
       const updateData: any = { 
@@ -610,36 +672,116 @@ async function startServer() {
         updateData.adminNotes = adminNotes;
       }
       
-      await returnRef.update(updateData);
+      await reqRef.update(updateData);
       
-      const rData = returnDoc.data()!;
+      const rData = reqDoc.data()!;
       const orderDoc = await db.collection("orders").doc(rData.orderId).get();
       const orderData = orderDoc.data();
 
-      if (status === 'refund_processed' && orderData) {
-        await db.collection("orders").doc(rData.orderId).update({
-          status: 'refunded',
-          statusHistory: admin.firestore.FieldValue.arrayUnion({
-            status: "refunded",
-            timestamp: new Date().toISOString(),
-            message: "Refund processed successfully"
-          })
-        });
+      // Process order changes based on request type
+      if (rData.type === 'cancellation') {
+          if (status === 'approved') {
+              // restore stock
+              await db.runTransaction(async (transaction) => {
+                  const orderRef = db.collection("orders").doc(rData.orderId);
+                  const oDoc = await transaction.get(orderRef);
+                  if (oDoc.exists) {
+                      const oData = oDoc.data()!;
+                      for (const item of oData.items) {
+                          const productRef = db.collection("products").doc(item.productId);
+                          const productDoc = await transaction.get(productRef);
+                          if (productDoc.exists) {
+                              const pData = productDoc.data()!;
+                              let newStock = (pData.stock || 0) + item.quantity;
+                              let updates: any = { stock: newStock };
+                              if (item.variantId && pData.variants) {
+                                 const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
+                                 if (variantIndex !== -1) {
+                                    let variants = [...pData.variants];
+                                    variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
+                                    updates.variants = variants;
+                                 }
+                              }
+                              transaction.update(productRef, updates);
+                          }
+                      }
+                      transaction.update(orderRef, {
+                          status: "cancelled",
+                          statusHistory: admin.firestore.FieldValue.arrayUnion({
+                              status: "cancelled",
+                              timestamp: new Date().toISOString(),
+                              message: "Cancellation approved by admin"
+                          })
+                      });
+                  }
+              });
+          } else if (status === 'rejected') {
+              await db.collection("orders").doc(rData.orderId).update({
+                  status: "cancel_rejected",
+                  statusHistory: admin.firestore.FieldValue.arrayUnion({
+                      status: "cancel_rejected",
+                      timestamp: new Date().toISOString(),
+                      message: "Cancellation rejected by admin"
+                  })
+              });
+          }
+      } else if (rData.type === 'return') {
+          if (status === 'refund_processed' && orderData) {
+            await db.collection("orders").doc(rData.orderId).update({
+              status: 'refunded',
+              statusHistory: admin.firestore.FieldValue.arrayUnion({
+                status: "refunded",
+                timestamp: new Date().toISOString(),
+                message: "Refund processed successfully"
+              })
+            });
+          }
+      } else if (rData.type === 'refund') {
+          if (status === 'refunded' && orderData) {
+            await db.collection("orders").doc(rData.orderId).update({
+              status: 'refunded',
+              paymentStatus: 'refunded',
+              statusHistory: admin.firestore.FieldValue.arrayUnion({
+                status: "refunded",
+                timestamp: new Date().toISOString(),
+                message: "Refund processed successfully"
+              })
+            });
+          }
       }
 
       if (orderData && (orderData.contactEmail || decodedToken.email)) {
         const customerEmail = orderData.contactEmail || decodedToken.email;
         let subject = "";
         let msg = "";
-        if (status === 'approved') {
-          subject = "Return Request Approved";
-          msg = "Your return request has been approved. Please pack the items, our delivery partner will pick them up soon.";
-        } else if (status === 'rejected') {
-          subject = "Return Request Rejected";
-          msg = "Unfortunately, your return request has been rejected. Please check your account for details.";
-        } else if (status === 'refund_processed') {
-          subject = "Refund Processed";
-          msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+        
+        if (rData.type === 'cancellation') {
+             if (status === 'approved') {
+                 subject = "Order Cancellation Approved";
+                 msg = "Your cancellation request has been approved. If you paid online, your refund will be processed shortly.";
+             } else if (status === 'rejected') {
+                 subject = "Order Cancellation Rejected";
+                 msg = "Your cancellation request has been rejected.";
+             }
+        } else if (rData.type === 'return') {
+            if (status === 'approved') {
+              subject = "Return Request Approved";
+              msg = "Your return request has been approved. Please pack the items, our delivery partner will pick them up soon.";
+            } else if (status === 'rejected') {
+              subject = "Return Request Rejected";
+              msg = "Unfortunately, your return request has been rejected. Please check your account for details.";
+            } else if (status === 'refund_processed') {
+              subject = "Refund Processed";
+              msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+            }
+        } else if (rData.type === 'refund') {
+            if (status === 'refunded') {
+              subject = "Refund Processed";
+              msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+            } else if (status === 'rejected') {
+              subject = "Refund Request Rejected";
+              msg = "Unfortunately, your refund request has been rejected.";
+            }
         }
 
         if (subject) {
@@ -658,6 +800,7 @@ async function startServer() {
 
       res.json({ success: true, message: "Status updated" });
     } catch (error: any) {
+      console.error("Update request status error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
