@@ -71,22 +71,36 @@ export default async function handler(req: any, res: any) {
           productDocs.push({ item, productRef, productDoc });
         }
 
+        const updatesByProduct = new Map<string, any>();
+        
         for (const { item, productRef, productDoc } of productDocs) {
           if (productDoc.exists) {
             const pData = productDoc.data()!;
-            let newStock = (pData.stock || 0) + item.quantity;
-            let updates: any = { stock: newStock };
+            const productId = productRef.id;
             
-            if (item.variantId && pData.variants) {
-               const variantIndex = pData.variants.findIndex((v: any) => v.id === item.variantId);
+            if (!updatesByProduct.has(productId)) {
+              updatesByProduct.set(productId, {
+                ref: productRef,
+                updates: { stock: pData.stock || 0 },
+                variants: pData.variants ? [...pData.variants] : null
+              });
+            }
+            
+            const prodUpdate = updatesByProduct.get(productId);
+            prodUpdate.updates.stock += item.quantity;
+            
+            if (item.variantId && prodUpdate.variants) {
+               const variantIndex = prodUpdate.variants.findIndex((v: any) => v.id === item.variantId);
                if (variantIndex !== -1) {
-                  let variants = [...pData.variants];
-                  variants[variantIndex].stock = (variants[variantIndex].stock || 0) + item.quantity;
-                  updates.variants = variants;
+                  prodUpdate.variants[variantIndex].stock = (prodUpdate.variants[variantIndex].stock || 0) + item.quantity;
+                  prodUpdate.updates.variants = prodUpdate.variants;
                }
             }
-            transaction.update(productRef, updates);
           }
+        }
+        
+        for (const prodUpdate of updatesByProduct.values()) {
+          transaction.update(prodUpdate.ref, prodUpdate.updates);
         }
         transaction.update(orderRef, {
           status: "cancelled",
