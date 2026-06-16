@@ -3,9 +3,10 @@ import nodemailer from "nodemailer";
 import { verifyAuth, setCorsHeaders } from "../utils";
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(req, res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  try {
+    setCorsHeaders(req, res);
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const user = await verifyAuth(req, res);
   if (!user) return; // verifyAuth handles the response if it fails
@@ -17,7 +18,6 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
-  try {
     const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
     
