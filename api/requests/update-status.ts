@@ -44,15 +44,26 @@ export default async function handler(req: any, res: any) {
     const orderId = data.orderId;
 
     await db.runTransaction(async (transaction) => {
+      const orderRef = db.collection("orders").doc(orderId);
+      const orderDoc = await transaction.get(orderRef);
+      
+      let productDocs: any[] = [];
+      if (orderDoc.exists && data.type === 'cancellation' && status === 'approved') {
+        // Pre-fetch all products for stock restoration
+        for (const item of orderDoc.data()!.items) {
+          const productRef = db.collection("products").doc(item.productId);
+          const productDoc = await transaction.get(productRef);
+          productDocs.push({ item, productRef, productDoc });
+        }
+      }
+
+      // Now do all writes
       transaction.update(requestRef, {
         status,
         adminNotes: adminNotes || null,
         updatedAt: new Date().toISOString()
       });
 
-      const orderRef = db.collection("orders").doc(orderId);
-      const orderDoc = await transaction.get(orderRef);
-      
       if (orderDoc.exists) {
         let orderUpdates: any = {};
         
@@ -66,9 +77,7 @@ export default async function handler(req: any, res: any) {
             });
             
             // Restore stock
-            for (const item of orderDoc.data()!.items) {
-              const productRef = db.collection("products").doc(item.productId);
-              const productDoc = await transaction.get(productRef);
+            for (const { item, productRef, productDoc } of productDocs) {
               if (productDoc.exists) {
                 const pData = productDoc.data()!;
                 let newStock = (pData.stock || 0) + item.quantity;

@@ -64,9 +64,14 @@ export default async function handler(req: any, res: any) {
     } else {
       // Direct cancel
       await db.runTransaction(async (transaction) => {
+        const productDocs = [];
         for (const item of orderData.items) {
           const productRef = db.collection("products").doc(item.productId);
           const productDoc = await transaction.get(productRef);
+          productDocs.push({ item, productRef, productDoc });
+        }
+
+        for (const { item, productRef, productDoc } of productDocs) {
           if (productDoc.exists) {
             const pData = productDoc.data()!;
             let newStock = (pData.stock || 0) + item.quantity;

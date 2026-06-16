@@ -307,9 +307,14 @@ async function startServer() {
       } else {
         // Direct cancel
         await db.runTransaction(async (transaction) => {
+          const productDocs = [];
           for (const item of orderData.items) {
             const productRef = db.collection("products").doc(item.productId);
             const productDoc = await transaction.get(productRef);
+            productDocs.push({ item, productRef, productDoc });
+          }
+
+          for (const { item, productRef, productDoc } of productDocs) {
             if (productDoc.exists) {
               const pData = productDoc.data()!;
               let newStock = (pData.stock || 0) + item.quantity;
@@ -396,10 +401,15 @@ async function startServer() {
           throw new Error("Order is not pending cancellation");
         }
 
-        // Restore stock
+        // Restore stock - read all products first
+        const productDocs = [];
         for (const item of orderData.items) {
           const productRef = db.collection("products").doc(item.productId);
           const productDoc = await transaction.get(productRef);
+          productDocs.push({ item, productRef, productDoc });
+        }
+
+        for (const { item, productRef, productDoc } of productDocs) {
           if (productDoc.exists) {
             const pData = productDoc.data()!;
             let newStock = (pData.stock || 0) + item.quantity;
@@ -558,6 +568,16 @@ async function startServer() {
 
       const docRef = await db.collection("requests").add(returnDoc);
       
+      await orderRef.update({
+        hasReturnRequest: true,
+        returnRequestId: docRef.id,
+        statusHistory: admin.firestore.FieldValue.arrayUnion({
+          status: "return_requested",
+          timestamp: new Date().toISOString(),
+          message: "Return requested by customer"
+        })
+      });
+
       const customerEmail = orderData.contactEmail || (req as any).user.email;
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
@@ -631,6 +651,34 @@ async function startServer() {
       };
 
       const docRef = await db.collection("requests").add(refundDoc);
+
+      await orderRef.update({
+        hasRefundRequest: true,
+        refundRequestId: docRef.id,
+        statusHistory: admin.firestore.FieldValue.arrayUnion({
+          status: "refund_requested",
+          timestamp: new Date().toISOString(),
+          message: "Refund requested by customer"
+        })
+      });
+
+      const customerEmail = orderData.contactEmail || (req as any).user.email;
+      if (customerEmail) {
+        const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
+        <p>We have received your refund request for order <strong>#${orderId}</strong>.</p>
+        <p>Our team will review the request and get back to you within 48 hours.</p>`;
+
+        if (process.env.SMTP_HOST && !isPlaceholder) {
+          await transporter.sendMail({
+            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            to: customerEmail,
+            subject: "Refund Request Received",
+            html: emailHtml,
+          });
+        }
+      }
+
       res.json({ success: true, requestId: docRef.id });
     } catch (error: any) {
       console.error("Refund request error:", error);
@@ -688,9 +736,13 @@ async function startServer() {
                   const oDoc = await transaction.get(orderRef);
                   if (oDoc.exists) {
                       const oData = oDoc.data()!;
+                      const productDocs = [];
                       for (const item of oData.items) {
                           const productRef = db.collection("products").doc(item.productId);
                           const productDoc = await transaction.get(productRef);
+                          productDocs.push({ item, productRef, productDoc });
+                      }
+                      for (const { item, productRef, productDoc } of productDocs) {
                           if (productDoc.exists) {
                               const pData = productDoc.data()!;
                               let newStock = (pData.stock || 0) + item.quantity;
