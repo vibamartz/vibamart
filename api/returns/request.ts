@@ -119,7 +119,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    res.json({ success: true, returnId: docRef.id });
+    res.json({ success: true, message: "Request submitted successfully", requestId: docRef.id });
   } catch (error: any) {
     console.error("Return request error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to submit return request" });

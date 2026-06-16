@@ -294,7 +294,7 @@ export default function Profile() {
         body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
       });
       let data;
-      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
+      try { data = await response.json(); } catch (e) { throw new Error('An unexpected error occurred while communicating with the server. Please try again later.'); }
       if (data.success) {
         toast.success('Order cancelled successfully');
         setShowCancelModal(false);
@@ -339,7 +339,7 @@ export default function Profile() {
         })
       });
       let data;
-      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
+      try { data = await response.json(); } catch (e) { throw new Error('An unexpected error occurred while communicating with the server. Please try again later.'); }
       if (data.success) {
         toast.success('Return requested successfully');
         setShowReturnModal(false);
@@ -378,7 +378,7 @@ export default function Profile() {
         })
       });
       let data;
-      try { data = await response.json(); } catch (e) { throw new Error('Server returned an invalid response.'); }
+      try { data = await response.json(); } catch (e) { throw new Error('An unexpected error occurred while communicating with the server. Please try again later.'); }
       if (data.success) {
         toast.success('Refund requested successfully');
         setShowRefundModal(false);
