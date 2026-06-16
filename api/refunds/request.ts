@@ -47,12 +47,14 @@ export default async function handler(req: any, res: any) {
       reason,
       comments: comments || "",
       status: 'requested',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      refundAmount: orderData.total || 0
     };
 
     const docRef = await db.collection("requests").add(requestDoc);
 
     await orderRef.update({
+      status: "refund_requested",
       hasRefundRequest: true,
       refundRequestId: docRef.id,
       statusHistory: admin.firestore.FieldValue.arrayUnion({

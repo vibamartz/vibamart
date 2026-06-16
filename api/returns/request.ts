@@ -57,6 +57,13 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    let calculatedRefund = 0;
+    orderData.items.forEach((item: any) => {
+      if (newProducts.includes(item.productId)) {
+        calculatedRefund += (item.price * item.quantity);
+      }
+    });
+
     const requestDoc = {
       userId: uid,
       orderId,
@@ -66,12 +73,14 @@ export default async function handler(req: any, res: any) {
       comments: comments || "",
       images,
       status: 'requested',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      refundAmount: calculatedRefund
     };
 
     const docRef = await db.collection("requests").add(requestDoc);
 
     await orderRef.update({
+      status: "return_requested",
       hasReturnRequest: true,
       returnRequestId: docRef.id,
       statusHistory: admin.firestore.FieldValue.arrayUnion({
