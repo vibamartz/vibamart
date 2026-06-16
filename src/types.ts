@@ -141,6 +141,7 @@ export interface StatusUpdate {
 export interface ReturnRequest {
   id: string;
   orderId: string;
+  type?: 'return' | 'cancellation' | 'refund';
   productId?: string;
   productIds?: string[];
   userId: string;

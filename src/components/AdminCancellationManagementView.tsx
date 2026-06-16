@@ -18,7 +18,7 @@ export default function AdminCancellationManagementView() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       // sort by date locally
       data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRequests(data);
