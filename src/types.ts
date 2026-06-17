@@ -149,10 +149,15 @@ export interface ReturnRequest {
   comments?: string;
   images?: string[];
   refundAmount?: number;
-  status: 'requested' | 'under_review' | 'approved' | 'rejected' | 'received_back' | 'refund_processed' | 'pending' | 'pickup_scheduled' | 'collected' | 'returned' | 'refunded';
+  status: 'requested' | 'under_review' | 'approved' | 'rejected' | 'received_back' | 'refund_processed' | 'pending' | 'pickup_scheduled' | 'collected' | 'returned' | 'refunded' | 'product_received' | 'quality_check' | 'refund_initiated' | 'refund_completed';
   trackingId?: string;
   createdAt: string;
   updatedAt?: string;
+  requestReason?: string;
+  adminNotes?: string;
+  refundMethod?: string;
+  refundTransactionId?: string;
+  estimatedCompletionDate?: string;
 }
 
 export interface OrderItem {

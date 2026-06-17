@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import nodemailer from "nodemailer";
 
 if (!admin.apps.length) {
   try {
@@ -43,3 +44,53 @@ export const setCorsHeaders = (req: any, res: any) => {
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 };
+
+export async function createNotification(userId: string, title: string, message: string, orderId?: string) {
+  try {
+    const db = admin.firestore();
+    await db.collection("notifications").add({
+      userId,
+      title,
+      message,
+      read: false,
+      createdAt: new Date().toISOString(),
+      orderId: orderId || null
+    });
+  } catch (err) {
+    console.error("Error creating database notification:", err);
+  }
+}
+
+export async function sendEmailNotification(toEmail: string, contactName: string, subject: string, messageText: string) {
+  const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+  if (!process.env.SMTP_HOST || isPlaceholder) {
+    console.log(`[DEVELOPMENT] Email to ${toEmail} (${contactName}):\nSubject: ${subject}\nMessage: ${messageText}`);
+    return;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.ethereal.email",
+      port: Number(process.env.SMTP_PORT) || 587,
+      auth: {
+        user: process.env.SMTP_USER || "test",
+        pass: process.env.SMTP_PASS || "test",
+      },
+    });
+    const emailHtml = `
+      <h2>Hello ${contactName || 'Customer'},</h2>
+      <p>${messageText}</p>
+      <br/>
+      <p>Best Regards,<br/>The ViBa Mart Team</p>
+    `;
+    await transporter.sendMail({
+      from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject,
+      html: emailHtml,
+    });
+    console.log(`Email successfully sent to ${toEmail}`);
+  } catch (err) {
+    console.error("Error sending email notification:", err);
+  }
+}
+

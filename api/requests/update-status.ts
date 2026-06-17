@@ -1,161 +1,260 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(req, res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const decodedToken = await verifyAuth(req, res);
-  if (!decodedToken) return;
-
-  const { requestId, status, adminNotes } = req.body;
-  
-  let isAdmin = false;
-  if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
-    isAdmin = true;
-  } else {
-    try {
-      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
-    } catch (e) {
-      console.error("Error fetching user role", e);
-    }
-  }
-  
-  if (!isAdmin) {
-    return res.status(403).json({ success: false, error: "Unauthorized: Admins only" });
-  }
-
-  if (!requestId || !status) {
-    return res.status(400).json({ success: false, error: "Missing required fields" });
-  }
-
   try {
-    const db = admin.firestore();
-    const requestRef = db.collection("requests").doc(requestId);
-    const requestDoc = await requestRef.get();
+    setCorsHeaders(req, res);
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    if (!requestDoc.exists) {
+    const decodedToken = await verifyAuth(req, res);
+    if (!decodedToken) return;
+
+    const { requestId, status, adminNotes, refundAmount, refundMethod, refundTransactionId, estimatedCompletionDate } = req.body;
+    
+    if (!requestId || typeof requestId !== 'string' || !requestId.trim()) {
+      return res.status(400).json({ success: false, error: "Request ID is required." });
+    }
+    if (!status || typeof status !== 'string' || !status.trim()) {
+      return res.status(400).json({ success: false, error: "Status is required." });
+    }
+
+    let isAdmin = false;
+    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+      isAdmin = true;
+    } else {
+      try {
+        const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+        if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+      } catch (e) {
+        console.error("Error fetching user role", e);
+      }
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: "Unauthorized: Admins only" });
+    }
+
+    const db = admin.firestore();
+    const reqRef = db.collection("requests").doc(requestId);
+    const reqDoc = await reqRef.get();
+
+    if (!reqDoc.exists) {
       return res.status(404).json({ success: false, error: "Request not found" });
     }
 
-    const data = requestDoc.data()!;
-    const orderId = data.orderId;
+    const rData = reqDoc.data()!;
+    const oldStatus = rData.status;
+    const orderId = rData.orderId;
+    const type = rData.type || rData.requestType;
+    const customerId = rData.customerId || rData.userId;
 
-    await db.runTransaction(async (transaction) => {
-      const orderRef = db.collection("orders").doc(orderId);
-      const orderDoc = await transaction.get(orderRef);
-      
-      let productDocs: any[] = [];
-      if (orderDoc.exists && data.type === 'cancellation' && status === 'approved') {
-        // Pre-fetch all products for stock restoration
-        for (const item of orderDoc.data()!.items) {
-          const productRef = db.collection("products").doc(item.productId);
-          const productDoc = await transaction.get(productRef);
-          productDocs.push({ item, productRef, productDoc });
-        }
-      }
+    const orderRef = db.collection("orders").doc(orderId);
+    const orderDoc = await orderRef.get();
+    
+    if (!orderDoc.exists) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+    const orderData = orderDoc.data()!;
 
-      // Now do all writes
-      transaction.update(requestRef, {
-        status,
-        adminNotes: adminNotes || null,
-        updatedAt: new Date().toISOString()
-      });
+    const updateData: any = { 
+      status,
+      updatedAt: new Date().toISOString(),
+      updatedDate: new Date().toISOString()
+    };
+    
+    if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+    if (refundAmount !== undefined) updateData.refundAmount = Number(refundAmount);
+    if (refundMethod !== undefined) updateData.refundMethod = refundMethod;
+    if (refundTransactionId !== undefined) updateData.refundTransactionId = refundTransactionId;
+    if (estimatedCompletionDate !== undefined) updateData.estimatedCompletionDate = estimatedCompletionDate;
 
-      if (orderDoc.exists) {
-        let orderUpdates: any = {};
-        
-        if (data.type === 'cancellation') {
-          if (status === 'approved') {
-            orderUpdates.status = 'cancelled';
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
+    // Execute database updates
+    const isCancellationStockRestore = type === 'cancellation' && 
+                                        (status === 'approved' || status === 'cancelled') && 
+                                        !(oldStatus === 'approved' || oldStatus === 'cancelled');
+
+    if (isCancellationStockRestore) {
+      await db.runTransaction(async (transaction) => {
+        const oDoc = await transaction.get(orderRef);
+        if (oDoc.exists) {
+          const oData = oDoc.data()!;
+          const productDocs = [];
+          for (const item of oData.items) {
+            const productRef = db.collection("products").doc(item.productId);
+            const productDoc = await transaction.get(productRef);
+            productDocs.push({ item, productRef, productDoc });
+          }
+          const updatesByProduct = new Map<string, any>();
+          
+          for (const { item, productRef, productDoc } of productDocs) {
+            if (productDoc.exists) {
+              const pData = productDoc.data()!;
+              const productId = productRef.id;
+              
+              if (!updatesByProduct.has(productId)) {
+                updatesByProduct.set(productId, {
+                  ref: productRef,
+                  updates: { stock: pData.stock || 0 },
+                  variants: pData.variants ? [...pData.variants] : null
+                });
+              }
+              
+              const prodUpdate = updatesByProduct.get(productId);
+              prodUpdate.updates.stock += item.quantity;
+              
+              if (item.variantId && prodUpdate.variants) {
+                 const variantIndex = prodUpdate.variants.findIndex((v: any) => v.id === item.variantId);
+                 if (variantIndex !== -1) {
+                    prodUpdate.variants[variantIndex].stock = (prodUpdate.variants[variantIndex].stock || 0) + item.quantity;
+                    prodUpdate.updates.variants = prodUpdate.variants;
+                 }
+              }
+            }
+          }
+          
+          for (const prodUpdate of updatesByProduct.values()) {
+            transaction.update(prodUpdate.ref, prodUpdate.updates);
+          }
+          
+          transaction.update(orderRef, {
+            status: "cancelled",
+            statusHistory: admin.firestore.FieldValue.arrayUnion({
               status: "cancelled",
               timestamp: new Date().toISOString(),
               message: "Cancellation approved by admin"
-            });
-            
-            // Restore stock
-            const updatesByProduct = new Map<string, any>();
-            
-            for (const { item, productRef, productDoc } of productDocs) {
-              if (productDoc.exists) {
-                const pData = productDoc.data()!;
-                const productId = productRef.id;
-                
-                if (!updatesByProduct.has(productId)) {
-                  updatesByProduct.set(productId, {
-                    ref: productRef,
-                    updates: { stock: pData.stock || 0 },
-                    variants: pData.variants ? [...pData.variants] : null
-                  });
-                }
-                
-                const prodUpdate = updatesByProduct.get(productId);
-                prodUpdate.updates.stock += item.quantity;
-                
-                if (item.variantId && prodUpdate.variants) {
-                   const variantIndex = prodUpdate.variants.findIndex((v: any) => v.id === item.variantId);
-                   if (variantIndex !== -1) {
-                      prodUpdate.variants[variantIndex].stock = (prodUpdate.variants[variantIndex].stock || 0) + item.quantity;
-                      prodUpdate.updates.variants = prodUpdate.variants;
-                   }
-                }
-              }
-            }
-            
-            for (const prodUpdate of updatesByProduct.values()) {
-              transaction.update(prodUpdate.ref, prodUpdate.updates);
-            }
-          } else if (status === 'rejected') {
-            orderUpdates.status = 'confirmed'; // Revert to confirmed or previous status
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-              status: "cancellation_rejected",
-              timestamp: new Date().toISOString(),
-              message: `Cancellation rejected: ${adminNotes || 'No reason provided'}`
-            });
-          }
-        } 
-        else if (data.type === 'return') {
-          if (status === 'approved') {
-            orderUpdates.status = 'return_approved';
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-              status: "return_approved",
-              timestamp: new Date().toISOString(),
-              message: "Return approved by admin"
-            });
-          } else if (status === 'rejected') {
-            orderUpdates.status = 'delivered'; // Revert to delivered
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-              status: "return_rejected",
-              timestamp: new Date().toISOString(),
-              message: `Return rejected: ${adminNotes || 'No reason provided'}`
-            });
-          }
+            })
+          });
         }
-        else if (data.type === 'refund') {
-           if (status === 'approved') {
-            orderUpdates.status = 'refund_approved';
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-              status: "refund_approved",
-              timestamp: new Date().toISOString(),
-              message: "Refund approved by admin"
-            });
-          } else if (status === 'rejected') {
-            orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-              status: "refund_rejected",
-              timestamp: new Date().toISOString(),
-              message: `Refund rejected: ${adminNotes || 'No reason provided'}`
-            });
-          }
-        }
+      });
+    } else {
+      // Sync Order updates based on status transitions
+      let orderUpdates: any = {};
+      let statusHistoryMessage = "";
 
-        if (Object.keys(orderUpdates).length > 0) {
-          transaction.update(orderRef, orderUpdates);
+      if (type === 'cancellation') {
+        if (status === 'rejected') {
+          orderUpdates.status = 'confirmed';
+          statusHistoryMessage = "Cancellation request rejected by admin";
+        } else if (status === 'refund_initiated') {
+          orderUpdates.paymentStatus = 'refund_initiated';
+          statusHistoryMessage = "Refund initiated for cancellation";
+        } else if (status === 'refund_completed') {
+          orderUpdates.status = 'cancelled';
+          orderUpdates.paymentStatus = 'refunded';
+          statusHistoryMessage = "Refund completed successfully";
+        }
+      } 
+      else if (type === 'return') {
+        if (status === 'approved') {
+          orderUpdates.status = 'return_approved';
+          statusHistoryMessage = "Return approved by admin";
+        } else if (status === 'pickup_scheduled') {
+          orderUpdates.status = 'return_pickup_scheduled';
+          statusHistoryMessage = "Return pickup scheduled";
+        } else if (status === 'product_received') {
+          orderUpdates.status = 'return_received';
+          statusHistoryMessage = "Return product received at warehouse";
+        } else if (status === 'quality_check') {
+          orderUpdates.status = 'return_quality_checked';
+          statusHistoryMessage = "Quality check completed successfully";
+        } else if (status === 'refund_initiated') {
+          orderUpdates.paymentStatus = 'refund_initiated';
+          statusHistoryMessage = "Refund initiated for return";
+        } else if (status === 'refund_completed' || status === 'refund_processed') {
+          orderUpdates.status = 'returned';
+          orderUpdates.paymentStatus = 'refunded';
+          statusHistoryMessage = "Refund completed successfully";
+        } else if (status === 'rejected') {
+          orderUpdates.status = 'delivered';
+          statusHistoryMessage = "Return request rejected by admin";
+        }
+      } 
+      else if (type === 'refund') {
+        if (status === 'under_review') {
+          statusHistoryMessage = "Refund request under review";
+        } else if (status === 'approved') {
+          orderUpdates.status = 'refund_approved';
+          statusHistoryMessage = "Refund approved by admin";
+        } else if (status === 'processing') {
+          statusHistoryMessage = "Refund processing initiated";
+        } else if (status === 'refund_sent') {
+          orderUpdates.paymentStatus = 'refund_initiated';
+          statusHistoryMessage = "Refund sent/initiated";
+        } else if (status === 'refunded' || status === 'refund_completed') {
+          orderUpdates.status = 'refunded';
+          orderUpdates.paymentStatus = 'refunded';
+          statusHistoryMessage = "Refund completed successfully";
+        } else if (status === 'rejected') {
+          statusHistoryMessage = "Refund request rejected by admin";
         }
       }
-    });
+
+      if (statusHistoryMessage) {
+        orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
+          status: `req_${status}`,
+          timestamp: new Date().toISOString(),
+          message: statusHistoryMessage
+        });
+      }
+
+      if (Object.keys(orderUpdates).length > 0) {
+        await orderRef.update(orderUpdates);
+      }
+    }
+
+    await reqRef.update(updateData);
+
+    // Trigger Notifications and Email
+    const customerEmail = orderData.contactEmail || decodedToken.email;
+    const customerName = orderData.contactName || "Customer";
+    const finalRefundAmount = refundAmount || rData.refundAmount || orderData.total || 0;
+
+    let notifTitle = "";
+    let notifMessage = "";
+    let emailSubject = "";
+    let emailBody = "";
+
+    // Map transitions to user-facing notification content
+    if (status === 'approved' || status === 'cancelled') {
+      notifTitle = "Request Approved";
+      notifMessage = `Your ${type} request for order #${orderId} has been approved.`;
+      emailSubject = `${type.charAt(0).toUpperCase() + type.slice(1)} Request Approved`;
+      emailBody = `Your ${type} request for order #${orderId} has been approved. ` + 
+                  (type === 'return' ? "Please pack the items, our delivery partner will pick them up soon." : "We are processing your refund.");
+    } else if (status === 'rejected') {
+      notifTitle = "Request Rejected";
+      notifMessage = `Your ${type} request for order #${orderId} has been rejected.`;
+      emailSubject = `${type.charAt(0).toUpperCase() + type.slice(1)} Request Rejected`;
+      emailBody = `Your ${type} request for order #${orderId} has been rejected. Admin Notes: ${adminNotes || 'None'}`;
+    } else if (status === 'refund_initiated' || status === 'refund_sent' || status === 'processing') {
+      notifTitle = "Refund Initiated";
+      notifMessage = `Refund of ₹${finalRefundAmount} for order #${orderId} has been initiated.`;
+      emailSubject = "Refund Initiated";
+      emailBody = `Your refund of ₹${finalRefundAmount} for order #${orderId} has been initiated. Method: ${refundMethod || 'Original Payment Method'}. Estimated completion date: ${estimatedCompletionDate || 'N/A'}.`;
+    } else if (status === 'refund_completed' || status === 'refunded' || status === 'refund_processed') {
+      notifTitle = "Refund Completed";
+      notifMessage = `Refund of ₹${finalRefundAmount} for order #${orderId} has been completed successfully.`;
+      emailSubject = "Refund Processed Successfully";
+      emailBody = `Your refund of ₹${finalRefundAmount} for order #${orderId} has been successfully completed. Transaction ID: ${refundTransactionId || 'N/A'}. Thank you for shopping with us!`;
+    } else if (status === 'pickup_scheduled') {
+      notifTitle = "Return Pickup Scheduled";
+      notifMessage = `Pickup has been scheduled for return request on order #${orderId}.`;
+    } else if (status === 'product_received') {
+      notifTitle = "Return Product Received";
+      notifMessage = `We have received your return product for order #${orderId}.`;
+    } else if (status === 'quality_check') {
+      notifTitle = "Quality Check In Progress";
+      notifMessage = `Quality check is being performed on your returned items for order #${orderId}.`;
+    }
+
+    if (notifTitle) {
+      await createNotification(customerId, notifTitle, notifMessage, orderId);
+    }
+
+    if (emailSubject && customerEmail) {
+      await sendEmailNotification(customerEmail, customerName, emailSubject, emailBody);
+    }
 
     res.json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {

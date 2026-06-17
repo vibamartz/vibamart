@@ -1,6 +1,5 @@
 import admin from "firebase-admin";
-import nodemailer from "nodemailer";
-import { verifyAuth, setCorsHeaders } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -8,15 +7,18 @@ export default async function handler(req: any, res: any) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const user = await verifyAuth(req, res);
-  if (!user) return;
+    const user = await verifyAuth(req, res);
+    if (!user) return;
 
-  const { orderId, reason, comments } = req.body;
-  const uid = user.uid;
+    const { orderId, reason, comments } = req.body;
+    const uid = user.uid;
 
-  if (!orderId || !reason) {
-    return res.status(400).json({ success: false, error: "Missing required fields" });
-  }
+    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+      return res.status(400).json({ success: false, error: "Order ID is required and must be a valid string." });
+    }
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ success: false, error: "Reason is required and must be a valid string." });
+    }
 
     const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
@@ -31,32 +33,49 @@ export default async function handler(req: any, res: any) {
       return res.status(403).json({ success: false, error: "Unauthorized to request refund for this order" });
     }
 
-    const existingRefunds = await db.collection("requests").where("orderId", "==", orderId).where("type", "==", "refund").get();
-
-    if (!existingRefunds.empty) {
-      const activeRefund = existingRefunds.docs.find(d => !['rejected', 'refunded', 'resolved'].includes(d.data().status));
-      if (activeRefund) {
-         return res.status(400).json({ success: false, error: "An active refund request already exists for this order." });
-      }
+    // Allow refund if cancelled or returned but not yet refunded
+    if (orderData.status !== "cancelled" && orderData.status !== "returned") {
+      return res.status(400).json({ success: false, error: "Only cancelled or returned orders are eligible for refund" });
     }
 
+    if (orderData.paymentStatus === "refunded") {
+      return res.status(400).json({ success: false, error: "Order is already refunded" });
+    }
+
+    const existingRefunds = await db.collection("requests").where("orderId", "==", orderId).where("type", "==", "refund").get();
+    if (!existingRefunds.empty) {
+      return res.status(400).json({ success: false, error: "A refund request already exists for this order." });
+    }
+
+    // Generate Request ID and create document
+    const docRef = db.collection("requests").doc();
+    const requestId = docRef.id;
+
     const requestDoc = {
+      id: requestId,
+      requestId,
       userId: uid,
+      customerId: uid,
       orderId,
       type: 'refund',
+      requestType: 'refund',
       reason,
+      requestReason: reason,
       comments: comments || "",
-      status: 'requested',
+      status: "requested",
+      createdDate: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       refundAmount: orderData.total || 0
     };
 
-    const docRef = await db.collection("requests").add(requestDoc);
+    await docRef.set(requestDoc);
 
     await orderRef.update({
       status: "refund_requested",
       hasRefundRequest: true,
-      refundRequestId: docRef.id,
+      refundRequestId: requestId,
       statusHistory: admin.firestore.FieldValue.arrayUnion({
         status: "refund_requested",
         timestamp: new Date().toISOString(),
@@ -64,36 +83,35 @@ export default async function handler(req: any, res: any) {
       })
     });
 
-    // Fetch email and send confirmation
+    // Notifications & Emails
     const customerEmail = orderData.contactEmail || user.email;
+    const customerName = orderData.contactName || "Customer";
+
+    await createNotification(
+      uid,
+      "Refund Request Submitted",
+      `Your refund request for order #${orderId} has been submitted successfully.`,
+      orderId
+    );
+
     if (customerEmail) {
-      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-
-      const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-      <p>We have received your refund request for order <strong>#${orderId}</strong>.</p>
-      <p>Our team will review the request and get back to you within 48 hours.</p>`;
-
-      if (process.env.SMTP_HOST && !isPlaceholder) {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || "smtp.ethereal.email",
-          port: Number(process.env.SMTP_PORT) || 587,
-          auth: {
-            user: process.env.SMTP_USER || "test",
-            pass: process.env.SMTP_PASS || "test",
-          },
-        });
-        await transporter.sendMail({
-          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
-          to: customerEmail,
-          subject: "Refund Request Received",
-          html: emailHtml,
-        });
-      } else {
-        console.log(`[DEVELOPMENT] Refund request email for ${customerEmail}:\n${emailHtml}`);
-      }
+      await sendEmailNotification(
+        customerEmail,
+        customerName,
+        "Refund Request Received",
+        `We have received your refund request for order #${orderId}. Our team will review the request and get back to you within 48 hours.`
+      );
     }
 
-    res.json({ success: true, message: "Request submitted successfully", requestId: docRef.id });
+    // Admin Notification
+    await createNotification(
+      "admin",
+      "New Refund Request",
+      `A new refund request has been submitted for order #${orderId}.`,
+      orderId
+    );
+
+    res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Refund request error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to submit refund request" });

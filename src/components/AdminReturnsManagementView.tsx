@@ -1,24 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { ReturnRequest, Order } from '../types';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Check, X, Search, Clock, CreditCard, Box, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
+const RETURN_STATUSES = [
+  { value: 'requested', label: 'Requested' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'pickup_scheduled', label: 'Pickup Scheduled' },
+  { value: 'product_received', label: 'Product Received' },
+  { value: 'quality_check', label: 'Quality Check' },
+  { value: 'refund_initiated', label: 'Refund Initiated' },
+  { value: 'refund_completed', label: 'Refund Completed' },
+  { value: 'rejected', label: 'Rejected' }
+];
+
 export default function AdminReturnsManagementView({ 
-  returns, 
+  returns,
   onUpdateStatus 
 }: { 
   returns: ReturnRequest[],
-  onUpdateStatus: (id: string, status: string, adminNotes: string) => Promise<void>
+  onUpdateStatus?: (id: string, status: string, adminNotes: string) => Promise<void>
 }) {
-  const [selectedReturn, setSelectedReturn] = useState<ReturnRequest | null>(null);
+  const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
   const [orderCache, setOrderCache] = useState<Record<string, Order>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Modal State
   const [adminNotes, setAdminNotes] = useState('');
+  const [refundAmount, setRefundAmount] = useState<number | string>('');
+  const [refundMethod, setRefundMethod] = useState('');
+  const [refundTransactionId, setRefundTransactionId] = useState('');
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState('');
+  const [newStatus, setNewStatus] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -43,19 +61,45 @@ export default function AdminReturnsManagementView({
     return matchStatus && matchSearch;
   });
 
-  const handleUpdate = async (status: string) => {
+  const handleUpdate = async () => {
     if (!selectedReturn) return;
     setIsUpdating(true);
+    const tid = toast.loading('Updating request status...');
     try {
-      await onUpdateStatus(selectedReturn.id, status, adminNotes);
-      setSelectedReturn({ ...selectedReturn, status: status as any, adminNotes });
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/requests/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ 
+          requestId: selectedReturn.id, 
+          status: newStatus,
+          adminNotes,
+          refundAmount: refundAmount !== '' ? Number(refundAmount) : undefined,
+          refundMethod: refundMethod || undefined,
+          refundTransactionId: refundTransactionId || undefined,
+          estimatedCompletionDate: estimatedCompletionDate || undefined
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Return request updated successfully`, { id: tid });
+        setSelectedReturn(null);
+        // Call the parent update callback if provided
+        if (onUpdateStatus) {
+          await onUpdateStatus(selectedReturn.id, newStatus, adminNotes);
+        }
+      } else {
+        toast.error(data.error || 'Update failed', { id: tid });
+      }
+    } catch (err) {
+      toast.error('Network error', { id: tid });
     } finally {
       setIsUpdating(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row justify-between gap-4 bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4 bg-gray-50 px-4 py-3 rounded-2xl flex-1 border border-transparent focus-within:border-primary/20 focus-within:bg-white transition-all">
           <Search className="w-5 h-5 text-gray-400" />
@@ -73,12 +117,9 @@ export default function AdminReturnsManagementView({
           className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all"
         >
           <option value="all">All Statuses</option>
-          <option value="requested">Requested</option>
-          <option value="under_review">Under Review</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="received_back">Received Back</option>
-          <option value="refund_processed">Refund Processed</option>
+          {RETURN_STATUSES.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
         </select>
       </div>
 
@@ -106,21 +147,27 @@ export default function AdminReturnsManagementView({
                     <td className="p-4 text-sm font-bold text-gray-900">#{req.id.slice(-6).toUpperCase()}</td>
                     <td className="p-4 text-sm font-bold text-gray-600">#{req.orderId.startsWith('VBM') ? req.orderId : req.orderId.slice(-8).toUpperCase()}</td>
                     <td className="p-4 text-xs font-bold text-gray-500">{new Date(req.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4 text-xs font-medium text-gray-700 max-w-[150px] truncate">{req.reason}</td>
+                    <td className="p-4 text-xs font-medium text-gray-700 max-w-[150px] truncate">{req.reason || req.requestReason}</td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        req.status === 'requested' ? 'bg-orange-100 text-orange-600' :
-                        req.status === 'approved' ? 'bg-blue-100 text-blue-600' :
+                        ['approved', 'refund_completed', 'refund_processed'].includes(req.status) ? 'bg-green-100 text-green-600' :
                         req.status === 'rejected' ? 'bg-red-100 text-red-600' :
-                        req.status === 'refund_processed' ? 'bg-emerald-100 text-emerald-600' :
-                        'bg-purple-100 text-purple-600'
+                        'bg-orange-100 text-orange-600'
                       }`}>
                         {req.status.replace('_', ' ')}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <button 
-                        onClick={() => setSelectedReturn(req)}
+                        onClick={() => {
+                          setSelectedReturn(req);
+                          setAdminNotes(req.adminNotes || '');
+                          setRefundAmount(req.refundAmount !== undefined ? req.refundAmount : '');
+                          setRefundMethod(req.refundMethod || '');
+                          setRefundTransactionId(req.refundTransactionId || '');
+                          setEstimatedCompletionDate(req.estimatedCompletionDate || '');
+                          setNewStatus(req.status);
+                        }}
                         className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
                       >
                         <Eye className="w-4 h-4" />
@@ -134,120 +181,191 @@ export default function AdminReturnsManagementView({
         </div>
       </div>
 
-      {selectedReturn && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedReturn(null)} />
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[40px] w-full max-w-4xl p-8 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-2xl font-black text-gray-900">Return Request Details</h3>
-                <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.orderId.startsWith('VBM') ? selectedReturn.orderId : selectedReturn.orderId.slice(-8).toUpperCase()}</p>
-              </div>
-              <button onClick={() => setSelectedReturn(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Clock className="w-3 h-3"/> Request Info</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between"><span className="text-sm text-gray-500">Date</span><span className="text-sm font-bold text-gray-900">{new Date(selectedReturn.createdAt).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-500">Status</span><span className="text-sm font-bold uppercase tracking-widest text-primary">{selectedReturn.status.replace('_', ' ')}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-500">Reason</span><span className="text-sm font-bold text-gray-900">{selectedReturn.reason}</span></div>
-                    <div className="flex justify-between"><span className="text-sm text-gray-500">Comments</span><span className="text-sm font-medium text-gray-700 max-w-[200px] text-right">{selectedReturn.comments || 'None'}</span></div>
-                    {selectedReturn.adminNotes && (
-                      <div className="flex justify-between"><span className="text-sm text-gray-500">Admin Notes</span><span className="text-sm font-bold text-primary max-w-[200px] text-right">{selectedReturn.adminNotes}</span></div>
-                    )}
-                  </div>
+      <AnimatePresence>
+        {selectedReturn && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedReturn(null)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-[40px] w-full max-w-4xl p-8 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900">Return Request Details</h3>
+                  <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.orderId.startsWith('VBM') ? selectedReturn.orderId : selectedReturn.orderId.slice(-8).toUpperCase()}</p>
                 </div>
-
-                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><CreditCard className="w-3 h-3"/> Refund Info</h4>
-                  <div className="flex justify-between"><span className="text-sm text-gray-500">Amount</span><span className="text-lg font-black text-gray-900">₹{selectedReturn.refundAmount?.toLocaleString()}</span></div>
-                  {orderCache[selectedReturn.orderId] && (
-                    <div className="flex justify-between mt-2"><span className="text-sm text-gray-500">Payment Method</span><span className="text-sm font-bold uppercase text-gray-900">{orderCache[selectedReturn.orderId].paymentMethod}</span></div>
-                  )}
-                </div>
-                
-                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><ImageIcon className="w-3 h-3"/> Proof Images</h4>
-                  <div className="flex gap-4 overflow-x-auto pb-2">
-                    {selectedReturn.images?.map((img, idx) => (
-                      <a href={img} target="_blank" rel="noreferrer" key={idx} className="w-24 h-24 flex-shrink-0 rounded-2xl border border-gray-200 overflow-hidden block hover:opacity-80 transition-opacity">
-                        <img src={img} alt="proof" className="w-full h-full object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
+                <button onClick={() => setSelectedReturn(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Update Status</h4>
-                  <div className="space-y-3">
-                    {selectedReturn.status === 'requested' && (
-                      <>
-                        <button disabled={isUpdating} onClick={() => handleUpdate('under_review')} className="w-full py-3 bg-purple-50 text-purple-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-purple-100 transition-colors">Mark Under Review</button>
-                        <button disabled={isUpdating} onClick={() => handleUpdate('approved')} className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-100 transition-colors">Approve Request</button>
-                        <button disabled={isUpdating} onClick={() => handleUpdate('rejected')} className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-colors">Reject Request</button>
-                      </>
-                    )}
-                    {selectedReturn.status === 'under_review' && (
-                      <>
-                        <button disabled={isUpdating} onClick={() => handleUpdate('approved')} className="w-full py-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-100 transition-colors">Approve Request</button>
-                        <button disabled={isUpdating} onClick={() => handleUpdate('rejected')} className="w-full py-3 bg-red-50 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-colors">Reject Request</button>
-                      </>
-                    )}
-                    {selectedReturn.status === 'approved' && (
-                      <button disabled={isUpdating} onClick={() => handleUpdate('received_back')} className="w-full py-3 bg-orange-50 text-orange-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-orange-100 transition-colors">Mark Received Back</button>
-                    )}
-                    {selectedReturn.status === 'received_back' && (
-                      <button disabled={isUpdating} onClick={() => handleUpdate('refund_processed')} className="w-full py-3 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-100 transition-colors">Process Refund</button>
-                    )}
-                    {selectedReturn.status === 'refund_processed' && (
-                      <div className="p-4 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold text-center">Refund Processed & Completed</div>
-                    )}
-                    {selectedReturn.status === 'rejected' && (
-                      <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm font-bold text-center">Request Rejected</div>
-                    )}
-                  </div>
-                  {['requested', 'under_review', 'approved', 'received_back'].includes(selectedReturn.status) && (
-                    <div className="mt-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Add Admin Note</label>
-                      <textarea 
-                        value={adminNotes} 
-                        onChange={e => setAdminNotes(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm focus:bg-white focus:border-primary outline-none transition-all"
-                        placeholder="Internal notes..."
-                        rows={2}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {orderCache[selectedReturn.orderId] && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Details Column */}
+                <div className="space-y-6">
                   <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Box className="w-3 h-3"/> Items in Order</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Clock className="w-3 h-3"/> Request Info</h4>
                     <div className="space-y-3">
-                      {orderCache[selectedReturn.orderId].items.map((item, idx) => (
-                        <div key={idx} className="flex gap-4 items-center bg-white p-3 rounded-2xl border border-gray-100">
-                          <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
-                            <p className="text-[10px] text-gray-500">Qty: {item.quantity} • ₹{item.price}</p>
-                          </div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Date</span><span className="text-sm font-bold text-gray-900">{new Date(selectedReturn.createdAt).toLocaleString()}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Status</span><span className="text-sm font-bold uppercase tracking-widest text-primary">{selectedReturn.status.replace('_', ' ')}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Reason</span><span className="text-sm font-bold text-gray-900">{selectedReturn.reason || selectedReturn.requestReason}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Comments</span><span className="text-sm font-medium text-gray-700 max-w-[200px] text-right">{selectedReturn.comments || 'None'}</span></div>
+                      {selectedReturn.adminNotes && (
+                        <div className="flex justify-between"><span className="text-sm text-gray-500">Admin Notes</span><span className="text-sm font-bold text-primary max-w-[200px] text-right">{selectedReturn.adminNotes}</span></div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><CreditCard className="w-3 h-3"/> Refund Info</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Amount</span><span className="text-lg font-black text-gray-900">₹{selectedReturn.refundAmount !== undefined ? selectedReturn.refundAmount : 'Not set'}</span></div>
+                      {orderCache[selectedReturn.orderId] && (
+                        <div className="flex justify-between"><span className="text-sm text-gray-500">Payment Method</span><span className="text-sm font-bold uppercase text-gray-900">{orderCache[selectedReturn.orderId].paymentMethod}</span></div>
+                      )}
+                      {selectedReturn.refundMethod && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Refund Method</span>
+                          <span className="text-sm font-bold text-gray-900 uppercase">{selectedReturn.refundMethod}</span>
                         </div>
+                      )}
+                      {selectedReturn.refundTransactionId && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Transaction ID</span>
+                          <span className="text-sm font-bold text-gray-900 italic">{selectedReturn.refundTransactionId}</span>
+                        </div>
+                      )}
+                      {selectedReturn.estimatedCompletionDate && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-500">Est. Completion</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedReturn.estimatedCompletionDate}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><ImageIcon className="w-3 h-3"/> Proof Images</h4>
+                    <div className="flex gap-4 overflow-x-auto pb-2">
+                      {selectedReturn.images?.map((img: string, idx: number) => (
+                        <a href={img} target="_blank" rel="noreferrer" key={idx} className="w-24 h-24 flex-shrink-0 rounded-2xl border border-gray-200 overflow-hidden block hover:opacity-80 transition-opacity">
+                          <img src={img} alt="proof" className="w-full h-full object-cover" />
+                        </a>
                       ))}
                     </div>
                   </div>
-                )}
+                </div>
+
+                {/* Edit & Action Column */}
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Update Action</h4>
+                    
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Target Status</label>
+                      <select 
+                        value={newStatus} 
+                        onChange={e => setNewStatus(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-primary transition-all"
+                      >
+                        {RETURN_STATUSES.map(s => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Note</label>
+                      <textarea 
+                        value={adminNotes} 
+                        onChange={e => setAdminNotes(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs outline-none focus:border-primary transition-all" 
+                        placeholder="Internal or client-facing notes..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Refund Amount (₹)</label>
+                      <input 
+                        type="number"
+                        value={refundAmount} 
+                        onChange={e => setRefundAmount(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all font-bold" 
+                        placeholder="e.g. 599"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Refund Method</label>
+                      <select
+                        value={refundMethod} 
+                        onChange={e => setRefundMethod(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all"
+                      >
+                        <option value="">Select Method (Optional)</option>
+                        <option value="original_source">Original Source (Card/UPI)</option>
+                        <option value="wallet">Store Wallet</option>
+                        <option value="bank_transfer">Manual Bank Transfer</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Transaction ID</label>
+                      <input 
+                        type="text"
+                        value={refundTransactionId} 
+                        onChange={e => setRefundTransactionId(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all italic" 
+                        placeholder="e.g. TXN100239209"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Est. Completion Date</label>
+                      <input 
+                        type="date"
+                        value={estimatedCompletionDate} 
+                        onChange={e => setEstimatedCompletionDate(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all" 
+                      />
+                    </div>
+
+                    <button 
+                      onClick={handleUpdate} 
+                      disabled={isUpdating}
+                      className="w-full py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover shadow-lg transition-all"
+                    >
+                      {isUpdating ? 'Updating...' : 'Save & Sync Request'}
+                    </button>
+                  </div>
+
+                  {orderCache[selectedReturn.orderId] && (
+                    <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Box className="w-3 h-3"/> Items in Order</h4>
+                      <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                        {orderCache[selectedReturn.orderId].items.map((item, idx) => {
+                          const isSelectedForReturn = selectedReturn.productIds?.includes(item.productId) || selectedReturn.productId === item.productId;
+                          return (
+                            <div key={idx} className={`flex gap-4 items-center p-3 rounded-2xl border ${
+                              isSelectedForReturn ? 'bg-orange-50/50 border-orange-200' : 'bg-white border-gray-100'
+                            }`}>
+                              <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
+                                <p className="text-[10px] text-gray-500">Qty: {item.quantity} • ₹{item.price}</p>
+                              </div>
+                              {isSelectedForReturn && (
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-orange-100 text-orange-600 rounded">Returning</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

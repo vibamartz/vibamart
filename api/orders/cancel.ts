@@ -1,6 +1,5 @@
 import admin from "firebase-admin";
-import nodemailer from "nodemailer";
-import { verifyAuth, setCorsHeaders } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -8,15 +7,18 @@ export default async function handler(req: any, res: any) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const user = await verifyAuth(req, res);
-  if (!user) return; // verifyAuth handles the response if it fails
+    const user = await verifyAuth(req, res);
+    if (!user) return; // verifyAuth handles the response if it fails
 
-  const { orderId, reason } = req.body;
-  const uid = user.uid;
+    const { orderId, reason } = req.body;
+    const uid = user.uid;
 
-  if (!orderId || !reason) {
-    return res.status(400).json({ success: false, error: "Missing required fields" });
-  }
+    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+      return res.status(400).json({ success: false, error: "Order ID is required and must be a valid string." });
+    }
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ success: false, error: "Reason is required and must be a valid string." });
+    }
 
     const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
@@ -36,20 +38,42 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, error: `Cannot cancel order in ${orderData.status} status` });
     }
 
+    // Check for duplicate cancellation requests
+    const existingCancellations = await db.collection("requests")
+      .where("orderId", "==", orderId)
+      .where("type", "==", "cancellation")
+      .get();
+
+    if (!existingCancellations.empty) {
+      return res.status(400).json({ success: false, error: "A duplicate cancellation request already exists for this order." });
+    }
+
     // Check if manual cancellation is enabled
     const settingsDoc = await db.collection("settings").doc("store").get();
     const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
+    // Generate unique doc ID
+    const docRef = db.collection("requests").doc();
+    const requestId = docRef.id;
+
     const requestDoc = {
-      userId: uid,
+      id: requestId,
+      requestId,
       orderId,
+      customerId: uid,
+      userId: uid,
+      requestType: 'cancellation',
       type: 'cancellation',
+      requestReason: reason,
       reason,
       status: enableManualCancellation ? 'requested' : 'approved',
-      createdAt: new Date().toISOString()
+      createdDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedDate: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
-    const docRef = await db.collection("requests").add(requestDoc);
+    await docRef.set(requestDoc);
 
     if (enableManualCancellation) {
       await orderRef.update({
@@ -114,37 +138,51 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Fetch email and send confirmation
+    // Notifications & Emails
     const customerEmail = orderData.contactEmail || user.email;
-    if (customerEmail) {
-      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+    const customerName = orderData.contactName || "Customer";
 
-      const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-      <p>Your order <strong>#${orderId}</strong> cancellation request has been ${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
-      <p>Reason: ${reason}</p>
-      ${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}`;
-      
-      if (process.env.SMTP_HOST && !isPlaceholder) {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || "smtp.ethereal.email",
-          port: Number(process.env.SMTP_PORT) || 587,
-          auth: {
-            user: process.env.SMTP_USER || "test",
-            pass: process.env.SMTP_PASS || "test",
-          },
-        });
-        await transporter.sendMail({
-          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
-          to: customerEmail,
-          subject: "Order Cancellation Confirmation",
-          html: emailHtml,
-        });
-      } else {
-        console.log(`[DEVELOPMENT] Cancellation email for ${customerEmail}:\n${emailHtml}`);
+    if (enableManualCancellation) {
+      await createNotification(
+        uid,
+        "Cancellation Request Submitted",
+        `Your cancellation request for order #${orderId} has been submitted successfully.`,
+        orderId
+      );
+      if (customerEmail) {
+        await sendEmailNotification(
+          customerEmail,
+          customerName,
+          "Order Cancellation Request Received",
+          `We have received your cancellation request for order #${orderId}. Reason: ${reason}. It is currently pending review.`
+        );
+      }
+    } else {
+      await createNotification(
+        uid,
+        "Order Cancelled",
+        `Your order #${orderId} has been cancelled successfully.`,
+        orderId
+      );
+      if (customerEmail) {
+        await sendEmailNotification(
+          customerEmail,
+          customerName,
+          "Order Cancelled Successfully",
+          `Your order #${orderId} has been successfully cancelled. If you paid online, your refund will be processed within 5-7 business days.`
+        );
       }
     }
 
-    res.json({ success: true, message: "Request submitted successfully", requestId: docRef.id });
+    // Admin Notification
+    await createNotification(
+      "admin",
+      "New Cancellation Request",
+      `A new cancellation request was submitted for order #${orderId}.`,
+      orderId
+    );
+
+    res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Cancel order error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });

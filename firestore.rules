@@ -134,7 +134,8 @@ service cloud.firestore {
      }
 
     match /notifications/{notifId} {
-      allow read, update, delete: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
       allow create: if true;
     }
 
@@ -173,6 +174,12 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /requests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && (incoming().userId == request.auth.uid || incoming().customerId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
   }
 }

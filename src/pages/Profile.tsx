@@ -24,7 +24,7 @@ import { getProductSlug } from '../utils/slug';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'requests' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
   const [waitlist, setWaitlist] = useState<(WaitlistItem & { product?: Product })[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
@@ -47,8 +47,10 @@ export default function Profile() {
   });
   const navigate = useNavigate();
 
-  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
-  const [refundRequests, setRefundRequests] = useState<Record<string, string>>({});
+  const [cancellationRequests, setCancellationRequests] = useState<Record<string, any>>({});
+  const [returnRequests, setReturnRequests] = useState<Record<string, any>>({});
+  const [refundRequests, setRefundRequests] = useState<Record<string, any>>({});
+  const [allRequests, setAllRequests] = useState<any[]>([]);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundReason, setRefundReason] = useState('Order Cancelled/Returned');
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -155,7 +157,7 @@ export default function Profile() {
     // Read tab from query parameter
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
-    if (tab && ['overview', 'orders', 'addresses', 'waitlist', 'wishlist', 'settings'].includes(tab)) {
+    if (tab && ['overview', 'orders', 'requests', 'addresses', 'waitlist', 'wishlist', 'settings'].includes(tab)) {
       setActiveTab(tab as any);
     }
     const editProfile = params.get('edit');
@@ -177,24 +179,41 @@ export default function Profile() {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
     });
 
-    // Fetch Return and Refund Requests
+    // Fetch All Requests (Cancellation, Return, Refund)
     const requestsQuery = query(
       collection(db, 'requests'),
       where('userId', '==', user.uid)
     );
     const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
-      const returnsData: Record<string, string> = {};
-      const refundsData: Record<string, string> = {};
+      const cancellationsData: Record<string, any> = {};
+      const returnsData: Record<string, any> = {};
+      const refundsData: Record<string, any> = {};
+      const list: any[] = [];
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        if (data.type === 'return') {
-            returnsData[data.orderId] = data.status;
+        const reqObj = { id: doc.id, ...data };
+        list.push(reqObj);
+        
+        if (data.type === 'cancellation') {
+          cancellationsData[data.orderId] = reqObj;
+        } else if (data.type === 'return') {
+          returnsData[data.orderId] = reqObj;
         } else if (data.type === 'refund') {
-            refundsData[data.orderId] = data.status;
+          refundsData[data.orderId] = reqObj;
         }
       });
+      
+      // Sort list by createdAt descending
+      list.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.createdDate || 0).getTime();
+        const dateB = new Date(b.createdAt || b.createdDate || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      setCancellationRequests(cancellationsData);
       setReturnRequests(returnsData);
       setRefundRequests(refundsData);
+      setAllRequests(list);
     });
 
     // Fetch Waitlist with product details
@@ -412,6 +431,7 @@ export default function Profile() {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
+    { id: 'requests', label: 'Request History', icon: Clock },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'waitlist', label: 'Waitlist', icon: Bell },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
@@ -713,10 +733,21 @@ export default function Profile() {
                                       Request Return
                                     </button>
                                   )}
+                                  {cancellationRequests[order.id] && (
+                                    <Link
+                                      to={`/track-refund/${cancellationRequests[order.id].id}`}
+                                      className="px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-2 transition-all"
+                                    >
+                                      Cancellation: {cancellationRequests[order.id].status.replace('_', ' ')}
+                                    </Link>
+                                  )}
                                   {returnRequests[order.id] && (
-                                    <span className="px-4 py-2.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2">
-                                      Return: {returnRequests[order.id].replace('_', ' ')}
-                                    </span>
+                                    <Link
+                                      to={`/track-refund/${returnRequests[order.id].id}`}
+                                      className="px-4 py-2.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2 transition-all"
+                                    >
+                                      Return: {returnRequests[order.id].status.replace('_', ' ')}
+                                    </Link>
                                   )}
                                   {['cancelled', 'returned'].includes(order.status) && !refundRequests[order.id] && order.paymentStatus !== 'refunded' && (
                                     <button
@@ -727,9 +758,12 @@ export default function Profile() {
                                     </button>
                                   )}
                                   {refundRequests[order.id] && (
-                                    <span className="px-4 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2">
-                                      Refund: {refundRequests[order.id].replace('_', ' ')}
-                                    </span>
+                                    <Link
+                                      to={`/track-refund/${refundRequests[order.id].id}`}
+                                      className="px-4 py-2.5 bg-pink-50 text-pink-600 hover:bg-pink-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2 transition-all"
+                                    >
+                                      Refund: {refundRequests[order.id].status.replace('_', ' ')}
+                                    </Link>
                                   )}
                                   <Link 
                                     to={`/track-order/${order.id}`}
@@ -747,6 +781,94 @@ export default function Profile() {
                                   )}
                                 </div>
                              </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'requests' && (
+                <motion.div
+                  key="requests"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Request History</h2>
+                    
+                    {allRequests.length === 0 ? (
+                      <div className="py-20 text-center space-y-4">
+                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
+                          <Clock className="w-10 h-10 text-gray-200" />
+                        </div>
+                        <p className="text-gray-400 font-medium">You haven't submitted any cancellation, return, or refund requests.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {allRequests.map(req => (
+                          <div 
+                            key={req.id} 
+                            className="bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 flex flex-wrap justify-between items-center gap-4"
+                          >
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                Request ID
+                              </span>
+                              <span className="text-sm font-black text-gray-900 italic">
+                                #{req.id.slice(-8).toUpperCase()}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                Order ID
+                              </span>
+                              <span className="text-sm font-bold text-gray-600">
+                                #{req.orderId.startsWith('VBM') ? req.orderId : req.orderId.slice(-8).toUpperCase()}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                Request Type
+                              </span>
+                              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                                req.type === 'cancellation' ? 'bg-red-100 text-red-600' :
+                                req.type === 'return' ? 'bg-purple-100 text-purple-600' :
+                                'bg-pink-100 text-pink-600'
+                              }`}>
+                                {req.type}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                Date Submitted
+                              </span>
+                              <span className="text-xs font-bold text-gray-600">
+                                {new Date(req.createdAt || req.createdDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                Status
+                              </span>
+                              <span className="text-xs font-bold text-gray-700 uppercase">
+                                {req.status.replace('_', ' ')}
+                              </span>
+                            </div>
+
+                            <Link 
+                              to={`/track-refund/${req.id}`}
+                              className="px-6 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg flex items-center gap-2"
+                            >
+                              Track Request <ChevronRight className="w-3 h-3" />
+                            </Link>
                           </div>
                         ))}
                       </div>
