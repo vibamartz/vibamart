@@ -141,6 +141,8 @@ export interface StatusUpdate {
 export interface ReturnRequest {
   id: string;
   orderId: string;
+  customOrderId?: string;
+  contactEmail?: string;
   type?: 'return' | 'cancellation' | 'refund';
   productId?: string;
   productIds?: string[];

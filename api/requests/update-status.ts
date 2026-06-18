@@ -76,23 +76,42 @@ export default async function handler(req: any, res: any) {
 
     const db = admin.firestore();
     
-    console.log(`[FIRESTORE READ] Fetching cancellation request from 'cancellation_requests' collection. Document ID: ${requestId}`);
-    let reqDoc = await db.collection("cancellation_requests").doc(requestId).get();
+    console.log(`[FIRESTORE READ] Fetching cancellation request from 'cancel-order' collection. Document ID: ${requestId}`);
+    let reqDoc;
     let type = "cancellation";
-    let collectionName = "cancellation_requests";
-    
-    if (!reqDoc.exists) {
-      console.log(`[FIRESTORE READ] Fetching return request from 'return_requests' collection. Document ID: ${requestId}`);
-      reqDoc = await db.collection("return_requests").doc(requestId).get();
-      type = "return";
-      collectionName = "return_requests";
+    let collectionName = "cancel-order";
+    try {
+      reqDoc = await db.collection("cancel-order").doc(requestId).get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, error: "FUNCTION_INVOCATION_FAILED", message: error.message });
     }
     
     if (!reqDoc.exists) {
-      console.log(`[FIRESTORE READ] Fetching refund request from 'refund_requests' collection. Document ID: ${requestId}`);
-      reqDoc = await db.collection("refund_requests").doc(requestId).get();
+      console.log(`[FIRESTORE READ] Fetching return request from 'return' collection. Document ID: ${requestId}`);
+      type = "return";
+      collectionName = "return";
+      try {
+        reqDoc = await db.collection("return").doc(requestId).get();
+      } catch (error: any) {
+        console.error("FULL ERROR:", error);
+        console.error(error.stack);
+        return res.status(500).json({ success: false, error: "FUNCTION_INVOCATION_FAILED", message: error.message });
+      }
+    }
+    
+    if (!reqDoc.exists) {
+      console.log(`[FIRESTORE READ] Fetching refund request from 'refund' collection. Document ID: ${requestId}`);
       type = "refund";
-      collectionName = "refund_requests";
+      collectionName = "refund";
+      try {
+        reqDoc = await db.collection("refund").doc(requestId).get();
+      } catch (error: any) {
+        console.error("FULL ERROR:", error);
+        console.error(error.stack);
+        return res.status(500).json({ success: false, error: "FUNCTION_INVOCATION_FAILED", message: error.message });
+      }
     }
     
     if (!reqDoc.exists) {
@@ -101,13 +120,33 @@ export default async function handler(req: any, res: any) {
 
     const rData = reqDoc.data()!;
     const oldStatus = rData.status;
-    const orderId = rData.orderId;
-    const customerId = rData.customerId || rData.userId;
+    const orderId = rData.customOrderId || rData.orderId;
+    
+    let customerId = "";
+    if (rData.contactEmail) {
+      try {
+        const userRecord = await admin.auth().getUserByEmail(rData.contactEmail);
+        customerId = userRecord.uid;
+      } catch (authErr) {
+        console.warn("Could not find user by email for notification:", authErr);
+      }
+    }
+    if (!customerId) {
+      customerId = rData.userId || rData.customerId || "";
+    }
+
     const reqRef = db.collection(collectionName).doc(requestId);
 
     console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
     const orderRef = db.collection("orders").doc(orderId);
-    const orderDoc = await orderRef.get();
+    let orderDoc;
+    try {
+      orderDoc = await orderRef.get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, error: "FUNCTION_INVOCATION_FAILED", message: error.message });
+    }
     
     if (!orderDoc.exists) {
       return res.status(404).json({ success: false, error: "Order not found" });

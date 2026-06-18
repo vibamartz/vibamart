@@ -354,7 +354,7 @@ export default function AdminDashboard() {
 
   // Live Firebase snapshot listener for return requests
   useEffect(() => {
-    const q = query(collection(db, 'return_requests'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'return'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const returnsData = snapshot.docs.map(doc => ({
         id: doc.id,

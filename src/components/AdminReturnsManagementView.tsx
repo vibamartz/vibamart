@@ -43,11 +43,12 @@ export default function AdminReturnsManagementView({
     const fetchOrders = async () => {
       const newCache = { ...orderCache };
       for (const r of returns) {
-        if (!newCache[r.orderId]) {
-          const docRef = doc(db, 'orders', r.orderId);
+        const orderKey = r.customOrderId || r.orderId;
+        if (orderKey && !newCache[orderKey]) {
+          const docRef = doc(db, 'orders', orderKey);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
-            newCache[r.orderId] = { id: snap.id, ...snap.data() } as Order;
+            newCache[orderKey] = { id: snap.id, ...snap.data() } as Order;
           }
         }
       }
@@ -60,8 +61,8 @@ export default function AdminReturnsManagementView({
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
     const matchSearch = 
       r.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      r.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.userId || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (r.customOrderId || r.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.contactEmail || r.userId || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchStatus && matchSearch;
   });
 
@@ -150,8 +151,8 @@ export default function AdminReturnsManagementView({
                 filteredReturns.map((req) => (
                   <tr key={req.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors">
                     <td className="p-4 text-sm font-bold text-gray-900">#{req.id.slice(-6).toUpperCase()}</td>
-                    <td className="p-4 text-sm font-bold text-gray-600">#{req.orderId}</td>
-                    <td className="p-4 text-xs font-bold text-gray-650">{req.userId || 'N/A'}</td>
+                    <td className="p-4 text-sm font-bold text-gray-600">#{req.customOrderId || req.orderId}</td>
+                    <td className="p-4 text-xs font-bold text-gray-650">{req.contactEmail || req.userId || 'N/A'}</td>
                     <td className="p-4 text-xs font-bold text-gray-505">{safeFormatDate(req.createdAt)}</td>
                     <td className="p-4 text-xs font-medium text-gray-700 max-w-[150px] truncate">{req.reason}</td>
                     <td className="p-4">
@@ -195,7 +196,7 @@ export default function AdminReturnsManagementView({
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900">Return Request Details</h3>
-                  <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.orderId}</p>
+                  <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.customOrderId || selectedReturn.orderId}</p>
                 </div>
                 <button onClick={() => setSelectedReturn(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
                   <X className="w-5 h-5" />
@@ -222,8 +223,8 @@ export default function AdminReturnsManagementView({
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><CreditCard className="w-3 h-3"/> Refund Info</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between"><span className="text-sm text-gray-500">Amount</span><span className="text-lg font-black text-gray-900">₹{selectedReturn.refundAmount !== undefined ? selectedReturn.refundAmount : 'Not set'}</span></div>
-                      {orderCache[selectedReturn.orderId] && (
-                        <div className="flex justify-between"><span className="text-sm text-gray-500">Payment Method</span><span className="text-sm font-bold uppercase text-gray-900">{orderCache[selectedReturn.orderId].paymentMethod}</span></div>
+                      {orderCache[selectedReturn.customOrderId || selectedReturn.orderId] && (
+                        <div className="flex justify-between"><span className="text-sm text-gray-500">Payment Method</span><span className="text-sm font-bold uppercase text-gray-900">{orderCache[selectedReturn.customOrderId || selectedReturn.orderId].paymentMethod}</span></div>
                       )}
                       {selectedReturn.refundMethod && (
                         <div className="flex justify-between">
@@ -348,11 +349,11 @@ export default function AdminReturnsManagementView({
                     </div>
                   </div>
 
-                  {orderCache[selectedReturn.orderId] && (
+                  {orderCache[selectedReturn.customOrderId || selectedReturn.orderId] && (
                     <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Box className="w-3 h-3"/> Items in Order</h4>
                       <div className="space-y-3 max-h-[200px] overflow-y-auto">
-                        {orderCache[selectedReturn.orderId].items.map((item, idx) => {
+                        {orderCache[selectedReturn.customOrderId || selectedReturn.orderId].items.map((item, idx) => {
                           const isSelectedForReturn = selectedReturn.productIds?.includes(item.productId) || selectedReturn.productId === item.productId;
                           return (
                             <div key={idx} className={`flex gap-4 items-center p-3 rounded-2xl border ${

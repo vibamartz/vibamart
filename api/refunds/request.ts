@@ -31,14 +31,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     console.log("Request received");
-    const { orderId, userId, reason, comments } = req.body || {};
+    const { orderId, customOrderId, reason, comments } = req.body || {};
+    const targetOrderId = customOrderId || orderId;
 
     // 1. Validate fields exist before database operations
-    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
-      return res.status(400).json({ success: false, message: "Order ID missing" });
-    }
-    if (!userId || typeof userId !== 'string' || !userId.trim()) {
-      return res.status(400).json({ success: false, message: "User ID missing" });
+    if (!targetOrderId || typeof targetOrderId !== 'string' || !targetOrderId.trim()) {
+      return res.status(400).json({ success: false, message: "Order ID/Custom Order ID missing" });
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
       return res.status(400).json({ success: false, message: "Refund reason missing" });
@@ -54,24 +52,24 @@ export default async function handler(req: any, res: any) {
     }
 
     const uid = user?.uid;
+    const userEmail = user?.email;
     if (!uid) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    if (uid !== userId && uid !== 'admin') {
-      return res.status(403).json({ success: false, message: "Unauthorized user mapping" });
+    const db = admin.firestore();
+
+    // Fetch order document
+    let orderDoc;
+    try {
+      console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${targetOrderId}`);
+      orderDoc = await db.collection("orders").doc(targetOrderId).get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
     }
 
-    // 6. Add detailed logging
-    console.log("Order ID:", orderId);
-    console.log("User ID:", userId);
-    console.log("Reason:", reason);
-
-    const db = admin.firestore();
-    
-    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
-    const orderRef = db.collection("orders").doc(orderId);
-    const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
@@ -81,7 +79,25 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Order data is null" });
     }
 
-    if (orderData.customerId !== uid && uid !== 'admin') {
+    // Check if user is admin
+    let isAdmin = false;
+    if (userEmail === 'vk311779@gmail.com') {
+      isAdmin = true;
+    } else {
+      try {
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists && userDoc.data()?.role === 'admin') {
+          isAdmin = true;
+        }
+      } catch (adminErr) {
+        console.error("Admin check warning:", adminErr);
+      }
+    }
+
+    // Check if owner using contactEmail
+    const isOwner = userEmail && orderData.contactEmail && userEmail.toLowerCase() === orderData.contactEmail.toLowerCase();
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ success: false, message: "Unauthorized to request refund for this order" });
     }
 
@@ -94,27 +110,50 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Order is already refunded" });
     }
 
-    // Check duplicate refund requests in the refund_requests collection
-    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund_requests' where 'orderId' == ${orderId}`);
-    const existingRefunds = await db.collection("refund_requests")
-      .where("orderId", "==", orderId)
-      .get();
+    // Check duplicate refund requests in the refund collection
+    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund' where 'customOrderId' == ${targetOrderId}`);
+    let existingRefunds;
+    try {
+      existingRefunds = await db.collection("refund")
+        .where("customOrderId", "==", targetOrderId)
+        .get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
     if (!existingRefunds.empty) {
       return res.status(400).json({ success: false, message: "A refund request already exists for this order." });
     }
 
-    // 3. Save request data in Firestore (refund_requests) with the required fields
+    // Add detailed logging
+    console.log("Order:", orderData);
+    console.log("customOrderId:", orderData.customOrderId || targetOrderId);
+    console.log("contactEmail:", orderData.contactEmail);
+    console.log("Reason:", reason);
+
+    // 3. Save request data in Firestore (refund) with the required fields
     const refundReqData = {
-      orderId: orderId,
-      userId: userId,
+      customOrderId: orderData.customOrderId || targetOrderId,
+      contactEmail: orderData.contactEmail || userEmail || "",
       reason: reason,
       status: "Pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       comments: comments || "",
       refundAmount: orderData.total || 0
     };
-    console.log("[FIRESTORE WRITE] Creating refund request document in 'refund_requests' collection. Data:", JSON.stringify(refundReqData));
-    const docRef = await db.collection("refund_requests").add(refundReqData);
+
+    let docRef;
+    try {
+      console.log("[FIRESTORE WRITE] Creating refund request document in 'refund' collection. Data:", JSON.stringify(refundReqData));
+      docRef = await db.collection("refund").add(refundReqData);
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
     const requestId = docRef.id;
 
     const orderUpdates = {
@@ -127,12 +166,18 @@ export default async function handler(req: any, res: any) {
         message: "Refund requested by customer"
       })
     };
-    console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
-    await orderRef.update(orderUpdates);
+    try {
+      console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${targetOrderId}. Updates:`, JSON.stringify(orderUpdates));
+      await db.collection("orders").doc(targetOrderId).update(orderUpdates);
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
 
     // 5. Safely execute notifications & emails without crashing the function
     try {
-      const customerEmail = orderData.contactEmail || user?.email;
+      const customerEmail = orderData.contactEmail || userEmail;
       const customerName = orderData.contactName || "Customer";
 
       const notificationPromises = [];
@@ -140,8 +185,8 @@ export default async function handler(req: any, res: any) {
       notificationPromises.push(createNotification(
         uid,
         "Refund Request Submitted",
-        `Your refund request for order #${orderId} has been submitted successfully.`,
-        orderId
+        `Your refund request for order #${targetOrderId} has been submitted successfully.`,
+        targetOrderId
       ).catch(e => console.error("createNotification error:", e)));
 
       if (customerEmail) {
@@ -149,15 +194,15 @@ export default async function handler(req: any, res: any) {
           customerEmail,
           customerName,
           "Refund Request Received",
-          `We have received your refund request for order #${orderId}. Our team will review the request and get back to you within 48 hours.`
+          `We have received your refund request for order #${targetOrderId}. Our team will review the request and get back to you within 48 hours.`
         ).catch(e => console.error("sendEmailNotification error:", e)));
       }
 
       notificationPromises.push(createNotification(
         "admin",
         "New Refund Request",
-        `A new refund request has been submitted for order #${orderId}.`,
-        orderId
+        `A new refund request has been submitted for order #${targetOrderId}.`,
+        targetOrderId
       ).catch(e => console.error("admin createNotification error:", e)));
 
       await Promise.allSettled(notificationPromises);

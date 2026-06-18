@@ -35,7 +35,7 @@ export default function AdminRefundManagementView() {
 
   useEffect(() => {
     const q = query(
-      collection(db, 'refund_requests'),
+      collection(db, 'refund'),
       orderBy('createdAt', 'desc')
     );
 
@@ -88,9 +88,9 @@ export default function AdminRefundManagementView() {
     if (filter !== 'all' && r.status !== filter) return false;
     if (searchTerm) {
       return (
-        r.orderId.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.customOrderId || r.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (r.userId || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (r.contactEmail || r.userId || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     return true;
@@ -150,10 +150,10 @@ export default function AdminRefundManagementView() {
               ) : filteredRequests.map(req => (
                 <tr key={req.id} className="group hover:bg-gray-50/50 transition-all">
                   <td className="px-4 py-6">
-                    <span className="text-sm font-black text-gray-900 tracking-tight">#{req.orderId}</span>
+                    <span className="text-sm font-black text-gray-900 tracking-tight">#{req.customOrderId || req.orderId}</span>
                   </td>
                   <td className="px-4 py-6">
-                    <span className="text-xs font-bold text-gray-600">{req.userId || 'N/A'}</span>
+                    <span className="text-xs font-bold text-gray-600">{req.contactEmail || req.userId || 'N/A'}</span>
                   </td>
                   <td className="px-4 py-6">
                     <span className="text-xs font-bold text-gray-600">{safeFormatDate(req.createdAt)}</span>
@@ -205,7 +205,7 @@ export default function AdminRefundManagementView() {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900">Refund Request Details</h3>
-                  <p className="text-sm text-gray-500 font-medium">Request ID: #{selectedRequest.id.slice(-8).toUpperCase()} • Order ID: #{selectedRequest.orderId}</p>
+                  <p className="text-sm text-gray-500 font-medium">Request ID: #{selectedRequest.id.slice(-8).toUpperCase()} • Order ID: #{selectedRequest.customOrderId || selectedRequest.orderId}</p>
                 </div>
                 <button onClick={() => setSelectedRequest(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                   <X className="w-5 h-5" />

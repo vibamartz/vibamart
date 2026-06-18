@@ -58,7 +58,7 @@ export default function RequestTracking() {
 
     async function initTracking() {
       try {
-        const dbCollections = ["cancellation_requests", "return_requests", "refund_requests"];
+        const dbCollections = ["cancel-order", "return", "refund"];
         let foundRef = null;
         let foundType = "";
 
@@ -67,7 +67,11 @@ export default function RequestTracking() {
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             foundRef = docRef;
-            foundType = colName.replace("_requests", "");
+            if (colName === "cancel-order") {
+              foundType = "cancellation";
+            } else {
+              foundType = colName;
+            }
             break;
           }
         }
@@ -319,8 +323,8 @@ export default function RequestTracking() {
                   <div className="space-y-4 text-sm font-medium">
                     <div className="flex justify-between border-b border-gray-200/50 pb-3">
                       <span className="text-gray-500">Order ID</span>
-                      <Link to={`/track-order/${request.orderId}`} className="font-bold text-primary hover:underline">
-                        #{request.orderId}
+                      <Link to={`/track-order/${request.customOrderId || request.orderId}`} className="font-bold text-primary hover:underline">
+                        #{request.customOrderId || request.orderId}
                       </Link>
                     </div>
 

@@ -31,14 +31,12 @@ export default async function handler(req: any, res: any) {
 
   try {
     console.log("Request received");
-    const { orderId, userId, reason } = req.body || {};
+    const { orderId, customOrderId, reason } = req.body || {};
+    const targetOrderId = customOrderId || orderId;
 
     // 1. Validate fields exist before database operations
-    if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
-      return res.status(400).json({ success: false, message: "Order ID missing" });
-    }
-    if (!userId || typeof userId !== 'string' || !userId.trim()) {
-      return res.status(400).json({ success: false, message: "User ID missing" });
+    if (!targetOrderId || typeof targetOrderId !== 'string' || !targetOrderId.trim()) {
+      return res.status(400).json({ success: false, message: "Order ID/Custom Order ID missing" });
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
       return res.status(400).json({ success: false, message: "Cancellation reason missing" });
@@ -54,24 +52,24 @@ export default async function handler(req: any, res: any) {
     }
 
     const uid = user?.uid;
+    const userEmail = user?.email;
     if (!uid) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    if (uid !== userId && uid !== 'admin') {
-      return res.status(403).json({ success: false, message: "Unauthorized user mapping" });
+    const db = admin.firestore();
+
+    // Fetch order document
+    let orderDoc;
+    try {
+      console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${targetOrderId}`);
+      orderDoc = await db.collection("orders").doc(targetOrderId).get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
     }
 
-    // 6. Add detailed logging
-    console.log("Order ID:", orderId);
-    console.log("User ID:", userId);
-    console.log("Reason:", reason);
-
-    const db = admin.firestore();
-    
-    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
-    const orderRef = db.collection("orders").doc(orderId);
-    const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
@@ -81,7 +79,25 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Order data is null" });
     }
 
-    if (orderData.customerId !== uid && uid !== 'admin') {
+    // Check if user is admin
+    let isAdmin = false;
+    if (userEmail === 'vk311779@gmail.com') {
+      isAdmin = true;
+    } else {
+      try {
+        const userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists && userDoc.data()?.role === 'admin') {
+          isAdmin = true;
+        }
+      } catch (adminErr) {
+        console.error("Admin check warning:", adminErr);
+      }
+    }
+
+    // Check if owner using contactEmail
+    const isOwner = userEmail && orderData.contactEmail && userEmail.toLowerCase() === orderData.contactEmail.toLowerCase();
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ success: false, message: "Unauthorized to cancel this order" });
     }
 
@@ -90,31 +106,60 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: `Cannot cancel order in ${orderData.status} status` });
     }
 
-    // Check for duplicate cancellation requests in the cancellation_requests collection
-    console.log(`[FIRESTORE READ] Checking duplicate cancellations. Querying 'cancellation_requests' where 'orderId' == ${orderId}`);
-    const existingCancellations = await db.collection("cancellation_requests")
-      .where("orderId", "==", orderId)
-      .get();
+    // Check for duplicate cancellation requests in the cancel-order collection
+    console.log(`[FIRESTORE READ] Checking duplicate cancellations. Querying 'cancel-order' where 'customOrderId' == ${targetOrderId}`);
+    let existingCancellations;
+    try {
+      existingCancellations = await db.collection("cancel-order")
+        .where("customOrderId", "==", targetOrderId)
+        .get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
 
     if (!existingCancellations.empty) {
       return res.status(400).json({ success: false, message: "A duplicate cancellation request already exists for this order." });
     }
 
     // Check if manual cancellation is enabled
-    console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'store'");
-    const settingsDoc = await db.collection("settings").doc("store").get();
-    const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
+    let enableManualCancellation = false;
+    try {
+      console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'store'");
+      const settingsDoc = await db.collection("settings").doc("store").get();
+      enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
 
-    // 3. Save request data in Firestore (cancellation_requests) with the required fields
+    // Add detailed logging
+    console.log("Order:", orderData);
+    console.log("customOrderId:", orderData.customOrderId || targetOrderId);
+    console.log("contactEmail:", orderData.contactEmail);
+    console.log("Reason:", reason);
+
+    // 3. Save request data in Firestore (cancel-order) with the required fields
     const cancellationReqData = {
-      orderId: orderId,
-      userId: userId,
+      customOrderId: orderData.customOrderId || targetOrderId,
+      contactEmail: orderData.contactEmail || userEmail || "",
       reason: reason,
       status: "Pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     };
-    console.log("[FIRESTORE WRITE] Creating cancellation request document in 'cancellation_requests' collection. Data:", JSON.stringify(cancellationReqData));
-    const docRef = await db.collection("cancellation_requests").add(cancellationReqData);
+
+    let docRef;
+    try {
+      console.log("[FIRESTORE WRITE] Creating cancellation request document in 'cancel-order' collection. Data:", JSON.stringify(cancellationReqData));
+      docRef = await db.collection("cancel-order").add(cancellationReqData);
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
     const requestId = docRef.id;
 
     if (enableManualCancellation) {
@@ -127,8 +172,14 @@ export default async function handler(req: any, res: any) {
           message: "Cancellation requested by customer"
         })
       };
-      console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
-      await orderRef.update(orderUpdates);
+      try {
+        console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${targetOrderId}. Updates:`, JSON.stringify(orderUpdates));
+        await db.collection("orders").doc(targetOrderId).update(orderUpdates);
+      } catch (error: any) {
+        console.error("FULL ERROR:", error);
+        console.error(error.stack);
+        return res.status(500).json({ success: false, message: error.message });
+      }
     } else {
       // Direct cancel
       const batch = db.batch();
@@ -137,9 +188,15 @@ export default async function handler(req: any, res: any) {
         for (const item of orderData.items) {
           if (!item.productId) continue;
           console.log(`[FIRESTORE READ] Fetching product document from 'products' collection. Product ID: ${item.productId}`);
-          const productRef = db.collection("products").doc(item.productId);
-          const productDoc = await productRef.get();
-          productDocs.push({ item, productRef, productDoc });
+          try {
+            const productRef = db.collection("products").doc(item.productId);
+            const productDoc = await productRef.get();
+            productDocs.push({ item, productRef, productDoc });
+          } catch (error: any) {
+            console.error("FULL ERROR:", error);
+            console.error(error.stack);
+            return res.status(500).json({ success: false, message: error.message });
+          }
         }
       }
 
@@ -174,7 +231,7 @@ export default async function handler(req: any, res: any) {
       for (const prodUpdate of updatesByProduct.values()) {
         batch.update(prodUpdate.ref, prodUpdate.updates);
       }
-      batch.update(orderRef, {
+      batch.update(db.collection("orders").doc(targetOrderId), {
         status: "cancelled",
         cancellationReason: reason,
         statusHistory: admin.firestore.FieldValue.arrayUnion({
@@ -183,17 +240,23 @@ export default async function handler(req: any, res: any) {
           message: "Cancelled by customer"
         })
       });
-      batch.update(db.collection("cancellation_requests").doc(requestId), {
+      batch.update(db.collection("cancel-order").doc(requestId), {
         status: "Approved"
       });
       
-      console.log(`[FIRESTORE WRITE] Executing batch commit for direct order cancellation updates. Order ID: ${orderId}`);
-      await batch.commit();
+      try {
+        console.log(`[FIRESTORE WRITE] Executing batch commit for direct order cancellation updates. Order ID: ${targetOrderId}`);
+        await batch.commit();
+      } catch (error: any) {
+        console.error("FULL ERROR:", error);
+        console.error(error.stack);
+        return res.status(500).json({ success: false, message: error.message });
+      }
     }
 
     // 5. Safely execute notifications & emails without crashing the function
     try {
-      const customerEmail = orderData.contactEmail || user?.email;
+      const customerEmail = orderData.contactEmail || userEmail;
       const customerName = orderData.contactName || "Customer";
 
       const notificationPromises = [];
@@ -202,8 +265,8 @@ export default async function handler(req: any, res: any) {
         notificationPromises.push(createNotification(
           uid,
           "Cancellation Request Submitted",
-          `Your cancellation request for order #${orderId} has been submitted successfully.`,
-          orderId
+          `Your cancellation request for order #${targetOrderId} has been submitted successfully.`,
+          targetOrderId
         ).catch(e => console.error("createNotification error:", e)));
         
         if (customerEmail) {
@@ -211,15 +274,15 @@ export default async function handler(req: any, res: any) {
             customerEmail,
             customerName,
             "Order Cancellation Request Received",
-            `We have received your cancellation request for order #${orderId}. Reason: ${reason}. It is currently pending review.`
+            `We have received your cancellation request for order #${targetOrderId}. Reason: ${reason}. It is currently pending review.`
           ).catch(e => console.error("sendEmailNotification error:", e)));
         }
       } else {
         notificationPromises.push(createNotification(
           uid,
           "Order Cancelled",
-          `Your order #${orderId} has been cancelled successfully.`,
-          orderId
+          `Your order #${targetOrderId} has been cancelled successfully.`,
+          targetOrderId
         ).catch(e => console.error("createNotification error:", e)));
         
         if (customerEmail) {
@@ -227,7 +290,7 @@ export default async function handler(req: any, res: any) {
             customerEmail,
             customerName,
             "Order Cancelled Successfully",
-            `Your order #${orderId} has been successfully cancelled. If you paid online, your refund will be processed within 5-7 business days.`
+            `Your order #${targetOrderId} has been successfully cancelled. If you paid online, your refund will be processed within 5-7 business days.`
           ).catch(e => console.error("sendEmailNotification error:", e)));
         }
       }
@@ -235,8 +298,8 @@ export default async function handler(req: any, res: any) {
       notificationPromises.push(createNotification(
         "admin",
         "New Cancellation Request",
-        `A new cancellation request was submitted for order #${orderId}.`,
-        orderId
+        `A new cancellation request was submitted for order #${targetOrderId}.`,
+        targetOrderId
       ).catch(e => console.error("admin createNotification error:", e)));
 
       await Promise.allSettled(notificationPromises);

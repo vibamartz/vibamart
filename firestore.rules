@@ -182,21 +182,21 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /cancellation_requests/{requestId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid || isAdmin());
-      allow create: if isVerified() && (incoming().userId == request.auth.uid || incoming().customerId == request.auth.uid);
+    match /cancel-order/{requestId} {
+      allow read: if isSignedIn() && (resource.data.contactEmail == request.auth.token.email || isAdmin());
+      allow create: if isVerified() && (incoming().contactEmail == request.auth.token.email);
       allow update, delete: if isAdmin();
     }
 
-    match /return_requests/{requestId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid || isAdmin());
-      allow create: if isVerified() && (incoming().userId == request.auth.uid || incoming().customerId == request.auth.uid);
+    match /return/{requestId} {
+      allow read: if isSignedIn() && (resource.data.contactEmail == request.auth.token.email || isAdmin());
+      allow create: if isVerified() && (incoming().contactEmail == request.auth.token.email);
       allow update, delete: if isAdmin();
     }
 
-    match /refund_requests/{requestId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid || isAdmin());
-      allow create: if isVerified() && (incoming().userId == request.auth.uid || incoming().customerId == request.auth.uid);
+    match /refund/{requestId} {
+      allow read: if isSignedIn() && (resource.data.contactEmail == request.auth.token.email || isAdmin());
+      allow create: if isVerified() && (incoming().contactEmail == request.auth.token.email);
       allow update, delete: if isAdmin();
     }
   }

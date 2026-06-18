@@ -180,9 +180,9 @@ export default function Profile() {
     });
 
     // Fetch All Requests (Cancellation, Return, Refund)
-    const cancelQuery = query(collection(db, 'cancellation_requests'), where('userId', '==', user.uid));
-    const returnQuery = query(collection(db, 'return_requests'), where('userId', '==', user.uid));
-    const refundQuery = query(collection(db, 'refund_requests'), where('userId', '==', user.uid));
+    const cancelQuery = query(collection(db, 'cancel-order'), where('contactEmail', '==', user.email || ''));
+    const returnQuery = query(collection(db, 'return'), where('contactEmail', '==', user.email || ''));
+    const refundQuery = query(collection(db, 'refund'), where('contactEmail', '==', user.email || ''));
 
     let cancellationsList: any[] = [];
     let returnsList: any[] = [];
@@ -195,17 +195,17 @@ export default function Profile() {
       const list: any[] = [];
 
       cancellationsList.forEach(req => {
-        cancellationsData[req.orderId] = req;
+        cancellationsData[req.customOrderId || req.orderId] = req;
         list.push({ ...req, type: 'cancellation' });
       });
 
       returnsList.forEach(req => {
-        returnsData[req.orderId] = req;
+        returnsData[req.customOrderId || req.orderId] = req;
         list.push({ ...req, type: 'return' });
       });
 
       refundsList.forEach(req => {
-        refundsData[req.orderId] = req;
+        refundsData[req.customOrderId || req.orderId] = req;
         list.push({ ...req, type: 'refund' });
       });
 
@@ -332,7 +332,7 @@ export default function Profile() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ orderId: selectedOrderId, userId: user.uid, reason: cancelReason })
+        body: JSON.stringify({ customOrderId: selectedOrderId, contactEmail: user.email, reason: cancelReason })
       });
       let data;
       try {
@@ -395,8 +395,8 @@ export default function Profile() {
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({ 
-          orderId: selectedOrderId, 
-          userId: user.uid,
+          customOrderId: selectedOrderId, 
+          contactEmail: user.email,
           productIds: selectedReturnProducts,
           reason: returnReason,
           comments: returnComments,
@@ -447,8 +447,8 @@ export default function Profile() {
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({ 
-          orderId: selectedOrderId, 
-          userId: user.uid,
+          customOrderId: selectedOrderId, 
+          contactEmail: user.email,
           reason: refundReason
         })
       });
