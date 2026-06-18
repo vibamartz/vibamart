@@ -1,26 +1,18 @@
-import sys
-import re
+const fs = require('fs');
 
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'r', encoding='utf-8') as f:
-    content = f.read()
+async function runRefactor() {
+  let content = fs.readFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'utf-8');
 
-# 1. Add Refund states
-state_target = '''  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
-  const [showCancelModal, setShowCancelModal] = useState(false);'''
+  const state_target = `  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
+  const [showCancelModal, setShowCancelModal] = useState(false);`;
 
-state_replacement = '''  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
+  const state_replacement = `  const [returnRequests, setReturnRequests] = useState<Record<string, string>>({});
   const [refundRequests, setRefundRequests] = useState<Record<string, string>>({});
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundReason, setRefundReason] = useState('Order Cancelled/Returned');
-  const [showCancelModal, setShowCancelModal] = useState(false);'''
+  const [showCancelModal, setShowCancelModal] = useState(false);`;
 
-if state_target in content:
-    content = content.replace(state_target, state_replacement)
-else:
-    print("Could not find state_target")
-
-# 2. Update Fetch Requests
-fetch_target = '''    // Fetch Return Requests
+  const fetch_target = `    // Fetch Return Requests
     const returnsQuery = query(
       collection(db, 'returns'),
       where('userId', '==', user.uid)
@@ -32,9 +24,9 @@ fetch_target = '''    // Fetch Return Requests
         returnsData[data.orderId] = data.status;
       });
       setReturnRequests(returnsData);
-    });'''
+    });`;
 
-fetch_replacement = '''    // Fetch Return and Refund Requests
+  const fetch_replacement = `    // Fetch Return and Refund Requests
     const requestsQuery = query(
       collection(db, 'requests'),
       where('userId', '==', user.uid)
@@ -52,22 +44,15 @@ fetch_replacement = '''    // Fetch Return and Refund Requests
       });
       setReturnRequests(returnsData);
       setRefundRequests(refundsData);
-    });'''
+    });`;
 
-if fetch_target in content:
-    content = content.replace(fetch_target, fetch_replacement)
-    content = content.replace("unsubReturns();", "unsubRequests();")
-else:
-    print("Could not find fetch_target")
-
-# 3. Update handleCancelOrder
-cancel_target = '''    try {
+  const cancel_target = `    try {
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/orders/cancel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': \`Bearer \${idToken}\`
         },
         body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
       });
@@ -82,15 +67,15 @@ cancel_target = '''    try {
       }
     } catch (err) {
       toast.error('An error occurred');
-    } finally {'''
+    } finally {`;
 
-cancel_replacement = '''    try {
+  const cancel_replacement = `    try {
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/orders/cancel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': \`Bearer \${idToken}\`
         },
         body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
       });
@@ -106,18 +91,11 @@ cancel_replacement = '''    try {
       }
     } catch (err: any) {
       toast.error(err.message || 'An error occurred during cancellation');
-    } finally {'''
+    } finally {`;
 
-if cancel_target in content:
-    content = content.replace(cancel_target, cancel_replacement)
-else:
-    print("Could not find cancel_target")
-
-
-# 4. Update handleRequestReturn
-return_target = '''    try {
+  const return_target = `    try {
       const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
-        const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
+        const imageRef = ref(storage, \`returns/\${selectedOrderId}_\${Date.now()}_\${index}\`);
         await uploadString(imageRef, imgBase64, 'data_url');
         return await getDownloadURL(imageRef);
       }));
@@ -127,7 +105,7 @@ return_target = '''    try {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': \`Bearer \${idToken}\`
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
@@ -151,11 +129,11 @@ return_target = '''    try {
       }
     } catch (err) {
       toast.error('An error occurred');
-    } finally {'''
+    } finally {`;
 
-return_replacement = '''    try {
+  const return_replacement = `    try {
       const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
-        const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
+        const imageRef = ref(storage, \`returns/\${selectedOrderId}_\${Date.now()}_\${index}\`);
         await uploadString(imageRef, imgBase64, 'data_url');
         return await getDownloadURL(imageRef);
       }));
@@ -165,7 +143,7 @@ return_replacement = '''    try {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': \`Bearer \${idToken}\`
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
@@ -190,15 +168,9 @@ return_replacement = '''    try {
       }
     } catch (err: any) {
       toast.error(err.message || 'An error occurred during return request');
-    } finally {'''
+    } finally {`;
 
-if return_target in content:
-    content = content.replace(return_target, return_replacement)
-else:
-    print("Could not find return_target")
-
-# 5. Add handleRequestRefund
-refund_handler = '''  const handleRequestRefund = async () => {
+  const refund_handler = `  const handleRequestRefund = async () => {
     if (!selectedOrderId || !refundReason) {
       toast.error('Please fill required fields');
       return;
@@ -210,7 +182,7 @@ refund_handler = '''  const handleRequestRefund = async () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': \`Bearer \${idToken}\`
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
@@ -234,20 +206,17 @@ refund_handler = '''  const handleRequestRefund = async () => {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {'''
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {`;
 
-content = content.replace('  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {', refund_handler)
-
-# 6. Add buttons to JSX
-buttons_target = '''                                  {returnRequests[order.id] && (
+  const buttons_target = `                                  {returnRequests[order.id] && (
                                     <span className="px-4 py-2.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2">
                                       Return: {returnRequests[order.id].replace('_', ' ')}
                                     </span>
                                   )}
                                   <Link 
-                                    to={`/track-order/${order.id}`}'''
+                                    to={\`/track-order/\${order.id}\`}`;
 
-buttons_replacement = '''                                  {returnRequests[order.id] && (
+  const buttons_replacement = `                                  {returnRequests[order.id] && (
                                     <span className="px-4 py-2.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2">
                                       Return: {returnRequests[order.id].replace('_', ' ')}
                                     </span>
@@ -266,15 +235,40 @@ buttons_replacement = '''                                  {returnRequests[order
                                     </span>
                                   )}
                                   <Link 
-                                    to={`/track-order/${order.id}`}'''
+                                    to={\`/track-order/\${order.id}\`}`;
 
-if buttons_target in content:
-    content = content.replace(buttons_target, buttons_replacement)
-else:
-    print("Could not find buttons_target")
+  if (content.includes(state_target)) {
+    content = content.replace(state_target, state_replacement);
+  } else {
+    console.log('Could not find ' + 'state_target');
+  }
 
+  if (content.includes(fetch_target)) {
+    content = content.replace(fetch_target, fetch_replacement);
+  } else {
+    console.log('Could not find ' + 'fetch_target');
+  }
 
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'w', encoding='utf-8') as f:
-    f.write(content)
+  if (content.includes(cancel_target)) {
+    content = content.replace(cancel_target, cancel_replacement);
+  } else {
+    console.log('Could not find ' + 'cancel_target');
+  }
 
-print("SUCCESS")
+  if (content.includes(return_target)) {
+    content = content.replace(return_target, return_replacement);
+  } else {
+    console.log('Could not find ' + 'return_target');
+  }
+
+  if (content.includes(buttons_target)) {
+    content = content.replace(buttons_target, buttons_replacement);
+  } else {
+    console.log('Could not find ' + 'buttons_target');
+  }
+
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', content);
+
+}
+
+runRefactor();

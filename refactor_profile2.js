@@ -1,11 +1,11 @@
-import sys
+const fs = require('fs');
 
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'r', encoding='utf-8') as f:
-    content = f.read()
+async function runRefactor() {
+  let content = fs.readFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'utf-8');
 
-target = '''      {/* Request Return Modal */}'''
+  const target = `      {/* Request Return Modal */}`;
 
-replacement = '''      {/* Request Refund Modal */}
+  const replacement = `      {/* Request Refund Modal */}
       <AnimatePresence>
         {showRefundModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -36,14 +36,16 @@ replacement = '''      {/* Request Refund Modal */}
         )}
       </AnimatePresence>
 
-      {/* Request Return Modal */}'''
+      {/* Request Return Modal */}`;
 
-if target in content:
-    content = content.replace(target, replacement)
-else:
-    print("Target not found")
+  if (content.includes(target)) {
+    content = content.replace(target, replacement);
+  } else {
+    console.log('Could not find ' + 'target');
+  }
 
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', 'w', encoding='utf-8') as f:
-    f.write(content)
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/Profile.tsx', content);
 
-print("SUCCESS")
+}
+
+runRefactor();

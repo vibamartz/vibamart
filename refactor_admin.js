@@ -1,10 +1,9 @@
-import sys
+const fs = require('fs');
 
-# 1. Update AdminDashboard.tsx
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/AdminDashboard.tsx', 'r', encoding='utf-8') as f:
-    dashboard_content = f.read()
+async function runRefactor() {
+  let dashboard_content = fs.readFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/AdminDashboard.tsx', 'utf-8');
 
-target_returns = '''  // Live Firebase snapshot listener for return requests
+  const target_returns = `  // Live Firebase snapshot listener for return requests
   useEffect(() => {
     const q = query(collection(db, 'returns'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -19,9 +18,9 @@ target_returns = '''  // Live Firebase snapshot listener for return requests
       setLoadingReturns(false);
     });
     return () => unsubscribe();
-  }, []);'''
+  }, []);`;
 
-replacement_returns = '''  // Live Firebase snapshot listener for all requests
+  const replacement_returns = `  // Live Firebase snapshot listener for all requests
   useEffect(() => {
     const q = query(collection(db, 'requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -38,20 +37,9 @@ replacement_returns = '''  // Live Firebase snapshot listener for all requests
       setLoadingReturns(false);
     });
     return () => unsubscribe();
-  }, []);'''
+  }, []);`;
 
-if target_returns in dashboard_content:
-    dashboard_content = dashboard_content.replace(target_returns, replacement_returns)
-else:
-    print("Failed to find target_returns in AdminDashboard.tsx")
-
-with open('c:/Users/vk311/Downloads/viba-mart/src/pages/AdminDashboard.tsx', 'w', encoding='utf-8') as f:
-    f.write(dashboard_content)
-
-print("SUCCESS AdminDashboard")
-
-# 2. Rewrite AdminCancellationManagementView.tsx
-cancel_content = '''import React, { useState, useEffect } from 'react';
+  const cancel_content = `import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Search, Package, Eye } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
@@ -87,12 +75,12 @@ export default function AdminCancellationManagementView() {
       const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/requests/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${idToken}\` },
         body: JSON.stringify({ requestId, status })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Status updated to ${status}`, { id: tid });
+        toast.success(\`Status updated to \${status}\`, { id: tid });
       } else {
         toast.error(data.error || 'Update failed', { id: tid });
       }
@@ -133,7 +121,7 @@ export default function AdminCancellationManagementView() {
                 <button
                   key={s}
                   onClick={() => setFilter(s)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={\`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap \${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}\`}
                 >
                   {s.replace('_', ' ')}
                 </button>
@@ -167,10 +155,10 @@ export default function AdminCancellationManagementView() {
                     <p className="text-[11px] text-gray-500 max-w-[200px] truncate">{req.reason}</p>
                   </td>
                   <td className="px-4 py-6">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
+                    <span className={\`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg \${
                       req.status === 'approved' ? 'bg-green-100 text-green-600' :
                       req.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
-                    }`}>
+                    }\`}>
                       {req.status}
                     </span>
                   </td>
@@ -195,12 +183,9 @@ export default function AdminCancellationManagementView() {
     </motion.div>
   );
 }
-'''
-with open('c:/Users/vk311/Downloads/viba-mart/src/components/AdminCancellationManagementView.tsx', 'w', encoding='utf-8') as f:
-    f.write(cancel_content)
+`;
 
-# 3. Rewrite AdminRefundManagementView.tsx
-refund_content = '''import React, { useState, useEffect } from 'react';
+  const refund_content = `import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Search, CreditCard } from 'lucide-react';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
@@ -235,12 +220,12 @@ export default function AdminRefundManagementView() {
       const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/requests/update-status', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${idToken}\` },
         body: JSON.stringify({ requestId, status })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Status updated to ${status}`, { id: tid });
+        toast.success(\`Status updated to \${status}\`, { id: tid });
       } else {
         toast.error(data.error || 'Update failed', { id: tid });
       }
@@ -281,7 +266,7 @@ export default function AdminRefundManagementView() {
                 <button
                   key={s}
                   onClick={() => setFilter(s)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={\`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap \${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}\`}
                 >
                   {s}
                 </button>
@@ -319,10 +304,10 @@ export default function AdminRefundManagementView() {
                     <span className="text-lg font-black text-gray-900 italic">₹{req.refundAmount?.toLocaleString() || 0}</span>
                   </td>
                   <td className="px-4 py-6">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
+                    <span className={\`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg \${
                       req.status === 'refunded' ? 'bg-green-100 text-green-600' :
                       req.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
-                    }`}>
+                    }\`}>
                       {req.status}
                     </span>
                   </td>
@@ -347,8 +332,20 @@ export default function AdminRefundManagementView() {
     </motion.div>
   );
 }
-'''
-with open('c:/Users/vk311/Downloads/viba-mart/src/components/AdminRefundManagementView.tsx', 'w', encoding='utf-8') as f:
-    f.write(refund_content)
+`;
 
-print("SUCCESS AdminRefunds & Cancellations")
+  if (dashboard_content.includes(target_returns)) {
+    dashboard_content = dashboard_content.replace(target_returns, replacement_returns);
+  } else {
+    console.log('Could not find ' + 'target_returns');
+  }
+
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/src/pages/AdminDashboard.tsx', dashboard_content);
+
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/src/components/AdminCancellationManagementView.tsx', cancel_content);
+
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/src/components/AdminRefundManagementView.tsx', refund_content);
+
+}
+
+runRefactor();

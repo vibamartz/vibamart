@@ -1,9 +1,9 @@
-import sys
+const fs = require('fs');
 
-with open('c:/Users/vk311/Downloads/viba-mart/server.ts', 'r', encoding='utf-8') as f:
-    content = f.read()
+async function runRefactor() {
+  let content = fs.readFileSync('c:/Users/vk311/Downloads/viba-mart/server.ts', 'utf-8');
 
-target_update = '''  // Returns: Admin Update Status
+  const target_update = `  // Returns: Admin Update Status
   app.post("/api/returns/update-status", verifyAuth, async (req, res) => {
     const { returnId, status, adminNotes } = req.body;
     
@@ -67,15 +67,15 @@ target_update = '''  // Returns: Admin Update Status
           msg = "Unfortunately, your return request has been rejected. Please check your account for details.";
         } else if (status === 'refund_processed') {
           subject = "Refund Processed";
-          msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+          msg = \`Your refund of ₹\${rData.refundAmount} has been processed to your original payment method.\`;
         }
 
         if (subject) {
           const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-          const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2><p>${msg}</p>`;
+          const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2><p>\${msg}</p>\`;
           if (process.env.SMTP_HOST && !isPlaceholder) {
             await transporter.sendMail({
-              from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+              from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
               to: customerEmail,
               subject,
               html: emailHtml,
@@ -88,9 +88,9 @@ target_update = '''  // Returns: Admin Update Status
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
-  });'''
+  });`;
 
-replacement_update = '''  // Requests: Admin Update Status
+  const replacement_update = `  // Requests: Admin Update Status
   app.post("/api/requests/update-status", verifyAuth, async (req, res) => {
     const { requestId, status, adminNotes } = req.body;
     
@@ -225,12 +225,12 @@ replacement_update = '''  // Requests: Admin Update Status
               msg = "Unfortunately, your return request has been rejected. Please check your account for details.";
             } else if (status === 'refund_processed') {
               subject = "Refund Processed";
-              msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+              msg = \`Your refund of ₹\${rData.refundAmount} has been processed to your original payment method.\`;
             }
         } else if (rData.type === 'refund') {
             if (status === 'refunded') {
               subject = "Refund Processed";
-              msg = `Your refund of ₹${rData.refundAmount} has been processed to your original payment method.`;
+              msg = \`Your refund of ₹\${rData.refundAmount} has been processed to your original payment method.\`;
             } else if (status === 'rejected') {
               subject = "Refund Request Rejected";
               msg = "Unfortunately, your refund request has been rejected.";
@@ -239,10 +239,10 @@ replacement_update = '''  // Requests: Admin Update Status
 
         if (subject) {
           const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-          const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2><p>${msg}</p>`;
+          const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2><p>\${msg}</p>\`;
           if (process.env.SMTP_HOST && !isPlaceholder) {
             await transporter.sendMail({
-              from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+              from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
               to: customerEmail,
               subject,
               html: emailHtml,
@@ -256,16 +256,16 @@ replacement_update = '''  // Requests: Admin Update Status
       console.error("Update request status error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
-  });'''
+  });`;
 
-if target_update in content:
-    content = content.replace(target_update, replacement_update)
-else:
-    print("Could not find target_update")
-    sys.exit(1)
+  if (content.includes(target_update)) {
+    content = content.replace(target_update, replacement_update);
+  } else {
+    console.log('Could not find ' + 'target_update');
+  }
 
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/server.ts', content);
 
-with open('c:/Users/vk311/Downloads/viba-mart/server.ts', 'w', encoding='utf-8') as f:
-    f.write(content)
+}
 
-print("SUCCESS")
+runRefactor();

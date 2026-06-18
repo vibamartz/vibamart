@@ -1,10 +1,9 @@
-import sys
+const fs = require('fs');
 
-with open('c:/Users/vk311/Downloads/viba-mart/server.ts', 'r', encoding='utf-8') as f:
-    content = f.read()
+async function runRefactor() {
+  let content = fs.readFileSync('c:/Users/vk311/Downloads/viba-mart/server.ts', 'utf-8');
 
-# Replace cancellation API
-target_cancel = '''  // Orders: Cancel Order
+  const target_cancel = `  // Orders: Cancel Order
   app.post("/api/orders/cancel", verifyAuth, async (req, res) => {
     const { orderId, reason } = req.body;
     const uid = (req as any).user.uid;
@@ -30,7 +29,7 @@ target_cancel = '''  // Orders: Cancel Order
 
         const allowedStatuses = ["pending", "confirmed", "packed"];
         if (!allowedStatuses.includes(orderData.status)) {
-          throw new Error(`Cannot cancel order in ${orderData.status} status`);
+          throw new Error(\`Cannot cancel order in \${orderData.status} status\`);
         }
 
         // Check if manual cancellation is enabled
@@ -91,20 +90,20 @@ target_cancel = '''  // Orders: Cancel Order
         const settingsDoc = await db.collection("settings").doc("store").get();
         const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
-        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-        <p>Your order <strong>#${orderId}</strong> cancellation request has been ${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
-        <p>Reason: ${reason}</p>
-        ${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}`;
+        const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2>
+        <p>Your order <strong>#\${orderId}</strong> cancellation request has been \${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
+        <p>Reason: \${reason}</p>
+        \${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}\`;
         
         if (process.env.SMTP_HOST && !isPlaceholder) {
           await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
             to: customerEmail,
             subject: "Order Cancellation Confirmation",
             html: emailHtml,
           });
         } else {
-          console.log(`[DEVELOPMENT] Cancellation email for ${customerEmail}:\\n${emailHtml}`);
+          console.log(\`[DEVELOPMENT] Cancellation email for \${customerEmail}:\\n\${emailHtml}\`);
         }
       }
 
@@ -113,9 +112,9 @@ target_cancel = '''  // Orders: Cancel Order
       console.error("Cancel order error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
     }
-  });'''
+  });`;
 
-replacement_cancel = '''  // Orders: Cancel Order
+  const replacement_cancel = `  // Orders: Cancel Order
   app.post("/api/orders/cancel", verifyAuth, async (req, res) => {
     const { orderId, reason } = req.body;
     const uid = (req as any).user.uid;
@@ -140,7 +139,7 @@ replacement_cancel = '''  // Orders: Cancel Order
 
       const allowedStatuses = ["pending", "confirmed", "packed"];
       if (!allowedStatuses.includes(orderData.status)) {
-        return res.status(400).json({ success: false, error: `Cannot cancel order in ${orderData.status} status` });
+        return res.status(400).json({ success: false, error: \`Cannot cancel order in \${orderData.status} status\` });
       }
 
       // Check if manual cancellation is enabled
@@ -207,20 +206,20 @@ replacement_cancel = '''  // Orders: Cancel Order
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
 
-        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-        <p>Your order <strong>#${orderId}</strong> cancellation request has been ${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
-        <p>Reason: ${reason}</p>
-        ${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}`;
+        const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2>
+        <p>Your order <strong>#\${orderId}</strong> cancellation request has been \${enableManualCancellation ? 'received and is pending approval' : 'successfully processed'}.</p>
+        <p>Reason: \${reason}</p>
+        \${!enableManualCancellation ? '<p>If you paid online, your refund will be processed within 5-7 business days.</p>' : ''}\`;
         
         if (process.env.SMTP_HOST && !isPlaceholder) {
           await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
             to: customerEmail,
             subject: "Order Cancellation Confirmation",
             html: emailHtml,
           });
         } else {
-          console.log(`[DEVELOPMENT] Cancellation email for ${customerEmail}:\\n${emailHtml}`);
+          console.log(\`[DEVELOPMENT] Cancellation email for \${customerEmail}:\\n\${emailHtml}\`);
         }
       }
 
@@ -229,16 +228,9 @@ replacement_cancel = '''  // Orders: Cancel Order
       console.error("Cancel order error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
     }
-  });'''
+  });`;
 
-if target_cancel in content:
-    content = content.replace(target_cancel, replacement_cancel)
-else:
-    print("Could not find target_cancel")
-    sys.exit(1)
-
-
-target_returns = '''  // Returns: Request Return
+  const target_returns = `  // Returns: Request Return
   app.post("/api/returns/request", verifyAuth, async (req, res) => {
     const { orderId, reason, comments, images, productIds } = req.body;
     const uid = (req as any).user.uid;
@@ -313,13 +305,13 @@ target_returns = '''  // Returns: Request Return
       const customerEmail = orderData.contactEmail || (req as any).user.email;
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-        <p>We have received your return request for order <strong>#${orderId}</strong>.</p>
-        <p>Our team will review the details and images provided within 48 hours.</p>`;
+        const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2>
+        <p>We have received your return request for order <strong>#\${orderId}</strong>.</p>
+        <p>Our team will review the details and images provided within 48 hours.</p>\`;
         
         if (process.env.SMTP_HOST && !isPlaceholder) {
           await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
             to: customerEmail,
             subject: "Return Request Received",
             html: emailHtml,
@@ -332,9 +324,9 @@ target_returns = '''  // Returns: Request Return
       console.error("Return request error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to submit return request" });
     }
-  });'''
+  });`;
 
-replacement_returns = '''  // Returns: Request Return
+  const replacement_returns = `  // Returns: Request Return
   app.post("/api/returns/request", verifyAuth, async (req, res) => {
     const { orderId, reason, comments, images, productIds } = req.body;
     const uid = (req as any).user.uid;
@@ -410,13 +402,13 @@ replacement_returns = '''  // Returns: Request Return
       const customerEmail = orderData.contactEmail || (req as any).user.email;
       if (customerEmail) {
         const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-        const emailHtml = `<h2>Hello ${orderData.contactName || 'Customer'},</h2>
-        <p>We have received your return request for order <strong>#${orderId}</strong>.</p>
-        <p>Our team will review the details and images provided within 48 hours.</p>`;
+        const emailHtml = \`<h2>Hello \${orderData.contactName || 'Customer'},</h2>
+        <p>We have received your return request for order <strong>#\${orderId}</strong>.</p>
+        <p>Our team will review the details and images provided within 48 hours.</p>\`;
         
         if (process.env.SMTP_HOST && !isPlaceholder) {
           await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+            from: \`"ViBa Mart" <\${process.env.SMTP_USER}>\`,
             to: customerEmail,
             subject: "Return Request Received",
             html: emailHtml,
@@ -485,16 +477,22 @@ replacement_returns = '''  // Returns: Request Return
       console.error("Refund request error:", error);
       res.status(500).json({ success: false, error: error.message || "Failed to submit refund request" });
     }
-  });'''
+  });`;
 
-if target_returns in content:
-    content = content.replace(target_returns, replacement_returns)
-else:
-    print("Could not find target_returns")
-    sys.exit(1)
+  if (content.includes(target_cancel)) {
+    content = content.replace(target_cancel, replacement_cancel);
+  } else {
+    console.log('Could not find ' + 'target_cancel');
+  }
 
+  if (content.includes(target_returns)) {
+    content = content.replace(target_returns, replacement_returns);
+  } else {
+    console.log('Could not find ' + 'target_returns');
+  }
 
-with open('c:/Users/vk311/Downloads/viba-mart/server.ts', 'w', encoding='utf-8') as f:
-    f.write(content)
+  fs.writeFileSync('c:/Users/vk311/Downloads/viba-mart/server.ts', content);
 
-print("SUCCESS")
+}
+
+runRefactor();
