@@ -6454,31 +6454,58 @@ function ReturnManagementView() {
   const [filter, setFilter] = useState<ReturnRequest['status'] | 'all'>('all');
 
   useEffect(() => {
-    let q = query(collection(db, 'returns'), orderBy('createdAt', 'desc'));
-    if (filter !== 'all') {
-      q = query(collection(db, 'returns'), where('status', '==', filter));
-    }
+    let q = query(
+      collection(db, 'requests'),
+      where('type', '==', 'return')
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReturnRequest));
-      setReturns(data);
+      
+      let filteredData = data;
+      if (filter !== 'all') {
+        filteredData = data.filter(r => r.status === filter);
+      }
+      
+      filteredData.sort((a, b) => {
+        const timeA = new Date(a.createdAt || (a as any).createdDate || 0).getTime();
+        const timeB = new Date(b.createdAt || (b as any).createdDate || 0).getTime();
+        return timeB - timeA;
+      });
+
+      setReturns(filteredData);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'returns');
+      handleFirestoreError(error, OperationType.LIST, 'requests');
     });
 
     return () => unsubscribe();
   }, [filter]);
 
   const updateReturnStatus = async (returnId: string, status: ReturnRequest['status']) => {
+    const tid = toast.loading(`Updating return status to ${status.replace('_', ' ')}...`);
     try {
-      await updateDoc(doc(db, 'returns', returnId), {
-        status,
-        updatedAt: new Date().toISOString()
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/requests/update-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          requestId: returnId,
+          status,
+          adminNotes: `Status updated to ${status} by admin.`
+        })
       });
-      toast.success(`Return request ${status.replace('_', ' ')}`);
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Return request updated successfully`, { id: tid });
+      } else {
+        toast.error(data.error || 'Update failed', { id: tid });
+      }
     } catch (err) {
-      toast.error('Update failed');
+      toast.error('Network error', { id: tid });
     }
   };
 

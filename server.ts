@@ -357,7 +357,7 @@ async function startServer() {
   };
 
   // Orders: Cancel Order
-  app.post("/api/orders/cancel", handleWebRoute(cancelHandler));
+  app.post("/api/orders/cancel", cancelHandler);
 
 
   // Orders: Admin Approve Cancellation
@@ -499,14 +499,14 @@ async function startServer() {
   });
 
   // Returns: Request Return
-  app.post("/api/returns/request", handleWebRoute(returnRequestHandler));
+  app.post("/api/returns/request", returnRequestHandler);
 
 
   // Refunds: Request Refund
-  app.post("/api/refunds/request", handleWebRoute(refundRequestHandler));
+  app.post("/api/refunds/request", refundRequestHandler);
 
   // Requests: Admin Update Status
-  app.post("/api/requests/update-status", handleWebRoute(updateStatusHandler));
+  app.post("/api/requests/update-status", updateStatusHandler);
 
 
   // Auth: Verify Email OTP

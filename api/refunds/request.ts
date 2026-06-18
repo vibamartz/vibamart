@@ -1,8 +1,28 @@
 import admin from "firebase-admin";
-import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification, handleNodeRequest } from "../utils";
 
-export default async function handler(req: Request) {
+export async function POST(req: Request) {
   try {
+    console.log("Request received");
+
+    // 1. Parse request body safely
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.log("Request body: (empty or invalid JSON)");
+      console.log("Order ID: undefined");
+      console.log("User ID: undefined");
+      return Response.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+
+    console.log("Request body:", body);
+    console.log("Order ID:", body.orderId);
+    console.log("User ID:", body.userId);
+
     if (req.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
@@ -16,26 +36,18 @@ export default async function handler(req: Request) {
       );
     }
 
+    // 2. Perform token authentication
     let user;
     try {
       user = await verifyAuth(req);
     } catch (authError: any) {
+      console.error("Auth error:", authError);
       return Response.json(
         { success: false, error: authError.message || "Unauthorized" },
         { 
           status: authError.message?.includes("Configuration") ? 500 : 401, 
           headers: getCorsHeaders() 
         }
-      );
-    }
-
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch (e) {
-      return Response.json(
-        { success: false, error: "Invalid JSON body" },
-        { status: 400, headers: getCorsHeaders() }
       );
     }
 
@@ -170,14 +182,22 @@ export default async function handler(req: Request) {
       { headers: getCorsHeaders() }
     );
   } catch (error: any) {
-    console.error(error);
+    console.error("FULL ERROR:", error);
+    console.error("STACK:", error.stack);
 
     return Response.json(
       {
         success: false,
         message: error.message || "Internal server error"
       },
-      { status: 500 }
+      { status: 500, headers: getCorsHeaders() }
     );
   }
+}
+
+export default async function handler(req: any, res?: any) {
+  if (res && typeof res.status === 'function') {
+    return handleNodeRequest(POST, req, res);
+  }
+  return POST(req);
 }

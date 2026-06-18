@@ -310,7 +310,7 @@ export default function Profile() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ orderId: selectedOrderId, reason: cancelReason })
+        body: JSON.stringify({ orderId: selectedOrderId, userId: user.uid, reason: cancelReason })
       });
       let data;
       try {
@@ -374,6 +374,7 @@ export default function Profile() {
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
+          userId: user.uid,
           productIds: selectedReturnProducts,
           reason: returnReason,
           comments: returnComments,
@@ -425,6 +426,7 @@ export default function Profile() {
         },
         body: JSON.stringify({ 
           orderId: selectedOrderId, 
+          userId: user.uid,
           reason: refundReason
         })
       });

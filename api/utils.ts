@@ -1,5 +1,8 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 let adminInitError: string | null = null;
 
@@ -34,11 +37,18 @@ if (!admin.apps.length) {
   }
 }
 
-export const verifyAuth = async (req: Request) => {
+export const verifyAuth = async (req: any) => {
   if (!admin.apps.length) {
     throw new Error(`Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Vercel Environment Variables.`);
   }
-  const authHeader = req.headers.get("authorization");
+  
+  let authHeader = "";
+  if (req && typeof req.headers?.get === 'function') {
+    authHeader = req.headers.get("authorization") || "";
+  } else if (req && req.headers && typeof req.headers === 'object') {
+    authHeader = req.headers.authorization || "";
+  }
+  
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("Unauthorized: No token provided");
   }
@@ -69,7 +79,6 @@ export const setCorsHeaders = (req: any, res: any) => {
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 };
-
 
 export async function createNotification(userId: string, title: string, message: string, orderId?: string) {
   try {
@@ -140,4 +149,79 @@ export async function sendEmailNotification(toEmail: string, contactName: string
     console.error("Error sending email notification:", err);
   }
 }
+
+export async function handleNodeRequest(
+  webHandler: (req: Request) => Promise<Response>,
+  req: any,
+  res: any
+) {
+  try {
+    setCorsHeaders(req, res);
+    
+    // Parse URL
+    const protocol = req.protocol || 'http';
+    const host = req.headers?.host || 'localhost';
+    const url = `${protocol}://${host}${req.originalUrl || req.url || ''}`;
+
+    // Read headers
+    const headers = new Headers();
+    if (req.headers && typeof req.headers === 'object') {
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (value) {
+          if (Array.isArray(value)) {
+            value.forEach(v => headers.append(key, v));
+          } else {
+            headers.set(key, String(value));
+          }
+        }
+      }
+    }
+
+    // Prepare body
+    let requestBody: any = undefined;
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (typeof req.body === 'object' && req.body !== null) {
+        requestBody = JSON.stringify(req.body);
+      } else if (req.body) {
+        requestBody = req.body;
+      }
+    }
+
+    const webReq = new Request(url, {
+      method: req.method,
+      headers: headers,
+      body: requestBody,
+    });
+
+    const webRes = await webHandler(webReq);
+
+    // Set CORS headers back on the response to make sure they're not overwritten
+    const responseHeaders = getCorsHeaders();
+    for (const [k, v] of Object.entries(responseHeaders)) {
+      res.setHeader(k, v);
+    }
+
+    webRes.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    res.status(webRes.status);
+    const text = await webRes.text();
+    
+    const contentType = webRes.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        res.json(JSON.parse(text));
+        return;
+      } catch (e) {
+        // Fallback
+      }
+    }
+    res.send(text);
+  } catch (err: any) {
+    console.error("Node request adapter error:", err);
+    res.status(500).json({ success: false, error: err.message || "Internal Server Error" });
+  }
+}
+
 
