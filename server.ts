@@ -180,7 +180,7 @@ async function startServer() {
     try {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins from now
+      const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 mins from now
 
       // Store in Firestore otps collection
       const db = admin.firestore();
@@ -197,8 +197,8 @@ async function startServer() {
           from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
           to: email,
           subject: "Your ViBa Mart Login OTP",
-          text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-          html: `<b>Your OTP is ${otp}</b><br/>It is valid for 5 minutes.`,
+          text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
+          html: `<b>Your OTP is ${otp}</b><br/>It is valid for 2 minutes.`,
         });
       } else {
         // Fallback for testing when no SMTP is configured

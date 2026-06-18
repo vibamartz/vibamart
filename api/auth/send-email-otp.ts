@@ -54,7 +54,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
 
     const db = admin.firestore();
     await db.collection("otps").doc(email).set({
@@ -67,8 +67,8 @@ export default async function handler(req: any, res: any) {
         from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
         to: email,
         subject: "Your ViBa Mart Login OTP",
-        text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-        html: `<b>Your OTP is ${otp}</b><br/>It is valid for 5 minutes.`,
+        text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
+        html: `<b>Your OTP is ${otp}</b><br/>It is valid for 2 minutes.`,
       });
     } else {
       console.log(`[DEVELOPMENT] OTP for ${email} is: ${otp}`);
