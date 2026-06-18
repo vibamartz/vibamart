@@ -349,15 +349,20 @@ export default function Profile() {
         if (!storage.app.options.storageBucket) {
           return "https://via.placeholder.com/150?text=Mock+Return+Image";
         }
-        const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
-        const uploadPromise = uploadString(imageRef, imgBase64, 'data_url');
-        let timeoutId: any;
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error("Image upload timed out. Please check your network or Firebase config.")), 60000);
-        });
-        await Promise.race([uploadPromise, timeoutPromise]);
-        clearTimeout(timeoutId);
-        return await getDownloadURL(imageRef);
+        try {
+          const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
+          const uploadPromise = uploadString(imageRef, imgBase64, 'data_url');
+          let timeoutId: any;
+          const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error("Image upload timed out.")), 10000);
+          });
+          await Promise.race([uploadPromise, timeoutPromise]);
+          clearTimeout(timeoutId);
+          return await getDownloadURL(imageRef);
+        } catch (error) {
+          console.warn("Firebase Storage upload failed, using placeholder instead:", error);
+          return "https://via.placeholder.com/150?text=Upload+Failed";
+        }
       }));
 
       const idToken = await auth.currentUser?.getIdToken();
