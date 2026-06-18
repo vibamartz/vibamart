@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -74,6 +74,8 @@ export default async function handler(req: any, res: any) {
     console.log("Reason:", reason);
 
     const db = admin.firestore();
+    
+    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -89,6 +91,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Can only return delivered orders" });
     }
 
+    console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'store'");
     const settingsDoc = await db.collection("settings").doc("store").get();
     const returnWindowDays = settingsDoc.exists && settingsDoc.data()?.returnWindowDays ? settingsDoc.data()?.returnWindowDays : 7;
     
@@ -101,6 +104,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Check for duplicate return requests in the return_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate returns. Querying 'return_requests' where 'orderId' == ${orderId}`);
     const existingReturns = await db.collection("return_requests")
       .where("orderId", "==", orderId)
       .get();
@@ -127,7 +131,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // 3. Save request data in Firestore (return_requests) with the required fields
-    const docRef = await db.collection("return_requests").add({
+    const returnReqData = {
       orderId: orderId,
       userId: userId,
       reason: reason,
@@ -137,10 +141,12 @@ export default async function handler(req: any, res: any) {
       comments: comments || "",
       images,
       refundAmount: calculatedRefund
-    });
+    };
+    console.log("[FIRESTORE WRITE] Creating return request document in 'return_requests' collection. Data:", JSON.stringify(returnReqData));
+    const docRef = await db.collection("return_requests").add(returnReqData);
     const requestId = docRef.id;
 
-    await orderRef.update({
+    const orderUpdates = {
       status: "return_requested",
       hasReturnRequest: true,
       returnRequestId: requestId,
@@ -149,7 +155,9 @@ export default async function handler(req: any, res: any) {
         timestamp: new Date().toISOString(),
         message: "Return requested by customer"
       })
-    });
+    };
+    console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
+    await orderRef.update(orderUpdates);
 
     // 5. Safely execute notifications & emails without crashing the function
     try {
@@ -188,8 +196,18 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
-    console.error("Return request Error:", error);
-    console.error(error.stack);
-    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    const errorLocation = getErrorLocation(error);
+    console.error("FUNCTION_INVOCATION_FAILED: Return request handler error.");
+    console.error("Stack trace:", error.stack);
+    console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+    return res.status(500).json({
+      success: false,
+      error: "FUNCTION_INVOCATION_FAILED",
+      message: error.message || "Internal server error",
+      file: errorLocation.file,
+      line: errorLocation.line,
+      stack: error.stack
+    });
   }
 }
+

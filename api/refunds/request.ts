@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -68,6 +68,8 @@ export default async function handler(req: any, res: any) {
     console.log("Reason:", reason);
 
     const db = admin.firestore();
+    
+    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -93,6 +95,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Check duplicate refund requests in the refund_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund_requests' where 'orderId' == ${orderId}`);
     const existingRefunds = await db.collection("refund_requests")
       .where("orderId", "==", orderId)
       .get();
@@ -101,7 +104,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // 3. Save request data in Firestore (refund_requests) with the required fields
-    const docRef = await db.collection("refund_requests").add({
+    const refundReqData = {
       orderId: orderId,
       userId: userId,
       reason: reason,
@@ -109,10 +112,12 @@ export default async function handler(req: any, res: any) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       comments: comments || "",
       refundAmount: orderData.total || 0
-    });
+    };
+    console.log("[FIRESTORE WRITE] Creating refund request document in 'refund_requests' collection. Data:", JSON.stringify(refundReqData));
+    const docRef = await db.collection("refund_requests").add(refundReqData);
     const requestId = docRef.id;
 
-    await orderRef.update({
+    const orderUpdates = {
       status: "refund_requested",
       hasRefundRequest: true,
       refundRequestId: requestId,
@@ -121,7 +126,9 @@ export default async function handler(req: any, res: any) {
         timestamp: new Date().toISOString(),
         message: "Refund requested by customer"
       })
-    });
+    };
+    console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
+    await orderRef.update(orderUpdates);
 
     // 5. Safely execute notifications & emails without crashing the function
     try {
@@ -160,8 +167,18 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
-    console.error("Refund request Error:", error);
-    console.error(error.stack);
-    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    const errorLocation = getErrorLocation(error);
+    console.error("FUNCTION_INVOCATION_FAILED: Refund request handler error.");
+    console.error("Stack trace:", error.stack);
+    console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+    return res.status(500).json({
+      success: false,
+      error: "FUNCTION_INVOCATION_FAILED",
+      message: error.message || "Internal server error",
+      file: errorLocation.file,
+      line: errorLocation.line,
+      stack: error.stack
+    });
   }
 }
+

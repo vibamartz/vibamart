@@ -245,6 +245,18 @@ export async function parseRequestBody(req: any): Promise<any> {
   }
   return {};
 }
-
-
-
+export function getErrorLocation(error: any) {
+  const stack = error?.stack || "";
+  const lines = stack.split("\n");
+  for (const line of lines) {
+    if (line.includes("node_modules") || line.includes("internal/") || line.includes("api/utils.ts")) continue;
+    const match = line.match(/(?:at\s+)?(?:.*\s+\()?([^()]+):(\d+):(\d+)\)?/);
+    if (match) {
+      const filePath = match[1].trim();
+      const lineNumber = match[2];
+      const fileName = filePath.split(/[/\\]/).pop() || "unknown";
+      return { file: fileName, line: Number(lineNumber), fullPath: filePath };
+    }
+  }
+  return { file: "unknown", line: 0, fullPath: "unknown" };
+}

@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -68,6 +68,8 @@ export default async function handler(req: any, res: any) {
     console.log("Reason:", reason);
 
     const db = admin.firestore();
+    
+    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -89,6 +91,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Check for duplicate cancellation requests in the cancellation_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate cancellations. Querying 'cancellation_requests' where 'orderId' == ${orderId}`);
     const existingCancellations = await db.collection("cancellation_requests")
       .where("orderId", "==", orderId)
       .get();
@@ -98,21 +101,24 @@ export default async function handler(req: any, res: any) {
     }
 
     // Check if manual cancellation is enabled
+    console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'store'");
     const settingsDoc = await db.collection("settings").doc("store").get();
     const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
     // 3. Save request data in Firestore (cancellation_requests) with the required fields
-    const docRef = await db.collection("cancellation_requests").add({
+    const cancellationReqData = {
       orderId: orderId,
       userId: userId,
       reason: reason,
       status: "Pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    console.log("[FIRESTORE WRITE] Creating cancellation request document in 'cancellation_requests' collection. Data:", JSON.stringify(cancellationReqData));
+    const docRef = await db.collection("cancellation_requests").add(cancellationReqData);
     const requestId = docRef.id;
 
     if (enableManualCancellation) {
-      await orderRef.update({
+      const orderUpdates = {
         status: "cancel_requested",
         cancellationReason: reason,
         statusHistory: admin.firestore.FieldValue.arrayUnion({
@@ -120,7 +126,9 @@ export default async function handler(req: any, res: any) {
           timestamp: new Date().toISOString(),
           message: "Cancellation requested by customer"
         })
-      });
+      };
+      console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
+      await orderRef.update(orderUpdates);
     } else {
       // Direct cancel
       const batch = db.batch();
@@ -128,6 +136,7 @@ export default async function handler(req: any, res: any) {
       if (orderData.items && Array.isArray(orderData.items)) {
         for (const item of orderData.items) {
           if (!item.productId) continue;
+          console.log(`[FIRESTORE READ] Fetching product document from 'products' collection. Product ID: ${item.productId}`);
           const productRef = db.collection("products").doc(item.productId);
           const productDoc = await productRef.get();
           productDocs.push({ item, productRef, productDoc });
@@ -177,6 +186,8 @@ export default async function handler(req: any, res: any) {
       batch.update(db.collection("cancellation_requests").doc(requestId), {
         status: "Approved"
       });
+      
+      console.log(`[FIRESTORE WRITE] Executing batch commit for direct order cancellation updates. Order ID: ${orderId}`);
       await batch.commit();
     }
 
@@ -235,8 +246,18 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
-    console.error("Cancellation Error:", error);
-    console.error(error.stack);
-    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    const errorLocation = getErrorLocation(error);
+    console.error("FUNCTION_INVOCATION_FAILED: Cancellation handler error.");
+    console.error("Stack trace:", error.stack);
+    console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+    return res.status(500).json({
+      success: false,
+      error: "FUNCTION_INVOCATION_FAILED",
+      message: error.message || "Internal server error",
+      file: errorLocation.file,
+      line: errorLocation.line,
+      stack: error.stack
+    });
   }
 }
+

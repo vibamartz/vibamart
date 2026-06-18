@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -62,6 +62,7 @@ export default async function handler(req: any, res: any) {
       isAdmin = true;
     } else {
       try {
+        console.log(`[FIRESTORE READ] Fetching user document from 'users' collection. Document ID: ${decodedToken.uid}`);
         const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
         if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
       } catch (e) {
@@ -74,17 +75,21 @@ export default async function handler(req: any, res: any) {
     }
 
     const db = admin.firestore();
+    
+    console.log(`[FIRESTORE READ] Fetching cancellation request from 'cancellation_requests' collection. Document ID: ${requestId}`);
     let reqDoc = await db.collection("cancellation_requests").doc(requestId).get();
     let type = "cancellation";
     let collectionName = "cancellation_requests";
     
     if (!reqDoc.exists) {
+      console.log(`[FIRESTORE READ] Fetching return request from 'return_requests' collection. Document ID: ${requestId}`);
       reqDoc = await db.collection("return_requests").doc(requestId).get();
       type = "return";
       collectionName = "return_requests";
     }
     
     if (!reqDoc.exists) {
+      console.log(`[FIRESTORE READ] Fetching refund request from 'refund_requests' collection. Document ID: ${requestId}`);
       reqDoc = await db.collection("refund_requests").doc(requestId).get();
       type = "refund";
       collectionName = "refund_requests";
@@ -100,6 +105,7 @@ export default async function handler(req: any, res: any) {
     const customerId = rData.customerId || rData.userId;
     const reqRef = db.collection(collectionName).doc(requestId);
 
+    console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     
@@ -129,13 +135,16 @@ export default async function handler(req: any, res: any) {
                                         !(normalizedOldStatus === 'approved' || normalizedOldStatus === 'cancelled' || normalizedOldStatus === 'processed');
 
     if (isCancellationStockRestore) {
+      console.log(`[FIRESTORE WRITE] Executing transaction for stock restoration on order cancellation approval. Order ID: ${orderId}`);
       await db.runTransaction(async (transaction) => {
+        console.log(`[FIRESTORE READ] (Transaction) Fetching order document from 'orders' collection. Document ID: ${orderId}`);
         const oDoc = await transaction.get(orderRef);
         if (oDoc.exists) {
           const oData = oDoc.data()!;
           const productDocs = [];
           for (const item of oData.items) {
             const productRef = db.collection("products").doc(item.productId);
+            console.log(`[FIRESTORE READ] (Transaction) Fetching product document from 'products' collection. Product ID: ${item.productId}`);
             const productDoc = await transaction.get(productRef);
             productDocs.push({ item, productRef, productDoc });
           }
@@ -168,17 +177,20 @@ export default async function handler(req: any, res: any) {
           }
           
           for (const prodUpdate of updatesByProduct.values()) {
+            console.log(`[FIRESTORE WRITE] (Transaction) Updating product stock in 'products' collection. Product ID: ${prodUpdate.ref.id}`);
             transaction.update(prodUpdate.ref, prodUpdate.updates);
           }
           
-          transaction.update(orderRef, {
+          const orderTransactionUpdates = {
             status: "cancelled",
             statusHistory: admin.firestore.FieldValue.arrayUnion({
               status: "cancelled",
               timestamp: new Date().toISOString(),
               message: "Cancellation approved by admin"
             })
-          });
+          };
+          console.log(`[FIRESTORE WRITE] (Transaction) Updating order document in 'orders' collection. Document ID: ${orderId}`);
+          transaction.update(orderRef, orderTransactionUpdates);
         }
       });
     } else {
@@ -253,10 +265,12 @@ export default async function handler(req: any, res: any) {
       }
 
       if (Object.keys(orderUpdates).length > 0) {
+        console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection. Document ID: ${orderId}. Updates:`, JSON.stringify(orderUpdates));
         await orderRef.update(orderUpdates);
       }
     }
 
+    console.log(`[FIRESTORE WRITE] Updating request document in '${collectionName}' collection. Document ID: ${requestId}. Updates:`, JSON.stringify(updateData));
     await reqRef.update(updateData);
 
     // Trigger Notifications and Email
@@ -311,8 +325,18 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {
-    console.error("FULL ERROR:", error);
-    console.error("STACK:", error.stack);
-    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    const errorLocation = getErrorLocation(error);
+    console.error("FUNCTION_INVOCATION_FAILED: Update status handler error.");
+    console.error("Stack trace:", error.stack);
+    console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+    return res.status(500).json({
+      success: false,
+      error: "FUNCTION_INVOCATION_FAILED",
+      message: error.message || "Internal server error",
+      file: errorLocation.file,
+      line: errorLocation.line,
+      stack: error.stack
+    });
   }
 }
+

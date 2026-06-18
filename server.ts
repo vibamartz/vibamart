@@ -12,6 +12,8 @@ import cancelHandler from "./api/orders/cancel";
 import returnRequestHandler from "./api/returns/request";
 import refundRequestHandler from "./api/refunds/request";
 import updateStatusHandler from "./api/requests/update-status";
+import { getErrorLocation } from "./api/utils";
+
 
 dotenv.config();
 
@@ -370,17 +372,25 @@ async function startServer() {
     if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
       isAdmin = true;
     } else {
-      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+      try {
+        console.log(`[FIRESTORE READ] Fetching user document from 'users' collection. Document ID: ${decodedToken.uid}`);
+        const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+        if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+      } catch (e) {
+        console.error("Error fetching user role", e);
+      }
     }
     
     if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
 
     try {
       const db = admin.firestore();
+      console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
       const orderRef = db.collection("orders").doc(orderId);
       
+      console.log(`[FIRESTORE WRITE] Executing transaction to approve order cancellation. Order ID: ${orderId}`);
       await db.runTransaction(async (transaction) => {
+        console.log(`[FIRESTORE READ] (Transaction) Fetching order document from 'orders' collection. Document ID: ${orderId}`);
         const orderDoc = await transaction.get(orderRef);
         if (!orderDoc.exists) throw new Error("Order not found");
         const orderData = orderDoc.data()!;
@@ -393,6 +403,7 @@ async function startServer() {
         const productDocs = [];
         for (const item of orderData.items) {
           const productRef = db.collection("products").doc(item.productId);
+          console.log(`[FIRESTORE READ] (Transaction) Fetching product document from 'products' collection. Product ID: ${item.productId}`);
           const productDoc = await transaction.get(productRef);
           productDocs.push({ item, productRef, productDoc });
         }
@@ -426,9 +437,11 @@ async function startServer() {
         }
         
         for (const prodUpdate of updatesByProduct.values()) {
+          console.log(`[FIRESTORE WRITE] (Transaction) Updating product stock in 'products' collection. Product ID: ${prodUpdate.ref.id}`);
           transaction.update(prodUpdate.ref, prodUpdate.updates);
         }
 
+        console.log(`[FIRESTORE WRITE] (Transaction) Updating order document in 'orders' collection to 'cancelled'. Document ID: ${orderId}`);
         transaction.update(orderRef, {
           status: "cancelled",
           statusHistory: admin.firestore.FieldValue.arrayUnion({
@@ -440,6 +453,7 @@ async function startServer() {
       });
 
       // Email customer
+      console.log(`[FIRESTORE READ] Fetching updated order document from 'orders' collection. Document ID: ${orderId}`);
       const orderDoc = await orderRef.get();
       const orderData = orderDoc.data()!;
       const customerEmail = orderData.contactEmail;
@@ -454,8 +468,18 @@ async function startServer() {
 
       res.json({ success: true, message: "Cancellation approved successfully" });
     } catch (error: any) {
-      console.error("Approve cancellation error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to approve cancellation" });
+      const errorLocation = getErrorLocation(error);
+      console.error("FUNCTION_INVOCATION_FAILED: Approve cancellation handler error.");
+      console.error("Stack trace:", error.stack);
+      console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+      res.status(500).json({
+        success: false,
+        error: "FUNCTION_INVOCATION_FAILED",
+        message: error.message || "Failed to approve cancellation",
+        file: errorLocation.file,
+        line: errorLocation.line,
+        stack: error.stack
+      });
     }
   });
 
@@ -469,34 +493,53 @@ async function startServer() {
     if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
       isAdmin = true;
     } else {
-      const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-      if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+      try {
+        console.log(`[FIRESTORE READ] Fetching user document from 'users' collection. Document ID: ${decodedToken.uid}`);
+        const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
+        if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+      } catch (e) {
+        console.error("Error fetching user role", e);
+      }
     }
     
     if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
 
     try {
       const db = admin.firestore();
+      console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
       const orderRef = db.collection("orders").doc(orderId);
       
       const orderDoc = await orderRef.get();
       if (!orderDoc.exists) throw new Error("Order not found");
       
-      await orderRef.update({
+      const orderUpdates = {
         status: "cancel_rejected",
         statusHistory: admin.firestore.FieldValue.arrayUnion({
           status: "cancel_rejected",
           timestamp: new Date().toISOString(),
           message: "Cancellation rejected by admin"
         })
-      });
+      };
+      console.log(`[FIRESTORE WRITE] Updating order document in 'orders' collection to 'cancel_rejected'. Document ID: ${orderId}`);
+      await orderRef.update(orderUpdates);
 
       res.json({ success: true, message: "Cancellation rejected" });
     } catch (error: any) {
-      console.error("Reject cancellation error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to reject cancellation" });
+      const errorLocation = getErrorLocation(error);
+      console.error("FUNCTION_INVOCATION_FAILED: Reject cancellation handler error.");
+      console.error("Stack trace:", error.stack);
+      console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
+      res.status(500).json({
+        success: false,
+        error: "FUNCTION_INVOCATION_FAILED",
+        message: error.message || "Failed to reject cancellation",
+        file: errorLocation.file,
+        line: errorLocation.line,
+        stack: error.stack
+      });
     }
   });
+
 
   // Returns: Request Return
   app.post("/api/returns/request", returnRequestHandler);

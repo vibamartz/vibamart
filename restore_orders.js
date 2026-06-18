@@ -122,29 +122,7 @@ async function run() {
         ]
       }
     },
-    {
-      id: "11QZyZqUEOnmF9vvVzAQ",
-      data: {
-        customerId: customerUid,
-        status: "cancel_requested",
-        paymentStatus: "paid",
-        paymentMethod: "razorpay",
-        total: p1.price,
-        items: [
-          { productId: p1.id, name: p1.name, price: p1.price, quantity: 1, image: p1.images?.[0] || p1.image || "" }
-        ],
-        address: customerAddress,
-        contactEmail: customerEmail,
-        contactName: "Vishal Customer",
-        createdAt: new Date().toISOString(),
-        cancellationReason: "Changed my mind",
-        statusHistory: [
-          { status: "pending", timestamp: new Date().toISOString(), message: "Order placed" },
-          { status: "confirmed", timestamp: new Date().toISOString(), message: "Order confirmed by seller" },
-          { status: "cancel_requested", timestamp: new Date().toISOString(), message: "Cancellation requested by customer" }
-        ]
-      }
-    },
+
     {
       id: "4NQ9VFLfWugTmn1023nv",
       data: {
@@ -241,16 +219,7 @@ async function run() {
         createdAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 4 * 24 * 60 * 60 * 1000))
       }
     },
-    {
-      id: "cancel_pending_11QZyZqUEOnmF9vvVzAQ",
-      data: {
-        orderId: "11QZyZqUEOnmF9vvVzAQ",
-        userId: customerUid,
-        reason: "Changed my mind",
-        status: "Pending",
-        createdAt: admin.firestore.Timestamp.fromDate(new Date())
-      }
-    }
+
   ];
 
   const returnsToRestore = [
