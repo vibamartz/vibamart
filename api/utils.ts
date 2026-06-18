@@ -224,4 +224,27 @@ export async function handleNodeRequest(
   }
 }
 
+export async function parseRequestBody(req: any): Promise<any> {
+  if (!req) return {};
+  if (typeof req.json === 'function') {
+    try {
+      return await req.json();
+    } catch (e) {
+      // Fallback
+    }
+  }
+  if (req.body && typeof req.body === 'object') {
+    return req.body;
+  }
+  if (req.body && typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch (e) {
+      // Fallback
+    }
+  }
+  return {};
+}
+
+
 
