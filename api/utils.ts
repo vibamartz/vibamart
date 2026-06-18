@@ -108,6 +108,10 @@ export async function sendEmailNotification(toEmail: string, contactName: string
       to: toEmail,
       subject,
       html: emailHtml,
+    }).catch(err => {
+      if (err.message !== "SMTP Connection Timeout") {
+        console.error("Delayed SMTP error:", err);
+      }
     });
 
     const timeoutPromise = new Promise((_, reject) => 

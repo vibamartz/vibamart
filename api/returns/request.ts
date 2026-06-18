@@ -1,13 +1,7 @@
 import admin from "firebase-admin";
 import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-};
+
 
 export default async function handler(req: any, res: any) {
   try {
