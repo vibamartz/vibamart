@@ -90,10 +90,13 @@ export default async function handler(req: any, res: any) {
       // Use batched writes instead of runTransaction to avoid grpc connection crashes on Vercel Edge/Serverless
       const batch = db.batch();
       const productDocs = [];
-      for (const item of orderData.items) {
-        const productRef = db.collection("products").doc(item.productId);
-        const productDoc = await productRef.get();
-        productDocs.push({ item, productRef, productDoc });
+      if (orderData.items && Array.isArray(orderData.items)) {
+        for (const item of orderData.items) {
+          if (!item.productId) continue;
+          const productRef = db.collection("products").doc(item.productId);
+          const productDoc = await productRef.get();
+          productDocs.push({ item, productRef, productDoc });
+        }
       }
 
       const updatesByProduct = new Map<string, any>();
@@ -192,6 +195,7 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Cancel order error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ success: false, error: errorMessage || "Failed to cancel order" });
   }
 }

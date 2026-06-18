@@ -21,8 +21,16 @@ try {
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
+      try {
+        admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
+      } catch (e) {
+        console.warn("Firestore settings already initialized or failed:", e);
+      }
     } else {
       admin.initializeApp();
+      try {
+        admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
+      } catch (e) {}
     }
   }
 } catch (e) {
@@ -389,10 +397,13 @@ async function startServer() {
         // Use batched writes instead of runTransaction to avoid grpc connection crashes on Vercel Edge/Serverless
         const batch = db.batch();
         const productDocs = [];
-        for (const item of orderData.items) {
-          const productRef = db.collection("products").doc(item.productId);
-          const productDoc = await productRef.get();
-          productDocs.push({ item, productRef, productDoc });
+        if (orderData.items && Array.isArray(orderData.items)) {
+          for (const item of orderData.items) {
+            if (!item.productId) continue;
+            const productRef = db.collection("products").doc(item.productId);
+            const productDoc = await productRef.get();
+            productDocs.push({ item, productRef, productDoc });
+          }
         }
 
         const updatesByProduct = new Map<string, any>();
@@ -485,7 +496,8 @@ async function startServer() {
       res.json({ success: true, message: "Order cancelled successfully", requestId });
     } catch (error: any) {
       console.error("Cancel order error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to cancel order" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ success: false, error: errorMessage || "Failed to cancel order" });
     }
   });
 
@@ -692,11 +704,13 @@ async function startServer() {
       }
 
       let calculatedRefund = 0;
-      orderData.items.forEach((item: any) => {
-        if (newProducts.includes(item.productId)) {
-          calculatedRefund += (item.price * item.quantity);
-        }
-      });
+      if (orderData.items && Array.isArray(orderData.items)) {
+        orderData.items.forEach((item: any) => {
+          if (newProducts.includes(item.productId)) {
+            calculatedRefund += (item.price * item.quantity);
+          }
+        });
+      }
 
       // Generate Request ID and create document
       const docRef = db.collection("requests").doc();
@@ -766,7 +780,8 @@ async function startServer() {
       res.json({ success: true, message: "Request submitted successfully", requestId });
     } catch (error: any) {
       console.error("Return request error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to submit return request" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ success: false, error: errorMessage || "Failed to submit return request" });
     }
   });
 
@@ -876,7 +891,8 @@ async function startServer() {
       res.json({ success: true, message: "Request submitted successfully", requestId });
     } catch (error: any) {
       console.error("Refund request error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to submit refund request" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ success: false, error: errorMessage || "Failed to submit refund request" });
     }
   });
 
@@ -1130,7 +1146,8 @@ async function startServer() {
       res.json({ success: true, message: "Status updated successfully" });
     } catch (error: any) {
       console.error("Update request status error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to update request status" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ success: false, error: errorMessage || "Failed to update request status" });
     }
   });
 

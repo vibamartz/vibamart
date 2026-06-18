@@ -19,6 +19,11 @@ if (!admin.apps.length) {
           privateKey: formattedKey,
         }),
       });
+      try {
+        admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
+      } catch (e) {
+        console.warn("Firestore settings already initialized or failed:", e);
+      }
     } else {
       console.error("CRITICAL: Firebase Admin credentials missing. Vercel will hang if we try to use default credentials.");
       adminInitError = "Missing FIREBASE_PRIVATE_KEY in environment variables.";

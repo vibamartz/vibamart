@@ -65,11 +65,13 @@ export default async function handler(req: any, res: any) {
     }
 
     let calculatedRefund = 0;
-    orderData.items.forEach((item: any) => {
-      if (newProducts.includes(item.productId)) {
-        calculatedRefund += (item.price * item.quantity);
-      }
-    });
+    if (orderData.items && Array.isArray(orderData.items)) {
+      orderData.items.forEach((item: any) => {
+        if (newProducts.includes(item.productId)) {
+          calculatedRefund += (item.price * item.quantity);
+        }
+      });
+    }
 
     // Generate Request ID and create document
     const docRef = db.collection("requests").doc();
@@ -144,6 +146,7 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Return request error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to submit return request" });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ success: false, error: errorMessage || "Failed to submit return request" });
   }
 }

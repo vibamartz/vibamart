@@ -259,6 +259,7 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {
     console.error("Update request status error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to update request status" });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ success: false, error: errorMessage || "Failed to update request status" });
   }
 }

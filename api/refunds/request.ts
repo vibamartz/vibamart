@@ -118,6 +118,7 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Refund request error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to submit refund request" });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ success: false, error: errorMessage || "Failed to submit refund request" });
   }
 }
