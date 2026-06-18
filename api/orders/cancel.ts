@@ -142,47 +142,51 @@ export default async function handler(req: any, res: any) {
     const customerEmail = orderData.contactEmail || user.email;
     const customerName = orderData.contactName || "Customer";
 
+    const notificationPromises = [];
+
     if (enableManualCancellation) {
-      await createNotification(
+      notificationPromises.push(createNotification(
         uid,
         "Cancellation Request Submitted",
         `Your cancellation request for order #${orderId} has been submitted successfully.`,
         orderId
-      );
+      ));
       
       if (customerEmail) {
-        await sendEmailNotification(
+        notificationPromises.push(sendEmailNotification(
           customerEmail,
           customerName,
           "Order Cancellation Request Received",
           `We have received your cancellation request for order #${orderId}. Reason: ${reason}. It is currently pending review.`
-        );
+        ));
       }
     } else {
-      await createNotification(
+      notificationPromises.push(createNotification(
         uid,
         "Order Cancelled",
         `Your order #${orderId} has been cancelled successfully.`,
         orderId
-      );
+      ));
       
       if (customerEmail) {
-        await sendEmailNotification(
+        notificationPromises.push(sendEmailNotification(
           customerEmail,
           customerName,
           "Order Cancelled Successfully",
           `Your order #${orderId} has been successfully cancelled. If you paid online, your refund will be processed within 5-7 business days.`
-        );
+        ));
       }
     }
 
     // Admin Notification
-    await createNotification(
+    notificationPromises.push(createNotification(
       "admin",
       "New Cancellation Request",
       `A new cancellation request was submitted for order #${orderId}.`,
       orderId
-    );
+    ));
+
+    await Promise.allSettled(notificationPromises);
 
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {

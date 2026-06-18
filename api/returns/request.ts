@@ -113,29 +113,33 @@ export default async function handler(req: any, res: any) {
     const customerEmail = orderData.contactEmail || user.email;
     const customerName = orderData.contactName || "Customer";
 
-    await createNotification(
+    const notificationPromises = [];
+
+    notificationPromises.push(createNotification(
       uid,
       "Return Request Submitted",
       `Your return request for order #${orderId} has been submitted successfully.`,
       orderId
-    );
+    ));
 
     if (customerEmail) {
-      await sendEmailNotification(
+      notificationPromises.push(sendEmailNotification(
         customerEmail,
         customerName,
         "Return Request Received",
         `We have received your return request for order #${orderId}. Our team will review the details and images provided within 48 hours.`
-      );
+      ));
     }
 
     // Admin Notification
-    await createNotification(
+    notificationPromises.push(createNotification(
       "admin",
       "New Return Request",
       `A new return request has been submitted for order #${orderId}.`,
       orderId
-    );
+    ));
+
+    await Promise.allSettled(notificationPromises);
 
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
