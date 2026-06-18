@@ -12,14 +12,19 @@ if (!admin.apps.length) {
         }),
       });
     } else {
-      admin.initializeApp();
+      console.error("CRITICAL: Firebase Admin credentials missing. Vercel will hang if we try to use default credentials.");
+      // We do NOT call admin.initializeApp() here to prevent the metadata server hang.
     }
   } catch (e) {
-    console.warn("Firebase Admin missing credentials", e);
+    console.error("Firebase Admin initialization failed:", e);
   }
 }
 
 export const verifyAuth = async (req: any, res: any) => {
+  if (!admin.apps.length) {
+    res.status(500).json({ success: false, error: "Server Configuration Error: Firebase Admin credentials (FIREBASE_PRIVATE_KEY, etc.) are missing in Vercel Environment Variables. Please configure them in your Vercel Dashboard." });
+    return null;
+  }
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ success: false, error: "Unauthorized: No token provided" });
