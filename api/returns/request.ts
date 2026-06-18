@@ -1,65 +1,53 @@
 import admin from "firebase-admin";
-import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification, handleNodeRequest, parseRequestBody } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
-export async function POST(req: any) {
+// Make sure firebase is initialized
+if (!admin.apps.length) {
+  try {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+    } else {
+      admin.initializeApp();
+    }
+  } catch (e) {
+    console.warn("Firebase Admin missing credentials", e);
+  }
+}
+
+export default async function handler(req: any, res: any) {
+  setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
   try {
     console.log("Request received");
-
-    // Parse request body dynamically
-    const body = await parseRequestBody(req);
-
-    if (req.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 200,
-        headers: getCorsHeaders()
-      });
-    }
-    if (req.method !== 'POST') {
-      return Response.json(
-        { success: false, error: 'Method not allowed' },
-        { status: 405, headers: getCorsHeaders() }
-      );
-    }
-
-    if (!body || typeof body !== 'object') {
-      return Response.json(
-        { success: false, message: "Invalid JSON body" },
-        { status: 400, headers: getCorsHeaders() }
-      );
-    }
-    
-    const { orderId, userId, reason, comments, images, productIds } = body;
+    const { orderId, userId, reason, comments, images, productIds } = req.body || {};
 
     // 1. Validate fields exist before database operations
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
-      return Response.json(
-        { success: false, message: "Order ID missing" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "Order ID missing" });
     }
     if (!userId || typeof userId !== 'string' || !userId.trim()) {
-      return Response.json(
-        { success: false, message: "User ID missing" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "User ID missing" });
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      return Response.json(
-        { success: false, message: "Return reason missing" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "Return reason missing" });
     }
     if (!images || !Array.isArray(images) || images.length === 0) {
-      return Response.json(
-        { success: false, message: "At least one proof image is required" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "At least one proof image is required" });
     }
     if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-      return Response.json(
-        { success: false, message: "At least one product must be selected for return" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "At least one product must be selected for return" });
     }
 
     // 2. Perform token authentication
@@ -68,28 +56,16 @@ export async function POST(req: any) {
       user = await verifyAuth(req);
     } catch (authError: any) {
       console.error("Auth error:", authError);
-      return Response.json(
-        { success: false, message: authError.message || "Unauthorized" },
-        { 
-          status: 401, 
-          headers: getCorsHeaders() 
-        }
-      );
+      return res.status(401).json({ success: false, message: authError.message || "Unauthorized" });
     }
 
     const uid = user?.uid;
     if (!uid) {
-      return Response.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401, headers: getCorsHeaders() }
-      );
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     if (uid !== userId && uid !== 'admin') {
-      return Response.json(
-        { success: false, message: "Unauthorized user mapping" },
-        { status: 403, headers: getCorsHeaders() }
-      );
+      return res.status(403).json({ success: false, message: "Unauthorized user mapping" });
     }
 
     // 6. Add detailed logging
@@ -101,25 +77,16 @@ export async function POST(req: any) {
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
-      return Response.json(
-        { success: false, message: "Order not found" },
-        { status: 404, headers: getCorsHeaders() }
-      );
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
 
     const orderData = orderDoc.data();
     if (!orderData || orderData.customerId !== userId) {
-      return Response.json(
-        { success: false, message: "Unauthorized to request return for this order" },
-        { status: 403, headers: getCorsHeaders() }
-      );
+      return res.status(403).json({ success: false, message: "Unauthorized to request return for this order" });
     }
 
     if (orderData.status !== "delivered") {
-      return Response.json(
-        { success: false, message: "Can only return delivered orders" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "Can only return delivered orders" });
     }
 
     const settingsDoc = await db.collection("settings").doc("store").get();
@@ -130,10 +97,7 @@ export async function POST(req: any) {
     
     const windowMs = returnWindowDays * 24 * 60 * 60 * 1000;
     if (Date.now() - deliveryDate.getTime() > windowMs) {
-      return Response.json(
-        { success: false, message: "Return window has expired" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "Return window has expired" });
     }
 
     // Check for duplicate return requests in the return_requests collection
@@ -150,10 +114,7 @@ export async function POST(req: any) {
       }
     });
     if (overlap) {
-      return Response.json(
-        { success: false, message: "A return request already exists for one or more selected items" },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, message: "A return request already exists for one or more selected items" });
     }
 
     let calculatedRefund = 0;
@@ -225,27 +186,10 @@ export async function POST(req: any) {
       console.error("Notification service warning:", notifyErr);
     }
 
-    return Response.json(
-      { success: true, message: "Request submitted successfully", requestId },
-      { headers: getCorsHeaders() }
-    );
+    return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Return request Error:", error);
     console.error(error.stack);
-
-    return Response.json(
-      {
-        success: false,
-        message: error.message || "Internal server error"
-      },
-      { status: 500, headers: getCorsHeaders() }
-    );
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
   }
-}
-
-export default async function handler(req: any, res?: any) {
-  if (res && typeof res.status === 'function') {
-    return handleNodeRequest(POST, req, res);
-  }
-  return POST(req);
 }

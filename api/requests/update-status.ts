@@ -1,40 +1,40 @@
 import admin from "firebase-admin";
-import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification, handleNodeRequest } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
-export async function POST(req: Request) {
+// Make sure firebase is initialized
+if (!admin.apps.length) {
+  try {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+    } else {
+      admin.initializeApp();
+    }
+  } catch (e) {
+    console.warn("Firebase Admin missing credentials", e);
+  }
+}
+
+export default async function handler(req: any, res: any) {
+  setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
   try {
     console.log("Request received");
-
-    // 1. Parse request body safely
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch (e) {
-      console.log("Request body: (empty or invalid JSON)");
-      console.log("Order ID: undefined");
-      console.log("User ID: undefined");
-      return Response.json(
-        { success: false, error: "Invalid JSON body" },
-        { status: 400, headers: getCorsHeaders() }
-      );
-    }
-
+    const body = req.body || {};
     console.log("Request body:", body);
     console.log("Order ID:", body.orderId || "N/A");
     console.log("User ID:", body.userId || "N/A");
-
-    if (req.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 200,
-        headers: getCorsHeaders()
-      });
-    }
-    if (req.method !== 'POST') {
-      return Response.json(
-        { error: 'Method not allowed' },
-        { status: 405, headers: getCorsHeaders() }
-      );
-    }
 
     // 2. Perform token authentication
     let decodedToken;
@@ -42,28 +42,19 @@ export async function POST(req: Request) {
       decodedToken = await verifyAuth(req);
     } catch (authError: any) {
       console.error("Auth error:", authError);
-      return Response.json(
-        { success: false, error: authError.message || "Unauthorized" },
-        { 
-          status: authError.message?.includes("Configuration") ? 500 : 401, 
-          headers: getCorsHeaders() 
-        }
-      );
+      return res.status(authError.message?.includes("Configuration") ? 500 : 401).json({
+        success: false,
+        error: authError.message || "Unauthorized"
+      });
     }
 
     const { requestId, status, adminNotes, refundAmount, refundMethod, refundTransactionId, estimatedCompletionDate } = body;
     
     if (!requestId || typeof requestId !== 'string' || !requestId.trim()) {
-      return Response.json(
-        { success: false, error: "Request ID is required." },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, error: "Request ID is required." });
     }
     if (!status || typeof status !== 'string' || !status.trim()) {
-      return Response.json(
-        { success: false, error: "Status is required." },
-        { status: 400, headers: getCorsHeaders() }
-      );
+      return res.status(400).json({ success: false, error: "Status is required." });
     }
 
     let isAdmin = false;
@@ -79,10 +70,7 @@ export async function POST(req: Request) {
     }
     
     if (!isAdmin) {
-      return Response.json(
-        { success: false, error: "Unauthorized: Admins only" },
-        { status: 403, headers: getCorsHeaders() }
-      );
+      return res.status(403).json({ success: false, error: "Unauthorized: Admins only" });
     }
 
     const db = admin.firestore();
@@ -103,10 +91,7 @@ export async function POST(req: Request) {
     }
     
     if (!reqDoc.exists) {
-      return Response.json(
-        { success: false, error: "Request not found" },
-        { status: 404, headers: getCorsHeaders() }
-      );
+      return res.status(404).json({ success: false, error: "Request not found" });
     }
 
     const rData = reqDoc.data()!;
@@ -119,10 +104,7 @@ export async function POST(req: Request) {
     const orderDoc = await orderRef.get();
     
     if (!orderDoc.exists) {
-      return Response.json(
-        { success: false, error: "Order not found" },
-        { status: 404, headers: getCorsHeaders() }
-      );
+      return res.status(404).json({ success: false, error: "Order not found" });
     }
     const orderData = orderDoc.data()!;
 
@@ -327,27 +309,10 @@ export async function POST(req: Request) {
       await sendEmailNotification(customerEmail, customerName, emailSubject, emailBody);
     }
 
-    return Response.json(
-      { success: true, message: `Request ${status} successfully` },
-      { headers: getCorsHeaders() }
-    );
+    return res.status(200).json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {
     console.error("FULL ERROR:", error);
     console.error("STACK:", error.stack);
-
-    return Response.json(
-      {
-        success: false,
-        message: error.message || "Internal server error"
-      },
-      { status: 500, headers: getCorsHeaders() }
-    );
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
   }
-}
-
-export default async function handler(req: any, res?: any) {
-  if (res && typeof res.status === 'function') {
-    return handleNodeRequest(POST, req, res);
-  }
-  return POST(req);
 }
