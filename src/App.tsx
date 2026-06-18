@@ -22,7 +22,7 @@ import SellerDashboard from './pages/SellerDashboard';
 import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
 import OrderTracking from './pages/OrderTracking';
-import RefundTracking from './pages/RefundTracking';
+import RequestTracking from './pages/RequestTracking';
 import FAQ from './pages/FAQ';
 import ProductNotFound from './pages/ProductNotFound';
 
@@ -120,7 +120,7 @@ export default function App() {
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/track-order" element={<OrderTracking />} />
               <Route path="/track-order/:orderId" element={<OrderTracking />} />
-              <Route path="/track-refund/:requestId" element={<RefundTracking />} />
+              <Route path="/track-request/:requestId" element={<RequestTracking />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/product-not-found" element={<ProductNotFound />} />
               <Route path="*" element={<Home />} />

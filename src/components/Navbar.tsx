@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../store';
 import { auth, db } from '../lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
@@ -32,6 +32,8 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isCameraSearchOpen, setIsCameraSearchOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
@@ -61,6 +63,39 @@ export default function Navbar() {
       setSearchQuery(q);
     }
   }, [location]);
+
+  // Fetch Notifications
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', 'in', [user.uid, 'all']),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setNotifications(notifs);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'notifications', id), { read: true });
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const unread = notifications.filter(n => !n.read);
+    for (const n of unread) {
+      await markNotificationAsRead(n.id);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -430,6 +465,67 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
+            {/* Desktop Notifications Dropdown */}
+            {user && (
+              <div className="relative">
+                <button 
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
+                  className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-6 h-6" />
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {isNotificationsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 flex flex-col max-h-[400px]"
+                    >
+                      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 className="font-black text-gray-900">Notifications</h3>
+                        {notifications.filter(n => !n.read).length > 0 && (
+                          <button onClick={markAllAsRead} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest">
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+                      <div className="overflow-y-auto flex-1 p-2">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-gray-400 font-medium text-sm">No new notifications.</div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div 
+                              key={notif.id} 
+                              onClick={() => {
+                                markNotificationAsRead(notif.id);
+                                if (notif.orderId) navigate(`/track-request/${notif.orderId}`);
+                                setIsNotificationsOpen(false);
+                              }}
+                              className={`p-3 rounded-xl mb-1 cursor-pointer transition-all border border-transparent ${notif.read ? 'bg-white hover:bg-gray-50' : 'bg-primary/5 hover:border-primary/20 hover:bg-primary/10'}`}
+                            >
+                              <div className="flex justify-between items-start gap-2 mb-1">
+                                <span className={`text-xs font-bold ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>{notif.title}</span>
+                                {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
+                              </div>
+                              <p className={`text-xs ${notif.read ? 'text-gray-500' : 'text-gray-600 font-medium'}`}>{notif.message}</p>
+                              <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
+                                {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
             {user ? (
               <Link to="/profile" className="relative group">
                 <div className="w-10 h-10 rounded-full border-2 border-gray-100 p-0.5 overflow-hidden transition-all group-hover:border-primary">
@@ -454,9 +550,16 @@ export default function Navbar() {
 
           {/* Mobile Actions (Always Visible) */}
           <div className="flex md:hidden items-center gap-1 sm:gap-3">
-            <Link to="/profile?tab=waitlist" className="text-gray-600 p-2.5 touch-target flex items-center justify-center" aria-label="Waitlist">
+            <button 
+              onClick={() => setIsNotificationsOpen(true)} 
+              className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" 
+              aria-label="Notifications"
+            >
               <Bell className="w-6 h-6" />
-            </Link>
+              {notifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+              )}
+            </button>
             <Link to="/cart" className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" aria-label="Cart">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
@@ -678,6 +781,61 @@ export default function Navbar() {
                 <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-4">ViBa Mart v2.4.0</p>
               </div>
             </motion.div>
+
+            {/* Mobile Notifications Drawer over existing drawer */}
+            {isNotificationsOpen && (
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white z-[80] p-6 shadow-2xl flex flex-col"
+              >
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] block mb-1">Alerts</span>
+                    <h2 className="text-xl font-black text-gray-900">Notifications</h2>
+                  </div>
+                  <button onClick={() => setIsNotificationsOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-primary transition-colors">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <button onClick={markAllAsRead} className="text-xs font-bold text-primary hover:underline uppercase tracking-widest mb-4 self-start">
+                    Mark all as read
+                  </button>
+                )}
+
+                <div className="overflow-y-auto flex-1 -mx-2 px-2">
+                  {notifications.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400 font-medium">No new notifications.</div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        onClick={() => {
+                          markNotificationAsRead(notif.id);
+                          if (notif.orderId) navigate(`/track-request/${notif.orderId}`);
+                          setIsNotificationsOpen(false);
+                          setIsMenuOpen(false);
+                        }}
+                        className={`p-4 rounded-2xl mb-2 cursor-pointer transition-all border ${notif.read ? 'bg-white border-gray-100 hover:border-gray-200' : 'bg-primary/5 border-primary/20'}`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <span className={`text-sm font-black ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>{notif.title}</span>
+                          {!notif.read && <span className="w-2.5 h-2.5 bg-primary rounded-full shrink-0 mt-1" />}
+                        </div>
+                        <p className={`text-xs ${notif.read ? 'text-gray-500' : 'text-gray-600 font-medium'}`}>{notif.message}</p>
+                        <p className="text-[10px] font-bold text-gray-400 mt-3 uppercase tracking-wider">
+                          {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
           </>
         )}
       </AnimatePresence>

@@ -36,7 +36,7 @@ const REFUND_STEPS = [
   { status: 'refund_completed', label: 'Refund Completed', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund completed successfully.' }
 ];
 
-export default function RefundTracking() {
+export default function RequestTracking() {
   const { requestId } = useParams<{ requestId: string }>();
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,7 @@ export default function RefundTracking() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
-      navigate(`/track-refund/${searchInput.trim()}`);
+      navigate(`/track-request/${searchInput.trim()}`);
     }
   };
 
@@ -281,7 +281,7 @@ export default function RefundTracking() {
               <div className="space-y-6">
                 <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100 space-y-6">
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-primary" /> Refund Tracking Details
+                    <CreditCard className="w-4 h-4 text-primary" /> Request Details
                   </h3>
                   
                   <div className="space-y-4 text-sm font-medium">
