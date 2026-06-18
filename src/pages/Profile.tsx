@@ -337,8 +337,13 @@ export default function Profile() {
     setIsSubmitting(true);
     try {
       const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
+        if (!storage.app.options.storageBucket) {
+          return "https://via.placeholder.com/150?text=Mock+Return+Image";
+        }
         const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
-        await uploadString(imageRef, imgBase64, 'data_url');
+        const uploadPromise = uploadString(imageRef, imgBase64, 'data_url');
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Image upload timed out. Please check your network or Firebase config.")), 15000));
+        await Promise.race([uploadPromise, timeoutPromise]);
         return await getDownloadURL(imageRef);
       }));
 
