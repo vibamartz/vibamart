@@ -180,40 +180,60 @@ export default function Profile() {
     });
 
     // Fetch All Requests (Cancellation, Return, Refund)
-    const requestsQuery = query(
-      collection(db, 'requests'),
-      where('userId', '==', user.uid)
-    );
-    const unsubRequests = onSnapshot(requestsQuery, (snapshot) => {
+    const cancelQuery = query(collection(db, 'cancellation_requests'), where('userId', '==', user.uid));
+    const returnQuery = query(collection(db, 'return_requests'), where('userId', '==', user.uid));
+    const refundQuery = query(collection(db, 'refund_requests'), where('userId', '==', user.uid));
+
+    let cancellationsList: any[] = [];
+    let returnsList: any[] = [];
+    let refundsList: any[] = [];
+
+    const mergeAndSortRequests = () => {
       const cancellationsData: Record<string, any> = {};
       const returnsData: Record<string, any> = {};
       const refundsData: Record<string, any> = {};
       const list: any[] = [];
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const reqObj = { id: doc.id, ...data };
-        list.push(reqObj);
-        
-        if (data.type === 'cancellation') {
-          cancellationsData[data.orderId] = reqObj;
-        } else if (data.type === 'return') {
-          returnsData[data.orderId] = reqObj;
-        } else if (data.type === 'refund') {
-          refundsData[data.orderId] = reqObj;
-        }
+
+      cancellationsList.forEach(req => {
+        cancellationsData[req.orderId] = req;
+        list.push({ ...req, type: 'cancellation' });
       });
-      
-      // Sort list by createdAt descending
+
+      returnsList.forEach(req => {
+        returnsData[req.orderId] = req;
+        list.push({ ...req, type: 'return' });
+      });
+
+      refundsList.forEach(req => {
+        refundsData[req.orderId] = req;
+        list.push({ ...req, type: 'refund' });
+      });
+
       list.sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.createdDate || 0).getTime();
-        const dateB = new Date(b.createdAt || b.createdDate || 0).getTime();
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || a.createdDate || 0).getTime();
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || b.createdDate || 0).getTime();
         return dateB - dateA;
       });
-      
+
       setCancellationRequests(cancellationsData);
       setReturnRequests(returnsData);
       setRefundRequests(refundsData);
       setAllRequests(list);
+    };
+
+    const unsubCancel = onSnapshot(cancelQuery, (snapshot) => {
+      cancellationsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAndSortRequests();
+    });
+
+    const unsubReturn = onSnapshot(returnQuery, (snapshot) => {
+      returnsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAndSortRequests();
+    });
+
+    const unsubRefund = onSnapshot(refundQuery, (snapshot) => {
+      refundsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      mergeAndSortRequests();
     });
 
     // Fetch Waitlist with product details
@@ -252,7 +272,9 @@ export default function Profile() {
 
     return () => {
       unsubOrders();
-      unsubRequests();
+      unsubCancel();
+      unsubReturn();
+      unsubRefund();
       unsubWaitlist();
       unsubProfile();
     };
@@ -324,7 +346,7 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success('Order cancelled successfully');
+        toast.success(data.message || 'Request submitted successfully');
         setShowCancelModal(false);
         setSelectedOrderId(null);
         setCancelReason('');
@@ -393,7 +415,7 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success('Return requested successfully');
+        toast.success(data.message || 'Request submitted successfully');
         setShowReturnModal(false);
         setSelectedOrderId(null);
         setReturnReason('Wrong Product Received');
@@ -442,7 +464,7 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success('Refund requested successfully');
+        toast.success(data.message || 'Request submitted successfully');
         setShowRefundModal(false);
         setSelectedOrderId(null);
         setRefundReason('');

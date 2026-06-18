@@ -143,7 +143,7 @@ export default function AdminDashboard() {
       },
       { 
         label: 'Return Requests', 
-        value: returns.filter(r => r.status === 'requested').length.toString(), 
+        value: returns.filter(r => r.status?.toLowerCase() === 'pending').length.toString(), 
         change: 'Active', 
         icon: TrendingUp, 
         color: 'text-rose-500', 
@@ -352,20 +352,19 @@ export default function AdminDashboard() {
     }
   };
 
-  // Live Firebase snapshot listener for all requests
+  // Live Firebase snapshot listener for return requests
   useEffect(() => {
-    const q = query(collection(db, 'requests'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'return_requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allRequests = snapshot.docs.map(doc => ({
+      const returnsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as ReturnRequest));
       
-      const returnsData = allRequests.filter(r => r.type === 'return');
       setReturns(returnsData);
       setLoadingReturns(false);
     }, (error) => {
-      console.error("Failed to sync requests:", error);
+      console.error("Failed to sync return requests:", error);
       setLoadingReturns(false);
     });
     return () => unsubscribe();
@@ -680,13 +679,13 @@ export default function AdminDashboard() {
                     
                     {/* Tab Navigation */}
                     <div className="flex gap-1 overflow-x-auto pb-2 mb-4 shrink-0 border-b border-gray-100 scrollbar-none">
-                      {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
+              {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
                         const counts: Record<string, number> = {
                           alerts: orders.slice(0, 5).length,
                           pending: orders.filter(o => o.status === 'pending').length,
                           confirmed: orders.filter(o => o.status === 'confirmed').length,
                           cancelled: orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length,
-                          returns: returns.filter(r => r.status === 'requested').length
+                          returns: returns.filter(r => r.status?.toLowerCase() === 'pending').length
                         };
                         return (
                           <button
@@ -827,10 +826,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'returns' && (
-                        returns.filter(r => r.status === 'requested').length === 0 ? (
+                        returns.filter(r => r.status?.toLowerCase() === 'pending').length === 0 ? (
                           <p className="text-xs text-gray-400 italic py-6 text-center">No return requests</p>
                         ) : (
-                          returns.filter(r => r.status === 'requested').map(ret => (
+                          returns.filter(r => r.status?.toLowerCase() === 'pending').map(ret => (
                             <div key={ret.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Return Request</p>

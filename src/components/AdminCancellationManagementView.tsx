@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Search, Package, Eye, Clock, CreditCard } from 'lucide-react';
-import { collection, query, onSnapshot, where } from 'firebase/firestore';
+import { Search, Eye, Clock, CreditCard, X, Check } from 'lucide-react';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import toast from 'react-hot-toast';
 
-const CANCELLATION_STATUSES = [
-  { value: 'requested', label: 'Requested' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'refund_initiated', label: 'Refund Initiated' },
-  { value: 'refund_completed', label: 'Refund Completed' },
-  { value: 'rejected', label: 'Rejected' }
-];
+const safeFormatDate = (val: any): string => {
+  if (!val) return 'N/A';
+  let dateObj: Date;
+  if (typeof val.toDate === 'function') {
+    dateObj = val.toDate();
+  } else if (val.seconds) {
+    dateObj = new Date(val.seconds * 1000);
+  } else {
+    dateObj = new Date(val);
+  }
+  return isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleString();
+};
 
 export default function AdminCancellationManagementView() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'requested' | 'approved' | 'cancelled' | 'refund_initiated' | 'refund_completed' | 'rejected'>('requested');
+  const [filter, setFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected' | 'Processed'>('Pending');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal State
@@ -27,34 +31,30 @@ export default function AdminCancellationManagementView() {
   const [refundMethod, setRefundMethod] = useState('');
   const [refundTransactionId, setRefundTransactionId] = useState('');
   const [estimatedCompletionDate, setEstimatedCompletionDate] = useState('');
-  const [newStatus, setNewStatus] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const q = query(
-      collection(db, 'requests'),
-      where('type', '==', 'cancellation')
+      collection(db, 'cancellation_requests'),
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // sort by date locally
-      data.sort((a, b) => {
-        const timeA = new Date(a.createdAt || a.createdDate || 0).getTime();
-        const timeB = new Date(b.createdAt || b.createdDate || 0).getTime();
-        return timeB - timeA;
-      });
       setRequests(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to sync cancellation requests:", error);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleUpdate = async () => {
+  const handleUpdateStatus = async (statusValue: string) => {
     if (!selectedRequest) return;
     setIsUpdating(true);
-    const tid = toast.loading('Updating request status...');
+    const tid = toast.loading(`Updating request to ${statusValue}...`);
     try {
       const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/requests/update-status', {
@@ -62,7 +62,7 @@ export default function AdminCancellationManagementView() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
         body: JSON.stringify({ 
           requestId: selectedRequest.id, 
-          status: newStatus,
+          status: statusValue,
           adminNotes,
           refundAmount: refundAmount !== '' ? Number(refundAmount) : undefined,
           refundMethod: refundMethod || undefined,
@@ -72,7 +72,7 @@ export default function AdminCancellationManagementView() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Request updated successfully`, { id: tid });
+        toast.success(`Request marked as ${statusValue}`, { id: tid });
         setSelectedRequest(null);
       } else {
         toast.error(data.error || 'Update failed', { id: tid });
@@ -87,7 +87,11 @@ export default function AdminCancellationManagementView() {
   const filteredRequests = requests.filter(r => {
     if (filter !== 'all' && r.status !== filter) return false;
     if (searchTerm) {
-      return r.orderId.toLowerCase().includes(searchTerm.toLowerCase()) || r.id.toLowerCase().includes(searchTerm.toLowerCase());
+      return (
+        r.orderId.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.userId || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     return true;
   });
@@ -104,7 +108,7 @@ export default function AdminCancellationManagementView() {
             <div className="relative">
               <input 
                 type="text" 
-                placeholder="Search order ID..." 
+                placeholder="Search by Order, User or Request ID..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-3 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary/20 w-full"
@@ -112,13 +116,13 @@ export default function AdminCancellationManagementView() {
               <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3" />
             </div>
             <div className="flex bg-gray-50 p-1.5 rounded-2xl overflow-x-auto scrollbar-none gap-1">
-              {(['all', 'requested', 'approved', 'cancelled', 'refund_initiated', 'refund_completed', 'rejected'] as const).map(s => (
+              {(['all', 'Pending', 'Approved', 'Rejected', 'Processed'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setFilter(s)}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                 >
-                  {s.replace('_', ' ')}
+                  {s}
                 </button>
               ))}
             </div>
@@ -130,31 +134,40 @@ export default function AdminCancellationManagementView() {
             <thead className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 border-b border-gray-50">
               <tr>
                 <th className="px-4 py-6">Order ID</th>
-                <th className="px-4 py-6">Date & Reason</th>
+                <th className="px-4 py-6">Customer ID</th>
+                <th className="px-4 py-6">Date</th>
+                <th className="px-4 py-6">Reason</th>
                 <th className="px-4 py-6">Status</th>
-                <th className="px-4 py-6 text-right">Action</th>
+                <th className="px-4 py-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold italic">Loading requests...</td></tr>
+                <tr><td colSpan={6} className="py-20 text-center text-gray-300 font-bold italic">Loading requests...</td></tr>
               ) : filteredRequests.length === 0 ? (
-                <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold">No requests found.</td></tr>
+                <tr><td colSpan={6} className="py-20 text-center text-gray-300 font-bold">No requests found.</td></tr>
               ) : filteredRequests.map(req => (
                 <tr key={req.id} className="group hover:bg-gray-50/50 transition-all">
                   <td className="px-4 py-6">
-                    <span className="text-sm font-black text-gray-900 tracking-tight">#{req.orderId.slice(-8).toUpperCase()}</span>
+                    <span className="text-sm font-black text-gray-900 tracking-tight">#{req.orderId}</span>
                   </td>
                   <td className="px-4 py-6">
-                    <p className="text-xs font-bold text-gray-600 mb-1">{new Date(req.createdAt || req.createdDate).toLocaleString()}</p>
-                    <p className="text-[11px] text-gray-500 max-w-[200px] truncate">{req.reason || req.requestReason}</p>
+                    <span className="text-xs font-bold text-gray-600">{req.userId || 'N/A'}</span>
+                  </td>
+                  <td className="px-4 py-6">
+                    <span className="text-xs font-bold text-gray-600">{safeFormatDate(req.createdAt)}</span>
+                  </td>
+                  <td className="px-4 py-6">
+                    <p className="text-[11px] text-gray-550 max-w-[200px] truncate" title={req.reason}>{req.reason}</p>
                   </td>
                   <td className="px-4 py-6">
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
-                      ['approved', 'cancelled', 'refund_completed'].includes(req.status) ? 'bg-green-100 text-green-600' :
-                      req.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                      req.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                      req.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                      req.status === 'Processed' ? 'bg-blue-100 text-blue-600' :
+                      'bg-amber-100 text-amber-600'
                     }`}>
-                      {req.status.replace('_', ' ')}
+                      {req.status}
                     </span>
                   </td>
                   <td className="px-4 py-6 text-right">
@@ -166,7 +179,6 @@ export default function AdminCancellationManagementView() {
                         setRefundMethod(req.refundMethod || '');
                         setRefundTransactionId(req.refundTransactionId || '');
                         setEstimatedCompletionDate(req.estimatedCompletionDate || '');
-                        setNewStatus(req.status);
                       }} 
                       className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
                     >
@@ -206,15 +218,15 @@ export default function AdminCancellationManagementView() {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Submitted At</span>
-                        <span className="text-xs font-bold text-gray-900">{new Date(selectedRequest.createdAt || selectedRequest.createdDate).toLocaleString()}</span>
+                        <span className="text-xs font-bold text-gray-900">{safeFormatDate(selectedRequest.createdAt)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Current Status</span>
-                        <span className="text-xs font-black uppercase text-primary">{selectedRequest.status.replace('_', ' ')}</span>
+                        <span className="text-xs font-black uppercase text-primary">{selectedRequest.status}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Reason</span>
-                        <span className="text-xs font-bold text-gray-900 max-w-[180px] text-right">{selectedRequest.reason || selectedRequest.requestReason}</span>
+                        <span className="text-xs font-bold text-gray-900 max-w-[180px] text-right">{selectedRequest.reason}</span>
                       </div>
                       {selectedRequest.adminNotes && (
                         <div className="flex flex-col gap-1 pt-2 border-t border-gray-200/50">
@@ -262,19 +274,6 @@ export default function AdminCancellationManagementView() {
                   <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Update Action</h4>
                     
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Target Status</label>
-                      <select 
-                        value={newStatus} 
-                        onChange={e => setNewStatus(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-primary transition-all"
-                      >
-                        {CANCELLATION_STATUSES.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Note</label>
                       <textarea 
@@ -332,13 +331,32 @@ export default function AdminCancellationManagementView() {
                       />
                     </div>
 
-                    <button 
-                      onClick={handleUpdate} 
-                      disabled={isUpdating}
-                      className="w-full py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover shadow-lg transition-all"
-                    >
-                      {isUpdating ? 'Updating...' : 'Save & Sync Request'}
-                    </button>
+                    <div className="flex flex-col gap-2 pt-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Actions</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => handleUpdateStatus('Approved')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus('Rejected')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus('Processed')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Processed
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

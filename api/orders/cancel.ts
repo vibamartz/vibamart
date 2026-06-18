@@ -5,13 +5,9 @@ export async function POST(req: any) {
   try {
     console.log("Request received");
     
-    // Parse request body dynamically and log all request data
+    // Parse request body dynamically
     const body = await parseRequestBody(req);
-    console.log("Request body:", body);
-    console.log("Order ID:", body?.orderId);
-    console.log("User ID:", body?.userId);
-    console.log("Reason:", body?.reason);
-
+    
     if (req.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
@@ -25,17 +21,25 @@ export async function POST(req: any) {
       );
     }
 
-    // 1. Validate orderId and reason before database operations
     if (!body || typeof body !== 'object') {
       return Response.json(
         { success: false, message: "Invalid JSON body" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
-    const { orderId, reason, userId } = body;
+
+    const { orderId, userId, reason } = body;
+
+    // 1. Validate fields exist before database operations
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
       return Response.json(
         { success: false, message: "Order ID missing" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+    if (!userId || typeof userId !== 'string' || !userId.trim()) {
+      return Response.json(
+        { success: false, message: "User ID missing" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
@@ -55,29 +59,33 @@ export async function POST(req: any) {
       return Response.json(
         { success: false, message: authError.message || "Unauthorized" },
         { 
-          status: authError.message?.includes("Configuration") ? 500 : 401, 
+          status: 401, 
           headers: getCorsHeaders() 
         }
       );
     }
 
-    const uid = user?.uid || userId;
+    const uid = user?.uid;
     if (!uid) {
       return Response.json(
-        { success: false, message: "User ID required" },
-        { status: 400, headers: getCorsHeaders() }
+        { success: false, message: "Unauthorized" },
+        { status: 401, headers: getCorsHeaders() }
       );
     }
 
-    // 3. Ensure database connection and tables (collections) exist/are writable
-    const db = admin.firestore();
-    try {
-      // Warm up query / verify insert permission by checking collection metadata
-      await db.collection("cancellation_requests").limit(1).get();
-    } catch (dbErr: any) {
-      console.warn("Table cancellation_requests warning:", dbErr.message);
+    if (uid !== userId && uid !== 'admin') {
+      return Response.json(
+        { success: false, message: "Unauthorized user mapping" },
+        { status: 403, headers: getCorsHeaders() }
+      );
     }
 
+    // 6. Add detailed logging
+    console.log("Order ID:", orderId);
+    console.log("User ID:", userId);
+    console.log("Reason:", reason);
+
+    const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -110,10 +118,9 @@ export async function POST(req: any) {
       );
     }
 
-    // Check for duplicate cancellation requests
-    const existingCancellations = await db.collection("requests")
+    // Check for duplicate cancellation requests in the cancellation_requests collection
+    const existingCancellations = await db.collection("cancellation_requests")
       .where("orderId", "==", orderId)
-      .where("type", "==", "cancellation")
       .get();
 
     if (!existingCancellations.empty) {
@@ -127,30 +134,15 @@ export async function POST(req: any) {
     const settingsDoc = await db.collection("settings").doc("store").get();
     const enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
 
-    // Generate unique doc ID
-    const docRef = db.collection("requests").doc();
+    // 3. Save request data in Firestore (cancellation_requests) with the required fields
+    const docRef = await db.collection("cancellation_requests").add({
+      orderId: orderId,
+      userId: userId,
+      reason: reason,
+      status: "Pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
     const requestId = docRef.id;
-
-    const requestDoc = {
-      id: requestId,
-      requestId,
-      orderId,
-      customerId: uid,
-      userId: uid,
-      requestType: 'cancellation',
-      type: 'cancellation',
-      requestReason: reason,
-      reason,
-      status: enableManualCancellation ? 'requested' : 'approved',
-      createdDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedDate: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    // 4. Ensure inserts are allowed and requests are saved in both cancellation_requests and requests tables
-    await db.collection("cancellation_requests").doc(requestId).set(requestDoc);
-    await docRef.set(requestDoc);
 
     if (enableManualCancellation) {
       await orderRef.update({
@@ -214,6 +206,9 @@ export async function POST(req: any) {
           timestamp: new Date().toISOString(),
           message: "Cancelled by customer"
         })
+      });
+      batch.update(db.collection("cancellation_requests").doc(requestId), {
+        status: "Approved"
       });
       await batch.commit();
     }

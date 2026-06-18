@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { ReturnRequest, Order } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Check, X, Search, Clock, CreditCard, Box, Image as ImageIcon } from 'lucide-react';
+import { Eye, X, Clock, CreditCard, Box, Image as ImageIcon, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, auth } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const RETURN_STATUSES = [
-  { value: 'requested', label: 'Requested' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'pickup_scheduled', label: 'Pickup Scheduled' },
-  { value: 'product_received', label: 'Product Received' },
-  { value: 'quality_check', label: 'Quality Check' },
-  { value: 'refund_initiated', label: 'Refund Initiated' },
-  { value: 'refund_completed', label: 'Refund Completed' },
-  { value: 'rejected', label: 'Rejected' }
-];
+const safeFormatDate = (val: any): string => {
+  if (!val) return 'N/A';
+  let dateObj: Date;
+  if (typeof val.toDate === 'function') {
+    dateObj = val.toDate();
+  } else if (val.seconds) {
+    dateObj = new Date(val.seconds * 1000);
+  } else {
+    dateObj = new Date(val);
+  }
+  return isNaN(dateObj.getTime()) ? 'N/A' : dateObj.toLocaleString();
+};
 
 export default function AdminReturnsManagementView({ 
   returns,
@@ -27,7 +29,7 @@ export default function AdminReturnsManagementView({
   const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
   const [orderCache, setOrderCache] = useState<Record<string, Order>>({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('Pending');
   
   // Modal State
   const [adminNotes, setAdminNotes] = useState('');
@@ -35,7 +37,6 @@ export default function AdminReturnsManagementView({
   const [refundMethod, setRefundMethod] = useState('');
   const [refundTransactionId, setRefundTransactionId] = useState('');
   const [estimatedCompletionDate, setEstimatedCompletionDate] = useState('');
-  const [newStatus, setNewStatus] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
@@ -57,14 +58,17 @@ export default function AdminReturnsManagementView({
 
   const filteredReturns = returns.filter(r => {
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
-    const matchSearch = r.id.toLowerCase().includes(searchTerm.toLowerCase()) || r.orderId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = 
+      r.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      r.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.userId || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchStatus && matchSearch;
   });
 
-  const handleUpdate = async () => {
+  const handleUpdateStatus = async (statusValue: string) => {
     if (!selectedReturn) return;
     setIsUpdating(true);
-    const tid = toast.loading('Updating request status...');
+    const tid = toast.loading(`Updating request to ${statusValue}...`);
     try {
       const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/requests/update-status', {
@@ -72,7 +76,7 @@ export default function AdminReturnsManagementView({
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
         body: JSON.stringify({ 
           requestId: selectedReturn.id, 
-          status: newStatus,
+          status: statusValue,
           adminNotes,
           refundAmount: refundAmount !== '' ? Number(refundAmount) : undefined,
           refundMethod: refundMethod || undefined,
@@ -82,11 +86,10 @@ export default function AdminReturnsManagementView({
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Return request updated successfully`, { id: tid });
+        toast.success(`Return request updated to ${statusValue}`, { id: tid });
         setSelectedReturn(null);
-        // Call the parent update callback if provided
         if (onUpdateStatus) {
-          await onUpdateStatus(selectedReturn.id, newStatus, adminNotes);
+          await onUpdateStatus(selectedReturn.id, statusValue, adminNotes);
         }
       } else {
         toast.error(data.error || 'Update failed', { id: tid });
@@ -105,7 +108,7 @@ export default function AdminReturnsManagementView({
           <Search className="w-5 h-5 text-gray-400" />
           <input 
             type="text" 
-            placeholder="Search by Return ID or Order ID..." 
+            placeholder="Search by Return, Order, or Customer ID..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-transparent border-none outline-none w-full text-sm font-medium"
@@ -117,9 +120,10 @@ export default function AdminReturnsManagementView({
           className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all"
         >
           <option value="all">All Statuses</option>
-          {RETURN_STATUSES.map(s => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Processed">Processed</option>
         </select>
       </div>
 
@@ -130,6 +134,7 @@ export default function AdminReturnsManagementView({
               <tr className="bg-gray-50/50 border-b border-gray-100">
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Return ID</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Order ID</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Customer ID</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Reason</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</th>
@@ -139,22 +144,24 @@ export default function AdminReturnsManagementView({
             <tbody>
               {filteredReturns.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-400 font-medium">No return requests found.</td>
+                  <td colSpan={7} className="p-8 text-center text-gray-400 font-medium">No return requests found.</td>
                 </tr>
               ) : (
                 filteredReturns.map((req) => (
                   <tr key={req.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors">
                     <td className="p-4 text-sm font-bold text-gray-900">#{req.id.slice(-6).toUpperCase()}</td>
-                    <td className="p-4 text-sm font-bold text-gray-600">#{req.orderId.startsWith('VBM') ? req.orderId : req.orderId.slice(-8).toUpperCase()}</td>
-                    <td className="p-4 text-xs font-bold text-gray-500">{new Date(req.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4 text-xs font-medium text-gray-700 max-w-[150px] truncate">{req.reason || req.requestReason}</td>
+                    <td className="p-4 text-sm font-bold text-gray-600">#{req.orderId}</td>
+                    <td className="p-4 text-xs font-bold text-gray-650">{req.userId || 'N/A'}</td>
+                    <td className="p-4 text-xs font-bold text-gray-505">{safeFormatDate(req.createdAt)}</td>
+                    <td className="p-4 text-xs font-medium text-gray-700 max-w-[150px] truncate">{req.reason}</td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        ['approved', 'refund_completed', 'refund_processed'].includes(req.status) ? 'bg-green-100 text-green-600' :
-                        req.status === 'rejected' ? 'bg-red-100 text-red-600' :
-                        'bg-orange-100 text-orange-600'
+                        req.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                        req.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                        req.status === 'Processed' ? 'bg-blue-100 text-blue-600' :
+                        'bg-amber-100 text-amber-600'
                       }`}>
-                        {req.status.replace('_', ' ')}
+                        {req.status}
                       </span>
                     </td>
                     <td className="p-4 text-right">
@@ -166,7 +173,6 @@ export default function AdminReturnsManagementView({
                           setRefundMethod(req.refundMethod || '');
                           setRefundTransactionId(req.refundTransactionId || '');
                           setEstimatedCompletionDate(req.estimatedCompletionDate || '');
-                          setNewStatus(req.status);
                         }}
                         className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
                       >
@@ -189,7 +195,7 @@ export default function AdminReturnsManagementView({
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black text-gray-900">Return Request Details</h3>
-                  <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.orderId.startsWith('VBM') ? selectedReturn.orderId : selectedReturn.orderId.slice(-8).toUpperCase()}</p>
+                  <p className="text-sm text-gray-500 font-medium">#{selectedReturn.id.slice(-6).toUpperCase()} • Order #{selectedReturn.orderId}</p>
                 </div>
                 <button onClick={() => setSelectedReturn(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
                   <X className="w-5 h-5" />
@@ -202,9 +208,9 @@ export default function AdminReturnsManagementView({
                   <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2"><Clock className="w-3 h-3"/> Request Info</h4>
                     <div className="space-y-3">
-                      <div className="flex justify-between"><span className="text-sm text-gray-500">Date</span><span className="text-sm font-bold text-gray-900">{new Date(selectedReturn.createdAt).toLocaleString()}</span></div>
-                      <div className="flex justify-between"><span className="text-sm text-gray-500">Status</span><span className="text-sm font-bold uppercase tracking-widest text-primary">{selectedReturn.status.replace('_', ' ')}</span></div>
-                      <div className="flex justify-between"><span className="text-sm text-gray-500">Reason</span><span className="text-sm font-bold text-gray-900">{selectedReturn.reason || selectedReturn.requestReason}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Date</span><span className="text-sm font-bold text-gray-900">{safeFormatDate(selectedReturn.createdAt)}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Status</span><span className="text-sm font-bold uppercase tracking-widest text-primary">{selectedReturn.status}</span></div>
+                      <div className="flex justify-between"><span className="text-sm text-gray-500">Reason</span><span className="text-sm font-bold text-gray-900">{selectedReturn.reason}</span></div>
                       <div className="flex justify-between"><span className="text-sm text-gray-500">Comments</span><span className="text-sm font-medium text-gray-700 max-w-[200px] text-right">{selectedReturn.comments || 'None'}</span></div>
                       {selectedReturn.adminNotes && (
                         <div className="flex justify-between"><span className="text-sm text-gray-500">Admin Notes</span><span className="text-sm font-bold text-primary max-w-[200px] text-right">{selectedReturn.adminNotes}</span></div>
@@ -257,19 +263,6 @@ export default function AdminReturnsManagementView({
                   <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Update Action</h4>
                     
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Target Status</label>
-                      <select 
-                        value={newStatus} 
-                        onChange={e => setNewStatus(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-primary transition-all"
-                      >
-                        {RETURN_STATUSES.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Note</label>
                       <textarea 
@@ -327,13 +320,32 @@ export default function AdminReturnsManagementView({
                       />
                     </div>
 
-                    <button 
-                      onClick={handleUpdate} 
-                      disabled={isUpdating}
-                      className="w-full py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover shadow-lg transition-all"
-                    >
-                      {isUpdating ? 'Updating...' : 'Save & Sync Request'}
-                    </button>
+                    <div className="flex flex-col gap-2 pt-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Actions</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => handleUpdateStatus('Approved')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus('Rejected')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus('Processed')}
+                          disabled={isUpdating}
+                          className="py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all flex items-center justify-center gap-1"
+                        >
+                          Processed
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {orderCache[selectedReturn.orderId] && (

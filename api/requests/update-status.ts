@@ -86,9 +86,22 @@ export async function POST(req: Request) {
     }
 
     const db = admin.firestore();
-    const reqRef = db.collection("requests").doc(requestId);
-    const reqDoc = await reqRef.get();
-
+    let reqDoc = await db.collection("cancellation_requests").doc(requestId).get();
+    let type = "cancellation";
+    let collectionName = "cancellation_requests";
+    
+    if (!reqDoc.exists) {
+      reqDoc = await db.collection("return_requests").doc(requestId).get();
+      type = "return";
+      collectionName = "return_requests";
+    }
+    
+    if (!reqDoc.exists) {
+      reqDoc = await db.collection("refund_requests").doc(requestId).get();
+      type = "refund";
+      collectionName = "refund_requests";
+    }
+    
     if (!reqDoc.exists) {
       return Response.json(
         { success: false, error: "Request not found" },
@@ -99,8 +112,8 @@ export async function POST(req: Request) {
     const rData = reqDoc.data()!;
     const oldStatus = rData.status;
     const orderId = rData.orderId;
-    const type = rData.type || rData.requestType;
     const customerId = rData.customerId || rData.userId;
+    const reqRef = db.collection(collectionName).doc(requestId);
 
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
@@ -125,10 +138,13 @@ export async function POST(req: Request) {
     if (refundTransactionId !== undefined) updateData.refundTransactionId = refundTransactionId;
     if (estimatedCompletionDate !== undefined) updateData.estimatedCompletionDate = estimatedCompletionDate;
 
+    const normalizedStatus = status.toLowerCase();
+    const normalizedOldStatus = oldStatus?.toLowerCase() || "";
+
     // Execute database updates
     const isCancellationStockRestore = type === 'cancellation' && 
-                                        (status === 'approved' || status === 'cancelled') && 
-                                        !(oldStatus === 'approved' || oldStatus === 'cancelled');
+                                        (normalizedStatus === 'approved' || normalizedStatus === 'cancelled' || normalizedStatus === 'processed') && 
+                                        !(normalizedOldStatus === 'approved' || normalizedOldStatus === 'cancelled' || normalizedOldStatus === 'processed');
 
     if (isCancellationStockRestore) {
       await db.runTransaction(async (transaction) => {
@@ -189,66 +205,66 @@ export async function POST(req: Request) {
       let statusHistoryMessage = "";
 
       if (type === 'cancellation') {
-        if (status === 'rejected') {
+        if (normalizedStatus === 'rejected') {
           orderUpdates.status = 'confirmed';
           statusHistoryMessage = "Cancellation request rejected by admin";
-        } else if (status === 'refund_initiated') {
+        } else if (normalizedStatus === 'refund_initiated') {
           orderUpdates.paymentStatus = 'refund_initiated';
           statusHistoryMessage = "Refund initiated for cancellation";
-        } else if (status === 'refund_completed') {
+        } else if (normalizedStatus === 'refund_completed' || normalizedStatus === 'processed') {
           orderUpdates.status = 'cancelled';
           orderUpdates.paymentStatus = 'refunded';
-          statusHistoryMessage = "Refund completed successfully";
+          statusHistoryMessage = "Refund completed / request processed successfully";
         }
       } 
       else if (type === 'return') {
-        if (status === 'approved') {
+        if (normalizedStatus === 'approved') {
           orderUpdates.status = 'return_approved';
           statusHistoryMessage = "Return approved by admin";
-        } else if (status === 'pickup_scheduled') {
+        } else if (normalizedStatus === 'pickup_scheduled') {
           orderUpdates.status = 'return_pickup_scheduled';
           statusHistoryMessage = "Return pickup scheduled";
-        } else if (status === 'product_received') {
+        } else if (normalizedStatus === 'product_received') {
           orderUpdates.status = 'return_received';
           statusHistoryMessage = "Return product received at warehouse";
-        } else if (status === 'quality_check') {
+        } else if (normalizedStatus === 'quality_check') {
           orderUpdates.status = 'return_quality_checked';
           statusHistoryMessage = "Quality check completed successfully";
-        } else if (status === 'refund_initiated') {
+        } else if (normalizedStatus === 'refund_initiated') {
           orderUpdates.paymentStatus = 'refund_initiated';
           statusHistoryMessage = "Refund initiated for return";
-        } else if (status === 'refund_completed' || status === 'refund_processed') {
+        } else if (normalizedStatus === 'refund_completed' || normalizedStatus === 'refund_processed' || normalizedStatus === 'processed') {
           orderUpdates.status = 'returned';
           orderUpdates.paymentStatus = 'refunded';
-          statusHistoryMessage = "Refund completed successfully";
-        } else if (status === 'rejected') {
+          statusHistoryMessage = "Refund completed / request processed successfully";
+        } else if (normalizedStatus === 'rejected') {
           orderUpdates.status = 'delivered';
           statusHistoryMessage = "Return request rejected by admin";
         }
       } 
       else if (type === 'refund') {
-        if (status === 'under_review') {
+        if (normalizedStatus === 'under_review') {
           statusHistoryMessage = "Refund request under review";
-        } else if (status === 'approved') {
+        } else if (normalizedStatus === 'approved') {
           orderUpdates.status = 'refund_approved';
           statusHistoryMessage = "Refund approved by admin";
-        } else if (status === 'processing') {
+        } else if (normalizedStatus === 'processing') {
           statusHistoryMessage = "Refund processing initiated";
-        } else if (status === 'refund_sent') {
+        } else if (normalizedStatus === 'refund_sent') {
           orderUpdates.paymentStatus = 'refund_initiated';
           statusHistoryMessage = "Refund sent/initiated";
-        } else if (status === 'refunded' || status === 'refund_completed') {
+        } else if (normalizedStatus === 'refunded' || normalizedStatus === 'refund_completed' || normalizedStatus === 'processed') {
           orderUpdates.status = 'refunded';
           orderUpdates.paymentStatus = 'refunded';
-          statusHistoryMessage = "Refund completed successfully";
-        } else if (status === 'rejected') {
+          statusHistoryMessage = "Refund completed / request processed successfully";
+        } else if (normalizedStatus === 'rejected') {
           statusHistoryMessage = "Refund request rejected by admin";
         }
       }
 
       if (statusHistoryMessage) {
         orderUpdates.statusHistory = admin.firestore.FieldValue.arrayUnion({
-          status: `req_${status}`,
+          status: `req_${normalizedStatus}`,
           timestamp: new Date().toISOString(),
           message: statusHistoryMessage
         });

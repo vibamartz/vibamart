@@ -5,12 +5,8 @@ export async function POST(req: any) {
   try {
     console.log("Request received");
 
-    // Parse request body dynamically and log all request data
+    // Parse request body dynamically
     const body = await parseRequestBody(req);
-    console.log("Request body:", body);
-    console.log("Order ID:", body?.orderId);
-    console.log("User ID:", body?.userId);
-    console.log("Reason:", body?.reason);
 
     if (req.method === 'OPTIONS') {
       return new Response(null, {
@@ -25,18 +21,25 @@ export async function POST(req: any) {
       );
     }
 
-    // 1. Validate inputs before database operations
     if (!body || typeof body !== 'object') {
       return Response.json(
         { success: false, message: "Invalid JSON body" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
-    const { orderId, reason, comments, userId } = body;
+    
+    const { orderId, userId, reason, comments } = body;
 
+    // 1. Validate fields exist before database operations
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
       return Response.json(
         { success: false, message: "Order ID missing" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+    if (!userId || typeof userId !== 'string' || !userId.trim()) {
+      return Response.json(
+        { success: false, message: "User ID missing" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
@@ -56,28 +59,33 @@ export async function POST(req: any) {
       return Response.json(
         { success: false, message: authError.message || "Unauthorized" },
         { 
-          status: authError.message?.includes("Configuration") ? 500 : 401, 
+          status: 401, 
           headers: getCorsHeaders() 
         }
       );
     }
 
-    const uid = user?.uid || userId;
+    const uid = user?.uid;
     if (!uid) {
       return Response.json(
-        { success: false, message: "User ID required" },
-        { status: 400, headers: getCorsHeaders() }
+        { success: false, message: "Unauthorized" },
+        { status: 401, headers: getCorsHeaders() }
       );
     }
 
-    // 3. Ensure database connection and tables (collections) exist/are writable
-    const db = admin.firestore();
-    try {
-      await db.collection("refund_requests").limit(1).get();
-    } catch (dbErr: any) {
-      console.warn("Table refund_requests warning:", dbErr.message);
+    if (uid !== userId && uid !== 'admin') {
+      return Response.json(
+        { success: false, message: "Unauthorized user mapping" },
+        { status: 403, headers: getCorsHeaders() }
+      );
     }
 
+    // 6. Add detailed logging
+    console.log("Order ID:", orderId);
+    console.log("User ID:", userId);
+    console.log("Reason:", reason);
+
+    const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -117,7 +125,10 @@ export async function POST(req: any) {
       );
     }
 
-    const existingRefunds = await db.collection("requests").where("orderId", "==", orderId).where("type", "==", "refund").get();
+    // Check duplicate refund requests in the refund_requests collection
+    const existingRefunds = await db.collection("refund_requests")
+      .where("orderId", "==", orderId)
+      .get();
     if (!existingRefunds.empty) {
       return Response.json(
         { success: false, message: "A refund request already exists for this order." },
@@ -125,32 +136,17 @@ export async function POST(req: any) {
       );
     }
 
-    // Generate Request ID and create document
-    const docRef = db.collection("requests").doc();
-    const requestId = docRef.id;
-
-    const requestDoc = {
-      id: requestId,
-      requestId,
-      userId: uid,
-      customerId: uid,
-      orderId,
-      type: 'refund',
-      requestType: 'refund',
-      reason,
-      requestReason: reason,
+    // 3. Save request data in Firestore (refund_requests) with the required fields
+    const docRef = await db.collection("refund_requests").add({
+      orderId: orderId,
+      userId: userId,
+      reason: reason,
+      status: "Pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       comments: comments || "",
-      status: "requested",
-      createdDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedDate: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       refundAmount: orderData.total || 0
-    };
-
-    // 4. Save to both refund_requests and requests tables
-    await db.collection("refund_requests").doc(requestId).set(requestDoc);
-    await docRef.set(requestDoc);
+    });
+    const requestId = docRef.id;
 
     await orderRef.update({
       status: "refund_requested",
@@ -216,9 +212,11 @@ export async function POST(req: any) {
   }
 }
 
+
 export default async function handler(req: any, res?: any) {
   if (res && typeof res.status === 'function') {
     return handleNodeRequest(POST, req, res);
   }
   return POST(req);
 }
+

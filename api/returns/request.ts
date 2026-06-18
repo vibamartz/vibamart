@@ -5,12 +5,8 @@ export async function POST(req: any) {
   try {
     console.log("Request received");
 
-    // Parse request body dynamically and log all request data
+    // Parse request body dynamically
     const body = await parseRequestBody(req);
-    console.log("Request body:", body);
-    console.log("Order ID:", body?.orderId);
-    console.log("User ID:", body?.userId);
-    console.log("Reason:", body?.reason);
 
     if (req.method === 'OPTIONS') {
       return new Response(null, {
@@ -25,18 +21,25 @@ export async function POST(req: any) {
       );
     }
 
-    // 1. Validate inputs before database operations
     if (!body || typeof body !== 'object') {
       return Response.json(
         { success: false, message: "Invalid JSON body" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
-    const { orderId, reason, comments, images, productIds, userId } = body;
+    
+    const { orderId, userId, reason, comments, images, productIds } = body;
 
+    // 1. Validate fields exist before database operations
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
       return Response.json(
         { success: false, message: "Order ID missing" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+    if (!userId || typeof userId !== 'string' || !userId.trim()) {
+      return Response.json(
+        { success: false, message: "User ID missing" },
         { status: 400, headers: getCorsHeaders() }
       );
     }
@@ -59,7 +62,7 @@ export async function POST(req: any) {
       );
     }
 
-    // 2. Perform token authentication and validate customer
+    // 2. Perform token authentication
     let user;
     try {
       user = await verifyAuth(req);
@@ -68,28 +71,33 @@ export async function POST(req: any) {
       return Response.json(
         { success: false, message: authError.message || "Unauthorized" },
         { 
-          status: authError.message?.includes("Configuration") ? 500 : 401, 
+          status: 401, 
           headers: getCorsHeaders() 
         }
       );
     }
 
-    const uid = user?.uid || userId;
+    const uid = user?.uid;
     if (!uid) {
       return Response.json(
-        { success: false, message: "User ID required" },
-        { status: 400, headers: getCorsHeaders() }
+        { success: false, message: "Unauthorized" },
+        { status: 401, headers: getCorsHeaders() }
       );
     }
 
-    // 3. Ensure database connection and tables (collections) exist/are writable
-    const db = admin.firestore();
-    try {
-      await db.collection("return_requests").limit(1).get();
-    } catch (dbErr: any) {
-      console.warn("Table return_requests warning:", dbErr.message);
+    if (uid !== userId && uid !== 'admin') {
+      return Response.json(
+        { success: false, message: "Unauthorized user mapping" },
+        { status: 403, headers: getCorsHeaders() }
+      );
     }
 
+    // 6. Add detailed logging
+    console.log("Order ID:", orderId);
+    console.log("User ID:", userId);
+    console.log("Reason:", reason);
+
+    const db = admin.firestore();
     const orderRef = db.collection("orders").doc(orderId);
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
@@ -100,21 +108,13 @@ export async function POST(req: any) {
     }
 
     const orderData = orderDoc.data();
-    if (!orderData) {
-      return Response.json(
-        { success: false, message: "Order data is null" },
-        { status: 400, headers: getCorsHeaders() }
-      );
-    }
-
-    if (orderData.customerId !== uid && uid !== 'admin') {
+    if (!orderData || orderData.customerId !== userId) {
       return Response.json(
         { success: false, message: "Unauthorized to request return for this order" },
         { status: 403, headers: getCorsHeaders() }
       );
     }
 
-    // Only allow returns for delivered orders
     if (orderData.status !== "delivered") {
       return Response.json(
         { success: false, message: "Can only return delivered orders" },
@@ -122,7 +122,6 @@ export async function POST(req: any) {
       );
     }
 
-    // Check return window
     const settingsDoc = await db.collection("settings").doc("store").get();
     const returnWindowDays = settingsDoc.exists && settingsDoc.data()?.returnWindowDays ? settingsDoc.data()?.returnWindowDays : 7;
     
@@ -137,10 +136,9 @@ export async function POST(req: any) {
       );
     }
 
-    // Check for duplicate return requests
-    const existingReturns = await db.collection("requests")
+    // Check for duplicate return requests in the return_requests collection
+    const existingReturns = await db.collection("return_requests")
       .where("orderId", "==", orderId)
-      .where("type", "==", "return")
       .get();
       
     const newProducts = productIds;
@@ -167,34 +165,19 @@ export async function POST(req: any) {
       });
     }
 
-    // Generate Request ID and create document
-    const docRef = db.collection("requests").doc();
-    const requestId = docRef.id;
-
-    const requestDoc = {
-      id: requestId,
-      requestId,
-      orderId,
-      customerId: uid,
-      userId: uid,
-      requestType: 'return',
-      type: 'return',
+    // 3. Save request data in Firestore (return_requests) with the required fields
+    const docRef = await db.collection("return_requests").add({
+      orderId: orderId,
+      userId: userId,
+      reason: reason,
+      status: "Pending",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       productIds: newProducts,
-      requestReason: reason,
-      reason,
       comments: comments || "",
       images,
-      status: 'requested',
-      createdDate: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedDate: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       refundAmount: calculatedRefund
-    };
-
-    // 4. Save to both return_requests and requests tables
-    await db.collection("return_requests").doc(requestId).set(requestDoc);
-    await docRef.set(requestDoc);
+    });
+    const requestId = docRef.id;
 
     await orderRef.update({
       status: "return_requested",
