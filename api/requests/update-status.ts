@@ -1,22 +1,57 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: Request) {
   try {
-    setCorsHeaders(req, res);
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 200,
+        headers: getCorsHeaders()
+      });
+    }
+    if (req.method !== 'POST') {
+      return Response.json(
+        { error: 'Method not allowed' },
+        { status: 405, headers: getCorsHeaders() }
+      );
+    }
 
-    const decodedToken = await verifyAuth(req, res);
-    if (!decodedToken) return;
+    let decodedToken;
+    try {
+      decodedToken = await verifyAuth(req);
+    } catch (authError: any) {
+      return Response.json(
+        { success: false, error: authError.message || "Unauthorized" },
+        { 
+          status: authError.message?.includes("Configuration") ? 500 : 401, 
+          headers: getCorsHeaders() 
+        }
+      );
+    }
 
-    const { requestId, status, adminNotes, refundAmount, refundMethod, refundTransactionId, estimatedCompletionDate } = req.body;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      return Response.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+
+    const { requestId, status, adminNotes, refundAmount, refundMethod, refundTransactionId, estimatedCompletionDate } = body;
     
     if (!requestId || typeof requestId !== 'string' || !requestId.trim()) {
-      return res.status(400).json({ success: false, error: "Request ID is required." });
+      return Response.json(
+        { success: false, error: "Request ID is required." },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
     if (!status || typeof status !== 'string' || !status.trim()) {
-      return res.status(400).json({ success: false, error: "Status is required." });
+      return Response.json(
+        { success: false, error: "Status is required." },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
 
     let isAdmin = false;
@@ -32,7 +67,10 @@ export default async function handler(req: any, res: any) {
     }
     
     if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Unauthorized: Admins only" });
+      return Response.json(
+        { success: false, error: "Unauthorized: Admins only" },
+        { status: 403, headers: getCorsHeaders() }
+      );
     }
 
     const db = admin.firestore();
@@ -40,7 +78,10 @@ export default async function handler(req: any, res: any) {
     const reqDoc = await reqRef.get();
 
     if (!reqDoc.exists) {
-      return res.status(404).json({ success: false, error: "Request not found" });
+      return Response.json(
+        { success: false, error: "Request not found" },
+        { status: 404, headers: getCorsHeaders() }
+      );
     }
 
     const rData = reqDoc.data()!;
@@ -53,7 +94,10 @@ export default async function handler(req: any, res: any) {
     const orderDoc = await orderRef.get();
     
     if (!orderDoc.exists) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return Response.json(
+        { success: false, error: "Order not found" },
+        { status: 404, headers: getCorsHeaders() }
+      );
     }
     const orderData = orderDoc.data()!;
 
@@ -256,10 +300,19 @@ export default async function handler(req: any, res: any) {
       await sendEmailNotification(customerEmail, customerName, emailSubject, emailBody);
     }
 
-    res.json({ success: true, message: `Request ${status} successfully` });
+    return Response.json(
+      { success: true, message: `Request ${status} successfully` },
+      { headers: getCorsHeaders() }
+    );
   } catch (error: any) {
-    console.error("Update request status error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).json({ success: false, error: errorMessage || "Failed to update request status" });
+    console.error(error);
+
+    return Response.json(
+      {
+        success: false,
+        message: error.message || "Internal server error"
+      },
+      { status: 500 }
+    );
   }
 }

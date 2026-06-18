@@ -1,23 +1,58 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification } from "../utils";
+import { verifyAuth, getCorsHeaders, createNotification, sendEmailNotification } from "../utils";
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: Request) {
   try {
-    setCorsHeaders(req, res);
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 200,
+        headers: getCorsHeaders()
+      });
+    }
+    if (req.method !== 'POST') {
+      return Response.json(
+        { error: 'Method not allowed' },
+        { status: 405, headers: getCorsHeaders() }
+      );
+    }
 
-    const user = await verifyAuth(req, res);
-    if (!user) return; // verifyAuth handles the response if it fails
+    let user;
+    try {
+      user = await verifyAuth(req);
+    } catch (authError: any) {
+      return Response.json(
+        { success: false, error: authError.message || "Unauthorized" },
+        { 
+          status: authError.message?.includes("Configuration") ? 500 : 401, 
+          headers: getCorsHeaders() 
+        }
+      );
+    }
 
-    const { orderId, reason } = req.body;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      return Response.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400, headers: getCorsHeaders() }
+      );
+    }
+
+    const { orderId, reason } = body;
     const uid = user.uid;
 
     if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
-      return res.status(400).json({ success: false, error: "Order ID is required and must be a valid string." });
+      return Response.json(
+        { success: false, error: "Order ID is required and must be a valid string." },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      return res.status(400).json({ success: false, error: "Reason is required and must be a valid string." });
+      return Response.json(
+        { success: false, error: "Reason is required and must be a valid string." },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
 
     const db = admin.firestore();
@@ -25,17 +60,26 @@ export default async function handler(req: any, res: any) {
     
     const orderDoc = await orderRef.get();
     if (!orderDoc.exists) {
-      return res.status(404).json({ success: false, error: "Order not found" });
+      return Response.json(
+        { success: false, error: "Order not found" },
+        { status: 404, headers: getCorsHeaders() }
+      );
     }
 
     const orderData = orderDoc.data()!;
     if (orderData.customerId !== uid) {
-      return res.status(403).json({ success: false, error: "Unauthorized to cancel this order" });
+      return Response.json(
+        { success: false, error: "Unauthorized to cancel this order" },
+        { status: 403, headers: getCorsHeaders() }
+      );
     }
 
     const allowedStatuses = ["pending", "confirmed", "packed"];
     if (!allowedStatuses.includes(orderData.status)) {
-      return res.status(400).json({ success: false, error: `Cannot cancel order in ${orderData.status} status` });
+      return Response.json(
+        { success: false, error: `Cannot cancel order in ${orderData.status} status` },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
 
     // Check for duplicate cancellation requests
@@ -45,7 +89,10 @@ export default async function handler(req: any, res: any) {
       .get();
 
     if (!existingCancellations.empty) {
-      return res.status(400).json({ success: false, error: "A duplicate cancellation request already exists for this order." });
+      return Response.json(
+        { success: false, error: "A duplicate cancellation request already exists for this order." },
+        { status: 400, headers: getCorsHeaders() }
+      );
     }
 
     // Check if manual cancellation is enabled
@@ -192,10 +239,19 @@ export default async function handler(req: any, res: any) {
 
     await Promise.allSettled(notificationPromises);
 
-    res.json({ success: true, message: "Request submitted successfully", requestId });
+    return Response.json(
+      { success: true, message: "Request submitted successfully", requestId },
+      { headers: getCorsHeaders() }
+    );
   } catch (error: any) {
-    console.error("Cancel order error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).json({ success: false, error: errorMessage || "Failed to cancel order" });
+    console.error(error);
+
+    return Response.json(
+      {
+        success: false,
+        message: error.message || "Internal server error"
+      },
+      { status: 500 }
+    );
   }
 }

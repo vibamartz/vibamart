@@ -34,27 +34,30 @@ if (!admin.apps.length) {
   }
 }
 
-export const verifyAuth = async (req: any, res: any) => {
+export const verifyAuth = async (req: Request) => {
   if (!admin.apps.length) {
-    res.status(500).json({ 
-      success: false, 
-      error: `Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Vercel Environment Variables.` 
-    });
-    return null;
+    throw new Error(`Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Vercel Environment Variables.`);
   }
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ success: false, error: "Unauthorized: No token provided" });
-    return null;
+    throw new Error("Unauthorized: No token provided");
   }
   const idToken = authHeader.split("Bearer ")[1];
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     return decodedToken;
   } catch (error) {
-    res.status(401).json({ success: false, error: "Unauthorized: Invalid token" });
-    return null;
+    throw new Error("Unauthorized: Invalid token");
   }
+};
+
+export const getCorsHeaders = () => {
+  return {
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
+    'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+  };
 };
 
 export const setCorsHeaders = (req: any, res: any) => {
@@ -66,6 +69,7 @@ export const setCorsHeaders = (req: any, res: any) => {
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 };
+
 
 export async function createNotification(userId: string, title: string, message: string, orderId?: string) {
   try {
