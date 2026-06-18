@@ -75,6 +75,9 @@ export async function sendEmailNotification(toEmail: string, contactName: string
         user: process.env.SMTP_USER || "test",
         pass: process.env.SMTP_PASS || "test",
       },
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 5000,
     });
     const emailHtml = `
       <h2>Hello ${contactName || 'Customer'},</h2>

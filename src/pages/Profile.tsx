@@ -342,8 +342,12 @@ export default function Profile() {
         }
         const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
         const uploadPromise = uploadString(imageRef, imgBase64, 'data_url');
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Image upload timed out. Please check your network or Firebase config.")), 15000));
+        let timeoutId: any;
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error("Image upload timed out. Please check your network or Firebase config.")), 60000);
+        });
         await Promise.race([uploadPromise, timeoutPromise]);
+        clearTimeout(timeoutId);
         return await getDownloadURL(imageRef);
       }));
 
