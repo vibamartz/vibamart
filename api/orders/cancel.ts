@@ -143,46 +143,46 @@ export default async function handler(req: any, res: any) {
     const customerName = orderData.contactName || "Customer";
 
     if (enableManualCancellation) {
-      createNotification(
+      await createNotification(
         uid,
         "Cancellation Request Submitted",
         `Your cancellation request for order #${orderId} has been submitted successfully.`,
         orderId
-      ).catch(console.error);
+      );
       
       if (customerEmail) {
-        sendEmailNotification(
+        await sendEmailNotification(
           customerEmail,
           customerName,
           "Order Cancellation Request Received",
           `We have received your cancellation request for order #${orderId}. Reason: ${reason}. It is currently pending review.`
-        ).catch(console.error);
+        );
       }
     } else {
-      createNotification(
+      await createNotification(
         uid,
         "Order Cancelled",
         `Your order #${orderId} has been cancelled successfully.`,
         orderId
-      ).catch(console.error);
+      );
       
       if (customerEmail) {
-        sendEmailNotification(
+        await sendEmailNotification(
           customerEmail,
           customerName,
           "Order Cancelled Successfully",
           `Your order #${orderId} has been successfully cancelled. If you paid online, your refund will be processed within 5-7 business days.`
-        ).catch(console.error);
+        );
       }
     }
 
     // Admin Notification
-    createNotification(
+    await createNotification(
       "admin",
       "New Cancellation Request",
       `A new cancellation request was submitted for order #${orderId}.`,
       orderId
-    ).catch(console.error);
+    );
 
     res.json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
