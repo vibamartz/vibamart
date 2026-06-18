@@ -114,12 +114,19 @@ export async function sendEmailNotification(toEmail: string, contactName: string
       }
     });
 
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000)
-    );
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000);
+    });
 
-    await Promise.race([emailPromise, timeoutPromise]);
-    console.log(`Email successfully sent to ${toEmail}`);
+    try {
+      await Promise.race([emailPromise, timeoutPromise]);
+      clearTimeout(timeoutId!);
+      console.log(`Email successfully sent to ${toEmail}`);
+    } catch (err) {
+      clearTimeout(timeoutId!);
+      throw err;
+    }
   } catch (err) {
     console.error("Error sending email notification:", err);
   }
