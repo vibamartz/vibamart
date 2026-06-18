@@ -467,7 +467,7 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop Notifications Dropdown */}
-            {user && (
+            {user && notifications.length > 0 && (
               <div className="relative">
                 <button 
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
@@ -550,16 +550,18 @@ export default function Navbar() {
 
           {/* Mobile Actions (Always Visible) */}
           <div className="flex md:hidden items-center gap-1 sm:gap-3">
-            <button 
-              onClick={() => setIsNotificationsOpen(true)} 
-              className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" 
-              aria-label="Notifications"
-            >
-              <Bell className="w-6 h-6" />
-              {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-              )}
-            </button>
+            {notifications.length > 0 && (
+              <button 
+                onClick={() => setIsNotificationsOpen(true)} 
+                className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" 
+                aria-label="Notifications"
+              >
+                <Bell className="w-6 h-6" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                )}
+              </button>
+            )}
             <Link to="/cart" className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" aria-label="Cart">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (

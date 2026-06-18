@@ -102,12 +102,19 @@ export async function sendEmailNotification(toEmail: string, contactName: string
       <br/>
       <p>Best Regards,<br/>The ViBa Mart Team</p>
     `;
-    await transporter.sendMail({
+    
+    const emailPromise = transporter.sendMail({
       from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
       to: toEmail,
       subject,
       html: emailHtml,
     });
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000)
+    );
+
+    await Promise.race([emailPromise, timeoutPromise]);
     console.log(`Email successfully sent to ${toEmail}`);
   } catch (err) {
     console.error("Error sending email notification:", err);

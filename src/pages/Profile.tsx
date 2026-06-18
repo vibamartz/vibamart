@@ -472,7 +472,7 @@ export default function Profile() {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
-    { id: 'requests', label: 'Request History', icon: Clock },
+    ...(allRequests.length > 0 ? [{ id: 'requests', label: 'Request History', icon: Clock }] : []),
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'waitlist', label: 'Waitlist', icon: Bell },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
@@ -659,30 +659,32 @@ export default function Profile() {
                   </div>
 
                   {/* My Requests Dashboard Widget */}
-                  <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-black text-gray-900">My Requests Tracker</h3>
-                      <button onClick={() => setActiveTab('requests')} className="text-xs font-bold text-primary hover:underline">View All</button>
+                  {allRequests.length > 0 && (
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-black text-gray-900">My Requests Tracker</h3>
+                        <button onClick={() => setActiveTab('requests')} className="text-xs font-bold text-primary hover:underline">View All</button>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                          <span className="text-2xl font-black text-gray-900 mb-1">{allRequests.filter(r => !['cancelled', 'refund_completed', 'rejected'].includes(r.status)).length}</span>
+                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Requests</span>
+                        </div>
+                        <div className="bg-blue-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                          <span className="text-2xl font-black text-blue-600 mb-1">{allRequests.filter(r => ['requested', 'under_review', 'pending'].includes(r.status)).length}</span>
+                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Pending Review</span>
+                        </div>
+                        <div className="bg-emerald-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                          <span className="text-2xl font-black text-emerald-600 mb-1">{allRequests.filter(r => ['cancelled', 'refund_completed'].includes(r.status)).length}</span>
+                          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Completed</span>
+                        </div>
+                        <div className="bg-purple-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
+                          <span className="text-2xl font-black text-purple-600 mb-1">{allRequests.filter(r => ['refund_initiated', 'processing', 'refund_sent'].includes(r.status)).length}</span>
+                          <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Refunds Processing</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-black text-gray-900 mb-1">{allRequests.filter(r => !['cancelled', 'refund_completed', 'rejected'].includes(r.status)).length}</span>
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Requests</span>
-                      </div>
-                      <div className="bg-blue-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-black text-blue-600 mb-1">{allRequests.filter(r => ['requested', 'under_review', 'pending'].includes(r.status)).length}</span>
-                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Pending Review</span>
-                      </div>
-                      <div className="bg-emerald-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-black text-emerald-600 mb-1">{allRequests.filter(r => ['cancelled', 'refund_completed'].includes(r.status)).length}</span>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Completed</span>
-                      </div>
-                      <div className="bg-purple-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-black text-purple-600 mb-1">{allRequests.filter(r => ['refund_initiated', 'processing', 'refund_sent'].includes(r.status)).length}</span>
-                        <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Refunds Processing</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </motion.div>
               )}
 
