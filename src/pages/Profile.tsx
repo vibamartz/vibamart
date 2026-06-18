@@ -24,7 +24,7 @@ import { getProductSlug } from '../utils/slug';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'requests' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
   const [waitlist, setWaitlist] = useState<(WaitlistItem & { product?: Product })[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
@@ -496,7 +496,6 @@ export default function Profile() {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
-    ...(allRequests.length > 0 ? [{ id: 'requests', label: 'Request History', icon: Clock }] : []),
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'waitlist', label: 'Waitlist', icon: Bell },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
@@ -682,33 +681,7 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  {/* My Requests Dashboard Widget */}
-                  {allRequests.length > 0 && (
-                    <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-black text-gray-900">My Requests Tracker</h3>
-                        <button onClick={() => setActiveTab('requests')} className="text-xs font-bold text-primary hover:underline">View All</button>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                          <span className="text-2xl font-black text-gray-900 mb-1">{allRequests.filter(r => !['cancelled', 'refund_completed', 'rejected'].includes(r.status)).length}</span>
-                          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Requests</span>
-                        </div>
-                        <div className="bg-blue-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                          <span className="text-2xl font-black text-blue-600 mb-1">{allRequests.filter(r => ['requested', 'under_review', 'pending'].includes(r.status)).length}</span>
-                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Pending Review</span>
-                        </div>
-                        <div className="bg-emerald-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                          <span className="text-2xl font-black text-emerald-600 mb-1">{allRequests.filter(r => ['cancelled', 'refund_completed'].includes(r.status)).length}</span>
-                          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Completed</span>
-                        </div>
-                        <div className="bg-purple-50/50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                          <span className="text-2xl font-black text-purple-600 mb-1">{allRequests.filter(r => ['refund_initiated', 'processing', 'refund_sent'].includes(r.status)).length}</span>
-                          <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Refunds Processing</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+
                 </motion.div>
               )}
 
@@ -828,7 +801,7 @@ export default function Profile() {
                                   )}
                                   {cancellationRequests[order.id] && (
                                     <Link
-                                      to={`/track-refund/${cancellationRequests[order.id].id}`}
+                                      to={`/track-request/${cancellationRequests[order.id].id}`}
                                       className="px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-2 transition-all"
                                     >
                                       Cancellation: {cancellationRequests[order.id].status.replace('_', ' ')}
@@ -836,7 +809,7 @@ export default function Profile() {
                                   )}
                                   {returnRequests[order.id] && (
                                     <Link
-                                      to={`/track-refund/${returnRequests[order.id].id}`}
+                                      to={`/track-request/${returnRequests[order.id].id}`}
                                       className="px-4 py-2.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2 transition-all"
                                     >
                                       Return: {returnRequests[order.id].status.replace('_', ' ')}
@@ -852,7 +825,7 @@ export default function Profile() {
                                   )}
                                   {refundRequests[order.id] && (
                                     <Link
-                                      to={`/track-refund/${refundRequests[order.id].id}`}
+                                      to={`/track-request/${refundRequests[order.id].id}`}
                                       className="px-4 py-2.5 bg-pink-50 text-pink-600 hover:bg-pink-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2 transition-all"
                                     >
                                       Refund: {refundRequests[order.id].status.replace('_', ' ')}
@@ -874,97 +847,6 @@ export default function Profile() {
                                   )}
                                 </div>
                              </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === 'requests' && (
-                <motion.div
-                  key="requests"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
-                >
-                  <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Request History</h2>
-                    
-                    {allRequests.length === 0 ? (
-                      <div className="py-20 text-center space-y-4">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
-                          <Clock className="w-10 h-10 text-gray-200" />
-                        </div>
-                        <p className="text-gray-400 font-medium">You haven't submitted any cancellation, return, or refund requests.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {allRequests.map(req => (
-                          <div 
-                            key={req.id} 
-                            className="bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 flex flex-wrap justify-between items-center gap-4"
-                          >
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Request ID
-                              </span>
-                              <span className="text-sm font-black text-gray-900 italic">
-                                #{req.id.slice(-8).toUpperCase()}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Order ID
-                              </span>
-                              <span className="text-sm font-bold text-gray-600">
-                                #{req.orderId.startsWith('VBM') ? req.orderId : req.orderId.slice(-8).toUpperCase()}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Request Type
-                              </span>
-                              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
-                                req.type === 'cancellation' ? 'bg-red-100 text-red-600' :
-                                req.type === 'return' ? 'bg-purple-100 text-purple-600' :
-                                'bg-pink-100 text-pink-600'
-                              }`}>
-                                {req.type}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Date Submitted
-                              </span>
-                              <span className="text-xs font-bold text-gray-600">
-                                {new Date(req.createdAt || req.createdDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                Status
-                              </span>
-                              <span className="text-xs font-bold text-gray-700 uppercase">
-                                {req.status.replace('_', ' ')}
-                              </span>
-                            </div>
-
-                            {/* Track Progress Button */}
-                            <div className="w-full md:w-auto mt-4 md:mt-0 flex justify-end">
-                              <Link 
-                                to={`/track-request/${req.id}`} 
-                                className="bg-primary/10 hover:bg-primary text-primary hover:text-white transition-all rounded-xl px-6 py-3 text-xs font-black uppercase tracking-widest"
-                              >
-                                Track Progress
-                              </Link>
-                            </div>
                           </div>
                         ))}
                       </div>

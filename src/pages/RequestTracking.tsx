@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Clock, ShieldCheck, CheckCircle2, AlertCircle, 
   CreditCard, Calendar, Truck, FileText, Loader2, RefreshCw
@@ -54,23 +54,55 @@ export default function RequestTracking() {
     setLoading(true);
     setError(null);
 
-    // Live update listener
-    const docRef = doc(db, 'requests', requestId);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setRequest({ id: docSnap.id, ...docSnap.data() });
-      } else {
-        setError("Request not found. Please verify the Request ID.");
-        setRequest(null);
-      }
-      setLoading(false);
-    }, (err) => {
-      console.error("Firestore listener error:", err);
-      setError("Failed to load tracking updates. Access may be unauthorized.");
-      setLoading(false);
-    });
+    let unsubscribe: (() => void) | null = null;
 
-    return () => unsubscribe();
+    async function initTracking() {
+      try {
+        const dbCollections = ["cancellation_requests", "return_requests", "refund_requests"];
+        let foundRef = null;
+        let foundType = "";
+
+        for (const colName of dbCollections) {
+          const docRef = doc(db, colName, requestId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            foundRef = docRef;
+            foundType = colName.replace("_requests", "");
+            break;
+          }
+        }
+
+        if (foundRef) {
+          unsubscribe = onSnapshot(foundRef, (docSnap) => {
+            if (docSnap.exists()) {
+              setRequest({ id: docSnap.id, type: foundType, ...docSnap.data() });
+            } else {
+              setError("Request not found. Please verify the Request ID.");
+              setRequest(null);
+            }
+            setLoading(false);
+          }, (err) => {
+            console.error("Firestore listener error:", err);
+            setError("Failed to load tracking updates. Access may be unauthorized.");
+            setLoading(false);
+          });
+        } else {
+          setError("Request not found. Please verify the Request ID.");
+          setRequest(null);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error("Error finding tracking document:", err);
+        setError("An error occurred while loading request updates.");
+        setLoading(false);
+      }
+    }
+
+    initTracking();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [requestId]);
 
   const handleSearch = (e: React.FormEvent) => {
