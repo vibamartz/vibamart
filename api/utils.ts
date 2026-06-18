@@ -1,28 +1,40 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 
+let adminInitError: string | null = null;
+
 if (!admin.apps.length) {
   try {
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+      let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
+      // Strip surrounding quotes if Vercel added them
+      formattedKey = formattedKey.replace(/^"|"$/g, '');
+      // Handle escaped newlines
+      formattedKey = formattedKey.replace(/\\n/g, '\n');
+      
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          privateKey: formattedKey,
         }),
       });
     } else {
       console.error("CRITICAL: Firebase Admin credentials missing. Vercel will hang if we try to use default credentials.");
-      // We do NOT call admin.initializeApp() here to prevent the metadata server hang.
+      adminInitError = "Missing FIREBASE_PRIVATE_KEY in environment variables.";
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error("Firebase Admin initialization failed:", e);
+    adminInitError = e.message || String(e);
   }
 }
 
 export const verifyAuth = async (req: any, res: any) => {
   if (!admin.apps.length) {
-    res.status(500).json({ success: false, error: "Server Configuration Error: Firebase Admin credentials (FIREBASE_PRIVATE_KEY, etc.) are missing in Vercel Environment Variables. Please configure them in your Vercel Dashboard." });
+    res.status(500).json({ 
+      success: false, 
+      error: `Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Vercel Environment Variables.` 
+    });
     return null;
   }
   const authHeader = req.headers.authorization;
