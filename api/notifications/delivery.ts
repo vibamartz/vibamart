@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-import { setCorsHeaders } from "../utils";
+import { setCorsHeaders } from "../utils.js";
+
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {

@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils.js";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -364,18 +364,20 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {
-    const errorLocation = getErrorLocation(error);
-    console.error("FUNCTION_INVOCATION_FAILED: Update status handler error.");
-    console.error("Stack trace:", error.stack);
-    console.error(`Failing Line: ${errorLocation.file}:${errorLocation.line}`);
-    return res.status(500).json({
-      success: false,
-      error: "FUNCTION_INVOCATION_FAILED",
-      message: error.message || "Internal server error",
-      file: errorLocation.file,
-      line: errorLocation.line,
-      stack: error.stack
-    });
+    console.error("Update Status Error:", error);
+    if (res && typeof res.status === 'function') {
+      return res.status(500).json({
+        success: false,
+        message: error?.message || "Internal Server Error",
+      });
+    }
+    return Response.json(
+      {
+        success: false,
+        message: error?.message || "Internal Server Error",
+      },
+      { status: 500 }
+    );
   }
 }
 
