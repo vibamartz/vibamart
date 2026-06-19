@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils.js";
+import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
 // Make sure firebase is initialized
 if (!admin.apps.length) {
@@ -307,7 +307,7 @@ export default async function handler(req: any, res: any) {
       console.error("Notification service warning:", notifyErr);
     }
 
-    return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
+    return res.status(200).json({ success: true, message: "Cancellation request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Cancel Order Error:", error);
     if (res && typeof res.status === 'function') {
