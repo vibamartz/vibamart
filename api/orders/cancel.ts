@@ -1,24 +1,7 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
+import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
-// Make sure firebase is initialized
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-      });
-    } else {
-      admin.initializeApp();
-    }
-  } catch (e) {
-    console.warn("Firebase Admin missing credentials", e);
-  }
-}
+initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
   setCorsHeaders(req, res);
@@ -126,8 +109,8 @@ export default async function handler(req: any, res: any) {
     // Check if manual cancellation is enabled
     let enableManualCancellation = false;
     try {
-      console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'store'");
-      const settingsDoc = await db.collection("settings").doc("store").get();
+      console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'storeConfig'");
+      const settingsDoc = await db.collection("settings").doc("storeConfig").get();
       enableManualCancellation = settingsDoc.exists && settingsDoc.data()?.enableManualCancellation === true;
     } catch (error: any) {
       console.error("FULL ERROR:", error);
@@ -144,7 +127,8 @@ export default async function handler(req: any, res: any) {
     // 3. Save request data in Firestore (cancel-order) with the required fields
     const cancellationReqData = {
       customOrderId: orderData.customOrderId || targetOrderId,
-      contactEmail: orderData.contactEmail || userEmail || "",
+      contactEmail: (orderData.contactEmail || userEmail || "").toLowerCase(),
+      userId: uid,
       reason: reason,
       status: "Pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -307,21 +291,27 @@ export default async function handler(req: any, res: any) {
       console.error("Notification service warning:", notifyErr);
     }
 
-    return res.status(200).json({ success: true, message: "Cancellation request submitted successfully", requestId });
+    return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
     console.error("Cancel Order Error:", error);
+    const errorMessage = error?.message || String(error) || "Internal Server Error";
     if (res && typeof res.status === 'function') {
       return res.status(500).json({
         success: false,
-        message: error?.message || "Internal Server Error",
+        error: errorMessage,
+        message: errorMessage,
       });
     }
-    return Response.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: false,
-        message: error?.message || "Internal Server Error",
-      },
-      { status: 500 }
+        error: errorMessage,
+        message: errorMessage,
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
     );
   }
 }

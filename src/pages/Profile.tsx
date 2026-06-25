@@ -180,9 +180,9 @@ export default function Profile() {
     });
 
     // Fetch All Requests (Cancellation, Return, Refund)
-    const cancelQuery = query(collection(db, 'cancel-order'), where('contactEmail', '==', user.email || ''));
-    const returnQuery = query(collection(db, 'return'), where('contactEmail', '==', user.email || ''));
-    const refundQuery = query(collection(db, 'refund'), where('contactEmail', '==', user.email || ''));
+    const cancelQuery = query(collection(db, 'cancel-order'), where('contactEmail', '==', (user.email || '').toLowerCase()));
+    const returnQuery = query(collection(db, 'return'), where('contactEmail', '==', (user.email || '').toLowerCase()));
+    const refundQuery = query(collection(db, 'refund'), where('contactEmail', '==', (user.email || '').toLowerCase()));
 
     let cancellationsList: any[] = [];
     let returnsList: any[] = [];

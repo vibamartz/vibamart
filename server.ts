@@ -602,7 +602,9 @@ async function startServer() {
       }
 
       // Generate Custom Token for frontend to sign in
-      const customToken = await admin.auth().createCustomToken(uid);
+      const customToken = await admin.auth().createCustomToken(uid, {
+        email_verified: true
+      });
       
       return res.json({ success: true, customToken });
     } catch (error: any) {

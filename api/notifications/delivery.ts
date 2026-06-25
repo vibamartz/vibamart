@@ -1,26 +1,8 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-import { setCorsHeaders } from "../utils";
+import { setCorsHeaders, initializeFirebaseAdmin } from "../utils";
 
-
-// Make sure firebase is initialized
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-      });
-    } else {
-      admin.initializeApp();
-    }
-  } catch (e) {
-    console.warn("Firebase Admin missing credentials", e);
-  }
-}
+initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
   setCorsHeaders(req, res);
@@ -91,6 +73,11 @@ export default async function handler(req: any, res: any) {
     res.json({ success: true, message: "Delivery notification sent" });
   } catch (error: any) {
     console.error("Delivery notification error:", error);
-    res.status(500).json({ success: false, error: "Failed to send delivery notification" });
+    const errMsg = error?.message || String(error) || "Failed to send delivery notification";
+    res.status(500).json({ 
+      success: false, 
+      error: errMsg, 
+      message: errMsg 
+    });
   }
 }

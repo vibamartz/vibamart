@@ -1,24 +1,7 @@
 import admin from "firebase-admin";
-import { verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
+import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
 
-// Make sure firebase is initialized
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-      });
-    } else {
-      admin.initializeApp();
-    }
-  } catch (e) {
-    console.warn("Firebase Admin missing credentials", e);
-  }
-}
+initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
   setCorsHeaders(req, res);
@@ -365,18 +348,24 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ success: true, message: `Request ${status} successfully` });
   } catch (error: any) {
     console.error("Update Status Error:", error);
+    const errorMessage = error?.message || String(error) || "Internal Server Error";
     if (res && typeof res.status === 'function') {
       return res.status(500).json({
         success: false,
-        message: error?.message || "Internal Server Error",
+        error: errorMessage,
+        message: errorMessage,
       });
     }
-    return Response.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: false,
-        message: error?.message || "Internal Server Error",
-      },
-      { status: 500 }
+        error: errorMessage,
+        message: errorMessage,
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
     );
   }
 }

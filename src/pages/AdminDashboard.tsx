@@ -3363,6 +3363,26 @@ function SettingsView() {
           />
         </div>
 
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Order Cancellation & Returns</h3>
+        <div className="space-y-4">
+          <Toggle 
+            label="Enable Manual Order Cancellation Review" 
+            desc="Require admin review for customer cancellation requests instead of auto-cancelling" 
+            value={localSettings.enableManualCancellation ?? false} 
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableManualCancellation: !prev.enableManualCancellation }))} 
+          />
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Return Window (Days)</label>
+            <input
+              type="number"
+              min="0"
+              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all font-bold"
+              value={localSettings.returnWindowDays ?? 7}
+              onChange={e => setLocalSettings(prev => ({ ...prev, returnWindowDays: Number(e.target.value) }))}
+            />
+          </div>
+        </div>
+
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Storefront Filters</h3>
         <div className="space-y-3">
           <Toggle label="Brand Filter" desc="Allow filtering by brand" value={localSettings.enableBrandFilter} onChange={() => setLocalSettings(prev => ({ ...prev, enableBrandFilter: !prev.enableBrandFilter }))} />

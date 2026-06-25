@@ -6,36 +6,44 @@ dotenv.config();
 
 let adminInitError: string | null = null;
 
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-      let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
-      // Strip surrounding quotes if Vercel added them
-      formattedKey = formattedKey.replace(/^"|"$/g, '');
-      // Handle escaped newlines
-      formattedKey = formattedKey.replace(/\\n/g, '\n');
-      
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: formattedKey,
-        }),
-      });
-      try {
-        admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
-      } catch (e) {
-        console.warn("Firestore settings already initialized or failed:", e);
+export function initializeFirebaseAdmin() {
+  if (!admin.apps.length) {
+    try {
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+        let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
+        // Strip surrounding quotes if Vercel added them
+        formattedKey = formattedKey.replace(/^"|"$/g, '');
+        // Handle escaped newlines
+        formattedKey = formattedKey.replace(/\\n/g, '\n');
+        
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: formattedKey,
+          }),
+        });
+        try {
+          admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
+        } catch (e) {
+          console.warn("Firestore settings already initialized or failed:", e);
+        }
+      } else {
+        admin.initializeApp();
+        try {
+          admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
+        } catch (e) {}
       }
-    } else {
-      console.error("CRITICAL: Firebase Admin credentials missing. Vercel will hang if we try to use default credentials.");
-      adminInitError = "Missing FIREBASE_PRIVATE_KEY in environment variables.";
+    } catch (e: any) {
+      console.error("Firebase Admin initialization failed:", e);
+      adminInitError = e.message || String(e);
     }
-  } catch (e: any) {
-    console.error("Firebase Admin initialization failed:", e);
-    adminInitError = e.message || String(e);
   }
+  return admin;
 }
+
+// Auto-run on import to preserve backward compatibility for modules that import utils
+initializeFirebaseAdmin();
 
 export const verifyAuth = async (req: any) => {
   if (!admin.apps.length) {

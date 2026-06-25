@@ -1,22 +1,7 @@
 import admin from "firebase-admin";
+import { initializeFirebaseAdmin } from "../utils";
 
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        }),
-      });
-    } else {
-      admin.initializeApp();
-    }
-  } catch (e) {
-    console.warn("Firebase Admin missing credentials, custom token generation will fail unless set.", e);
-  }
-}
+initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
   // CORS
@@ -82,11 +67,18 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const customToken = await admin.auth().createCustomToken(uid);
+    const customToken = await admin.auth().createCustomToken(uid, {
+      email_verified: true
+    });
     
     return res.json({ success: true, customToken });
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);
-    res.status(500).json({ success: false, error: "Failed to verify OTP" });
+    const errMsg = error?.message || String(error) || "Failed to verify OTP";
+    res.status(500).json({ 
+      success: false, 
+      error: errMsg,
+      message: errMsg
+    });
   }
 }

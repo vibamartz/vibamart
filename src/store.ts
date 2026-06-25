@@ -231,29 +231,35 @@ export const useCategoryStore = create<CategoryState>((set) => ({
       if (!snapshot.empty) {
         const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
 
-        // Auto-seed missing initial categories to Firestore
-        INITIAL_CATEGORIES.forEach(async (initialCat) => {
-          const exists = fetchedCategories.some(c => c.id === initialCat.id);
-          if (!exists) {
-            try {
-              await setDoc(doc(db, 'categories', initialCat.id), initialCat);
-            } catch (e) {
-              console.error("Failed to seed missing category:", initialCat.id, e);
+        // Auto-seed missing initial categories to Firestore (admins only)
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          INITIAL_CATEGORIES.forEach(async (initialCat) => {
+            const exists = fetchedCategories.some(c => c.id === initialCat.id);
+            if (!exists) {
+              try {
+                await setDoc(doc(db, 'categories', initialCat.id), initialCat);
+              } catch (e) {
+                console.error("Failed to seed missing category:", initialCat.id, e);
+              }
             }
-          }
-        });
+          });
+        }
 
         fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         set({ categories: fetchedCategories, loading: false });
       } else {
-        // If empty, seed Firestore with initial categories
-        INITIAL_CATEGORIES.forEach(async (cat) => {
-          try {
-            await setDoc(doc(db, 'categories', cat.id), cat);
-          } catch (e) {
-            console.error("Failed to seed category", e);
-          }
-        });
+        // If empty, seed Firestore with initial categories (admins only)
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          INITIAL_CATEGORIES.forEach(async (cat) => {
+            try {
+              await setDoc(doc(db, 'categories', cat.id), cat);
+            } catch (e) {
+              console.error("Failed to seed category", e);
+            }
+          });
+        }
         set({ categories: INITIAL_CATEGORIES, loading: false });
       }
     }, (error) => {
@@ -273,7 +279,9 @@ const DEFAULT_SETTINGS: StoreSettings = {
   enableRatingFilter: true,
   enableDiscountFilter: true,
   enableAvailabilityFilter: true,
-  enableBanner: true
+  enableBanner: true,
+  returnWindowDays: 7,
+  enableManualCancellation: false
 };
 
 interface SettingsState {
@@ -292,12 +300,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       if (docSnap.exists()) {
         set({ settings: { ...DEFAULT_SETTINGS, ...docSnap.data() as StoreSettings }, loading: false });
       } else {
-        try {
-          await setDoc(docRef, DEFAULT_SETTINGS);
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          try {
+            await setDoc(docRef, DEFAULT_SETTINGS);
+            set({ settings: DEFAULT_SETTINGS, loading: false });
+          } catch (e) {
+            console.error('Failed to seed default settings', e);
+            set({ settings: DEFAULT_SETTINGS, loading: false });
+          }
+        } else {
           set({ settings: DEFAULT_SETTINGS, loading: false });
-        } catch (e) {
-          console.error('Failed to seed default settings', e);
-          set({ loading: false });
         }
       }
     }, (error) => {
