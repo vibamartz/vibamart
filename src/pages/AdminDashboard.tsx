@@ -172,6 +172,7 @@ export default function AdminDashboard() {
 
   // Live Firebase snapshot listener for orders
   useEffect(() => {
+    if (user?.role !== 'admin') return;
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
@@ -220,14 +221,15 @@ export default function AdminDashboard() {
       setLoadingOrders(false);
       isInitialLoad.current = false;
     }, (error) => {
-      console.error("Failed to sync orders:", error);
+      handleFirestoreError(error, OperationType.LIST, 'orders', false);
       setLoadingOrders(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Live Firebase listener for admin notifications
   useEffect(() => {
+    if (user?.role !== 'admin') return;
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notificationsData = snapshot.docs.map(doc => ({
@@ -235,9 +237,11 @@ export default function AdminDashboard() {
         ...doc.data()
       }));
       setAdminNotifications(notificationsData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'notifications', false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Track the last unread notifications count to play audio
   const lastUnreadCountRef = useRef(0);
@@ -354,7 +358,8 @@ export default function AdminDashboard() {
 
   // Live Firebase snapshot listener for return requests
   useEffect(() => {
-    const q = query(collection(db, 'return'), orderBy('createdAt', 'desc'));
+    if (user?.role !== 'admin') return;
+    const q = query(collection(db, 'return_requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const returnsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -364,11 +369,11 @@ export default function AdminDashboard() {
       setReturns(returnsData);
       setLoadingReturns(false);
     }, (error) => {
-      console.error("Failed to sync return requests:", error);
+      handleFirestoreError(error, OperationType.LIST, 'return_requests', false);
       setLoadingReturns(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Show login popup for pending orders
   useEffect(() => {
@@ -1123,7 +1128,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       setOrders(ordersData);
       setLoading(false);
     }, (error) => {
-      console.error("Failed to load orders for reports:", error);
+      handleFirestoreError(error, OperationType.LIST, 'orders', false);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -1369,7 +1374,7 @@ function ActivityLogsView() {
       setAdminLogs(logsData);
       setLoadingAdmin(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'adminLogs');
+      handleFirestoreError(error, OperationType.LIST, 'adminLogs', false);
       setLoadingAdmin(false);
     });
 
@@ -1391,7 +1396,7 @@ function ActivityLogsView() {
       setNotificationLogs(logsData);
       setLoadingNotif(false);
     }, (error) => {
-      console.error('Failed to load notification logs:', error);
+      handleFirestoreError(error, OperationType.LIST, 'notificationLogs', false);
       setLoadingNotif(false);
     });
 

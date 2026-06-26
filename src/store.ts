@@ -65,7 +65,11 @@ export const useAuthStore = create<AuthState>((set) => ({
             } else {
               const currentCart = useCartStore.getState().items;
               if (currentCart.length > 0) {
-                setDoc(docRef, { cart: currentCart }, { merge: true });
+                try {
+                  await setDoc(docRef, { cart: currentCart }, { merge: true });
+                } catch (cartErr) {
+                  console.error("[FIRESTORE WRITE ERROR] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
+                }
               }
             }
           } else {
@@ -93,7 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           });
           set({ orderedProductIds: Array.from(productIds) });
         }, (error) => {
-          console.warn("Failed to listen to customer orders:", error);
+          handleFirestoreError(error, OperationType.LIST, `orders?customerId=${firebaseUser.uid}`, false);
         });
       } else {
         const lastUid = localStorage.getItem("viba_last_uid");
@@ -263,7 +267,7 @@ export const useCategoryStore = create<CategoryState>((set) => ({
         set({ categories: INITIAL_CATEGORIES, loading: false });
       }
     }, (error) => {
-      console.error("Failed to fetch categories", error);
+      handleFirestoreError(error, OperationType.LIST, 'categories', false);
       set({ loading: false });
     });
   }
@@ -314,7 +318,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
       }
     }, (error) => {
-      console.error('Failed to fetch settings', error);
+      handleFirestoreError(error, OperationType.GET, 'settings/storeConfig', false);
       set({ loading: false });
     });
   },

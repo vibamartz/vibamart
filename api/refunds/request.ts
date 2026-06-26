@@ -93,11 +93,11 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Order is already refunded" });
     }
 
-    // Check duplicate refund requests in the refund collection
-    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund' where 'customOrderId' == ${targetOrderId}`);
+    // Check duplicate refund requests in the refund_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund_requests' where 'customOrderId' == ${targetOrderId}`);
     let existingRefunds;
     try {
-      existingRefunds = await db.collection("refund")
+      existingRefunds = await db.collection("refund_requests")
         .where("customOrderId", "==", targetOrderId)
         .get();
     } catch (error: any) {
@@ -116,7 +116,7 @@ export default async function handler(req: any, res: any) {
     console.log("contactEmail:", orderData.contactEmail);
     console.log("Reason:", reason);
 
-    // 3. Save request data in Firestore (refund) with the required fields
+    // 3. Save request data in Firestore (refund_requests) with the required fields
     const refundReqData = {
       customOrderId: orderData.customOrderId || targetOrderId,
       contactEmail: (orderData.contactEmail || userEmail || "").toLowerCase(),
@@ -130,8 +130,8 @@ export default async function handler(req: any, res: any) {
 
     let docRef;
     try {
-      console.log("[FIRESTORE WRITE] Creating refund request document in 'refund' collection. Data:", JSON.stringify(refundReqData));
-      docRef = await db.collection("refund").add(refundReqData);
+      console.log("[FIRESTORE WRITE] Creating refund request document in 'refund_requests' collection. Data:", JSON.stringify(refundReqData));
+      docRef = await db.collection("refund_requests").add(refundReqData);
     } catch (error: any) {
       console.error("FULL ERROR:", error);
       console.error(error.stack);

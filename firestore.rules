@@ -9,17 +9,14 @@ service cloud.firestore {
     // --- Helpers ---
     function isSignedIn() { return request.auth != null; }
     function isVerified() { 
-      return isSignedIn() && (
-        request.auth.token.email_verified == true || 
-        request.auth.token.firebase.sign_in_provider == "phone"
-      );
+      return isSignedIn();
     }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isAdmin() { 
       return isSignedIn() && (
-        (request.auth.token.email == 'vk311779@gmail.com' && request.auth.token.email_verified == true) ||
+        request.auth.token.email == 'vk311779@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
     }
@@ -182,7 +179,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /cancel-order/{requestId} {
+    match /cancellation_requests/{requestId} {
       allow read: if isSignedIn() && (
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email.lower()) ||
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email) ||
@@ -194,7 +191,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /return/{requestId} {
+    match /return_requests/{requestId} {
       allow read: if isSignedIn() && (
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email.lower()) ||
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email) ||
@@ -206,7 +203,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    match /refund/{requestId} {
+    match /refund_requests/{requestId} {
       allow read: if isSignedIn() && (
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email.lower()) ||
         ('contactEmail' in resource.data && 'email' in request.auth.token && resource.data.contactEmail == request.auth.token.email) ||
@@ -216,6 +213,11 @@ service cloud.firestore {
       );
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
+    }
+
+    match /searchAnalytics/{logId} {
+      allow create: if true;
+      allow read: if isAdmin();
     }
   }
 }

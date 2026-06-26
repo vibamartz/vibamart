@@ -59,12 +59,12 @@ export default async function handler(req: any, res: any) {
 
     const db = admin.firestore();
     
-    console.log(`[FIRESTORE READ] Fetching cancellation request from 'cancel-order' collection. Document ID: ${requestId}`);
+    console.log(`[FIRESTORE READ] Fetching cancellation request from 'cancellation_requests' collection. Document ID: ${requestId}`);
     let reqDoc;
     let type = "cancellation";
-    let collectionName = "cancel-order";
+    let collectionName = "cancellation_requests";
     try {
-      reqDoc = await db.collection("cancel-order").doc(requestId).get();
+      reqDoc = await db.collection("cancellation_requests").doc(requestId).get();
     } catch (error: any) {
       console.error("FULL ERROR:", error);
       console.error(error.stack);
@@ -72,11 +72,11 @@ export default async function handler(req: any, res: any) {
     }
     
     if (!reqDoc.exists) {
-      console.log(`[FIRESTORE READ] Fetching return request from 'return' collection. Document ID: ${requestId}`);
+      console.log(`[FIRESTORE READ] Fetching return request from 'return_requests' collection. Document ID: ${requestId}`);
       type = "return";
-      collectionName = "return";
+      collectionName = "return_requests";
       try {
-        reqDoc = await db.collection("return").doc(requestId).get();
+        reqDoc = await db.collection("return_requests").doc(requestId).get();
       } catch (error: any) {
         console.error("FULL ERROR:", error);
         console.error(error.stack);
@@ -85,11 +85,11 @@ export default async function handler(req: any, res: any) {
     }
     
     if (!reqDoc.exists) {
-      console.log(`[FIRESTORE READ] Fetching refund request from 'refund' collection. Document ID: ${requestId}`);
+      console.log(`[FIRESTORE READ] Fetching refund request from 'refund_requests' collection. Document ID: ${requestId}`);
       type = "refund";
-      collectionName = "refund";
+      collectionName = "refund_requests";
       try {
-        reqDoc = await db.collection("refund").doc(requestId).get();
+        reqDoc = await db.collection("refund_requests").doc(requestId).get();
       } catch (error: any) {
         console.error("FULL ERROR:", error);
         console.error(error.stack);

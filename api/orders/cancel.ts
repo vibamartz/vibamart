@@ -89,11 +89,11 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: `Cannot cancel order in ${orderData.status} status` });
     }
 
-    // Check for duplicate cancellation requests in the cancel-order collection
-    console.log(`[FIRESTORE READ] Checking duplicate cancellations. Querying 'cancel-order' where 'customOrderId' == ${targetOrderId}`);
+    // Check for duplicate cancellation requests in the cancellation_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate cancellations. Querying 'cancellation_requests' where 'customOrderId' == ${targetOrderId}`);
     let existingCancellations;
     try {
-      existingCancellations = await db.collection("cancel-order")
+      existingCancellations = await db.collection("cancellation_requests")
         .where("customOrderId", "==", targetOrderId)
         .get();
     } catch (error: any) {
@@ -136,8 +136,8 @@ export default async function handler(req: any, res: any) {
 
     let docRef;
     try {
-      console.log("[FIRESTORE WRITE] Creating cancellation request document in 'cancel-order' collection. Data:", JSON.stringify(cancellationReqData));
-      docRef = await db.collection("cancel-order").add(cancellationReqData);
+      console.log("[FIRESTORE WRITE] Creating cancellation request document in 'cancellation_requests' collection. Data:", JSON.stringify(cancellationReqData));
+      docRef = await db.collection("cancellation_requests").add(cancellationReqData);
     } catch (error: any) {
       console.error("FULL ERROR:", error);
       console.error(error.stack);
@@ -224,7 +224,7 @@ export default async function handler(req: any, res: any) {
           message: "Cancelled by customer"
         })
       });
-      batch.update(db.collection("cancel-order").doc(requestId), {
+      batch.update(db.collection("cancellation_requests").doc(requestId), {
         status: "Approved"
       });
       

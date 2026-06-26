@@ -6,7 +6,7 @@ import {
   Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck
 } from 'lucide-react';
 import { useAuthStore } from '../store';
-import { db, auth, storage } from '../lib/firebase';
+import { db, auth, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { 
   getAuth, 
@@ -177,12 +177,14 @@ export default function Profile() {
     );
     const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'orders', false);
     });
 
     // Fetch All Requests (Cancellation, Return, Refund)
-    const cancelQuery = query(collection(db, 'cancel-order'), where('contactEmail', '==', (user.email || '').toLowerCase()));
-    const returnQuery = query(collection(db, 'return'), where('contactEmail', '==', (user.email || '').toLowerCase()));
-    const refundQuery = query(collection(db, 'refund'), where('contactEmail', '==', (user.email || '').toLowerCase()));
+    const cancelQuery = query(collection(db, 'cancellation_requests'), where('contactEmail', '==', (user.email || '').toLowerCase()));
+    const returnQuery = query(collection(db, 'return_requests'), where('contactEmail', '==', (user.email || '').toLowerCase()));
+    const refundQuery = query(collection(db, 'refund_requests'), where('contactEmail', '==', (user.email || '').toLowerCase()));
 
     let cancellationsList: any[] = [];
     let returnsList: any[] = [];
@@ -224,16 +226,22 @@ export default function Profile() {
     const unsubCancel = onSnapshot(cancelQuery, (snapshot) => {
       cancellationsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       mergeAndSortRequests();
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'cancellation_requests', false);
     });
 
     const unsubReturn = onSnapshot(returnQuery, (snapshot) => {
       returnsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       mergeAndSortRequests();
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'return_requests', false);
     });
 
     const unsubRefund = onSnapshot(refundQuery, (snapshot) => {
       refundsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       mergeAndSortRequests();
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'refund_requests', false);
     });
 
     // Fetch Waitlist with product details
@@ -246,12 +254,19 @@ export default function Profile() {
       const waitlistData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as WaitlistItem));
       
       const enrichedWaitlist = await Promise.all(waitlistData.map(async (item) => {
-        const prodSnap = await getDocs(query(collection(db, 'products'), where('id', '==', item.productId)));
-        const product = prodSnap.docs[0]?.data() as Product;
-        return { ...item, product };
+        try {
+          const prodSnap = await getDocs(query(collection(db, 'products'), where('id', '==', item.productId)));
+          const product = prodSnap.docs[0]?.data() as Product;
+          return { ...item, product };
+        } catch (err) {
+          handleFirestoreError(err, OperationType.LIST, 'products', false);
+          return item;
+        }
       }));
       
       setWaitlist(enrichedWaitlist);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'waitlist', false);
     });
 
     // Fetch Wishlist products
@@ -259,15 +274,22 @@ export default function Profile() {
       const data = snapshot.data() as UserProfile;
       const validWishlist = data?.wishlist?.filter(id => id && String(id).trim() !== '') || [];
       if (validWishlist.length > 0) {
-        const productsQuery = query(
-          collection(db, 'products'),
-          where('id', 'in', validWishlist)
-        );
-        const prodSnap = await getDocs(productsQuery);
-        setWishlistProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+        try {
+          const productsQuery = query(
+            collection(db, 'products'),
+            where('id', 'in', validWishlist)
+          );
+          const prodSnap = await getDocs(productsQuery);
+          setWishlistProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+        } catch (err) {
+          handleFirestoreError(err, OperationType.LIST, 'products', false);
+          setWishlistProducts([]);
+        }
       } else {
         setWishlistProducts([]);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}`, false);
     });
 
     return () => {
@@ -303,6 +325,7 @@ export default function Profile() {
       setIsEditingProfile(false);
       toast.success('Profile updated');
     } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`, false);
       toast.error('Failed to update profile');
     }
   };
@@ -312,6 +335,7 @@ export default function Profile() {
       await deleteDoc(doc(db, 'waitlist', id));
       toast.success('Removed from waitlist');
     } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `waitlist/${id}`, false);
       toast.error('Failed to remove');
     }
   };
@@ -867,6 +891,7 @@ export default function Profile() {
                       });
                       toast.success('Removed from wishlist');
                     } catch (err) {
+                      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`, false);
                       toast.error('Failed to remove');
                     }
                   }}

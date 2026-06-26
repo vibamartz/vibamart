@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { 
   ArrowLeft, Clock, ShieldCheck, CheckCircle2, AlertCircle, 
@@ -58,21 +58,27 @@ export default function RequestTracking() {
 
     async function initTracking() {
       try {
-        const dbCollections = ["cancel-order", "return", "refund"];
+        const dbCollections = ["cancellation_requests", "return_requests", "refund_requests"];
         let foundRef = null;
         let foundType = "";
 
         for (const colName of dbCollections) {
-          const docRef = doc(db, colName, requestId);
-          const snap = await getDoc(docRef);
-          if (snap.exists()) {
-            foundRef = docRef;
-            if (colName === "cancel-order") {
-              foundType = "cancellation";
-            } else {
-              foundType = colName;
+          try {
+            const docRef = doc(db, colName, requestId);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+              foundRef = docRef;
+              if (colName === "cancellation_requests") {
+                foundType = "cancellation";
+              } else if (colName === "return_requests") {
+                foundType = "return";
+              } else {
+                foundType = "refund";
+              }
+              break;
             }
-            break;
+          } catch (loopErr) {
+            handleFirestoreError(loopErr, OperationType.GET, `${colName}/${requestId}`, false);
           }
         }
 
@@ -87,6 +93,7 @@ export default function RequestTracking() {
             setLoading(false);
           }, (err) => {
             console.error("Firestore listener error:", err);
+            handleFirestoreError(err, OperationType.GET, foundRef?.path || `requests/${requestId}`, false);
             setError("Failed to load tracking updates. Access may be unauthorized.");
             setLoading(false);
           });
@@ -97,6 +104,7 @@ export default function RequestTracking() {
         }
       } catch (err: any) {
         console.error("Error finding tracking document:", err);
+        handleFirestoreError(err, OperationType.GET, `requests/${requestId}`, false);
         setError("An error occurred while loading request updates.");
         setLoading(false);
       }

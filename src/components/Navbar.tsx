@@ -6,7 +6,7 @@ import {
   Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../store';
-import { auth, db } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
@@ -78,6 +78,8 @@ export default function Navbar() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNotifications(notifs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'notifications', false);
     });
     return () => unsubscribe();
   }, [user]);
@@ -86,7 +88,7 @@ export default function Navbar() {
     try {
       await updateDoc(doc(db, 'notifications', id), { read: true });
     } catch (error) {
-      console.error("Failed to mark notification as read", error);
+      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, false);
     }
   };
 
@@ -131,7 +133,7 @@ export default function Navbar() {
         userId: user?.uid || null
       });
     } catch (e) {
-      console.error('Failed to log search analytics:', e);
+      handleFirestoreError(e, OperationType.CREATE, 'searchAnalytics', false);
     }
   };
 

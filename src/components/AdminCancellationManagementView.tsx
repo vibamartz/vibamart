@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Eye, Clock, CreditCard, X, Check } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import toast from 'react-hot-toast';
 
 const safeFormatDate = (val: any): string => {
@@ -35,7 +35,7 @@ export default function AdminCancellationManagementView() {
 
   useEffect(() => {
     const q = query(
-      collection(db, 'cancel-order'),
+      collection(db, 'cancellation_requests'),
       orderBy('createdAt', 'desc')
     );
 
@@ -44,7 +44,7 @@ export default function AdminCancellationManagementView() {
       setRequests(data);
       setLoading(false);
     }, (error) => {
-      console.error("Failed to sync cancellation requests:", error);
+      handleFirestoreError(error, OperationType.LIST, 'cancellation_requests', false);
       setLoading(false);
     });
 

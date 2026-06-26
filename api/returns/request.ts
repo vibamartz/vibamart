@@ -114,11 +114,11 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Return window has expired" });
     }
 
-    // Check for duplicate return requests in the return collection
-    console.log(`[FIRESTORE READ] Checking duplicate returns. Querying 'return' where 'customOrderId' == ${targetOrderId}`);
+    // Check for duplicate return requests in the return_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate returns. Querying 'return_requests' where 'customOrderId' == ${targetOrderId}`);
     let existingReturns;
     try {
-      existingReturns = await db.collection("return")
+      existingReturns = await db.collection("return_requests")
         .where("customOrderId", "==", targetOrderId)
         .get();
     } catch (error: any) {
@@ -154,7 +154,7 @@ export default async function handler(req: any, res: any) {
     console.log("contactEmail:", orderData.contactEmail);
     console.log("Reason:", reason);
 
-    // 3. Save request data in Firestore (return) with the required fields
+    // 3. Save request data in Firestore (return_requests) with the required fields
     const returnReqData = {
       customOrderId: orderData.customOrderId || targetOrderId,
       contactEmail: (orderData.contactEmail || userEmail || "").toLowerCase(),
@@ -170,8 +170,8 @@ export default async function handler(req: any, res: any) {
 
     let docRef;
     try {
-      console.log("[FIRESTORE WRITE] Creating return request document in 'return' collection. Data:", JSON.stringify(returnReqData));
-      docRef = await db.collection("return").add(returnReqData);
+      console.log("[FIRESTORE WRITE] Creating return request document in 'return_requests' collection. Data:", JSON.stringify(returnReqData));
+      docRef = await db.collection("return_requests").add(returnReqData);
     } catch (error: any) {
       console.error("FULL ERROR:", error);
       console.error(error.stack);
