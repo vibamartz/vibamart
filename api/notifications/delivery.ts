@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-import { setCorsHeaders, initializeFirebaseAdmin } from "../utils";
+import { setCorsHeaders, initializeFirebaseAdmin } from "../utils.js";
 
 initializeFirebaseAdmin();
 

@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils";
+import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../utils.js";
 
 initializeFirebaseAdmin();
 
