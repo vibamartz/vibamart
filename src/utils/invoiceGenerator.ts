@@ -13,36 +13,61 @@ export function getOrGenerateInvoiceNumber(order: Order): string {
 }
 
 export async function downloadInvoicePDF(order: Order, invoiceElement: HTMLElement): Promise<void> {
+  const invoiceNum = getOrGenerateInvoiceNumber(order);
+
   try {
-    const canvas = await html2canvas(invoiceElement, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    let heightLeft = pdfHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pdf.internal.pageSize.getHeight();
-
-    while (heightLeft > 0) {
-      position = heightLeft - pdfHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+    let canvas: HTMLCanvasElement;
+    
+    // Attempt rendering with html2canvas (with CORS fallback protection)
+    try {
+      canvas = await html2canvas(invoiceElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+    } catch (corsErr) {
+      console.warn('html2canvas CORS render failed, falling back to basic rendering:', corsErr);
+      canvas = await html2canvas(invoiceElement, {
+        scale: 1.5,
+        useCORS: false,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
     }
 
-    const invoiceNum = getOrGenerateInvoiceNumber(order);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = 210; // A4 Width in mm
+    const pageHeight = 297; // A4 Height in mm
+    const margin = 8; // Margin in mm
+
+    const maxWidth = pageWidth - (margin * 2);
+    const maxHeight = pageHeight - (margin * 2);
+
+    let renderWidth = maxWidth;
+    let renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+    // Force scale down so the invoice fits on EXACTLY 1 SINGLE PAGE
+    if (renderHeight > maxHeight) {
+      renderHeight = maxHeight;
+      renderWidth = (canvas.width * renderHeight) / canvas.height;
+    }
+
+    const xPos = (pageWidth - renderWidth) / 2;
+    const yPos = (pageHeight - renderHeight) / 2;
+
+    pdf.addImage(imgData, 'JPEG', xPos, yPos, renderWidth, renderHeight);
     pdf.save(`${invoiceNum}.pdf`);
   } catch (error) {
     console.error('Error generating PDF invoice:', error);
-    throw error;
+    throw new Error('Failed to generate PDF invoice. Please try printing or viewing the invoice.');
   }
 }
