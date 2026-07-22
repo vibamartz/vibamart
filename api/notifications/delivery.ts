@@ -9,26 +9,51 @@ export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { orderId, customerEmail, customerName, deliveryDate, items, total } = req.body;
+  const { orderId, customOrderId, invoiceNumber, customerEmail, customerName, deliveryDate, items, total } = req.body;
 
   if (!orderId || !customerEmail) {
     return res.status(400).json({ success: false, error: "Missing required fields" });
   }
 
   try {
-    const itemsList = items?.map((item: any) => `<li>${item.name} - Qty: ${item.quantity}</li>`).join('') || '';
+    const displayOrderId = customOrderId || orderId;
+    const itemsList = items?.map((item: any) => `<li>${item.name} - Qty: ${item.quantity} (₹${item.price})</li>`).join('') || '';
     
     const emailHtml = `
-      <h2>Hello ${customerName || 'Customer'},</h2>
-      <p>We are excited to inform you that your order <strong>#${orderId}</strong> has been successfully delivered on ${deliveryDate || new Date().toLocaleDateString()}.</p>
-      <h3>Order Summary:</h3>
-      <ul>
-        ${itemsList}
-      </ul>
-      <p><strong>Total Amount:</strong> ₹${total}</p>
-      <br/>
-      <p>Thank you for shopping with ViBa Mart! We hope you enjoy your purchase.</p>
-      <p>Best Regards,<br/>The ViBa Mart Team</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;">
+        <div style="background-color: #111827; padding: 24px; text-align: center; color: white;">
+          <h1 style="margin: 0; font-size: 24px;">ViBa Mart</h1>
+          <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 12px; text-transform: uppercase; letter-spacing: 2px;">Order Delivered Successfully</p>
+        </div>
+        <div style="padding: 24px;">
+          <h2 style="color: #111827; margin-top: 0;">Hello ${customerName || 'Valued Customer'},</h2>
+          <p>We are delighted to inform you that your order <strong>#${displayOrderId}</strong> has been successfully delivered on <strong>${deliveryDate || new Date().toLocaleDateString()}</strong>.</p>
+          
+          ${invoiceNumber ? `
+          <div style="background-color: #f9fafb; border: 1px solid #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; font-weight: bold; color: #6b7280;">Tax Invoice Generated</p>
+            <p style="margin: 0; font-family: monospace; font-weight: bold; color: #2563eb; font-size: 16px;">Invoice #: ${invoiceNumber}</p>
+          </div>
+          ` : ''}
+
+          <h3 style="border-bottom: 2px solid #f3f4f6; padding-bottom: 8px;">Order Summary</h3>
+          <ul style="padding-left: 20px; line-height: 1.6;">
+            ${itemsList}
+          </ul>
+          
+          <p style="font-size: 18px; font-weight: bold; margin-top: 20px;">Total Paid: ₹${total}</p>
+
+          <div style="margin-top: 30px; text-align: center;">
+            <a href="https://vibamart.com/track-order/${displayOrderId}" style="background-color: #22C55E; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: bold; display: inline-block; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">
+              View & Download Invoice PDF
+            </a>
+          </div>
+
+          <p style="margin-top: 30px; font-size: 14px; color: #6b7280; text-align: center;">
+            Thank you for shopping with ViBa Mart! We hope to see you again soon.
+          </p>
+        </div>
+      </div>
     `;
 
     const db = admin.firestore();

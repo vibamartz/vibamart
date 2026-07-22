@@ -129,6 +129,9 @@ export interface Order {
   statusHistory?: StatusUpdate[];
   deliveryEmailSent?: boolean;
   cancellationReason?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  deliveryDate?: string;
 }
 
 export interface StatusUpdate {
@@ -165,6 +168,7 @@ export interface ReturnRequest {
 export interface OrderItem {
   productId: string;
   variantId?: string;
+  selectedVariant?: string;
   name: string;
   price: number;
   quantity: number;

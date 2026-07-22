@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Package, MapPin, Settings, Heart, Bell, 
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText
 } from 'lucide-react';
+import InvoiceModal from '../components/InvoiceModal';
 import { useAuthStore } from '../store';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -62,6 +63,7 @@ export default function Profile() {
   const [returnImages, setReturnImages] = useState<string[]>([]);
   const [selectedReturnProducts, setSelectedReturnProducts] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<Order | null>(null);
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;
@@ -869,6 +871,14 @@ export default function Profile() {
                                       <Truck className="w-4 h-4" /> Track Order
                                     </Link>
                                   )}
+                                  {order.status === 'delivered' && (
+                                    <button 
+                                      onClick={() => setInvoiceModalOrder(order)}
+                                      className="px-6 py-2.5 bg-[#22C55E] text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <FileText className="w-4 h-4" /> Download Invoice
+                                    </button>
+                                  )}
                                 </div>
                              </div>
                           </div>
@@ -1275,6 +1285,168 @@ export default function Profile() {
                 <div className="mt-8 flex gap-3">
                   <button onClick={() => setShowReturnModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
                     Cancel
+                  </button>                  <button onClick={handleRequestReturn} disabled={isSubmitting || returnImages.length === 0 || selectedReturnProducts.length === 0} className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Tax Invoice Modal */}
+      {invoiceModalOrder && (
+        <InvoiceModal
+          order={invoiceModalOrder}
+          isOpen={!!invoiceModalOrder}
+          onClose={() => setInvoiceModalOrder(null)}
+        />
+      )}
+      
+      <AddressModal 
+        show={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        address={newAddress}
+        setAddress={setNewAddress}
+        onSave={handleSaveAddress}
+        isEditing={editingAddressIndex !== null}
+      />
+
+      {/* Cancel Order Modal */}
+      <AnimatePresence>
+        {showCancelModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCancelModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl relative z-10">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Cancel Order</h3>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Cancellation</label>
+                  <select value={cancelReason} onChange={e => setCancelReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="" disabled>Select Reason</option>
+                    <option value="Changed my mind">Changed my mind</option>
+                    <option value="Ordered by mistake">Ordered by mistake</option>
+                    <option value="Found better price elsewhere">Found better price elsewhere</option>
+                    <option value="Delivery is taking too long">Delivery is taking too long</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowCancelModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Close
+                  </button>
+                  <button onClick={handleCancelOrder} disabled={isSubmitting || !cancelReason} className="flex-2 py-4 touch-target min-h-[44px] bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-red-500/20 hover:bg-red-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Refund Modal */}
+      <AnimatePresence>
+        {showRefundModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRefundModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl relative z-10">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Request Refund</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Please note that you can only request a refund for cancelled or returned orders.</p>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Refund *</label>
+                  <select value={refundReason} onChange={e => setRefundReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="Order Cancelled">Order Cancelled</option>
+                    <option value="Order Returned">Order Returned</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowRefundModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Close
+                  </button>
+                  <button onClick={handleRequestRefund} disabled={isSubmitting || !refundReason} className="flex-2 py-4 touch-target min-h-[44px] bg-pink-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-pink-500/20 hover:bg-pink-600 active:scale-95 transition-all disabled:opacity-50">
+                    {isSubmitting ? 'Requesting...' : 'Confirm Refund'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Return Modal */}
+      <AnimatePresence>
+        {showReturnModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReturnModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl relative z-10 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-black text-gray-900 mb-4">Request Return</h3>
+              <p className="text-sm text-gray-500 mb-6 font-medium">Please note that returns are only accepted for wrong or defective products.</p>
+              
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Select Items to Return *</label>
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3 max-h-[200px] overflow-y-auto">
+                    {orders.find(o => o.id === selectedOrderId)?.items.map((item, idx) => (
+                      <label key={idx} className="flex items-center gap-3 cursor-pointer group">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedReturnProducts.includes(item.productId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedReturnProducts(prev => [...prev, item.productId]);
+                            } else {
+                              setSelectedReturnProducts(prev => prev.filter(id => id !== item.productId));
+                            }
+                          }}
+                          className="w-5 h-5 rounded-md text-primary focus:ring-primary border-gray-300" 
+                        />
+                        <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                          <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Reason for Return *</label>
+                  <select value={returnReason} onChange={e => setReturnReason(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all">
+                    <option value="Wrong Product Received">Wrong Product Received</option>
+                    <option value="Defective/Damaged Product Received">Defective/Damaged Product Received</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Comments (Optional)</label>
+                  <textarea value={returnComments} onChange={e => setReturnComments(e.target.value)} rows={3} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" placeholder="Explain the issue..." />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Proof Images (Required) *</label>
+                  <div className="flex gap-4 overflow-x-auto pb-2">
+                    {returnImages.map((img, idx) => (
+                      <div key={idx} className="relative w-20 h-20 flex-shrink-0 rounded-2xl border border-gray-200 overflow-hidden">
+                        <img src={img} alt="proof" className="w-full h-full object-cover" />
+                        <button onClick={() => removeImage(idx)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                    {returnImages.length < 3 && (
+                      <label className="w-20 h-20 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 hover:text-primary hover:border-primary transition-colors cursor-pointer">
+                        <Plus className="w-6 h-6" />
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8 flex gap-3">
+                  <button onClick={() => setShowReturnModal(false)} className="flex-1 py-4 touch-target min-h-[44px] rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100 text-gray-400 hover:bg-gray-50 transition-all">
+                    Cancel
                   </button>
                   <button onClick={handleRequestReturn} disabled={isSubmitting || returnImages.length === 0 || selectedReturnProducts.length === 0} className="flex-2 py-4 touch-target min-h-[44px] bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
                     {isSubmitting ? 'Submitting...' : 'Submit Request'}
@@ -1285,6 +1457,15 @@ export default function Profile() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Tax Invoice Modal */}
+      {invoiceModalOrder && (
+        <InvoiceModal
+          order={invoiceModalOrder}
+          isOpen={!!invoiceModalOrder}
+          onClose={() => setInvoiceModalOrder(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1565,7 +1746,7 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
              Start Exploring
            </Link>
         </div>
-      )}
-    </motion.div>
-  );
-}
+       )}
+     </motion.div>
+   );
+ }

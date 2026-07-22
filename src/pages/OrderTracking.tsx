@@ -3,8 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import { Order, OrderStatus, StatusUpdate } from '../types';
-import { Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
+import InvoiceModal from '../components/InvoiceModal';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
   pending: { icon: Clock, color: 'text-[#22C55E]', label: 'Order Placed' },
@@ -91,6 +92,7 @@ export default function OrderTracking() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(orderId || '');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -260,9 +262,24 @@ export default function OrderTracking() {
                       : order.estimatedDelivery
                   ) : 'Calculating...'}
                 </p>
+
+                {order.status === 'delivered' && (
+                  <button
+                    onClick={() => setShowInvoiceModal(true)}
+                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-[#22C55E] hover:bg-emerald-600 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" /> Download Invoice
+                  </button>
+                )}
               </div>
             </div>
           </div>
+
+          <InvoiceModal
+            order={order}
+            isOpen={showInvoiceModal}
+            onClose={() => setShowInvoiceModal(false)}
+          />
 
           <div className="p-8 md:p-12">
             {/* Timeline Progress Bar */}

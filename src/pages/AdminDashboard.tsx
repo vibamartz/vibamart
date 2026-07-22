@@ -28,6 +28,7 @@ import NewCategoriesManagementView from '../components/CategoriesManagementView'
 import NewProductManagementView from '../components/ProductManagementView';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
+import AdminInvoicesView from '../components/AdminInvoicesView';
 import AdminCancellationManagementView from '../components/AdminCancellationManagementView';
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 
@@ -450,6 +451,7 @@ export default function AdminDashboard() {
           <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={FileText} label="Invoices" active={activeTab === 'invoices'} onClick={() => { setActiveTab('invoices'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
@@ -964,6 +966,9 @@ export default function AdminDashboard() {
               loading={loadingOrders} 
             />
           )}
+          {activeTab === 'invoices' && (
+            <AdminInvoicesView orders={orders} loading={loadingOrders} />
+          )}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
           {activeTab === 'cancellations' && <AdminCancellationManagementView />}
           {activeTab === 'refunds' && <AdminRefundManagementView />}
@@ -1000,7 +1005,7 @@ export default function AdminDashboard() {
           {activeTab === 'vendors' && <VendorsManagementView />}
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'banners' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />
               <h3 className="text-lg font-bold text-gray-800">Coming Soon</h3>
@@ -2559,8 +2564,19 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
         statusHistory: arrayUnion(newHistoryItem)
       };
 
-      if (status === 'delivered' && order.paymentMethod?.toLowerCase() === 'cash on delivery') {
-        updatePayload.paymentStatus = 'paid';
+      if (status === 'delivered') {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const cleanId = (order.customOrderId || order.id).replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase();
+        const generatedInvoiceNum = order.invoiceNumber || `INV-${dateStr}-${cleanId || 'VBM1'}`;
+        const nowIso = new Date().toISOString();
+
+        updatePayload.invoiceNumber = generatedInvoiceNum;
+        updatePayload.invoiceDate = order.invoiceDate || nowIso;
+        updatePayload.deliveryDate = order.deliveryDate || nowIso;
+
+        if (order.paymentMethod?.toLowerCase() === 'cash on delivery' || order.paymentMethod?.toLowerCase() === 'cod') {
+          updatePayload.paymentStatus = 'paid';
+        }
       }
 
       await updateDoc(orderRef, updatePayload);
@@ -2572,6 +2588,8 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
         try {
           await axios.post('/api/notifications/delivery', {
             orderId: order.id,
+            customOrderId: order.customOrderId,
+            invoiceNumber: updatePayload.invoiceNumber || order.invoiceNumber,
             customerEmail: order.contactEmail,
             customerName: order.contactName,
             deliveryDate: new Date().toLocaleDateString(),
