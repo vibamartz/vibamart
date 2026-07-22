@@ -1,23 +1,89 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { Order, OrderStatus } from '../types';
-import { Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, ChevronRight, Loader2, AlertCircle, X } from 'lucide-react';
+import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { Order, OrderStatus, StatusUpdate } from '../types';
+import { Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
-  pending: { icon: Clock, color: 'text-amber-500', label: 'Order Placed' },
-  confirmed: { icon: CheckCircle, color: 'text-blue-500', label: 'Order Confirmed' },
-  packed: { icon: Package, color: 'text-indigo-500', label: 'Packed' },
-  shipped: { icon: Truck, color: 'text-purple-500', label: 'Shipped' },
-  out_for_delivery: { icon: MapPin, color: 'text-orange-500', label: 'Out for Delivery' },
-  delivered: { icon: CheckCircle, color: 'text-emerald-500', label: 'Delivered' },
-  cancelled: { icon: AlertCircle, color: 'text-gray-500', label: 'Cancelled' },
-  cancel_requested: { icon: Clock, color: 'text-orange-500', label: 'Cancellation Requested' },
+  pending: { icon: Clock, color: 'text-[#22C55E]', label: 'Order Placed' },
+  confirmed: { icon: CheckCircle, color: 'text-[#22C55E]', label: 'Order Confirmed' },
+  packed: { icon: Package, color: 'text-[#22C55E]', label: 'Packed' },
+  shipped: { icon: Truck, color: 'text-[#22C55E]', label: 'Shipped' },
+  out_for_delivery: { icon: MapPin, color: 'text-[#22C55E]', label: 'Out for Delivery' },
+  delivered: { icon: CheckCircle, color: 'text-[#22C55E]', label: 'Delivered' },
+  cancelled: { icon: AlertCircle, color: 'text-red-500', label: 'Order Cancelled' },
+  cancel_requested: { icon: Clock, color: 'text-red-500', label: 'Cancellation Requested' },
   cancel_rejected: { icon: AlertCircle, color: 'text-red-500', label: 'Cancellation Rejected' },
   returned: { icon: AlertCircle, color: 'text-red-500', label: 'Returned' },
-  refunded: { icon: AlertCircle, color: 'text-pink-500', label: 'Refunded' }
+  refunded: { icon: AlertCircle, color: 'text-red-500', label: 'Refunded' }
+};
+
+const TIMELINE_STEPS: { status: OrderStatus; label: string; icon: any }[] = [
+  { status: 'pending', label: 'Order Placed', icon: Clock },
+  { status: 'confirmed', label: 'Order Confirmed', icon: CheckCircle },
+  { status: 'packed', label: 'Packed', icon: Package },
+  { status: 'shipped', label: 'Shipped', icon: Truck },
+  { status: 'out_for_delivery', label: 'Out for Delivery', icon: MapPin },
+  { status: 'delivered', label: 'Delivered', icon: CheckCircle },
+];
+
+const NORMAL_STEP_INDICES: Record<string, number> = {
+  pending: 0,
+  confirmed: 1,
+  packed: 2,
+  shipped: 3,
+  out_for_delivery: 4,
+  delivered: 5,
+};
+
+const getCompletedSteps = (order: Order): Set<number> => {
+  const completed = new Set<number>();
+  
+  // Any valid order starts at Order Placed (index 0)
+  completed.add(0);
+
+  let maxStepIndex = NORMAL_STEP_INDICES[order.status] ?? -1;
+
+  if (order.statusHistory && Array.isArray(order.statusHistory)) {
+    order.statusHistory.forEach((update) => {
+      const idx = NORMAL_STEP_INDICES[update.status];
+      if (idx !== undefined && idx > maxStepIndex) {
+        maxStepIndex = idx;
+      }
+    });
+  }
+
+  if (maxStepIndex >= 0) {
+    for (let i = 0; i <= maxStepIndex; i++) {
+      completed.add(i);
+    }
+  }
+
+  return completed;
+};
+
+const getProgressWidthPercentage = (completedSteps: Set<number>): number => {
+  if (completedSteps.size === 0) return 0;
+  let maxCompletedIndex = 0;
+  completedSteps.forEach((idx) => {
+    if (idx > maxCompletedIndex) maxCompletedIndex = idx;
+  });
+  return (maxCompletedIndex / (TIMELINE_STEPS.length - 1)) * 100;
+};
+
+const isRedDotStatus = (update: StatusUpdate): boolean => {
+  const s = (update.status || '').toLowerCase();
+  const m = (update.message || '').toLowerCase();
+
+  const redKeywords = [
+    'cancel', 'cancelled', 'cancellation', 
+    'return', 'returned', 
+    'refund', 'refunded', 'rejected'
+  ];
+
+  return redKeywords.some(keyword => s.includes(keyword) || m.includes(keyword));
 };
 
 export default function OrderTracking() {
@@ -28,29 +94,43 @@ export default function OrderTracking() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function fetchOrder() {
-      if (!orderId) {
-        setOrder(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const docRef = doc(db, 'orders', orderId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setOrder({ id: docSnap.id, ...docSnap.data() } as Order);
-        } else {
-          setOrder(null);
-        }
-      } catch (error) {
-        console.error("Error fetching order:", error);
-        setOrder(null);
-      } finally {
-        setLoading(false);
-      }
+    if (!orderId) {
+      setOrder(null);
+      setLoading(false);
+      return;
     }
-    fetchOrder();
+    setLoading(true);
+
+    const orderRef = doc(db, 'orders', orderId);
+
+    const unsubscribe = onSnapshot(orderRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setOrder({ id: docSnap.id, ...docSnap.data() } as Order);
+        setLoading(false);
+      } else {
+        // Search by customOrderId or id field if doc ID search fails
+        const q = query(collection(db, 'orders'), where('customOrderId', '==', orderId));
+        getDocs(q).then((querySnap) => {
+          if (!querySnap.empty) {
+            const matchedDoc = querySnap.docs[0];
+            setOrder({ id: matchedDoc.id, ...matchedDoc.data() } as Order);
+          } else {
+            setOrder(null);
+          }
+          setLoading(false);
+        }).catch((err) => {
+          console.error("Error querying order by customOrderId:", err);
+          setOrder(null);
+          setLoading(false);
+        });
+      }
+    }, (error) => {
+      console.error("Error listening to order:", error);
+      setOrder(null);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [orderId]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -137,8 +217,13 @@ export default function OrderTracking() {
   }
 
   const currentStatus = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-  const steps: OrderStatus[] = ['pending', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
-  const currentStepIndex = steps.indexOf(order.status);
+  const completedSteps = getCompletedSteps(order);
+  const progressPercentage = getProgressWidthPercentage(completedSteps);
+
+  // Sort history so the latest status is at the top
+  const sortedHistory = [...(order.statusHistory || [])].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -153,8 +238,12 @@ export default function OrderTracking() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Order Tracking</p>
                 <div className="flex items-center gap-4">
-                   <h1 className="text-3xl font-black tracking-tight">{order.id}</h1>
-                   <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${currentStatus.color.replace('text-', 'bg-').replace('500', '100')} ${currentStatus.color}`}>
+                   <h1 className="text-3xl font-black tracking-tight">{order.customOrderId || order.id}</h1>
+                   <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                     order.status === 'cancelled' || order.status === 'cancel_requested' || order.status === 'refunded' || order.status === 'returned'
+                       ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                       : 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30'
+                   }`}>
                      {currentStatus.label}
                    </span>
                 </div>
@@ -176,32 +265,38 @@ export default function OrderTracking() {
           </div>
 
           <div className="p-8 md:p-12">
-            {/* Progress Bar */}
+            {/* Timeline Progress Bar */}
             <div className="relative mb-20 px-4">
-               <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-100 -translate-y-1/2 rounded-full" />
+               {/* Base neutral connector line */}
+               <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-200 -translate-y-1/2 rounded-full" />
+               
+               {/* Active green connector line */}
                <motion.div 
                  initial={{ width: 0 }}
-                 animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                 className="absolute top-1/2 left-0 h-1.5 bg-primary -translate-y-1/2 rounded-full z-10"
+                 animate={{ width: `${progressPercentage}%` }}
+                 transition={{ duration: 0.5, ease: 'easeOut' }}
+                 className="absolute top-1/2 left-0 h-1.5 bg-[#22C55E] -translate-y-1/2 rounded-full z-10"
                />
                
                <div className="relative flex justify-between z-20">
-                 {steps.map((step, index) => {
-                   const config = STATUS_CONFIG[step];
-                   const Icon = config.icon;
-                   const isCompleted = index <= currentStepIndex;
-                   const isCurrent = index === currentStepIndex;
+                 {TIMELINE_STEPS.map((stepConfig, index) => {
+                   const Icon = stepConfig.icon;
+                   const isCompleted = completedSteps.has(index);
 
                    return (
-                     <div key={step} className="flex flex-col items-center">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg ${
-                          isCompleted ? 'bg-primary text-white rotate-0' : 'bg-white text-gray-300 border border-gray-100 rotate-12'
-                        } ${isCurrent ? 'scale-125 z-30 shadow-primary/20' : 'scale-100'}`}>
+                     <div key={stepConfig.status} className="flex flex-col items-center">
+                        <div 
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${
+                            isCompleted 
+                              ? 'bg-[#22C55E] text-white shadow-[#22C55E]/30 scale-105 z-20' 
+                              : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
+                          }`}
+                        >
                            <Icon className="w-6 h-6" />
                         </div>
                         <div className="absolute top-16 text-center whitespace-nowrap">
-                           <p className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-300'}`}>
-                             {config.label}
+                           <p className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
+                             {stepConfig.label}
                            </p>
                         </div>
                      </div>
@@ -210,28 +305,51 @@ export default function OrderTracking() {
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-12 border-t border-gray-50">
-               {/* Order History */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-12 border-t border-gray-100">
+               {/* Status History Section */}
                <div>
                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-8">Status History</h3>
                   <div className="space-y-8">
-                     {(order.statusHistory || []).slice().reverse().map((update, index) => (
-                       <div key={index} className="flex gap-6 relative">
-                          {index !== (order.statusHistory?.length || 0) - 1 && (
-                            <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-50 -translate-x-1/2" />
-                          )}
-                          <div className={`w-4 h-4 rounded-full mt-1.5 z-10 ${index === 0 ? 'bg-primary' : 'bg-gray-200'}`} />
-                          <div>
-                             <p className="text-sm font-black text-gray-900">{update.message || update.status.charAt(0).toUpperCase() + update.status.slice(1)}</p>
-                             {update.location && <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1"><MapPin className="w-2.5 h-2.5 inline mr-1" /> {update.location}</p>}
-                             <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mt-2">{new Date(update.timestamp).toLocaleString()}</p>
-                          </div>
-                       </div>
-                     ))}
+                     {sortedHistory.length === 0 ? (
+                       <p className="text-xs font-medium text-gray-400 italic">No status updates available.</p>
+                     ) : (
+                       sortedHistory.map((update, index) => {
+                         const isRed = isRedDotStatus(update);
+                         return (
+                           <div key={index} className="flex gap-6 relative">
+                              {index !== sortedHistory.length - 1 && (
+                                <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-200 -translate-x-1/2" />
+                              )}
+                              {/* Dot: Green (#22C55E) or Red (#EF4444) */}
+                              <div 
+                                className={`w-4 h-4 rounded-full mt-1.5 z-10 shrink-0 shadow-sm ${
+                                  isRed ? 'bg-[#EF4444]' : 'bg-[#22C55E]'
+                                }`} 
+                              />
+                              <div>
+                                 <p className="text-sm font-black text-gray-900">
+                                   {update.message || update.status.charAt(0).toUpperCase() + update.status.slice(1).replace(/_/g, ' ')}
+                                 </p>
+                                 {update.location && (
+                                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 flex items-center gap-1">
+                                     <MapPin className="w-3 h-3 text-gray-400" /> {update.location}
+                                   </p>
+                                 )}
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">
+                                   {new Date(update.timestamp).toLocaleString(undefined, {
+                                     dateStyle: 'medium',
+                                     timeStyle: 'short'
+                                   })}
+                                 </p>
+                              </div>
+                           </div>
+                         );
+                       })
+                     )}
                   </div>
                </div>
 
-               {/* Shipping Details */}
+               {/* Shipping & Order Summary Details */}
                <div className="space-y-8">
                   <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100">
                      <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Delivery Details</h3>
@@ -248,6 +366,7 @@ export default function OrderTracking() {
                               </p>
                            </div>
                         </div>
+
                         {order.trackingId && (
                           <div className="flex items-start gap-4 pt-4 border-t border-gray-100">
                              <div className="bg-white p-3 rounded-2xl shadow-sm">
