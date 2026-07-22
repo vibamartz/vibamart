@@ -2611,23 +2611,29 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
   const updateTrackingInfo = async (orderId: string, form: any) => {
     try {
       const orderRef = doc(db, 'orders', orderId);
-      const trackingMsg = `Order shipped via ${form.carrier}. Tracking ID: ${form.trackingId}`;
-      const newHistoryItem = {
-        status: 'shipped',
-        timestamp: new Date().toISOString(),
-        message: trackingMsg,
-        location: "Logistics Center"
+      const targetOrder = orders.find(o => o.id === orderId);
+      const shouldShip = targetOrder && targetOrder.status === 'packed';
+      const updateData: any = {
+        ...form,
+        updatedAt: new Date().toISOString()
       };
 
-      await updateDoc(orderRef, {
-        ...form,
-        status: 'shipped',
-        statusHistory: arrayUnion(newHistoryItem),
-        updatedAt: new Date().toISOString()
-      });
+      if (shouldShip) {
+        updateData.status = 'shipped';
+        const trackingMsg = `Order shipped via ${form.carrier || 'Logistics Partner'}. Tracking ID: ${form.trackingId || 'N/A'}`;
+        const newHistoryItem = {
+          status: 'shipped',
+          timestamp: new Date().toISOString(),
+          message: trackingMsg,
+          location: "Logistics Center"
+        };
+        updateData.statusHistory = arrayUnion(newHistoryItem);
+      }
 
-      await logAdminAction(AdminAction.SETTINGS_UPDATE, `Added tracking for Order #${orderId}: ${form.carrier} (${form.trackingId})`, orderId, 'orders');
-      toast.success('Tracking information updated and order shipped');
+      await updateDoc(orderRef, updateData);
+
+      await logAdminAction(AdminAction.SETTINGS_UPDATE, `Updated delivery/tracking info for Order #${orderId}`, orderId, 'orders');
+      toast.success(shouldShip ? 'Tracking information updated and order shipped' : 'Expected delivery date updated');
     } catch (err) {
       console.error(err);
       toast.error('Failed to update tracking');
@@ -2880,6 +2886,23 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                           className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-700 shadow-lg shadow-green-100"
                         >
                           Deliver
+                        </button>
+                      )}
+                      {order.status !== 'cancelled' && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setTrackingForm({
+                              trackingId: order.trackingId || '',
+                              carrier: order.carrier || '',
+                              estimatedDelivery: order.estimatedDelivery || ''
+                            });
+                            setShowTrackingModal(true);
+                          }}
+                          className="px-3 py-2 bg-gray-100 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                          title="Edit Expected Delivery Date & Tracking"
+                        >
+                          Edit Delivery
                         </button>
                       )}
 

@@ -1,10 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Truck, ArrowLeft, Copy } from 'lucide-react';
+import { X, Truck, ArrowLeft, Copy, Edit2, Check } from 'lucide-react';
 import { Order } from '../types';
 import toast from 'react-hot-toast';
+import { db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export default function AdminOrderDetailsView({ order, onBack }: { order: Order, onBack: () => void }) {
+  const [isEditingEstDelivery, setIsEditingEstDelivery] = useState(false);
+  const [estimatedDelivery, setEstimatedDelivery] = useState(order.estimatedDelivery || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveEstDelivery = async () => {
+    try {
+      setSaving(true);
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, {
+        estimatedDelivery,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Expected delivery date updated');
+      setIsEditingEstDelivery(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update expected delivery date');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 max-w-4xl mx-auto space-y-8">
@@ -28,6 +51,55 @@ export default function AdminOrderDetailsView({ order, onBack }: { order: Order,
                        <Copy className="w-3.5 h-3.5" />
                     </button>
                  </div>
+              </div>
+
+              {/* Edit Expected Delivery Date */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Expected Delivery</p>
+                  {isEditingEstDelivery ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="date"
+                        value={estimatedDelivery}
+                        onChange={(e) => setEstimatedDelivery(e.target.value)}
+                        className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        onClick={handleSaveEstDelivery}
+                        disabled={saving}
+                        className="p-1 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors"
+                        title="Save Date"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setIsEditingEstDelivery(false)}
+                        className="p-1 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs font-black text-gray-900">
+                        {order.estimatedDelivery ? (
+                          /^\d{4}-\d{2}-\d{2}$/.test(order.estimatedDelivery) 
+                            ? new Date(order.estimatedDelivery).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+                            : order.estimatedDelivery
+                        ) : 'Not specified'}
+                      </p>
+                      <button
+                        onClick={() => { setEstimatedDelivery(order.estimatedDelivery || ''); setIsEditingEstDelivery(true); }}
+                        className="p-1 text-gray-400 hover:text-primary transition-colors"
+                        title="Edit Expected Delivery Date"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
            </div>
            

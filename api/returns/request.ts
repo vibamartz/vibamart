@@ -107,7 +107,7 @@ export default async function handler(req: any, res: any) {
     const returnWindowDays = settingsDoc.exists && settingsDoc.data()?.returnWindowDays ? settingsDoc.data()?.returnWindowDays : 7;
     
     const deliveredStatus = orderData.statusHistory?.find((s: any) => s.status === "delivered");
-    const deliveryDate = deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(orderData.createdAt); 
+    const deliveryDate = orderData.deliveryDate ? new Date(orderData.deliveryDate) : (deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(orderData.createdAt)); 
     
     const windowMs = returnWindowDays * 24 * 60 * 60 * 1000;
     if (Date.now() - deliveryDate.getTime() > windowMs) {

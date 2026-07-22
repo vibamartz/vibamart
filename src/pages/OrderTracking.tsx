@@ -39,30 +39,46 @@ const NORMAL_STEP_INDICES: Record<string, number> = {
   delivered: 5,
 };
 
-const getCompletedSteps = (order: Order): Set<number> => {
+const getCompletedStepsInfo = (order: Order): { completed: Set<number>, isTerminalRed: boolean, terminalLabel: string } => {
   const completed = new Set<number>();
-  
-  // Any valid order starts at Order Placed (index 0)
   completed.add(0);
 
-  let maxStepIndex = NORMAL_STEP_INDICES[order.status] ?? -1;
+  const isCancelled = ['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status);
+  const isRefunded = ['returned', 'refunded'].includes(order.status);
+  const isTerminalRed = isCancelled || isRefunded;
+
+  let terminalLabel = 'Delivered';
+  if (isRefunded) {
+    terminalLabel = order.status === 'returned' ? 'Returned' : 'Refunded';
+  } else if (isCancelled) {
+    terminalLabel = 'Cancelled';
+  }
 
   if (order.statusHistory && Array.isArray(order.statusHistory)) {
     order.statusHistory.forEach((update) => {
       const idx = NORMAL_STEP_INDICES[update.status];
-      if (idx !== undefined && idx > maxStepIndex) {
-        maxStepIndex = idx;
+      if (idx !== undefined && idx < 5) {
+        completed.add(idx);
       }
     });
   }
 
-  if (maxStepIndex >= 0) {
-    for (let i = 0; i <= maxStepIndex; i++) {
+  const currentIdx = NORMAL_STEP_INDICES[order.status];
+  if (currentIdx !== undefined && currentIdx < 5) {
+    for (let i = 0; i <= currentIdx; i++) {
       completed.add(i);
     }
   }
 
-  return completed;
+  if (order.status === 'delivered') {
+    for (let i = 0; i <= 5; i++) {
+      completed.add(i);
+    }
+  } else if (isTerminalRed) {
+    completed.add(5);
+  }
+
+  return { completed, isTerminalRed, terminalLabel };
 };
 
 const getProgressWidthPercentage = (completedSteps: Set<number>): number => {
@@ -74,22 +90,27 @@ const getProgressWidthPercentage = (completedSteps: Set<number>): number => {
   return (maxCompletedIndex / (TIMELINE_STEPS.length - 1)) * 100;
 };
 
-const isRedDotStatus = (update: StatusUpdate): boolean => {
-  const s = (update.status || '').toLowerCase();
-  const m = (update.message || '').toLowerCase();
+const getDotColorClass = (statusStr: string, messageStr: string = ''): string => {
+  const s = (statusStr || '').toLowerCase();
+  const m = (messageStr || '').toLowerCase();
 
-  const redKeywords = [
-    'cancel', 'cancelled', 'cancellation', 
-    'return', 'returned', 
-    'refund', 'refunded', 'rejected'
-  ];
+  const yellowKeywords = ['requested', 'under_review', 'under review', 'pending', 'pickup_scheduled'];
+  if (yellowKeywords.some(k => s.includes(k) || m.includes(k))) {
+    return 'bg-amber-400 shadow-amber-400/50';
+  }
 
-  return redKeywords.some(keyword => s.includes(keyword) || m.includes(keyword));
+  const redKeywords = ['cancel', 'cancelled', 'rejected', 'refunded', 'returned'];
+  if (redKeywords.some(k => s.includes(k) || m.includes(k))) {
+    return 'bg-[#EF4444] shadow-red-500/50';
+  }
+
+  return 'bg-[#22C55E] shadow-emerald-500/50';
 };
 
 export default function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [activeRequest, setActiveRequest] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(orderId || '');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -110,7 +131,6 @@ export default function OrderTracking() {
         setOrder({ id: docSnap.id, ...docSnap.data() } as Order);
         setLoading(false);
       } else {
-        // Search by customOrderId or id field if doc ID search fails
         const q = query(collection(db, 'orders'), where('customOrderId', '==', orderId));
         getDocs(q).then((querySnap) => {
           if (!querySnap.empty) {
@@ -134,6 +154,39 @@ export default function OrderTracking() {
 
     return () => unsubscribe();
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order) return;
+    const targetId = order.customOrderId || order.id;
+
+    const cancelQuery = query(collection(db, 'cancellation_requests'), where('customOrderId', '==', targetId));
+    const returnQuery = query(collection(db, 'return_requests'), where('customOrderId', '==', targetId));
+    const refundQuery = query(collection(db, 'refund_requests'), where('customOrderId', '==', targetId));
+
+    const unsubCancel = onSnapshot(cancelQuery, (snap) => {
+      if (!snap.empty) {
+        setActiveRequest({ ...snap.docs[0].data(), id: snap.docs[0].id, requestType: 'Cancellation' });
+      }
+    });
+
+    const unsubReturn = onSnapshot(returnQuery, (snap) => {
+      if (!snap.empty) {
+        setActiveRequest({ ...snap.docs[0].data(), id: snap.docs[0].id, requestType: 'Return' });
+      }
+    });
+
+    const unsubRefund = onSnapshot(refundQuery, (snap) => {
+      if (!snap.empty) {
+        setActiveRequest({ ...snap.docs[0].data(), id: snap.docs[0].id, requestType: 'Refund' });
+      }
+    });
+
+    return () => {
+      unsubCancel();
+      unsubReturn();
+      unsubRefund();
+    };
+  }, [order]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,13 +272,62 @@ export default function OrderTracking() {
   }
 
   const currentStatus = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-  const completedSteps = getCompletedSteps(order);
+  const { completed: completedSteps, isTerminalRed, terminalLabel } = getCompletedStepsInfo(order);
   const progressPercentage = getProgressWidthPercentage(completedSteps);
 
-  // Sort history so the latest status is at the top
-  const sortedHistory = [...(order.statusHistory || [])].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  const timelineSteps = [
+    { status: 'pending', label: 'Order Placed', icon: Clock },
+    { status: 'confirmed', label: 'Order Confirmed', icon: CheckCircle },
+    { status: 'packed', label: 'Packed', icon: Package },
+    { status: 'shipped', label: 'Shipped', icon: Truck },
+    { status: 'out_for_delivery', label: 'Out for Delivery', icon: MapPin },
+    { 
+      status: isTerminalRed ? (terminalLabel === 'Refunded' || terminalLabel === 'Returned' ? 'refunded' : 'cancelled') : 'delivered', 
+      label: terminalLabel, 
+      icon: isTerminalRed ? AlertCircle : CheckCircle 
+    },
+  ];
+
+  const getLatestStatusUpdate = () => {
+    if (activeRequest) {
+      const isPending = ['requested', 'under_review', 'pending', 'pickup_scheduled'].includes(activeRequest.status?.toLowerCase() || '');
+      const isRejected = ['rejected', 'cancel_rejected'].includes(activeRequest.status?.toLowerCase() || '');
+      
+      let dotColor = 'bg-[#22C55E] shadow-emerald-500/50';
+      if (isPending) dotColor = 'bg-amber-400 shadow-amber-400/50';
+      else if (isRejected || activeRequest.status === 'cancelled') dotColor = 'bg-[#EF4444] shadow-red-500/50';
+
+      return {
+        message: `${activeRequest.requestType} Request: ${activeRequest.status ? activeRequest.status.replace(/_/g, ' ').toUpperCase() : 'UNDER REVIEW'}`,
+        location: activeRequest.reason ? `Reason: ${activeRequest.reason}` : undefined,
+        timestamp: activeRequest.updatedAt || activeRequest.createdAt || order.createdAt,
+        dotColorClass: dotColor
+      };
+    }
+
+    const sorted = [...(order.statusHistory || [])].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    if (sorted.length > 0) {
+      const top = sorted[0];
+      return {
+        message: top.message || top.status.charAt(0).toUpperCase() + top.status.slice(1).replace(/_/g, ' '),
+        location: top.location,
+        timestamp: top.timestamp,
+        dotColorClass: getDotColorClass(top.status, top.message)
+      };
+    }
+
+    return {
+      message: STATUS_CONFIG[order.status]?.label || order.status.replace(/_/g, ' '),
+      location: undefined,
+      timestamp: order.createdAt,
+      dotColorClass: getDotColorClass(order.status)
+    };
+  };
+
+  const latestUpdate = getLatestStatusUpdate();
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -296,15 +398,18 @@ export default function OrderTracking() {
                />
                
                <div className="relative flex justify-between z-20">
-                 {TIMELINE_STEPS.map((stepConfig, index) => {
+                 {timelineSteps.map((stepConfig, index) => {
                    const Icon = stepConfig.icon;
                    const isCompleted = completedSteps.has(index);
+                   const isStepRed = index === 5 && isTerminalRed;
 
                    return (
                      <div key={stepConfig.status} className="flex flex-col items-center">
                         <div 
                           className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${
-                            isCompleted 
+                            isStepRed
+                              ? 'bg-[#EF4444] text-white shadow-red-500/30 scale-105 z-20'
+                              : isCompleted 
                               ? 'bg-[#22C55E] text-white shadow-[#22C55E]/30 scale-105 z-20' 
                               : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
                           }`}
@@ -312,7 +417,7 @@ export default function OrderTracking() {
                            <Icon className="w-6 h-6" />
                         </div>
                         <div className="absolute top-16 text-center whitespace-nowrap">
-                           <p className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
+                           <p className={`text-[10px] font-black uppercase tracking-widest ${isStepRed ? 'text-red-500' : isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
                              {stepConfig.label}
                            </p>
                         </div>
@@ -323,46 +428,27 @@ export default function OrderTracking() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-12 border-t border-gray-100">
-               {/* Status History Section */}
+               {/* Status History Section - Show only latest update */}
                <div>
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-8">Status History</h3>
-                  <div className="space-y-8">
-                     {sortedHistory.length === 0 ? (
-                       <p className="text-xs font-medium text-gray-400 italic">No status updates available.</p>
-                     ) : (
-                       sortedHistory.map((update, index) => {
-                         const isRed = isRedDotStatus(update);
-                         return (
-                           <div key={index} className="flex gap-6 relative">
-                              {index !== sortedHistory.length - 1 && (
-                                <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-200 -translate-x-1/2" />
-                              )}
-                              {/* Dot: Green (#22C55E) or Red (#EF4444) */}
-                              <div 
-                                className={`w-4 h-4 rounded-full mt-1.5 z-10 shrink-0 shadow-sm ${
-                                  isRed ? 'bg-[#EF4444]' : 'bg-[#22C55E]'
-                                }`} 
-                              />
-                              <div>
-                                 <p className="text-sm font-black text-gray-900">
-                                   {update.message || update.status.charAt(0).toUpperCase() + update.status.slice(1).replace(/_/g, ' ')}
-                                 </p>
-                                 {update.location && (
-                                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 flex items-center gap-1">
-                                     <MapPin className="w-3 h-3 text-gray-400" /> {update.location}
-                                   </p>
-                                 )}
-                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">
-                                   {new Date(update.timestamp).toLocaleString(undefined, {
-                                     dateStyle: 'medium',
-                                     timeStyle: 'short'
-                                   })}
-                                 </p>
-                              </div>
-                           </div>
-                         );
-                       })
-                     )}
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-8">Latest Status Update</h3>
+                  <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex gap-4 items-start shadow-sm">
+                     <div className={`w-4 h-4 rounded-full mt-1 z-10 shrink-0 shadow-sm ${latestUpdate.dotColorClass}`} />
+                     <div>
+                        <p className="text-base font-black text-gray-900 leading-snug">
+                          {latestUpdate.message}
+                        </p>
+                        {latestUpdate.location && (
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1 flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-gray-400" /> {latestUpdate.location}
+                          </p>
+                        )}
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">
+                          {latestUpdate.timestamp ? new Date(latestUpdate.timestamp).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                          }) : ''}
+                        </p>
+                     </div>
                   </div>
                </div>
 

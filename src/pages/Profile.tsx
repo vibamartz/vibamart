@@ -6,7 +6,7 @@ import {
   Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText
 } from 'lucide-react';
 import InvoiceModal from '../components/InvoiceModal';
-import { useAuthStore } from '../store';
+import { useAuthStore, useSettingsStore } from '../store';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { 
@@ -25,8 +25,19 @@ import { getProductSlug } from '../utils/slug';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
+  const { settings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
+
+  const isOrderEligibleForReturn = (order: Order) => {
+    if (order.status !== 'delivered') return false;
+    const windowDays = settings?.returnWindowDays ?? 7;
+    const deliveredStatus = order.statusHistory?.find(s => s.status === 'delivered');
+    const deliveryDateStr = order.deliveryDate || deliveredStatus?.timestamp || order.createdAt;
+    const deliveryTime = new Date(deliveryDateStr).getTime();
+    const windowMs = windowDays * 24 * 60 * 60 * 1000;
+    return (Date.now() - deliveryTime) <= windowMs;
+  };
   const [waitlist, setWaitlist] = useState<(WaitlistItem & { product?: Product })[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -735,7 +746,8 @@ export default function Profile() {
                         {orders.map(order => (
                           <div 
                             key={order.id} 
-                            className="group block bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99]"
+                            onClick={() => navigate(`/track-order/${order.id}`)}
+                            className="group block bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99] cursor-pointer"
                           >
                              <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
                                <div className="flex flex-col">
@@ -804,18 +816,19 @@ export default function Profile() {
                                     <span className="text-sm font-bold text-gray-600 uppercase tracking-wider">{order.paymentMethod}</span>
                                  </div>
                                </div>
-                                <div className="flex flex-wrap gap-2 justify-end">
+                                <div className="flex flex-wrap gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
                                   {['pending', 'confirmed', 'packed'].includes(order.status) && (
                                     <button
-                                      onClick={() => { setSelectedOrderId(order.id); setShowCancelModal(true); }}
+                                      onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowCancelModal(true); }}
                                       className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 flex items-center gap-2"
                                     >
                                       Cancel Order
                                     </button>
                                   )}
-                                  {order.status === 'delivered' && !returnRequests[order.id] && (
+                                  {isOrderEligibleForReturn(order) && !returnRequests[order.id] && (
                                     <button
-                                      onClick={() => { 
+                                      onClick={(e) => { 
+                                        e.stopPropagation();
                                         setSelectedOrderId(order.id); 
                                         setSelectedReturnProducts(order.items.map(i => i.productId));
                                         setShowReturnModal(true); 
@@ -828,6 +841,7 @@ export default function Profile() {
                                   {cancellationRequests[order.id] && (
                                     <Link
                                       to={`/track-request/${cancellationRequests[order.id].id}`}
+                                      onClick={(e) => e.stopPropagation()}
                                       className="px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-2 transition-all"
                                     >
                                       Cancellation: {cancellationRequests[order.id].status.replace('_', ' ')}
@@ -836,6 +850,7 @@ export default function Profile() {
                                   {returnRequests[order.id] && (
                                     <Link
                                       to={`/track-request/${returnRequests[order.id].id}`}
+                                      onClick={(e) => e.stopPropagation()}
                                       className="px-4 py-2.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2 transition-all"
                                     >
                                       Return: {returnRequests[order.id].status.replace('_', ' ')}
@@ -843,7 +858,7 @@ export default function Profile() {
                                   )}
                                   {['cancelled', 'returned'].includes(order.status) && !refundRequests[order.id] && order.paymentStatus !== 'refunded' && (
                                     <button
-                                      onClick={() => { setSelectedOrderId(order.id); setShowRefundModal(true); }}
+                                      onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowRefundModal(true); }}
                                       className="px-6 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-100 transition-all border border-pink-100 flex items-center gap-2"
                                     >
                                       Request Refund
@@ -852,6 +867,7 @@ export default function Profile() {
                                   {refundRequests[order.id] && (
                                     <Link
                                       to={`/track-request/${refundRequests[order.id].id}`}
+                                      onClick={(e) => e.stopPropagation()}
                                       className="px-4 py-2.5 bg-pink-50 text-pink-600 hover:bg-pink-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2 transition-all"
                                     >
                                       Refund: {refundRequests[order.id].status.replace('_', ' ')}
@@ -859,6 +875,7 @@ export default function Profile() {
                                   )}
                                   <Link 
                                     to={`/track-order/${order.id}`}
+                                    onClick={(e) => e.stopPropagation()}
                                     className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
                                   >
                                     View Details <ChevronRight className="w-3 h-3" />
@@ -866,6 +883,7 @@ export default function Profile() {
                                   {['confirmed', 'packed', 'shipped', 'out for delivery', 'delivered', 'processing'].includes(order.status?.toLowerCase() || '') && (
                                     <Link 
                                       to={`/track-order/${order.id}`}
+                                      onClick={(e) => e.stopPropagation()}
                                       className="px-6 py-2.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-lg flex items-center gap-2"
                                     >
                                       <Truck className="w-4 h-4" /> Track Order
@@ -873,7 +891,7 @@ export default function Profile() {
                                   )}
                                   {order.status === 'delivered' && (
                                     <button 
-                                      onClick={() => setInvoiceModalOrder(order)}
+                                      onClick={(e) => { e.stopPropagation(); setInvoiceModalOrder(order); }}
                                       className="px-6 py-2.5 bg-[#22C55E] text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
                                     >
                                       <FileText className="w-4 h-4" /> Download Invoice
