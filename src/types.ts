@@ -198,7 +198,7 @@ export interface Banner {
   title: string;
   subtitle?: string;
   link?: string;
-  active: boolean;
+  active?: boolean;
   order: number;
   platform?: 'mobile' | 'desktop';
   startDate?: string;

@@ -5,6 +5,8 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuthStore, useCategoryStore, useSettingsStore } from './store';
 import PermissionModal from './components/PermissionModal';
 
+import MobileBottomNav from './components/MobileBottomNav';
+
 // Layout & Common
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -127,6 +129,7 @@ export default function App() {
             </Routes>
           </main>
           <Footer />
+          <MobileBottomNav />
           <Toaster 
             position="bottom-right"
             toastOptions={{
