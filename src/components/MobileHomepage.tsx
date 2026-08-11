@@ -215,10 +215,10 @@ export default function MobileHomepage() {
   const filteredProducts = selectedCategory === 'for-you'
     ? products
     : products.filter(p => {
-        const catId = (p.categoryId || '').toLowerCase();
-        const target = selectedCategory.toLowerCase();
-        return catId.includes(target) || target.includes(catId);
-      });
+      const catId = (p.categoryId || '').toLowerCase();
+      const target = selectedCategory.toLowerCase();
+      return catId.includes(target) || target.includes(catId);
+    });
 
   // User display name for personalized recommendations
   const userName = user?.displayName
@@ -381,9 +381,8 @@ export default function MobileHomepage() {
                 type="button"
                 onClick={startVoiceSearch}
                 aria-label="Voice Search"
-                className={`p-2.5 touch-target rounded-full transition-all ${
-                  isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
-                }`}
+                className={`p-2.5 touch-target rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                  }`}
               >
                 <Mic className="w-4 h-4" />
               </button>
@@ -491,11 +490,10 @@ export default function MobileHomepage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex flex-col items-center justify-between p-2.5 min-w-[76px] rounded-[18px] transition-all snap-start border ${
-                  isSelected
+                className={`flex flex-col items-center justify-between p-2.5 min-w-[76px] rounded-[18px] transition-all snap-start border ${isSelected
                     ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm'
                     : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50/50'
-                }`}
+                  }`}
               >
                 <div className={`p-2 rounded-full mb-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                   <Icon className="w-4 h-4" />
@@ -561,9 +559,8 @@ export default function MobileHomepage() {
                 <button
                   key={i}
                   onClick={(e) => { e.stopPropagation(); setCurrentSlide(i); }}
-                  className={`h-1.5 rounded-full transition-all ${
-                    currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-white/60'
-                  }`}
+                  className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-white/60'
+                    }`}
                 />
               ))}
             </div>

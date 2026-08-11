@@ -29,7 +29,7 @@ export default function Logo({ className = '', iconOnly = false, variant = 'ligh
                 <stop offset="100%" stopColor="#15803d" />
               </linearGradient>
               <linearGradient id="bGrad" x1="100%" y1="100%" x2="100%" y2="100%">
-                <stop offset="100%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#eab308#" />
                 <stop offset="100%" stopColor="#eab308" />
               </linearGradient>
             </defs>

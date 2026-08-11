@@ -26,6 +26,11 @@
 }
 
 @layer base {
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply text-gray-900 antialiased bg-gray-50;
   }

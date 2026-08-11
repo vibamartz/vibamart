@@ -246,7 +246,7 @@ export default function Navbar() {
 
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === '/' || location.pathname === '/mobile' || location.pathname === '/mobile-home' || location.pathname === '/home-mobile';
 
   return (
     <nav className={`sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 ${isHomePage ? 'hidden md:block' : ''}`}>
