@@ -22,7 +22,7 @@ export default function MobileBottomNav() {
     {
       id: 'categories',
       label: 'Categories',
-      path: '/products',
+      path: '/categories',
       icon: LayoutGrid,
       exact: false
     },
@@ -45,13 +45,13 @@ export default function MobileBottomNav() {
 
   const isTabActive = (item: typeof navItems[0]) => {
     if (item.id === 'home') {
-      return location.pathname === '/';
+      return location.pathname === '/' || location.pathname === '/mobile-home' || location.pathname === '/mobile';
     }
     if (item.id === 'categories') {
-      return location.pathname === '/products';
+      return location.pathname === '/categories';
     }
     if (item.id === 'account') {
-      return location.pathname === '/profile' || location.pathname === '/login';
+      return location.pathname === '/profile' || location.pathname === '/login' || location.pathname === '/orders' || location.pathname === '/addresses' || location.pathname === '/requests';
     }
     if (item.id === 'cart') {
       return location.pathname === '/cart';
