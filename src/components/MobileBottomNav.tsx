@@ -27,13 +27,6 @@ export default function MobileBottomNav() {
       exact: false
     },
     {
-      id: 'deals',
-      label: 'Deals',
-      path: '/products?category=all-deals',
-      icon: Flame,
-      exact: false
-    },
-    {
       id: 'account',
       label: 'Account',
       path: user ? '/profile' : '/login',
@@ -54,11 +47,8 @@ export default function MobileBottomNav() {
     if (item.id === 'home') {
       return location.pathname === '/';
     }
-    if (item.id === 'deals') {
-      return location.pathname === '/products' && location.search.includes('category=all-deals');
-    }
     if (item.id === 'categories') {
-      return location.pathname === '/products' && !location.search.includes('category=all-deals');
+      return location.pathname === '/products';
     }
     if (item.id === 'account') {
       return location.pathname === '/profile' || location.pathname === '/login';
