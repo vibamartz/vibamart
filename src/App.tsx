@@ -2,48 +2,48 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { useAuthStore, useCategoryStore, useSettingsStore } from './store';
-import { useIsMobile } from './utils/useIsMobile';
-import PermissionModal from './components/PermissionModal';
+import { useAuthStore, useCategoryStore, useSettingsStore } from './backend/store';
+import { useIsMobile } from './shared/utilities/useIsMobile';
+import PermissionModal from './desktop/components/PermissionModal';
 
-// Desktop Components
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import ProductList from './pages/ProductList';
-import ProductDetail from './pages/ProductDetail';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import OrderSuccess from './pages/OrderSuccess';
+// Desktop UI (Isolated Desktop Fronted)
+import Navbar from './desktop/components/Navbar';
+import Footer from './desktop/components/Footer';
+import Home from './desktop/pages/Home';
+import ProductList from './desktop/pages/ProductList';
+import ProductDetail from './desktop/pages/ProductDetail';
+import Cart from './desktop/pages/Cart';
+import Checkout from './desktop/pages/Checkout';
+import OrderSuccess from './desktop/pages/OrderSuccess';
 import Login from './Login';
-import AdminDashboard from './pages/AdminDashboard';
-import SellerDashboard from './pages/SellerDashboard';
-import Profile from './pages/Profile';
-import Wishlist from './pages/Wishlist';
-import OrderTracking from './pages/OrderTracking';
-import RequestTracking from './pages/RequestTracking';
-import FAQ from './pages/FAQ';
-import ProductNotFound from './pages/ProductNotFound';
+import AdminDashboard from './desktop/pages/AdminDashboard';
+import SellerDashboard from './desktop/pages/SellerDashboard';
+import Profile from './desktop/pages/Profile';
+import Wishlist from './desktop/pages/Wishlist';
+import OrderTracking from './desktop/pages/OrderTracking';
+import RequestTracking from './desktop/pages/RequestTracking';
+import FAQ from './desktop/pages/FAQ';
+import ProductNotFound from './desktop/pages/ProductNotFound';
 
-// Mobile Components
-import MobileHeader from './components/mobile/MobileHeader';
-import MobileBottomNav from './components/MobileBottomNav';
-import MobileHomepage from './components/MobileHomepage';
-import MobileCategoriesScreen from './components/mobile/MobileCategoriesScreen';
-import MobileSearchScreen from './components/mobile/MobileSearchScreen';
-import MobileProductListScreen from './components/mobile/MobileProductListScreen';
-import MobileProductDetailScreen from './components/mobile/MobileProductDetailScreen';
-import MobileCartScreen from './components/mobile/MobileCartScreen';
-import MobileCheckoutScreen from './components/mobile/MobileCheckoutScreen';
-import MobileOrderSuccessScreen from './components/mobile/MobileOrderSuccessScreen';
-import MobileProfileScreen from './components/mobile/MobileProfileScreen';
-import MobileWishlistScreen from './components/mobile/MobileWishlistScreen';
-import MobileOrdersScreen from './components/mobile/MobileOrdersScreen';
-import MobileOrderDetailsScreen from './components/mobile/MobileOrderDetailsScreen';
-import MobileRequestScreens from './components/mobile/MobileRequestScreens';
-import MobileAddressScreen from './components/mobile/MobileAddressScreen';
-import MobileNotificationsScreen from './components/mobile/MobileNotificationsScreen';
-import MobileOffersScreen from './components/mobile/MobileOffersScreen';
+// Mobile UI (Isolated Mobile Frontend)
+import MobileHeader from './mobile/components/MobileHeader';
+import MobileBottomNav from './mobile/components/MobileBottomNav';
+import MobileHomepage from './mobile/pages/MobileHomepage';
+import MobileCategoriesScreen from './mobile/pages/MobileCategoriesScreen';
+import MobileSearchScreen from './mobile/pages/MobileSearchScreen';
+import MobileProductListScreen from './mobile/pages/MobileProductListScreen';
+import MobileProductDetailScreen from './mobile/pages/MobileProductDetailScreen';
+import MobileCartScreen from './mobile/pages/MobileCartScreen';
+import MobileCheckoutScreen from './mobile/pages/MobileCheckoutScreen';
+import MobileOrderSuccessScreen from './mobile/pages/MobileOrderSuccessScreen';
+import MobileProfileScreen from './mobile/pages/MobileProfileScreen';
+import MobileWishlistScreen from './mobile/pages/MobileWishlistScreen';
+import MobileOrdersScreen from './mobile/pages/MobileOrdersScreen';
+import MobileOrderDetailsScreen from './mobile/pages/MobileOrderDetailsScreen';
+import MobileRequestScreens from './mobile/pages/MobileRequestScreens';
+import MobileAddressScreen from './mobile/pages/MobileAddressScreen';
+import MobileNotificationsScreen from './mobile/pages/MobileNotificationsScreen';
+import MobileOffersScreen from './mobile/pages/MobileOffersScreen';
 
 // Scroll to top on route change
 function ScrollToTop() {
