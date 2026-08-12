@@ -10,6 +10,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import CameraSearchModal from '../../desktop/components/CameraSearchModal';
+import Logo from '../../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
@@ -241,15 +242,10 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="h-[165px] bg-gradient-to-r from-emerald-600 via-emerald-500 to-orange-500 rounded-[24px] p-4 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-2.5 cursor-pointer border border-emerald-400/30 active:scale-95 transition-transform"
+            className="h-[165px] bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 rounded-[24px] p-4 shadow-md shadow-amber-900/10 text-white flex flex-col items-center justify-center gap-2.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
             <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
-              <svg viewBox="0 0 100 100" className="w-9 h-9 drop-shadow-sm">
-                <path d="M10 25 L38 85 L48 85 L32 25 Z" fill="#ffffff" />
-                <path d="M45 25 L65 85 H70 L50 25 Z" fill="#ffffff" className="opacity-90" />
-                <path d="M55 25 L75 85 H80 L60 25 Z" fill="#fde047" className="opacity-90" />
-                <path d="M65 25 L88 25 C95 25 100 30 100 38 C100 45 95 50 88 52 C95 54 100 59 100 68 C100 77 95 85 85 85 H70 L90 25 Z" fill="#fde047" />
-              </svg>
+              <Logo iconOnly className="scale-75" />
             </div>
             <span className="text-xs font-black tracking-wider uppercase text-white drop-shadow-sm">
               VIBA
@@ -260,9 +256,9 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="h-[165px] bg-white rounded-[24px] p-4 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-transform"
+            className="h-[165px] bg-white rounded-[24px] p-4 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-14 h-14 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center border border-orange-100">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
               <Gift className="w-7 h-7" />
             </div>
             <span className="text-xs font-black tracking-wider text-gray-900 uppercase">
