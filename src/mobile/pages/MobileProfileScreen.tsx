@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle, 
-  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail 
+  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift 
 } from 'lucide-react';
 import { useAuthStore } from '../../backend/store';
 import { auth } from '../../backend/firebase/firebase';
@@ -48,6 +48,7 @@ export default function MobileProfileScreen() {
   const userPhoto = user.photoURL || 'https://via.placeholder.com/150';
 
   const menuItems = [
+    { title: 'ViBa Rewards & Points', icon: Gift, path: '/rewards', badge: 'Bonus', color: 'text-amber-600 bg-amber-50' },
     { title: 'My Orders & Tracking', icon: Package, path: '/orders', badge: null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
@@ -106,7 +107,7 @@ export default function MobileProfileScreen() {
             </div>
 
             <div className="flex items-center gap-2">
-              {item.badge !== null && item.badge > 0 && (
+              {item.badge !== null && item.badge !== undefined && item.badge !== 0 && (
                 <span className="px-2 py-0.5 bg-orange-100 text-orange-800 text-[10px] font-black rounded-full">
                   {item.badge}
                 </span>

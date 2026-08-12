@@ -101,5 +101,171 @@ export const AVAILABLE_PERMISSIONS = [
   'can_edit_orders',
   'can_manage_users',
   'can_view_analytics',
-  'can_manage_banners'
+  'can_manage_banners',
+  'can_manage_features'
 ];
+
+export const DEFAULT_FEATURES = [
+  {
+    id: 'rewards',
+    name: 'Rewards & Loyalty Points',
+    description: 'Enable customer points balance, tier rewards, and discount voucher redemptions.',
+    enabled: true,
+    availability: 'all',
+    category: 'loyalty',
+    icon: 'Gift',
+    backendConfig: { pointsPerRupee: 0.1, minRedeemPoints: 100 }
+  },
+  {
+    id: 'wishlist',
+    name: 'Wishlist & Favorites',
+    description: 'Allow customers to save products to wishlist for future purchase.',
+    enabled: true,
+    availability: 'all',
+    category: 'shopping',
+    icon: 'Heart',
+    backendConfig: { maxItems: 100 }
+  },
+  {
+    id: 'reviews',
+    name: 'Product Reviews & Ratings',
+    description: 'Customer rating submissions and photo reviews with admin moderation.',
+    enabled: true,
+    availability: 'all',
+    category: 'customer',
+    icon: 'Star',
+    backendConfig: { autoApprove: false }
+  },
+  {
+    id: 'offers',
+    name: 'Offers & Promotional Deals',
+    description: 'Dedicated promotional section and offer page banners.',
+    enabled: true,
+    availability: 'all',
+    category: 'marketing',
+    icon: 'Tag',
+    backendConfig: { highlightDeals: true }
+  },
+  {
+    id: 'coupons',
+    name: 'Discount Coupons & Promo Codes',
+    description: 'Cart coupon validation for flat or percentage discounts.',
+    enabled: true,
+    availability: 'all',
+    category: 'marketing',
+    icon: 'Ticket',
+    backendConfig: { allowStacking: false }
+  },
+  {
+    id: 'notifications',
+    name: 'Push & App Notifications',
+    description: 'In-app alert notifications for order status changes and special sales.',
+    enabled: true,
+    availability: 'all',
+    category: 'customer',
+    icon: 'Bell',
+    backendConfig: { soundEnabled: true }
+  },
+  {
+    id: 'recentlyViewed',
+    name: 'Recently Viewed Products',
+    description: 'Track and display user browsing history across devices.',
+    enabled: true,
+    availability: 'all',
+    category: 'shopping',
+    icon: 'History',
+    backendConfig: { limit: 10 }
+  },
+  {
+    id: 'recommendations',
+    name: 'AI Product Recommendations',
+    description: 'Personalized product suggestions based on purchase history.',
+    enabled: true,
+    availability: 'all',
+    category: 'shopping',
+    icon: 'Sparkles',
+    backendConfig: { algorithm: 'collaborative' }
+  },
+  {
+    id: 'voiceSearch',
+    name: 'Voice Search',
+    description: 'Hands-free voice recognition search in product listings.',
+    enabled: true,
+    availability: 'all',
+    category: 'search',
+    icon: 'Mic',
+    backendConfig: { language: 'en-US' }
+  },
+  {
+    id: 'cameraSearch',
+    name: 'Visual & Camera Search',
+    description: 'Upload product images to search similar products.',
+    enabled: true,
+    availability: 'all',
+    category: 'search',
+    icon: 'Camera',
+    backendConfig: {}
+  },
+  {
+    id: 'pincodeChecker',
+    name: 'Pincode Serviceability Checker',
+    description: 'Check item delivery eligibility before adding to cart.',
+    enabled: true,
+    availability: 'all',
+    category: 'shopping',
+    icon: 'MapPin',
+    backendConfig: { defaultPincode: '560064' }
+  }
+];
+
+export const DEFAULT_VOUCHERS = [
+  {
+    id: 'vouch-100',
+    title: '₹100 Instant Discount',
+    description: 'Valid on orders over ₹499 across all categories.',
+    pointsRequired: 100,
+    discountValue: 100,
+    discountType: 'fixed' as const,
+    code: 'REWARD100',
+    expiryDays: 30,
+    category: 'All Products',
+    icon: 'Gift'
+  },
+  {
+    id: 'vouch-250',
+    title: '₹250 Super Saver',
+    description: 'Valid on orders over ₹1,299 in Electronics & Fashion.',
+    pointsRequired: 250,
+    discountValue: 250,
+    discountType: 'fixed' as const,
+    code: 'REWARD250',
+    expiryDays: 30,
+    category: 'Electronics & Fashion',
+    icon: 'Sparkles'
+  },
+  {
+    id: 'vouch-500',
+    title: '₹500 VIP Voucher',
+    description: 'Valid on orders over ₹2,499. Exclusive for loyal members.',
+    pointsRequired: 500,
+    discountValue: 500,
+    discountType: 'fixed' as const,
+    code: 'REWARD500VIP',
+    expiryDays: 45,
+    category: 'Storewide',
+    icon: 'Award'
+  },
+  {
+    id: 'vouch-15pct',
+    title: '15% Off Mega Coupon',
+    description: 'Max discount ₹300. Valid on any purchase.',
+    pointsRequired: 300,
+    discountValue: 15,
+    discountType: 'percentage' as const,
+    code: 'REWARD15PCT',
+    expiryDays: 30,
+    category: 'Storewide',
+    icon: 'Tag'
+  }
+];
+

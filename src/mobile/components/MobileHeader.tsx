@@ -80,6 +80,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     if (path.startsWith('/returns') || path.startsWith('/track-request')) return 'Requests & Returns';
     if (path === '/notifications') return 'Notifications';
     if (path === '/offers') return 'Deals & Offers';
+    if (path === '/rewards') return 'ViBa Rewards & Points';
     if (path === '/login') return 'Account Login';
     return 'ViBa Mart';
   };

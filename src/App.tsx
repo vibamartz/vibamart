@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { useAuthStore, useCategoryStore, useSettingsStore } from './backend/store';
+import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore } from './backend/store';
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import PermissionModal from './desktop/components/PermissionModal';
 
@@ -24,6 +24,7 @@ import OrderTracking from './desktop/pages/OrderTracking';
 import RequestTracking from './desktop/pages/RequestTracking';
 import FAQ from './desktop/pages/FAQ';
 import ProductNotFound from './desktop/pages/ProductNotFound';
+import Rewards from './desktop/pages/Rewards';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -44,6 +45,7 @@ import MobileRequestScreens from './mobile/pages/MobileRequestScreens';
 import MobileAddressScreen from './mobile/pages/MobileAddressScreen';
 import MobileNotificationsScreen from './mobile/pages/MobileNotificationsScreen';
 import MobileOffersScreen from './mobile/pages/MobileOffersScreen';
+import MobileRewardsScreen from './mobile/pages/MobileRewardsScreen';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -114,6 +116,7 @@ function MainAppRoutes() {
             <Route path="/addresses" element={<MobileAddressScreen />} />
             <Route path="/notifications" element={<MobileNotificationsScreen />} />
             <Route path="/offers" element={<MobileOffersScreen />} />
+            <Route path="/rewards" element={<MobileRewardsScreen />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
@@ -145,6 +148,7 @@ function MainAppRoutes() {
           <Route path="/seller" element={<SellerDashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/rewards" element={<Rewards />} />
           <Route path="/track-order" element={<OrderTracking />} />
           <Route path="/track-order/:orderId" element={<OrderTracking />} />
           <Route path="/track-request/:requestId" element={<RequestTracking />} />
@@ -168,6 +172,8 @@ export default function App() {
     initAuth();
     initCategories();
     initSettings();
+    useFeatureStore.getState().initFeatures();
+    useRewardsStore.getState().initRewards();
     
     const acknowledged = localStorage.getItem('permissionsAcknowledged');
     if (!acknowledged) {

@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, StoreSettings } from "../shared/types";
-import { CATEGORIES as INITIAL_CATEGORIES } from "../shared/constants";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction } from "../shared/types";
+import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 
 interface AuthState {
@@ -328,3 +328,230 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   }
 }));
+
+// Shared Feature Registry Store (Synchronized in Real-Time for Desktop + Mobile)
+interface FeatureState {
+  features: FeatureConfig[];
+  loading: boolean;
+  initFeatures: () => void;
+  isFeatureEnabled: (featureId: string) => boolean;
+  updateFeature: (featureId: string, updates: Partial<FeatureConfig>) => Promise<void>;
+  toggleFeature: (featureId: string, enabled: boolean) => Promise<void>;
+}
+
+export const useFeatureStore = create<FeatureState>((set, get) => ({
+  features: DEFAULT_FEATURES as FeatureConfig[],
+  loading: true,
+  initFeatures: () => {
+    const q = collection(db, 'features');
+    onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const fetchedFeatures = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as FeatureConfig));
+
+        // Auto-seed missing default features if admin
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          DEFAULT_FEATURES.forEach(async (defFeature) => {
+            const exists = fetchedFeatures.some(f => f.id === defFeature.id);
+            if (!exists) {
+              try {
+                await setDoc(doc(db, 'features', defFeature.id), {
+                  ...defFeature,
+                  updatedAt: new Date().toISOString()
+                });
+              } catch (e) {
+                console.error("Failed to seed feature:", defFeature.id, e);
+              }
+            }
+          });
+        }
+
+        set({ features: fetchedFeatures, loading: false });
+      } else {
+        // Seed default features if collection is completely empty
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          DEFAULT_FEATURES.forEach(async (defFeature) => {
+            try {
+              await setDoc(doc(db, 'features', defFeature.id), {
+                ...defFeature,
+                updatedAt: new Date().toISOString()
+              });
+            } catch (e) {
+              console.error("Failed to seed default feature:", defFeature.id, e);
+            }
+          });
+        }
+        set({ features: DEFAULT_FEATURES as FeatureConfig[], loading: false });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'features', false);
+      set({ loading: false });
+    });
+  },
+  isFeatureEnabled: (featureId: string) => {
+    const feat = get().features.find(f => f.id === featureId);
+    return feat ? feat.enabled : true;
+  },
+  updateFeature: async (featureId: string, updates: Partial<FeatureConfig>) => {
+    try {
+      const docRef = doc(db, 'features', featureId);
+      await setDoc(docRef, { ...updates, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.error(`Failed to update feature ${featureId}:`, e);
+      throw e;
+    }
+  },
+  toggleFeature: async (featureId: string, enabled: boolean) => {
+    try {
+      const docRef = doc(db, 'features', featureId);
+      await setDoc(docRef, { enabled, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.error(`Failed to toggle feature ${featureId}:`, e);
+      throw e;
+    }
+  }
+}));
+
+// Shared Rewards Store (Synchronized for Desktop + Mobile)
+interface RewardsState {
+  rewards: UserRewards | null;
+  loading: boolean;
+  initRewards: (userId?: string) => void;
+  claimVoucher: (voucherId: string) => Promise<{ success: boolean; message: string; voucher?: any }>;
+  addPoints: (points: number, title: string, description?: string) => Promise<void>;
+}
+
+export const useRewardsStore = create<RewardsState>((set, get) => ({
+  rewards: null,
+  loading: true,
+  initRewards: (userId?: string) => {
+    const currentUid = userId || useAuthStore.getState().user?.uid;
+    if (!currentUid) {
+      set({ rewards: null, loading: false });
+      return;
+    }
+
+    const docRef = doc(db, 'user_rewards', currentUid);
+    onSnapshot(docRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        set({ rewards: docSnap.data() as UserRewards, loading: false });
+      } else {
+        // Initialize default user rewards profile
+        const initialRewards: UserRewards = {
+          userId: currentUid,
+          pointsBalance: 250, // Welcome points bonus
+          totalEarned: 250,
+          totalSpent: 0,
+          tier: 'Silver',
+          claimedVouchers: [],
+          transactions: [
+            {
+              id: 'tx-welcome',
+              userId: currentUid,
+              title: 'Welcome Bonus',
+              type: 'earned',
+              points: 250,
+              date: new Date().toISOString(),
+              description: 'Welcome gift for joining ViBa Mart Rewards!'
+            }
+          ]
+        };
+
+        try {
+          await setDoc(docRef, initialRewards);
+          set({ rewards: initialRewards, loading: false });
+        } catch (err) {
+          console.error("Failed to initialize user rewards doc:", err);
+          set({ rewards: initialRewards, loading: false });
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `user_rewards/${currentUid}`, false);
+      set({ loading: false });
+    });
+  },
+  claimVoucher: async (voucherId: string) => {
+    const currentRewards = get().rewards;
+    const currentUser = useAuthStore.getState().user;
+    if (!currentRewards || !currentUser) {
+      return { success: false, message: 'Please log in to claim reward vouchers.' };
+    }
+
+    const voucher = DEFAULT_VOUCHERS.find(v => v.id === voucherId);
+    if (!voucher) {
+      return { success: false, message: 'Invalid reward voucher.' };
+    }
+
+    if (currentRewards.pointsBalance < voucher.pointsRequired) {
+      return { success: false, message: `Insufficient points. You need ${voucher.pointsRequired - currentRewards.pointsBalance} more points.` };
+    }
+
+    if (currentRewards.claimedVouchers?.includes(voucherId)) {
+      return { success: false, message: 'Voucher code already claimed!' };
+    }
+
+    const updatedBalance = currentRewards.pointsBalance - voucher.pointsRequired;
+    const updatedSpent = currentRewards.totalSpent + voucher.pointsRequired;
+    const newTx: RewardTransaction = {
+      id: `tx-${Date.now()}`,
+      userId: currentUser.uid,
+      title: `Claimed Voucher: ${voucher.code}`,
+      type: 'spent',
+      points: voucher.pointsRequired,
+      date: new Date().toISOString(),
+      description: `Redeemed ${voucher.pointsRequired} points for ${voucher.title}`
+    };
+
+    const updatedClaimed = [...(currentRewards.claimedVouchers || []), voucherId];
+    const updatedTxs = [newTx, ...(currentRewards.transactions || [])];
+
+    const docRef = doc(db, 'user_rewards', currentUser.uid);
+    try {
+      await updateDoc(docRef, {
+        pointsBalance: updatedBalance,
+        totalSpent: updatedSpent,
+        claimedVouchers: updatedClaimed,
+        transactions: updatedTxs
+      });
+      return { success: true, message: `Successfully claimed ${voucher.title}! Code: ${voucher.code}`, voucher };
+    } catch (e) {
+      console.error("Failed to claim voucher:", e);
+      return { success: false, message: 'Failed to claim voucher due to network error.' };
+    }
+  },
+  addPoints: async (points: number, title: string, description?: string) => {
+    const currentRewards = get().rewards;
+    const currentUser = useAuthStore.getState().user;
+    if (!currentRewards || !currentUser) return;
+
+    const updatedBalance = currentRewards.pointsBalance + points;
+    const updatedEarned = currentRewards.totalEarned + points;
+    const newTx: RewardTransaction = {
+      id: `tx-${Date.now()}`,
+      userId: currentUser.uid,
+      title,
+      type: 'earned',
+      points,
+      date: new Date().toISOString(),
+      description
+    };
+
+    const updatedTxs = [newTx, ...(currentRewards.transactions || [])];
+    const docRef = doc(db, 'user_rewards', currentUser.uid);
+
+    try {
+      await updateDoc(docRef, {
+        pointsBalance: updatedBalance,
+        totalEarned: updatedEarned,
+        transactions: updatedTxs
+      });
+    } catch (e) {
+      console.error("Failed to add reward points:", e);
+    }
+  }
+}));
+

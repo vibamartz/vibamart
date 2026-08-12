@@ -247,3 +247,50 @@ export interface SearchAnalytics {
   timestamp: string;
   userId?: string;
 }
+
+export interface FeatureConfig {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  availability: 'all' | 'desktop' | 'mobile';
+  category: 'loyalty' | 'shopping' | 'marketing' | 'search' | 'customer';
+  icon?: string;
+  permissions?: string[];
+  backendConfig?: Record<string, any>;
+  updatedAt?: string;
+}
+
+export interface RewardTransaction {
+  id: string;
+  userId: string;
+  title: string;
+  type: 'earned' | 'spent';
+  points: number;
+  date: string;
+  description?: string;
+}
+
+export interface RewardVoucher {
+  id: string;
+  title: string;
+  description: string;
+  pointsRequired: number;
+  discountValue: number;
+  discountType: 'percentage' | 'fixed';
+  code: string;
+  expiryDays: number;
+  category?: string;
+  icon?: string;
+}
+
+export interface UserRewards {
+  userId: string;
+  pointsBalance: number;
+  totalEarned: number;
+  totalSpent: number;
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  claimedVouchers?: string[];
+  transactions?: RewardTransaction[];
+}
+
