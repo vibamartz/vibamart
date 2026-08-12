@@ -7,7 +7,7 @@ export default function MobileLayout() {
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#FFF3EB] selection:bg-primary selection:text-white">
       <MobileHeader />
-      <main className="flex-1 max-w-md mx-auto w-full pb-16">
+      <main className="flex-1 max-w-md mx-auto w-full pb-32">
         <Outlet />
       </main>
       <MobileBottomNav />
