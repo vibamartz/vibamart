@@ -242,7 +242,7 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="h-[165px] bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 rounded-[24px] p-4 shadow-md shadow-amber-900/10 text-white flex flex-col items-center justify-center gap-2.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
+            className="h-[165px] bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[24px] p-4 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-2.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
             <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
               <Logo iconOnly className="scale-75" />
