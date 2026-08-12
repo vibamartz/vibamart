@@ -233,94 +233,40 @@ export default function MobileHomepage() {
     <div className="min-h-screen bg-[#FFF3EB] pb-24 px-3 pt-3 space-y-4 font-sans select-none overflow-x-hidden">
 
       {/* ========================================================================= */}
-      {/* 1. MOBILE TOP SECTION: Smartphone-safe Top Bar & Shortcut Cards           */}
+      {/* 1. SHORTCUT CARDS: VIBA & REWARDS (Equal width, 22-26px rounded corners)   */}
       {/* ========================================================================= */}
-      <section className="space-y-3">
-        {/* Smartphone-safe Status/Header Banner */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-black tracking-widest text-emerald-800 uppercase">ViBa Mart Mobile</span>
-          </div>
-          <span className="text-[10px] font-bold text-gray-500 bg-white/80 px-2 py-0.5 rounded-full border border-orange-100">
-            Fast Delivery ⚡
-          </span>
-        </div>
-
-        {/* Equal-Width Horizontally Scrollable Shortcut Cards */}
-        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar py-0.5 scroll-smooth snap-x">
-          {/* Card 1: Existing ViBa Mart logo + "ViBa" (ViBa Green + Orange Gradient) */}
+      <section>
+        <div className="grid grid-cols-2 gap-3 w-full">
+          {/* Card 1: VIBA */}
           <motion.div
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="flex-1 min-w-[115px] max-w-[140px] bg-gradient-to-r from-emerald-700 via-emerald-600 to-orange-500 rounded-[20px] p-3 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer snap-start border border-emerald-400/30 shrink-0"
+            className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-orange-500 rounded-[24px] py-4 px-3 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-2 cursor-pointer border border-emerald-400/30 active:scale-95 transition-transform"
           >
-            <div className="w-9 h-9 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
-              <svg viewBox="0 0 100 100" className="w-6 h-6 drop-shadow-sm">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
+              <svg viewBox="0 0 100 100" className="w-8 h-8 drop-shadow-sm">
                 <path d="M10 25 L38 85 L48 85 L32 25 Z" fill="#ffffff" />
                 <path d="M45 25 L65 85 H70 L50 25 Z" fill="#ffffff" className="opacity-90" />
                 <path d="M55 25 L75 85 H80 L60 25 Z" fill="#fde047" className="opacity-90" />
                 <path d="M65 25 L88 25 C95 25 100 30 100 38 C100 45 95 50 88 52 C95 54 100 59 100 68 C100 77 95 85 85 85 H70 L90 25 Z" fill="#fde047" />
               </svg>
             </div>
-            <span className="text-xs font-black tracking-wide uppercase text-white drop-shadow-sm">
-              ViBa
+            <span className="text-xs font-black tracking-wider uppercase text-white drop-shadow-sm">
+              VIBA
             </span>
           </motion.div>
 
-          {/* Card 2: Rewards icon + "Rewards" */}
+          {/* Card 2: REWARDS */}
           <motion.div
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="flex-1 min-w-[115px] max-w-[140px] bg-white rounded-[20px] p-3 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer snap-start shrink-0"
+            className="bg-white rounded-[24px] py-4 px-3 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-9 h-9 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center border border-orange-100">
-              <Gift className="w-5 h-5" />
+            <div className="w-12 h-12 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center border border-orange-100">
+              <Gift className="w-6 h-6" />
             </div>
-            <span className="text-xs font-black tracking-wide text-gray-800 uppercase">
-              Rewards
-            </span>
-          </motion.div>
-
-          {/* Card 3: Deals */}
-          <motion.div
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/products?category=all-deals')}
-            className="flex-1 min-w-[115px] max-w-[140px] bg-white rounded-[20px] p-3 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer snap-start shrink-0"
-          >
-            <div className="w-9 h-9 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center border border-rose-100">
-              <Flame className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-black tracking-wide text-gray-800 uppercase">
-              Deals
-            </span>
-          </motion.div>
-
-          {/* Card 4: Express */}
-          <motion.div
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/products')}
-            className="flex-1 min-w-[115px] max-w-[140px] bg-white rounded-[20px] p-3 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer snap-start shrink-0"
-          >
-            <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center border border-amber-100">
-              <Zap className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-black tracking-wide text-gray-800 uppercase">
-              Express
-            </span>
-          </motion.div>
-
-          {/* Card 5: Wishlist */}
-          <motion.div
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/wishlist')}
-            className="flex-1 min-w-[115px] max-w-[140px] bg-white rounded-[20px] p-3 shadow-sm border border-orange-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer snap-start shrink-0"
-          >
-            <div className="w-9 h-9 bg-red-50 text-red-500 rounded-full flex items-center justify-center border border-red-100">
-              <Heart className="w-5 h-5 fill-red-400/20" />
-            </div>
-            <span className="text-xs font-black tracking-wide text-gray-800 uppercase">
-              Wishlist
+            <span className="text-xs font-black tracking-wider text-gray-900 uppercase">
+              REWARDS
             </span>
           </motion.div>
         </div>
@@ -333,7 +279,7 @@ export default function MobileHomepage() {
         <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          className="bg-white/95 backdrop-blur-md rounded-[20px] p-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
+          className="bg-white/95 backdrop-blur-md rounded-[22px] p-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all min-h-[56px]"
         >
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
@@ -341,14 +287,14 @@ export default function MobileHomepage() {
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">
-                  Home
+                <span className="text-[11px] font-black uppercase tracking-wider text-gray-900">
+                  HOME
                 </span>
-                <span className="text-[10px] font-bold text-gray-400">
+                <span className="text-[11px] font-bold text-gray-500">
                   ({userPincode})
                 </span>
               </div>
-              <p className="text-xs font-bold text-gray-800 truncate leading-tight mt-0.5">
+              <p className="text-xs font-semibold text-gray-600 truncate leading-tight mt-0.5">
                 {userAddress}
               </p>
             </div>
