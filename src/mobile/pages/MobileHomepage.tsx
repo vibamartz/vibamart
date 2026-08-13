@@ -247,8 +247,8 @@ export default function MobileHomepage() {
             <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
               <Logo iconOnly className="scale-65" />
             </div>
-            <span className="text-[11px] font-black tracking-wider uppercase text-white drop-shadow-sm">
-              VIBA
+            <span className="text-[15px] font-black tracking-wider uppercase text-white drop-shadow-sm">
+              ViBa
             </span>
           </motion.div>
 
@@ -258,10 +258,10 @@ export default function MobileHomepage() {
             onClick={() => navigate(user ? '/profile' : '/login')}
             className="h-[110px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
               <Gift className="w-5 h-5" />
             </div>
-            <span className="text-[11px] font-black tracking-wider text-gray-900 uppercase">
+            <span className="text-[15px] font-black tracking-wider text-gray-900 uppercase">
               REWARDS
             </span>
           </motion.div>
