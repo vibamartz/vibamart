@@ -29,10 +29,6 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
   const isHomePage = location.pathname === '/' || location.pathname === '/mobile-home' || location.pathname === '/mobile';
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
-  if (isHomePage) {
-    return null;
-  }
-
   useEffect(() => {
     if (user?.address) {
       const addr = user.address;
@@ -60,6 +56,10 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     });
     return () => unsubscribe();
   }, [user]);
+
+  if (isHomePage) {
+    return null;
+  }
 
   const handleLocationSelect = (pincode: string, address: string) => {
     setUserPincode(pincode);
