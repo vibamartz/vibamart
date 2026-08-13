@@ -231,23 +231,23 @@ export default function MobileHomepage() {
     : 'Recommended For You';
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-32 px-[20px] pt-4 space-y-6 font-sans select-none overflow-x-hidden">
+    <div className="min-h-screen bg-[#FFF3EB] pb-32 px-3.5 xs:px-4 sm:px-5 pt-4 space-y-5 font-sans select-none overflow-x-hidden">
 
       {/* ========================================================================= */}
-      {/* 1. VIBA + REWARDS CARDS (Side-by-side, 48% width, h-165px, rounded-24px)   */}
+      {/* 1. VIBA + REWARDS (2 equal cards in 1 row, h:100-120px, radius:20-24px)   */}
       {/* ========================================================================= */}
       <section>
-        <div className="grid grid-cols-2 gap-[14px] w-full">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
           {/* Card 1: VIBA */}
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="h-[165px] bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[24px] p-4 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-2.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
+            className="h-[110px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-3 sm:p-3.5 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
-            <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
-              <Logo iconOnly className="scale-75" />
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
+              <Logo iconOnly className="scale-65" />
             </div>
-            <span className="text-xs font-black tracking-wider uppercase text-white drop-shadow-sm">
+            <span className="text-[11px] font-black tracking-wider uppercase text-white drop-shadow-sm">
               VIBA
             </span>
           </motion.div>
@@ -256,12 +256,12 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="h-[165px] bg-white rounded-[24px] p-4 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-transform"
+            className="h-[110px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
-              <Gift className="w-7 h-7" />
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
+              <Gift className="w-5 h-5" />
             </div>
-            <span className="text-xs font-black tracking-wider text-gray-900 uppercase">
+            <span className="text-[11px] font-black tracking-wider text-gray-900 uppercase">
               REWARDS
             </span>
           </motion.div>
@@ -269,13 +269,13 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. DELIVERY LOCATION CARD (h-108px, rounded-24px, icon left, dropdown right) */}
+      {/* 2. DELIVERY ADDRESS CARD (h-105px, mt-5, radius-22px, icon left, right dropdown) */}
       {/* ========================================================================= */}
-      <section>
+      <section className="mt-5">
         <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          className="h-[108px] w-full bg-white/95 backdrop-blur-md rounded-[24px] px-4.5 py-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
+          className="h-[105px] w-full bg-white/95 backdrop-blur-md rounded-[22px] px-4 py-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
@@ -300,12 +300,12 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. LARGE MOBILE SEARCH BAR (h-95px, rounded-28px, icon left, actions right) */}
+      {/* 3. SEARCH BAR (h-60px, mt-5, radius-18px, flexible width, compact icons)   */}
       {/* ========================================================================= */}
-      <section className="relative">
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center h-[95px]">
-          <div className="absolute left-4.5 z-10 flex items-center pointer-events-none text-gray-400">
-            <Search className="w-6 h-6 text-emerald-600" />
+      <section className="relative mt-5">
+        <form onSubmit={handleSearchSubmit} className="relative flex items-center h-[60px]">
+          <div className="absolute left-4 z-10 flex items-center pointer-events-none text-gray-400">
+            <Search className="w-5 h-5 text-emerald-600" />
           </div>
           <input
             ref={searchInputRef}
@@ -314,19 +314,19 @@ export default function MobileHomepage() {
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white h-[95px] rounded-[28px] pl-14 pr-36 text-base font-semibold text-gray-900 placeholder-gray-400 shadow-md border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
+            className="w-full bg-white h-[60px] rounded-[18px] pl-11 pr-28 text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
           />
 
-          <div className="absolute right-3.5 flex items-center gap-2.5 bg-white pl-1 rounded-r-[28px]">
+          <div className="absolute right-2 flex items-center gap-1 bg-white pl-1 rounded-r-[18px]">
             {settings.enableVoiceSearch && (
               <button
                 type="button"
                 onClick={startVoiceSearch}
                 aria-label="Voice Search"
-                className={`p-2.5 touch-target rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                className={`p-2 rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
                   }`}
               >
-                <Mic className="w-5 h-5" />
+                <Mic className="w-4 h-4" />
               </button>
             )}
             {settings.enableVisualSearch && (
@@ -334,18 +334,18 @@ export default function MobileHomepage() {
                 type="button"
                 onClick={() => setIsCameraModalOpen(true)}
                 aria-label="Camera Search"
-                className="p-2.5 touch-target text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+                className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
               >
-                <Camera className="w-5 h-5" />
+                <Camera className="w-4 h-4" />
               </button>
             )}
             <button
               type="button"
               onClick={() => setIsCameraModalOpen(true)}
               aria-label="QR Code Scanner"
-              className="p-2.5 touch-target text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+              className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
             >
-              <QrCode className="w-5 h-5" />
+              <QrCode className="w-4 h-4" />
             </button>
           </div>
         </form>
@@ -357,7 +357,7 @@ export default function MobileHomepage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[24px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
+              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
@@ -420,10 +420,10 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. CATEGORY CARDS (h-155px, w-140px, rounded-22px, gap-14px)               */}
+      {/* 4. CATEGORY CAROUSEL (w-130px, h-150px, gap-3.5, radius-20px, equal cards)  */}
       {/* ========================================================================= */}
-      <section>
-        <div className="flex overflow-x-auto gap-[14px] hide-scrollbar scroll-smooth snap-x py-1">
+      <section className="mt-5">
+        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {MOBILE_NAV_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -432,13 +432,13 @@ export default function MobileHomepage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex flex-col items-center justify-between p-3.5 w-[140px] h-[155px] flex-none shrink-0 rounded-[22px] transition-all snap-start border ${isSelected
+                className={`flex flex-col items-center justify-between p-3 w-[130px] h-[150px] flex-none shrink-0 rounded-[20px] transition-all snap-start border ${isSelected
                     ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm'
                     : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50/50'
                   }`}
               >
-                <div className={`p-3 rounded-full mt-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  <Icon className="w-6 h-6" />
+                <div className={`p-2.5 rounded-full mt-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
                 <span className={`text-xs tracking-tight leading-tight text-center ${isSelected ? 'font-black text-blue-900' : 'font-semibold'}`}>
                   {cat.name}
@@ -448,10 +448,10 @@ export default function MobileHomepage() {
                 {isSelected ? (
                   <motion.div
                     layoutId="activeCategoryDot"
-                    className="w-6 h-1 bg-blue-600 rounded-full mt-1"
+                    className="w-5 h-1 bg-blue-600 rounded-full mt-0.5"
                   />
                 ) : (
-                  <div className="h-1 mt-1" />
+                  <div className="h-1 mt-0.5" />
                 )}
               </button>
             );
@@ -460,18 +460,18 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. PROMOTIONAL BANNER (h-380px, rounded-26px, pagination below)            */}
+      {/* 5. PROMOTIONAL BANNER (h-205px, radius-22px, pagination below)            */}
       {/* ========================================================================= */}
       {settings.enableBanner && banners.length > 0 && (
-        <section className="space-y-3">
-          <div className="relative rounded-[26px] overflow-hidden shadow-md border border-orange-100 h-[380px] bg-gray-900 w-full">
+        <section className="mt-5 space-y-2">
+          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 h-[205px] bg-gray-900 w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.3 }}
                 onClick={() => navigateBanner(banners[currentSlide].link)}
                 className="absolute inset-0 cursor-pointer group active:scale-[0.99] transition-transform"
               >
@@ -481,31 +481,31 @@ export default function MobileHomepage() {
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
-                <div className="absolute bottom-0 inset-x-0 p-5 text-white">
-                  <span className="inline-block px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full mb-1.5">
+                <div className="absolute bottom-0 inset-x-0 p-4 text-white">
+                  <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full mb-1">
                     {banners[currentSlide].subtitle || 'Special Offer'}
                   </span>
-                  <h2 className="text-xl font-black text-white leading-tight line-clamp-2">
+                  <h2 className="text-base font-black text-white leading-snug line-clamp-1">
                     {banners[currentSlide].title}
                   </h2>
-                  <div className="mt-3 inline-flex items-center gap-1.5 bg-white text-gray-900 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow">
-                    Shop Now <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
+                  <div className="mt-2 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow">
+                    Shop Now <ArrowRight className="w-3 h-3 text-emerald-600" />
                   </div>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* Pagination Indicators directly below banner with compact spacing */}
+          {/* Pagination Indicators directly below banner */}
           {banners.length > 1 && (
-            <div className="flex justify-center items-center gap-2">
+            <div className="flex justify-center items-center gap-1.5 pt-1">
               {banners.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentSlide(i)}
-                  className={`h-2 rounded-full transition-all ${currentSlide === i ? 'w-6 bg-orange-500' : 'w-2 bg-gray-300'
+                  className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-gray-300'
                     }`}
                 />
               ))}
@@ -515,36 +515,36 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. RECOMMENDED SECTION (Rounded green container, w-210px h-290px cards)   */}
+      {/* 6. RECOMMENDED PRODUCTS (w-200px h-300px cards, radius-20px, gap-3.5)     */}
       {/* ========================================================================= */}
-      <section className="bg-emerald-800/95 backdrop-blur-md rounded-[26px] p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
-        <div className="flex items-center justify-between px-1">
+      <section className="mt-5 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
+        <div className="flex items-center justify-between px-0.5">
           <div>
-            <h3 className="text-base font-black text-white tracking-tight flex items-center gap-2">
+            <h3 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300" />
               {personalizedTitle}
             </h3>
             <p className="text-[11px] text-emerald-200/90 font-medium">Tailored to your preferences</p>
           </div>
-          <Link to="/products" className="text-xs font-black text-emerald-200 hover:text-white uppercase tracking-wider">
+          <Link to="/products" className="text-xs font-black text-emerald-200 hover:text-white uppercase tracking-wider shrink-0 ml-2">
             SEE ALL
           </Link>
         </div>
 
         {/* Horizontal Carousel: Recommended items */}
-        <div className="flex overflow-x-auto gap-[14px] hide-scrollbar scroll-smooth snap-x py-1">
+        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[210px] h-[290px] bg-white/10 rounded-[22px] animate-pulse shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white/10 rounded-[20px] animate-pulse shrink-0" />
             ))
           ) : (
             filteredProducts.slice(0, 8).map((product) => (
               <MobileProductCardItem
                 key={`personalized-${product.id}`}
                 product={product}
-                widthClass="w-[210px] min-w-[210px] max-w-[210px]"
-                heightClass="h-[290px]"
-                cardRadius="rounded-[22px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
+                cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/product/${product.id}`)}
@@ -555,12 +555,12 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 7. SECONDARY BANNER (h-165px, rounded-24px, object-cover)                 */}
+      {/* 7. ADDITIONAL SECTIONS (Secondary banner, trending, recent, trust badges)  */}
       {/* ========================================================================= */}
-      <section>
+      <section className="mt-5">
         <div
           onClick={() => navigateBanner(banners[1]?.link || banners[0]?.link || '/products')}
-          className="h-[165px] w-full rounded-[24px] overflow-hidden relative shadow-sm border border-orange-100 bg-gradient-to-r from-emerald-700 via-teal-600 to-orange-500 cursor-pointer active:scale-[0.99] transition-transform"
+          className="h-[165px] w-full rounded-[22px] overflow-hidden relative shadow-sm border border-orange-100 bg-gradient-to-r from-emerald-700 via-teal-600 to-orange-500 cursor-pointer active:scale-[0.99] transition-transform"
         >
           {banners[1]?.image ? (
             <img
@@ -570,29 +570,27 @@ export default function MobileHomepage() {
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-between p-5 text-white">
+            <div className="absolute inset-0 flex items-center justify-between p-4 sm:p-5 text-white">
               <div className="max-w-[70%] space-y-1">
                 <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
                   Featured Deals
                 </span>
-                <h3 className="text-base font-black leading-tight">
+                <h3 className="text-sm sm:text-base font-black leading-tight">
                   Exclusive Savings & Cashback
                 </h3>
                 <p className="text-xs text-white/80 font-medium">Up to 50% OFF Top Categories</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-white text-emerald-700 flex items-center justify-center shadow shrink-0">
-                <ArrowRight className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-full bg-white text-emerald-700 flex items-center justify-center shadow shrink-0">
+                <ArrowRight className="w-4 h-4" />
               </div>
             </div>
           )}
         </div>
       </section>
 
-      {/* ========================================================================= */}
-      {/* TRENDING & POPULAR PRODUCTS CAROUSELS                                     */}
-      {/* ========================================================================= */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+      {/* Trending & Popular Products Carousels */}
+      <section className="mt-5 space-y-3">
+        <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
               <Flame className="w-3.5 h-3.5 fill-rose-500" />
@@ -604,19 +602,19 @@ export default function MobileHomepage() {
           </Link>
         </div>
 
-        <div className="flex overflow-x-auto gap-[14px] hide-scrollbar scroll-smooth snap-x py-1">
+        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[210px] h-[290px] bg-white rounded-[22px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             products.slice(0, 10).map((product) => (
               <MobileProductCardItem
                 key={`trending-${product.id}`}
                 product={product}
-                widthClass="w-[210px] min-w-[210px] max-w-[210px]"
-                heightClass="h-[290px]"
-                cardRadius="rounded-[22px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
+                cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/product/${product.id}`)}
@@ -627,8 +625,8 @@ export default function MobileHomepage() {
       </section>
 
       {/* Recently Viewed / Popular Products Carousel */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+      <section className="mt-5 space-y-3">
+        <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
               <History className="w-3.5 h-3.5" />
@@ -640,19 +638,19 @@ export default function MobileHomepage() {
           </Link>
         </div>
 
-        <div className="flex overflow-x-auto gap-[14px] hide-scrollbar scroll-smooth snap-x py-1">
+        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[210px] h-[290px] bg-white rounded-[22px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             [...products].reverse().slice(0, 8).map((product) => (
               <MobileProductCardItem
                 key={`recent-${product.id}`}
                 product={product}
-                widthClass="w-[210px] min-w-[210px] max-w-[210px]"
-                heightClass="h-[290px]"
-                cardRadius="rounded-[22px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
+                cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/product/${product.id}`)}
@@ -663,15 +661,15 @@ export default function MobileHomepage() {
       </section>
 
       {/* Trust & Guarantee Grid for Mobile */}
-      <section className="bg-white rounded-[24px] p-4 shadow-sm border border-orange-100/80 grid grid-cols-2 gap-3">
+      <section className="mt-5 bg-white rounded-[22px] p-4 shadow-sm border border-orange-100/80 grid grid-cols-2 gap-3">
         {[
           { icon: Truck, title: 'Free Shipping', sub: 'On orders > ₹500', color: 'text-emerald-600 bg-emerald-50' },
           { icon: ShieldCheck, title: '100% Protected', sub: 'Secure Checkout', color: 'text-blue-600 bg-blue-50' },
           { icon: RefreshCcw, title: '7 Days Return', sub: 'Easy Replacement', color: 'text-amber-600 bg-amber-50' },
           { icon: Headset, title: '24/7 Support', sub: 'Instant Assistance', color: 'text-purple-600 bg-purple-50' }
         ].map((f, idx) => (
-          <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-gray-50/70 border border-gray-100">
-            <div className={`p-2 rounded-xl ${f.color}`}>
+          <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-50/70 border border-gray-100">
+            <div className={`p-2 rounded-lg ${f.color}`}>
               <f.icon className="w-4 h-4" />
             </div>
             <div>
@@ -717,9 +715,9 @@ interface MobileProductCardItemProps {
 
 function MobileProductCardItem({
   product,
-  widthClass = "w-[210px] min-w-[210px] max-w-[210px]",
-  heightClass = "h-[290px]",
-  cardRadius = "rounded-[22px]",
+  widthClass = "w-[200px] min-w-[200px] max-w-[200px]",
+  heightClass = "h-[300px]",
+  cardRadius = "rounded-[20px]",
   onAddToCart,
   onBuyNow,
   onCardClick
@@ -738,8 +736,8 @@ function MobileProductCardItem({
       onClick={onCardClick}
       className={`bg-white ${cardRadius} ${widthClass} ${heightClass} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all`}
     >
-      {/* Product Image */}
-      <div className="relative aspect-square rounded-[16px] overflow-hidden bg-gray-50 mb-2 shrink-0">
+      {/* Product Image (Height 145-165px, aspect-square) */}
+      <div className="relative h-[150px] w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
@@ -748,18 +746,18 @@ function MobileProductCardItem({
         />
 
         {discountPercentage > 0 && (
-          <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm">
+          <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm z-10">
             {discountPercentage}% OFF
           </span>
         )}
 
-        <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+        <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 z-10">
           <span>{product.rating || 4.5}</span>
           <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
         </div>
       </div>
 
-      {/* Brand & Name */}
+      {/* Brand & Name (Max 2 lines) */}
       <div className="flex flex-col flex-1 min-w-0 mb-1">
         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
           {product.brand || 'ViBa Select'}
@@ -797,7 +795,7 @@ function MobileProductCardItem({
               <button
                 onClick={onAddToCart}
                 aria-label="Add to Cart"
-                className="p-2 touch-target bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
+                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
               </button>
