@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, Mic, Camera, QrCode, MapPin, ChevronDown,
-  Sparkles, Flame, Gift, Heart, Shirt, Smartphone,
+  Sparkles, Flame, Gift, Zap, Heart, Shirt, Smartphone,
   Laptop, Home as HomeIcon, Tv, ShoppingCart, Star,
   TrendingUp, History, ArrowRight, Truck, ShieldCheck,
-  RefreshCcw, Headset
+  RefreshCcw, Headset, Tag, Award, User, Grid
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
@@ -67,7 +67,7 @@ export default function MobileHomepage() {
     }
   }, [isSearchFocused]);
 
-  // Categories definition (Vertical layout cards: Icon + Name + Active indicator)
+  // Categories definition
   const MOBILE_NAV_CATEGORIES = [
     { id: 'for-you', name: 'For You', icon: Sparkles },
     { id: 'fashion', name: 'Fashion', icon: Shirt },
@@ -231,23 +231,23 @@ export default function MobileHomepage() {
     : 'Recommended For You';
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-28 px-3.5 xs:px-4 sm:px-5 pt-3.5 space-y-4.5 xs:space-y-5 font-sans select-none overflow-x-hidden">
+    <div className="min-h-screen bg-[#FFF3EB] pb-32 px-3.5 xs:px-4 sm:px-5 pt-4 space-y-5 font-sans select-none overflow-x-hidden">
 
       {/* ========================================================================= */}
-      {/* 1. VIBA + REWARDS (2 equal cards side-by-side: min-h:90px, preferred:98px, max-h:115px, radius:22px) */}
+      {/* 1. VIBA + REWARDS (2 equal cards in 1 row, h:100-120px, radius:20-24px)   */}
       {/* ========================================================================= */}
-      <section className="w-full">
-        <div className="grid grid-cols-2 gap-2.5 xs:gap-3.5 sm:gap-4 w-full">
+      <section>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
           {/* Card 1: VIBA */}
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="min-h-[90px] h-[98px] max-h-[115px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-2.5 xs:p-3 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-all text-center"
+            className="h-[110px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-3 sm:p-3.5 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
-            <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner shrink-0">
-              <Logo iconOnly className="scale-60" />
+            <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
+              <Logo iconOnly className="scale-65" />
             </div>
-            <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase text-white drop-shadow-sm leading-none">
+            <span className="text-[11px] font-black tracking-wider uppercase text-white drop-shadow-sm">
               VIBA
             </span>
           </motion.div>
@@ -256,12 +256,12 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="min-h-[90px] h-[98px] max-h-[115px] w-full bg-white rounded-[22px] p-2.5 xs:p-3 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-center hover:border-emerald-300"
+            className="h-[110px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shrink-0">
-              <Gift className="w-4 h-4" />
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
+              <Gift className="w-5 h-5" />
             </div>
-            <span className="text-[10px] sm:text-xs font-black tracking-wider text-gray-900 uppercase leading-none">
+            <span className="text-[11px] font-black tracking-wider text-gray-900 uppercase">
               REWARDS
             </span>
           </motion.div>
@@ -269,44 +269,43 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. DELIVERY ADDRESS CARD (min-h:82px, preferred:88px, max-h:105px, radius:22px, padding:12-16px) */}
+      {/* 2. DELIVERY ADDRESS CARD (h-105px, mt-5, radius-22px, icon left, right dropdown) */}
       {/* ========================================================================= */}
-      <section className="mt-4 sm:mt-5">
+      <section className="mt-5">
         <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          className="min-h-[82px] h-[90px] max-h-[105px] w-full bg-white/95 backdrop-blur-md rounded-[22px] p-3 sm:p-4 shadow-sm border border-yellow-200/80 flex items-center justify-between cursor-pointer hover:border-yellow-400 transition-all"
+          className="h-[105px] w-full bg-white/95 backdrop-blur-md rounded-[22px] px-4 py-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-            <div className="w-9.5 h-9.5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-              <MapPin className="w-4.5 h-4.5 text-emerald-600 fill-emerald-100" />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+              <MapPin className="w-5 h-5 text-emerald-600 fill-emerald-100" />
             </div>
-            <div className="flex flex-col min-w-0 flex-1 justify-center">
-              <div className="flex items-center gap-1.5 flex-wrap leading-tight">
-                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-gray-900">
+            <div className="flex flex-col justify-center min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-900">
                   HOME
                 </span>
-                <span className="text-gray-300 font-bold">•</span>
-                <span className="text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100/80">
-                  {userPincode}
+                <span className="text-xs font-bold text-gray-500">
+                  ({userPincode})
                 </span>
               </div>
-              <p className="text-xs font-semibold text-gray-600 line-clamp-2 leading-snug mt-1">
+              <p className="text-xs font-semibold text-gray-600 truncate leading-snug">
                 {userAddress}
               </p>
             </div>
           </div>
-          <ChevronDown className="w-4.5 h-4.5 text-gray-400 shrink-0 ml-1" />
+          <ChevronDown className="w-5 h-5 text-gray-400 shrink-0 ml-2" />
         </motion.div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. SEARCH BAR (min-h:52px, preferred:58px, max-h:64px, radius:20px) */}
+      {/* 3. SEARCH BAR (h-60px, mt-5, radius-18px, flexible width, compact icons)   */}
       {/* ========================================================================= */}
-      <section className="relative mt-4 sm:mt-5">
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center min-h-[52px] h-[58px] max-h-[64px]">
-          <div className="absolute left-3.5 z-10 flex items-center pointer-events-none text-gray-400">
-            <Search className="w-4.5 h-4.5 text-emerald-600" />
+      <section className="relative mt-5">
+        <form onSubmit={handleSearchSubmit} className="relative flex items-center h-[50px]">
+          <div className="absolute left-4 z-10 flex items-center pointer-events-none text-gray-400">
+            <Search className="w-5 h-5 text-emerald-600" />
           </div>
           <input
             ref={searchInputRef}
@@ -315,16 +314,16 @@ export default function MobileHomepage() {
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white min-h-[52px] h-[58px] max-h-[64px] rounded-[20px] pl-10 pr-28 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-yellow-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
+            className="w-full bg-white h-[50px] rounded-[18px] pl-11 pr-28 text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
           />
 
-          <div className="absolute right-1.5 flex items-center gap-0.5 bg-white pl-1 rounded-r-[20px]">
+          <div className="absolute right-2 flex items-center gap-1 bg-white pl-1 rounded-r-[18px]">
             {settings.enableVoiceSearch && (
               <button
                 type="button"
                 onClick={startVoiceSearch}
                 aria-label="Voice Search"
-                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all touch-target ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                className={`p-2 rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
                   }`}
               >
                 <Mic className="w-4 h-4" />
@@ -335,7 +334,7 @@ export default function MobileHomepage() {
                 type="button"
                 onClick={() => setIsCameraModalOpen(true)}
                 aria-label="Camera Search"
-                className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full touch-target"
+                className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
               >
                 <Camera className="w-4 h-4" />
               </button>
@@ -344,7 +343,7 @@ export default function MobileHomepage() {
               type="button"
               onClick={() => setIsCameraModalOpen(true)}
               aria-label="QR Code Scanner"
-              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full touch-target"
+              className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
             >
               <QrCode className="w-4 h-4" />
             </button>
@@ -358,7 +357,7 @@ export default function MobileHomepage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-yellow-100 p-4 z-40 space-y-4"
+              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
@@ -396,7 +395,7 @@ export default function MobileHomepage() {
 
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-yellow-600" />
+                  <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
                   <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Trending Searches</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -408,7 +407,7 @@ export default function MobileHomepage() {
                         navigate(`/products?q=${t}`);
                         setIsSearchFocused(false);
                       }}
-                      className="bg-yellow-50 text-yellow-800 border border-yellow-200/80 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+                      className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
                     >
                       🔥 {t}
                     </button>
@@ -421,11 +420,10 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. CATEGORY CAROUSEL (Vertical Layout: Width:130px, Height:155px, min-h:135px, max-h:175px, radius:20px) */}
-      {/* Structure: [ Large Icon ] -> Category Name -> Active Indicator */}
+      {/* 4. CATEGORY CAROUSEL (w-130px, h-150px, gap-3.5, radius-20px, equal cards)  */}
       {/* ========================================================================= */}
-      <section className="mt-4.5 sm:mt-5">
-        <div className="flex overflow-x-auto gap-3 hide-scrollbar scroll-smooth snap-x py-1">
+      <section className="mt-5">
+        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {MOBILE_NAV_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -434,39 +432,27 @@ export default function MobileHomepage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex flex-col items-center justify-between p-3.5 w-[130px] min-w-[130px] max-w-[135px] min-h-[135px] h-[155px] max-h-[175px] flex-none shrink-0 rounded-[20px] transition-all snap-start border text-center ${
-                  isSelected
-                    ? 'bg-gradient-to-b from-emerald-50/90 to-white border-emerald-300 shadow-md ring-2 ring-emerald-400/20'
-                    : 'bg-white border-yellow-100/90 text-gray-700 hover:bg-yellow-50/40 shadow-sm'
-                }`}
+                className={`flex flex-col items-center justify-between p-3 w-[130px] h-[150px] flex-none shrink-0 rounded-[20px] transition-all snap-start border ${isSelected
+                  ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm'
+                  : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50/50'
+                  }`}
               >
-                {/* Top: Large Icon */}
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                  isSelected
-                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md shadow-emerald-600/30 scale-105'
-                    : 'bg-emerald-50/80 text-emerald-700 border border-emerald-100'
-                }`}>
-                  <Icon className="w-6 h-6 stroke-[2]" />
+                <div className={`p-2.5 rounded-full mt-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
-
-                {/* Middle: Category Name */}
-                <span className={`text-xs tracking-tight leading-tight line-clamp-2 px-1 my-1 ${
-                  isSelected ? 'font-extrabold text-emerald-950 scale-[1.02]' : 'font-semibold text-gray-800'
-                }`}>
+                <span className={`text-xs tracking-tight leading-tight text-center ${isSelected ? 'font-black text-blue-900' : 'font-semibold'}`}>
                   {cat.name}
                 </span>
 
-                {/* Bottom: Active Indicator */}
-                <div className="h-2 flex items-center justify-center shrink-0">
-                  {isSelected ? (
-                    <motion.div
-                      layoutId="categoryActiveBar"
-                      className="w-7 h-1.5 bg-gradient-to-r from-emerald-600 to-yellow-500 rounded-full shadow-sm"
-                    />
-                  ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-gray-200" />
-                  )}
-                </div>
+                {/* Active indicator bar */}
+                {isSelected ? (
+                  <motion.div
+                    layoutId="activeCategoryDot"
+                    className="w-5 h-1 bg-blue-600 rounded-full mt-0.5"
+                  />
+                ) : (
+                  <div className="h-1 mt-0.5" />
+                )}
               </button>
             );
           })}
@@ -474,11 +460,11 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. PROMOTIONAL BANNER (Height:200px, min-h:170px, max-h:230px, radius:22px, object-fit:cover) */}
+      {/* 5. PROMOTIONAL BANNER (h-205px, radius-22px, pagination below)            */}
       {/* ========================================================================= */}
       {settings.enableBanner && banners.length > 0 && (
-        <section className="mt-4.5 sm:mt-5 space-y-2">
-          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-yellow-100 min-h-[170px] h-[200px] max-h-[230px] bg-gray-900 w-full">
+        <section className="mt-5 space-y-2">
+          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 h-[205px] bg-gray-900 w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide}
@@ -497,14 +483,14 @@ export default function MobileHomepage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
-                <div className="absolute bottom-0 inset-x-0 p-3.5 sm:p-4 text-white">
-                  <span className="inline-block px-2.5 py-0.5 bg-yellow-500 text-gray-950 text-[9px] font-black uppercase tracking-widest rounded-full mb-1">
+                <div className="absolute bottom-0 inset-x-0 p-4 text-white">
+                  <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full mb-1">
                     {banners[currentSlide].subtitle || 'Special Offer'}
                   </span>
-                  <h2 className="text-sm sm:text-base font-black text-white leading-snug line-clamp-1">
+                  <h2 className="text-base font-black text-white leading-snug line-clamp-1">
                     {banners[currentSlide].title}
                   </h2>
-                  <div className="mt-1.5 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow">
+                  <div className="mt-2 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow">
                     Shop Now <ArrowRight className="w-3 h-3 text-emerald-600" />
                   </div>
                 </div>
@@ -514,13 +500,12 @@ export default function MobileHomepage() {
 
           {/* Pagination Indicators directly below banner */}
           {banners.length > 1 && (
-            <div className="flex justify-center items-center gap-1.5 pt-0.5">
+            <div className="flex justify-center items-center gap-1.5 pt-1">
               {banners.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentSlide(i)}
-                  aria-label={`Go to slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-5 bg-yellow-500' : 'w-1.5 bg-gray-300'
+                  className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-gray-300'
                     }`}
                 />
               ))}
@@ -530,18 +515,16 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. RECOMMENDED FOR YOU HEADER & CAROUSEL */}
-      {/* Header: ⭐ Recommended For You ... SEE ALL | Subtitle: Tailored to your preferences */}
-      {/* Card width:195px, height:300px (min-h:280px, max-h:325px, radius:20px) */}
+      {/* 6. RECOMMENDED PRODUCTS (w-200px h-300px cards, radius-20px, gap-3.5)     */}
       {/* ========================================================================= */}
-      <section className="mt-4.5 sm:mt-5 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
+      <section className="mt-5 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
         <div className="flex items-center justify-between px-0.5">
           <div>
-            <h3 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-1.5 leading-snug">
-              <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
+            <h3 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300" />
               {personalizedTitle}
             </h3>
-            <p className="text-[11px] text-emerald-200/90 font-medium leading-tight mt-0.5">Tailored to your preferences</p>
+            <p className="text-[11px] text-emerald-200/90 font-medium">Tailored to your preferences</p>
           </div>
           <Link to="/products" className="text-xs font-black text-emerald-200 hover:text-white uppercase tracking-wider shrink-0 ml-2">
             SEE ALL
@@ -552,15 +535,15 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[195px] min-w-[195px] max-w-[205px] min-h-[280px] h-[300px] max-h-[325px] bg-white/10 rounded-[20px] animate-pulse shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white/10 rounded-[20px] animate-pulse shrink-0" />
             ))
           ) : (
             filteredProducts.slice(0, 8).map((product) => (
               <MobileProductCardItem
                 key={`personalized-${product.id}`}
                 product={product}
-                widthClass="w-[195px] min-w-[195px] max-w-[205px]"
-                heightClass="min-h-[280px] h-[300px] max-h-[325px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -574,10 +557,10 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 7. ADDITIONAL SECTIONS (Secondary banner, trending, recent, trust badges)  */}
       {/* ========================================================================= */}
-      <section className="mt-4.5 sm:mt-5">
+      <section className="mt-5">
         <div
           onClick={() => navigateBanner(banners[1]?.link || banners[0]?.link || '/products')}
-          className="min-h-[110px] h-[125px] max-h-[140px] w-full rounded-[20px] overflow-hidden relative shadow-sm border border-yellow-100 bg-gradient-to-r from-emerald-700 via-teal-600 to-yellow-500 cursor-pointer active:scale-[0.99] transition-transform"
+          className="h-[165px] w-full rounded-[22px] overflow-hidden relative shadow-sm border border-orange-100 bg-gradient-to-r from-emerald-700 via-teal-600 to-orange-500 cursor-pointer active:scale-[0.99] transition-transform"
         >
           {banners[1]?.image ? (
             <img
@@ -589,7 +572,7 @@ export default function MobileHomepage() {
           ) : (
             <div className="absolute inset-0 flex items-center justify-between p-4 sm:p-5 text-white">
               <div className="max-w-[70%] space-y-1">
-                <span className="inline-block px-2.5 py-0.5 bg-yellow-400 text-gray-950 text-[9px] font-black uppercase tracking-widest rounded-full">
+                <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
                   Featured Deals
                 </span>
                 <h3 className="text-sm sm:text-base font-black leading-tight">
@@ -606,7 +589,7 @@ export default function MobileHomepage() {
       </section>
 
       {/* Trending & Popular Products Carousels */}
-      <section className="mt-4.5 sm:mt-5 space-y-3">
+      <section className="mt-5 space-y-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
@@ -622,15 +605,15 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[195px] min-w-[195px] max-w-[205px] min-h-[280px] h-[300px] max-h-[325px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             products.slice(0, 10).map((product) => (
               <MobileProductCardItem
                 key={`trending-${product.id}`}
                 product={product}
-                widthClass="w-[195px] min-w-[195px] max-w-[205px]"
-                heightClass="min-h-[280px] h-[300px] max-h-[325px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -642,10 +625,10 @@ export default function MobileHomepage() {
       </section>
 
       {/* Recently Viewed / Popular Products Carousel */}
-      <section className="mt-4.5 sm:mt-5 space-y-3">
+      <section className="mt-5 space-y-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-yellow-100 text-yellow-800 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
               <History className="w-3.5 h-3.5" />
             </div>
             <h3 className="text-sm font-black text-gray-900 tracking-tight">Recently Viewed & Popular</h3>
@@ -658,15 +641,15 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[195px] min-w-[195px] max-w-[205px] min-h-[280px] h-[300px] max-h-[325px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             [...products].reverse().slice(0, 8).map((product) => (
               <MobileProductCardItem
                 key={`recent-${product.id}`}
                 product={product}
-                widthClass="w-[195px] min-w-[195px] max-w-[205px]"
-                heightClass="min-h-[280px] h-[300px] max-h-[325px]"
+                widthClass="w-[200px] min-w-[200px] max-w-[200px]"
+                heightClass="h-[300px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -678,11 +661,11 @@ export default function MobileHomepage() {
       </section>
 
       {/* Trust & Guarantee Grid for Mobile */}
-      <section className="mt-4.5 sm:mt-5 bg-white rounded-[22px] p-4 shadow-sm border border-yellow-100/80 grid grid-cols-2 gap-3">
+      <section className="mt-5 bg-white rounded-[22px] p-4 shadow-sm border border-orange-100/80 grid grid-cols-2 gap-3">
         {[
           { icon: Truck, title: 'Free Shipping', sub: 'On orders > ₹500', color: 'text-emerald-600 bg-emerald-50' },
           { icon: ShieldCheck, title: '100% Protected', sub: 'Secure Checkout', color: 'text-blue-600 bg-blue-50' },
-          { icon: RefreshCcw, title: '7 Days Return', sub: 'Easy Replacement', color: 'text-yellow-700 bg-yellow-50' },
+          { icon: RefreshCcw, title: '7 Days Return', sub: 'Easy Replacement', color: 'text-amber-600 bg-amber-50' },
           { icon: Headset, title: '24/7 Support', sub: 'Instant Assistance', color: 'text-purple-600 bg-purple-50' }
         ].map((f, idx) => (
           <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-50/70 border border-gray-100">
@@ -732,8 +715,8 @@ interface MobileProductCardItemProps {
 
 function MobileProductCardItem({
   product,
-  widthClass = "w-[195px] min-w-[195px] max-w-[205px]",
-  heightClass = "min-h-[280px] h-[300px] max-h-[325px]",
+  widthClass = "w-[200px] min-w-[200px] max-w-[200px]",
+  heightClass = "h-[300px]",
   cardRadius = "rounded-[20px]",
   onAddToCart,
   onBuyNow,
@@ -751,10 +734,10 @@ function MobileProductCardItem({
     <motion.div
       whileTap={{ scale: 0.97 }}
       onClick={onCardClick}
-      className={`bg-white ${cardRadius} ${widthClass} ${heightClass} p-3 shadow-sm border border-yellow-100/90 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all`}
+      className={`bg-white ${cardRadius} ${widthClass} ${heightClass} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all`}
     >
-      {/* Product Image (Height 125-145px -> h-[135px]) */}
-      <div className="relative h-[135px] w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0">
+      {/* Product Image (Height 145-165px, aspect-square) */}
+      <div className="relative h-[150px] w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
@@ -770,23 +753,23 @@ function MobileProductCardItem({
 
         <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 z-10">
           <span>{product.rating || 4.5}</span>
-          <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
         </div>
       </div>
 
-      {/* Brand & Name (Max 2 lines, flex-1 to equalize name space) */}
+      {/* Brand & Name (Max 2 lines) */}
       <div className="flex flex-col flex-1 min-w-0 mb-1">
         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
           {product.brand || 'ViBa Select'}
         </span>
-        <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5 min-h-[30px]">
+        <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
           {product.name}
         </h4>
       </div>
 
-      {/* Pricing & Actions (Fixed at bottom via mt-auto) */}
-      <div className="mt-auto space-y-2 pt-1 border-t border-gray-100 shrink-0">
-        <div className="flex items-baseline gap-1.5 flex-wrap min-h-[20px]">
+      {/* Pricing & Actions */}
+      <div className="mt-auto space-y-2 pt-1 border-t border-gray-100">
+        <div className="flex items-baseline gap-1.5 flex-wrap">
           <span className="text-sm font-black text-gray-900">
             ₹{(product.discountPrice || product.price || 0).toLocaleString()}
           </span>
@@ -802,9 +785,9 @@ function MobileProductCardItem({
           {isInCart ? (
             <button
               onClick={onAddToCart}
-              className="w-full py-2 px-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 border border-emerald-200 active:scale-95"
+              className="w-full py-2 px-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 border border-blue-200 active:scale-95"
             >
-              <ShoppingCart className="w-3.5 h-3.5 text-emerald-600" />
+              <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
               Go to Cart
             </button>
           ) : (
@@ -812,14 +795,14 @@ function MobileProductCardItem({
               <button
                 onClick={onAddToCart}
                 aria-label="Add to Cart"
-                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95 touch-target"
+                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
               </button>
 
               <button
                 onClick={onBuyNow}
-                className="flex-1 py-2 px-2 bg-gradient-to-r from-emerald-600 to-yellow-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-sm active:scale-95 transition-all text-center truncate"
+                className="flex-1 py-2 px-2 bg-gradient-to-r from-emerald-600 to-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-sm active:scale-95 transition-all text-center truncate"
               >
                 Buy Now
               </button>
