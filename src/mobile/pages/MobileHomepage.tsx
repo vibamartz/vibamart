@@ -234,7 +234,7 @@ export default function MobileHomepage() {
     <div className="min-h-screen bg-[#FFF3EB] pb-32 px-3.5 xs:px-4 sm:px-5 pt-4 space-y-5 font-sans select-none overflow-x-hidden">
 
       {/* ========================================================================= */}
-      {/* 1. VIBA + REWARDS (2 equal cards in 1 row, h:100-120px, radius:20-24px)   */}
+      {/* 1. VIBA + REWARDS (2 equal cards in 1 row, h:90-100px -> h-[95px], radius:20-24px) */}
       {/* ========================================================================= */}
       <section>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
@@ -242,12 +242,12 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="h-[110px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-3 sm:p-3.5 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
+            className="h-[95px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-2.5 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
-              <Logo iconOnly className="scale-65" />
+            <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
+              <Logo iconOnly className="scale-60" />
             </div>
-            <span className="text-[11px] font-black tracking-wider uppercase text-white drop-shadow-sm">
+            <span className="text-[10px] font-black tracking-wider uppercase text-white drop-shadow-sm">
               VIBA
             </span>
           </motion.div>
@@ -256,12 +256,12 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="h-[110px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+            className="h-[95px] w-full bg-white rounded-[22px] p-2.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95 transition-transform"
           >
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
-              <Gift className="w-5 h-5" />
+            <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
+              <Gift className="w-4 h-4" />
             </div>
-            <span className="text-[11px] font-black tracking-wider text-gray-900 uppercase">
+            <span className="text-[10px] font-black tracking-wider text-gray-900 uppercase">
               REWARDS
             </span>
           </motion.div>
@@ -269,43 +269,39 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. DELIVERY ADDRESS CARD (h-105px, mt-5, radius-22px, icon left, right dropdown) */}
+      {/* 2. DELIVERY ADDRESS CARD (h:20-50px -> h-[46px], mt-5, radius-22px)        */}
       {/* ========================================================================= */}
       <section className="mt-5">
         <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          className="h-[105px] w-full bg-white/95 backdrop-blur-md rounded-[22px] px-4 py-3 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
+          className="h-[46px] w-full bg-white/95 backdrop-blur-md rounded-[22px] px-4 py-2 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-              <MapPin className="w-5 h-5 text-emerald-600 fill-emerald-100" />
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
             </div>
-            <div className="flex flex-col justify-center min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-xs font-black uppercase tracking-wider text-gray-900">
-                  HOME
-                </span>
-                <span className="text-xs font-bold text-gray-500">
-                  ({userPincode})
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-gray-600 truncate leading-snug">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-gray-900 shrink-0">
+                HOME ({userPincode})
+              </span>
+              <span className="text-gray-300 text-xs shrink-0">•</span>
+              <p className="text-xs font-semibold text-gray-600 truncate">
                 {userAddress}
               </p>
             </div>
           </div>
-          <ChevronDown className="w-5 h-5 text-gray-400 shrink-0 ml-2" />
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1.5" />
         </motion.div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. SEARCH BAR (h-60px, mt-5, radius-18px, flexible width, compact icons)   */}
+      {/* 3. SEARCH BAR (h:50-62px -> h-[54px], mt-5, radius-18px)                   */}
       {/* ========================================================================= */}
       <section className="relative mt-5">
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center h-[60px]">
-          <div className="absolute left-4 z-10 flex items-center pointer-events-none text-gray-400">
-            <Search className="w-5 h-5 text-emerald-600" />
+        <form onSubmit={handleSearchSubmit} className="relative flex items-center h-[54px]">
+          <div className="absolute left-3.5 z-10 flex items-center pointer-events-none text-gray-400">
+            <Search className="w-4.5 h-4.5 text-emerald-600" />
           </div>
           <input
             ref={searchInputRef}
@@ -314,7 +310,7 @@ export default function MobileHomepage() {
             value={searchQuery}
             onFocus={() => setIsSearchFocused(true)}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white h-[60px] rounded-[18px] pl-11 pr-28 text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
+            className="w-full bg-white h-[54px] rounded-[18px] pl-10 pr-28 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all"
           />
 
           <div className="absolute right-2 flex items-center gap-1 bg-white pl-1 rounded-r-[18px]">
@@ -323,7 +319,7 @@ export default function MobileHomepage() {
                 type="button"
                 onClick={startVoiceSearch}
                 aria-label="Voice Search"
-                className={`p-2 rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                className={`p-1.5 rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
                   }`}
               >
                 <Mic className="w-4 h-4" />
@@ -334,7 +330,7 @@ export default function MobileHomepage() {
                 type="button"
                 onClick={() => setIsCameraModalOpen(true)}
                 aria-label="Camera Search"
-                className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+                className="p-1.5 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
               >
                 <Camera className="w-4 h-4" />
               </button>
@@ -343,7 +339,7 @@ export default function MobileHomepage() {
               type="button"
               onClick={() => setIsCameraModalOpen(true)}
               aria-label="QR Code Scanner"
-              className="p-2 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+              className="p-1.5 text-gray-400 hover:text-emerald-600 transition-all rounded-full"
             >
               <QrCode className="w-4 h-4" />
             </button>
@@ -420,7 +416,7 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. CATEGORY CAROUSEL (w-130px, h-150px, gap-3.5, radius-20px, equal cards)  */}
+      {/* 4. CATEGORY CAROUSEL (w-130px, h:50-60px -> h-[54px], gap-3.5, radius-20px) */}
       {/* ========================================================================= */}
       <section className="mt-5">
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
@@ -432,27 +428,17 @@ export default function MobileHomepage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex flex-col items-center justify-between p-3 w-[130px] h-[150px] flex-none shrink-0 rounded-[20px] transition-all snap-start border ${isSelected
-                    ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm'
+                className={`flex items-center gap-2.5 px-3 py-2 w-[130px] h-[54px] flex-none shrink-0 rounded-[20px] transition-all snap-start border ${isSelected
+                    ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm ring-1 ring-blue-300'
                     : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50/50'
                   }`}
               >
-                <div className={`p-2.5 rounded-full mt-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  <Icon className="w-5 h-5" />
+                <div className={`p-1.5 rounded-full shrink-0 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-                <span className={`text-xs tracking-tight leading-tight text-center ${isSelected ? 'font-black text-blue-900' : 'font-semibold'}`}>
+                <span className={`text-xs tracking-tight leading-tight truncate ${isSelected ? 'font-black text-blue-900' : 'font-semibold'}`}>
                   {cat.name}
                 </span>
-
-                {/* Active indicator bar */}
-                {isSelected ? (
-                  <motion.div
-                    layoutId="activeCategoryDot"
-                    className="w-5 h-1 bg-blue-600 rounded-full mt-0.5"
-                  />
-                ) : (
-                  <div className="h-1 mt-0.5" />
-                )}
               </button>
             );
           })}
@@ -460,11 +446,11 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. PROMOTIONAL BANNER (h-205px, radius-22px, pagination below)            */}
+      {/* 5. PROMOTIONAL BANNER (h:160-200px -> h-[180px], radius-22px)              */}
       {/* ========================================================================= */}
       {settings.enableBanner && banners.length > 0 && (
         <section className="mt-5 space-y-2">
-          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 h-[205px] bg-gray-900 w-full">
+          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 h-[180px] bg-gray-900 w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentSlide}
@@ -483,14 +469,14 @@ export default function MobileHomepage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
-                <div className="absolute bottom-0 inset-x-0 p-4 text-white">
-                  <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full mb-1">
+                <div className="absolute bottom-0 inset-x-0 p-3.5 text-white">
+                  <span className="inline-block px-2 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full mb-1">
                     {banners[currentSlide].subtitle || 'Special Offer'}
                   </span>
-                  <h2 className="text-base font-black text-white leading-snug line-clamp-1">
+                  <h2 className="text-sm font-black text-white leading-snug line-clamp-1">
                     {banners[currentSlide].title}
                   </h2>
-                  <div className="mt-2 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow">
+                  <div className="mt-1.5 inline-flex items-center gap-1 bg-white text-gray-900 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow">
                     Shop Now <ArrowRight className="w-3 h-3 text-emerald-600" />
                   </div>
                 </div>
@@ -500,7 +486,7 @@ export default function MobileHomepage() {
 
           {/* Pagination Indicators directly below banner */}
           {banners.length > 1 && (
-            <div className="flex justify-center items-center gap-1.5 pt-1">
+            <div className="flex justify-center items-center gap-1.5 pt-0.5">
               {banners.map((_, i) => (
                 <button
                   key={i}
@@ -515,7 +501,7 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. RECOMMENDED PRODUCTS (w-200px h-300px cards, radius-20px, gap-3.5)     */}
+      {/* 6. RECOMMENDED PRODUCTS (w-200px h-295px cards, image h-130px, radius-20px) */}
       {/* ========================================================================= */}
       <section className="mt-5 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
         <div className="flex items-center justify-between px-0.5">
@@ -535,7 +521,7 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[200px] h-[300px] bg-white/10 rounded-[20px] animate-pulse shrink-0" />
+              <div key={i} className="w-[200px] h-[295px] bg-white/10 rounded-[20px] animate-pulse shrink-0" />
             ))
           ) : (
             filteredProducts.slice(0, 8).map((product) => (
@@ -543,7 +529,7 @@ export default function MobileHomepage() {
                 key={`personalized-${product.id}`}
                 product={product}
                 widthClass="w-[200px] min-w-[200px] max-w-[200px]"
-                heightClass="h-[300px]"
+                heightClass="h-[295px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -605,7 +591,7 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[295px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             products.slice(0, 10).map((product) => (
@@ -613,7 +599,7 @@ export default function MobileHomepage() {
                 key={`trending-${product.id}`}
                 product={product}
                 widthClass="w-[200px] min-w-[200px] max-w-[200px]"
-                heightClass="h-[300px]"
+                heightClass="h-[295px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -641,7 +627,7 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="w-[200px] h-[300px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
+              <div key={i} className="w-[200px] h-[295px] bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" />
             ))
           ) : (
             [...products].reverse().slice(0, 8).map((product) => (
@@ -649,7 +635,7 @@ export default function MobileHomepage() {
                 key={`recent-${product.id}`}
                 product={product}
                 widthClass="w-[200px] min-w-[200px] max-w-[200px]"
-                heightClass="h-[300px]"
+                heightClass="h-[295px]"
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
@@ -716,7 +702,7 @@ interface MobileProductCardItemProps {
 function MobileProductCardItem({
   product,
   widthClass = "w-[200px] min-w-[200px] max-w-[200px]",
-  heightClass = "h-[300px]",
+  heightClass = "h-[295px]",
   cardRadius = "rounded-[20px]",
   onAddToCart,
   onBuyNow,
@@ -736,8 +722,8 @@ function MobileProductCardItem({
       onClick={onCardClick}
       className={`bg-white ${cardRadius} ${widthClass} ${heightClass} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all`}
     >
-      {/* Product Image (Height 145-165px, aspect-square) */}
-      <div className="relative h-[150px] w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0">
+      {/* Product Image (Height 125-135px -> h-[130px]) */}
+      <div className="relative h-[130px] w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
