@@ -151,7 +151,7 @@ export default function MobileCheckoutScreen() {
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-32 font-sans select-none p-3 space-y-3">
       {/* Checkout Title Header */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-black text-gray-900">Checkout & Payment</h2>
           <p className="text-[10px] text-gray-500 font-bold">Fast & Encrypted Delivery</p>
@@ -160,7 +160,7 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 1: Delivery Address & Phone */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between border-b border-gray-100 pb-2">
           <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
             <MapPin className="w-4 h-4 text-emerald-600" />
@@ -232,7 +232,7 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 2: Payment Method Selector */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
           <CreditCard className="w-4 h-4 text-emerald-600" />
           <span>Select Payment Option</span>
@@ -277,7 +277,7 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 3: Order Items Summary */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Order Items ({items.length})
         </h3>
@@ -302,7 +302,7 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 4: Final Price Breakdown */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2 text-xs">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-1.5">
           Payment Breakdown
         </h3>
@@ -325,7 +325,7 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Fixed Sticky Place Order Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-orange-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
         <div>
           <span className="text-[10px] font-black uppercase text-gray-400">Total Payable</span>
           <p className="text-base font-black text-gray-900">₹{grandTotal.toLocaleString()}</p>

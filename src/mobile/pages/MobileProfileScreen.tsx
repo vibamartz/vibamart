@@ -58,9 +58,9 @@ export default function MobileProfileScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFFDF5] pb-28 font-sans select-none p-3 space-y-3">
       {/* Profile Header Card */}
-      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-orange-600 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">
           <div className="w-16 h-16 rounded-full bg-white/20 p-1 backdrop-blur-md border-2 border-white/50 overflow-hidden shrink-0">
             <img src={userPhoto} alt={accountName} className="w-full h-full object-cover rounded-full" />
@@ -91,13 +91,13 @@ export default function MobileProfileScreen() {
       </div>
 
       {/* Account Navigation Grid */}
-      <div className="bg-white rounded-3xl p-2 shadow-sm border border-orange-100 divide-y divide-gray-100">
+      <div className="bg-white rounded-3xl p-2 shadow-sm border border-yellow-100 divide-y divide-gray-100">
         {menuItems.map((item, idx) => (
           <motion.div
             key={idx}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate(item.path)}
-            className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-orange-50/50 rounded-2xl transition-all"
+            className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-yellow-50/50 rounded-2xl transition-all"
           >
             <div className="flex items-center gap-3">
               <div className={`p-2.5 rounded-2xl ${item.color}`}>
@@ -108,7 +108,7 @@ export default function MobileProfileScreen() {
 
             <div className="flex items-center gap-2">
               {item.badge !== null && item.badge !== undefined && item.badge !== 0 && (
-                <span className="px-2 py-0.5 bg-orange-100 text-orange-800 text-[10px] font-black rounded-full">
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-900 text-[10px] font-black rounded-full">
                   {item.badge}
                 </span>
               )}
@@ -119,7 +119,7 @@ export default function MobileProfileScreen() {
       </div>
 
       {/* Logout Trigger Card */}
-      <div className="bg-white rounded-3xl p-2 shadow-sm border border-orange-100">
+      <div className="bg-white rounded-3xl p-2 shadow-sm border border-yellow-100">
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={handleLogout}

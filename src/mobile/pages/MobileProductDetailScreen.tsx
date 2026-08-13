@@ -250,7 +250,7 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Main Info Card */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
             {product.brand || 'ViBa Select'}
@@ -288,7 +288,7 @@ export default function MobileProductDetailScreen() {
 
       {/* Product Variants (Colors / Sizes / Extra Options) */}
       {product.variants && product.variants.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
           <label className="text-xs font-black text-gray-800 uppercase tracking-wider block">
             Select Option / Variant
           </label>
@@ -312,7 +312,7 @@ export default function MobileProductDetailScreen() {
       )}
 
       {/* Pincode & Delivery Checker */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2.5">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2.5">
         <div className="flex items-center gap-2 text-xs font-black text-gray-800 uppercase tracking-wider">
           <Truck className="w-4 h-4 text-emerald-600" />
           <span>Delivery Options & Availability</span>
@@ -352,7 +352,7 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* 7-Day Return Policy Notice */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 flex items-start gap-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-start gap-3">
         <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
           <RefreshCcw className="w-5 h-5" />
         </div>
@@ -367,7 +367,7 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Product Description & Specifications */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Product Description & Specs
         </h3>
@@ -391,7 +391,7 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Customer Reviews Section */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
             <MessageSquare className="w-4 h-4 text-emerald-600" />
@@ -432,12 +432,12 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Fixed Mobile Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-orange-100 p-3 shadow-lg flex items-center gap-2 max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center gap-2 max-w-md mx-auto">
         <button
           onClick={handleAddToCart}
           className={`flex-1 py-3.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
             isInCart
-              ? 'bg-blue-50 text-blue-800 border border-blue-200'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
               : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
           }`}
         >
@@ -447,7 +447,7 @@ export default function MobileProductDetailScreen() {
 
         <button
           onClick={handleBuyNow}
-          className="flex-1 py-3.5 px-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md active:scale-95"
+          className="flex-1 py-3.5 px-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-gray-950 rounded-2xl text-xs font-black uppercase tracking-wider shadow-md active:scale-95"
         >
           Buy Now
         </button>

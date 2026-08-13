@@ -42,7 +42,7 @@ export default function MobileCartScreen() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 rounded-3xl bg-orange-100/70 border border-orange-200 flex items-center justify-center mb-4 text-orange-600 shadow-inner">
+        <div className="w-20 h-20 rounded-3xl bg-yellow-100/70 border border-yellow-200 flex items-center justify-center mb-4 text-yellow-700 shadow-inner">
           <ShoppingBag className="w-10 h-10" />
         </div>
         <h2 className="text-lg font-black text-gray-900">Your Cart is Empty</h2>
@@ -62,7 +62,7 @@ export default function MobileCartScreen() {
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-32 font-sans select-none p-3 space-y-3">
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-black text-gray-900">
             Shopping Cart ({items.length} {items.length === 1 ? 'item' : 'items'})
@@ -104,7 +104,7 @@ export default function MobileCartScreen() {
             <motion.div
               key={`${item.productId}-${item.variantId || 'default'}`}
               layout
-              className="bg-white rounded-2xl p-3 shadow-sm border border-orange-100 flex gap-3 relative"
+              className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex gap-3 relative"
             >
               {/* Product Image */}
               <div 
@@ -182,7 +182,7 @@ export default function MobileCartScreen() {
       </div>
 
       {/* Bill Details Summary Card */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2.5">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2.5">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Price Details & Bill Breakdown
         </h3>
@@ -222,7 +222,7 @@ export default function MobileCartScreen() {
       </div>
 
       {/* Sticky Bottom Checkout Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-orange-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
         <div>
           <span className="text-[10px] font-black uppercase text-gray-400">Total</span>
           <p className="text-base font-black text-gray-900">₹{grandTotal.toLocaleString()}</p>

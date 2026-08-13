@@ -357,7 +357,7 @@ export default function AdminReturnsManagementView({
                           const isSelectedForReturn = selectedReturn.productIds?.includes(item.productId) || selectedReturn.productId === item.productId;
                           return (
                             <div key={idx} className={`flex gap-4 items-center p-3 rounded-2xl border ${
-                              isSelectedForReturn ? 'bg-orange-50/50 border-orange-200' : 'bg-white border-gray-100'
+                              isSelectedForReturn ? 'bg-yellow-50/50 border-yellow-200' : 'bg-white border-gray-100'
                             }`}>
                               <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover" />
                               <div className="flex-1 min-w-0">
@@ -365,7 +365,7 @@ export default function AdminReturnsManagementView({
                                 <p className="text-[10px] text-gray-500">Qty: {item.quantity} • ₹{item.price}</p>
                               </div>
                               {isSelectedForReturn && (
-                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-orange-100 text-orange-600 rounded">Returning</span>
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded">Returning</span>
                               )}
                             </div>
                           );

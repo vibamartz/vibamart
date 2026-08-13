@@ -29,7 +29,7 @@ export default function MobileNotificationsScreen() {
 
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <h2 className="text-sm font-black text-gray-900">Notifications ({notifications.length})</h2>
         <Bell className="w-5 h-5 text-emerald-600" />
       </div>
@@ -41,7 +41,7 @@ export default function MobileNotificationsScreen() {
               key={notif.id}
               onClick={() => handleMarkAsRead(notif.id)}
               className={`p-3.5 rounded-2xl border text-xs space-y-1 transition-all cursor-pointer ${
-                notif.read ? 'bg-white border-orange-100' : 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/10'
+                notif.read ? 'bg-white border-yellow-100' : 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/10'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -52,7 +52,7 @@ export default function MobileNotificationsScreen() {
             </div>
           ))
         ) : (
-          <div className="bg-white rounded-2xl p-8 text-center border border-orange-100">
+          <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100">
             <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
             <p className="text-xs font-bold text-gray-500">No new notifications.</p>
           </div>

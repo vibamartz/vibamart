@@ -82,7 +82,7 @@ export default function MobileOrdersScreen() {
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
       {/* Title & Filter Tabs */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black text-gray-900">My Orders ({orders.length})</h2>
           <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -115,7 +115,7 @@ export default function MobileOrdersScreen() {
       {loading ? (
         <div className="space-y-3">
           {Array(3).fill(0).map((_, i) => (
-            <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-orange-100" />
+            <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-yellow-100" />
           ))}
         </div>
       ) : filteredOrders.length > 0 ? (
@@ -129,7 +129,7 @@ export default function MobileOrdersScreen() {
                 key={order.id}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(`/track-order/${order.id}`)}
-                className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3 cursor-pointer hover:shadow-md transition-all"
+                className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3 cursor-pointer hover:shadow-md transition-all"
               >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
@@ -169,7 +169,7 @@ export default function MobileOrdersScreen() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl p-8 text-center border border-orange-100 space-y-2">
+        <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-2">
           <Package className="w-10 h-10 text-gray-300 mx-auto" />
           <p className="text-xs font-bold text-gray-600">No orders found in this section.</p>
           <button

@@ -68,7 +68,7 @@ export default function FeatureRegistryManagementView() {
         <div className="absolute right-0 top-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-orange-300 backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-yellow-300 backdrop-blur-md">
               <Layers className="w-3.5 h-3.5" />
               Shared Feature Registry
             </div>
@@ -224,7 +224,7 @@ export default function FeatureRegistryManagementView() {
               <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
                 <button
                   onClick={() => setEditingFeature(feature)}
-                  className="text-xs font-bold text-primary hover:text-orange-600 flex items-center gap-1.5"
+                  className="text-xs font-bold text-primary hover:text-yellow-600 flex items-center gap-1.5"
                 >
                   <Sliders className="w-3.5 h-3.5" />
                   Configure Settings
@@ -342,7 +342,7 @@ export default function FeatureRegistryManagementView() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 text-xs font-bold text-white bg-primary hover:bg-orange-600 rounded-xl shadow-lg shadow-primary/30 transition-all"
+                    className="px-6 py-2.5 text-xs font-bold text-white bg-primary hover:bg-yellow-600 rounded-xl shadow-lg shadow-primary/30 transition-all"
                   >
                     Save Changes
                   </button>

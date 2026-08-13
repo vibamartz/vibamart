@@ -338,7 +338,7 @@ export default function ProductDetail() {
                        className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
                            (!isLocationAvailable || (!isInCart && (currentVariant ? currentVariant.stock === 0 : product.stock === 0)))
                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                           : 'bg-[#ff9f00] text-white shadow-orange-100 hover:bg-[#f39700] active:scale-95'
+                           : 'bg-yellow-400 text-gray-950 shadow-yellow-100 hover:bg-yellow-300 active:scale-95'
                        }`}
                    >
                        <ShoppingCart className="w-5 h-5" /> {isInCart ? 'Go to Cart' : 'Add to Cart'}
@@ -349,7 +349,7 @@ export default function ProductDetail() {
                        className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
                            (!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                           : 'bg-[#fb641b] text-white shadow-orange-200 hover:bg-[#f15e17] active:scale-95'
+                           : 'bg-amber-500 text-gray-950 shadow-amber-200 hover:bg-amber-400 active:scale-95'
                        }`}
                    >
                        Buy Now

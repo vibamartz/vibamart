@@ -202,7 +202,7 @@ export default function SellerDashboard() {
                 trend="+5.1%" 
                 isUp={true} 
                 icon={CreditCard} 
-                color="from-amber-400 to-orange-500" 
+                color="from-amber-400 to-yellow-500" 
               />
             </div>
 

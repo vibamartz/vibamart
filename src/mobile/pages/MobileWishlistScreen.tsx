@@ -81,7 +81,7 @@ export default function MobileWishlistScreen() {
 
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <h2 className="text-sm font-black text-gray-900">My Saved Wishlist ({products.length})</h2>
         <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
       </div>
@@ -94,7 +94,7 @@ export default function MobileWishlistScreen() {
               key={product.id}
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate(`/product/${product.id}`)}
-              className="bg-white rounded-2xl p-2.5 shadow-sm border border-orange-100 flex flex-col justify-between cursor-pointer"
+              className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer"
             >
               <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">
                 <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" />

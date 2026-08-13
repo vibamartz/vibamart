@@ -2703,10 +2703,10 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     confirmed: 'bg-blue-100 text-blue-600',
     packed: 'bg-indigo-100 text-indigo-600',
     shipped: 'bg-purple-100 text-purple-600',
-    out_for_delivery: 'bg-orange-100 text-orange-600',
+    out_for_delivery: 'bg-yellow-100 text-yellow-800',
     delivered: 'bg-green-100 text-green-600',
     cancelled: 'bg-gray-100 text-gray-600',
-    cancel_requested: 'bg-orange-100 text-orange-600',
+    cancel_requested: 'bg-yellow-100 text-yellow-800',
     cancel_rejected: 'bg-red-100 text-red-600',
     returned: 'bg-red-100 text-red-600',
     refunded: 'bg-pink-100 text-pink-600',
@@ -2878,7 +2878,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                       {order.status === 'shipped' && (
                         <button
                           onClick={() => updateOrderStatus(order.id, 'out_for_delivery')}
-                          className="px-4 py-2 bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-100"
+                          className="px-4 py-2 bg-yellow-500 text-gray-950 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-yellow-400 shadow-lg shadow-yellow-100"
                         >
                           Out for Delivery
                         </button>

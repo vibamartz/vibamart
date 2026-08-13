@@ -61,7 +61,7 @@ export default function MobileBottomNav() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] h-[68px] flex items-center"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] min-h-[60px] h-[66px] max-h-[76px] flex items-center"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <nav className="grid grid-cols-4 w-full h-full max-w-md mx-auto items-center px-2">
@@ -73,28 +73,28 @@ export default function MobileBottomNav() {
             <Link
               key={item.id}
               to={item.path}
-              className="relative flex flex-col items-center justify-center h-full py-2 px-1 touch-target group transition-all duration-200"
+              className="relative flex flex-col items-center justify-center h-full py-1.5 px-1 min-h-[44px] min-w-[44px] touch-target group transition-all duration-200"
             >
-              <div className="relative flex items-center justify-center mb-1.5">
+              <div className="relative flex items-center justify-center mb-1">
                 {active ? (
                   <motion.div
                     layoutId="activeTabBg"
-                    className="absolute inset-0 bg-gradient-to-r from-emerald-500/15 to-orange-500/15 rounded-xl -m-1.5"
+                    className="absolute inset-0 bg-gradient-to-r from-emerald-500/15 to-yellow-500/20 rounded-xl -m-1.5"
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 ) : null}
 
-                {/* Icon styling: ViBa Green + Orange for active */}
+                {/* Icon styling: ViBa Green + Yellow for active */}
                 <div className="relative z-10 flex items-center justify-center">
                   <Icon
-                    className={`w-6 h-6 transition-all duration-200 ${
+                    className={`w-5.5 h-5.5 transition-all duration-200 ${
                       active
                         ? 'text-emerald-600 stroke-[2.4px] scale-110 drop-shadow-[0_2px_4px_rgba(21,128,61,0.2)]'
                         : 'text-gray-400 stroke-[1.8px] group-hover:text-gray-600'
                     }`}
                   />
                   {active && (
-                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping" />
                   )}
                 </div>
 
@@ -103,18 +103,18 @@ export default function MobileBottomNav() {
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1.5 -right-3 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm z-20"
+                    className="absolute -top-1.5 -right-3 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-gray-950 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm z-20"
                   >
                     {item.badge}
                   </motion.span>
                 )}
               </div>
 
-              {/* Label styling: Blue for active, Dark-gray for inactive */}
+              {/* Label styling */}
               <span
-                className={`text-[11px] tracking-tight leading-none transition-all duration-200 mt-0.5 ${
+                className={`text-[10px] sm:text-[11px] tracking-tight leading-none transition-all duration-200 mt-0.5 ${
                   active
-                    ? 'text-blue-600 font-extrabold scale-105'
+                    ? 'text-emerald-700 font-extrabold scale-105'
                     : 'text-gray-500 font-medium group-hover:text-gray-700'
                 }`}
               >

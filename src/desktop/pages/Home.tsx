@@ -298,7 +298,7 @@ export default function Home() {
         <div className="flex items-center justify-between border-b border-gray-100 pb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <Flame className="w-6 h-6 text-orange-500 fill-orange-500" /> Trending Products
+              <Flame className="w-6 h-6 text-yellow-500 fill-yellow-500" /> Trending Products
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">High demand items with top customer ratings</p>
           </div>

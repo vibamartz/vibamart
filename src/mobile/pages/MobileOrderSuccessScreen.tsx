@@ -12,7 +12,7 @@ export default function MobileOrderSuccessScreen() {
   const customId = stateData.customId || `VBM-${Date.now().toString().slice(-6)}`;
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center space-y-4">
+    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center space-y-4">
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
@@ -30,7 +30,7 @@ export default function MobileOrderSuccessScreen() {
         <p className="text-xs text-gray-500 font-medium">Order Reference: <strong>{customId}</strong></p>
       </div>
 
-      <div className="bg-white rounded-3xl p-4 shadow-sm border border-orange-100 w-full max-w-sm text-xs space-y-2 text-left">
+      <div className="bg-white rounded-3xl p-4 shadow-sm border border-yellow-100 w-full max-w-sm text-xs space-y-2 text-left">
         <div className="flex justify-between text-gray-600">
           <span>Status</span>
           <span className="font-extrabold text-emerald-700 uppercase">Confirmed</span>

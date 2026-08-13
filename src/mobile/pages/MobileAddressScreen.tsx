@@ -59,7 +59,7 @@ export default function MobileAddressScreen() {
 
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <h2 className="text-sm font-black text-gray-900">Saved Addresses ({addresses.length})</h2>
         <button
           onClick={() => setShowAddModal(true)}
@@ -72,7 +72,7 @@ export default function MobileAddressScreen() {
       <div className="space-y-3">
         {addresses.length > 0 ? (
           addresses.map((addr, idx) => (
-            <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-1 relative">
+            <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-1 relative">
               <div className="flex items-center justify-between">
                 <span className="font-black text-xs text-gray-900">{addr.fullName}</span>
                 <button onClick={() => handleDeleteAddress(addr.id)} className="text-gray-300 hover:text-rose-500 p-1">
@@ -85,7 +85,7 @@ export default function MobileAddressScreen() {
             </div>
           ))
         ) : (
-          <div className="bg-white rounded-2xl p-8 text-center border border-orange-100">
+          <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100">
             <p className="text-xs font-bold text-gray-500">No saved addresses found.</p>
           </div>
         )}

@@ -160,7 +160,7 @@ export default function MobileRequestScreens() {
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
       {/* Header & Tabs */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black text-gray-900">Returns & Cancellations</h2>
           <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -188,7 +188,7 @@ export default function MobileRequestScreens() {
       </div>
 
       {activeTab === 'create' ? (
-        <form onSubmit={handleSubmitRequest} className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+        <form onSubmit={handleSubmitRequest} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
           {/* Request Type Selector */}
           <div>
             <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Request Type</label>
@@ -298,7 +298,7 @@ export default function MobileRequestScreens() {
         <div className="space-y-3">
           {myRequests.length > 0 ? (
             myRequests.map((req) => (
-              <div key={req.id} className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2">
+              <div key={req.id} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                   <span className="text-xs font-black text-gray-900">
                     Request #{req.id.slice(-6).toUpperCase()} ({req.type?.toUpperCase() || 'RETURN'})
@@ -315,7 +315,7 @@ export default function MobileRequestScreens() {
               </div>
             ))
           ) : (
-            <div className="bg-white rounded-2xl p-8 text-center border border-orange-100">
+            <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100">
               <p className="text-xs font-bold text-gray-500">No requests submitted yet.</p>
             </div>
           )}

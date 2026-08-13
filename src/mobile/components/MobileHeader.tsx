@@ -86,7 +86,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-orange-100 shadow-sm transition-all">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-yellow-100 shadow-sm transition-all">
       <div className="flex items-center justify-between px-3 py-2.5 max-w-md mx-auto">
         
         {/* Left Side: Back button on inner pages OR Logo on home */}
@@ -118,18 +118,18 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setIsLocationModalOpen(true)}
-              className="flex items-center gap-1 bg-orange-50/90 border border-orange-200/70 px-2.5 py-1 rounded-full text-left max-w-[170px] min-w-0"
+              className="flex items-center gap-1 bg-yellow-50/90 border border-yellow-200/70 px-2.5 py-1 rounded-full text-left max-w-[170px] min-w-0"
             >
-              <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0 fill-orange-100" />
+              <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0 fill-yellow-100" />
               <div className="flex flex-col min-w-0">
-                <span className="text-[9px] font-black text-orange-800 uppercase tracking-wide leading-none truncate">
+                <span className="text-[9px] font-black text-yellow-800 uppercase tracking-wide leading-none truncate">
                   Deliver to {userPincode}
                 </span>
                 <span className="text-[10px] font-bold text-gray-700 truncate leading-none mt-0.5">
                   {userAddress}
                 </span>
               </div>
-              <ChevronDown className="w-3 h-3 text-orange-500 shrink-0 ml-0.5" />
+              <ChevronDown className="w-3 h-3 text-yellow-500 shrink-0 ml-0.5" />
             </motion.button>
           )}
         </div>
@@ -168,7 +168,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
           >
             <ShoppingCart className="w-5 h-5 stroke-[2.2]" />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-yellow-500 text-gray-950 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                 {cartCount > 99 ? '99+' : cartCount}
               </span>
             )}

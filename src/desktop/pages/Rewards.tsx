@@ -27,7 +27,7 @@ export default function Rewards() {
   if (!enabled) {
     return (
       <div className="max-w-4xl mx-auto my-16 p-12 bg-white rounded-3xl border border-gray-100 shadow-xl text-center space-y-4">
-        <div className="w-16 h-16 bg-orange-100 text-primary rounded-full flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 bg-yellow-100 text-primary rounded-full flex items-center justify-center mx-auto">
           <Lock className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-black text-gray-900">Rewards Program Currently Offline</h2>
@@ -36,7 +36,7 @@ export default function Rewards() {
         </p>
         <button
           onClick={() => navigate('/')}
-          className="px-8 py-3 bg-primary text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-primary/20 hover:bg-orange-600 transition-colors"
+          className="px-8 py-3 bg-primary text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-primary/20 hover:bg-yellow-600 transition-colors"
         >
           Return to Storefront
         </button>
@@ -69,12 +69,12 @@ export default function Rewards() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       {/* Desktop Hero Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-orange-950 rounded-3xl p-8 lg:p-12 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-yellow-950 rounded-3xl p-8 lg:p-12 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
           <div className="lg:col-span-2 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-orange-300 backdrop-blur-md">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-yellow-300 backdrop-blur-md">
               <Gift className="w-3.5 h-3.5" /> ViBa Mart Club Rewards
             </div>
             <h1 className="text-3xl lg:text-4xl font-black tracking-tight leading-tight">
@@ -106,7 +106,7 @@ export default function Rewards() {
               </div>
               <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full transition-all duration-500"
+                  className="bg-gradient-to-r from-amber-400 to-yellow-500 h-full rounded-full transition-all duration-500"
                   style={{ width: `${Math.min(100, ((rewards?.pointsBalance ?? 250) / 500) * 100)}%` }}
                 />
               </div>
@@ -192,7 +192,7 @@ export default function Rewards() {
                       disabled={!canAfford}
                       className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
                         canAfford
-                          ? 'bg-primary text-white hover:bg-orange-600 shadow-primary/30'
+                          ? 'bg-primary text-white hover:bg-yellow-600 shadow-primary/30'
                           : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
                     >

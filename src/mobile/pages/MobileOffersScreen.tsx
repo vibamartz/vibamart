@@ -29,9 +29,9 @@ export default function MobileOffersScreen() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-4">
+    <div className="min-h-screen bg-[#FFFDF5] pb-28 font-sans select-none p-3 space-y-4">
       {/* Deals Header Banner */}
-      <div className="bg-gradient-to-r from-rose-600 via-orange-500 to-amber-500 rounded-3xl p-5 text-white shadow-md flex items-center justify-between">
+      <div className="bg-gradient-to-r from-rose-600 via-yellow-500 to-amber-500 rounded-3xl p-5 text-white shadow-md flex items-center justify-between">
         <div>
           <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-full">
             Flash Sale Deals
@@ -53,12 +53,12 @@ export default function MobileOffersScreen() {
               key={banner.id}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate(banner.link || '/products')}
-              className="relative rounded-2xl overflow-hidden shadow-md border border-orange-100 h-44 cursor-pointer group"
+              className="relative rounded-2xl overflow-hidden shadow-md border border-yellow-100 h-44 cursor-pointer group"
             >
               <img src={banner.image} alt={banner.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
               <div className="absolute bottom-3 left-3 right-3 text-white">
-                <span className="text-[9px] font-black uppercase bg-orange-500 px-2 py-0.5 rounded-full">
+                <span className="text-[9px] font-black uppercase bg-yellow-500 text-gray-950 px-2 py-0.5 rounded-full">
                   {banner.subtitle || 'Limited Offer'}
                 </span>
                 <h4 className="text-sm font-black mt-1 line-clamp-1">{banner.title}</h4>
@@ -82,7 +82,7 @@ export default function MobileOffersScreen() {
                 key={product.id}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate(`/product/${product.id}`)}
-                className="bg-white rounded-2xl p-2.5 shadow-sm border border-orange-100 flex flex-col justify-between cursor-pointer group"
+                className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group"
               >
                 <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 mb-2">
                   <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" />

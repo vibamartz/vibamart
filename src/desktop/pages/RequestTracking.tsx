@@ -18,7 +18,7 @@ const CANCELLATION_STEPS = [
 ];
 
 const RETURN_STEPS = [
-  { status: 'requested', label: 'Return Requested', icon: FileText, color: 'text-orange-500', desc: 'We have received your return request.' },
+  { status: 'requested', label: 'Return Requested', icon: FileText, color: 'text-yellow-500', desc: 'We have received your return request.' },
   { status: 'approved', label: 'Approved', icon: ShieldCheck, color: 'text-blue-500', desc: 'Return request approved.' },
   { status: 'pickup_scheduled', label: 'Pickup Scheduled', icon: Truck, color: 'text-purple-500', desc: 'Return package pickup is scheduled.' },
   { status: 'product_received', label: 'Product Received', icon: CheckCircle2, color: 'text-indigo-500', desc: 'Product returned to warehouse.' },

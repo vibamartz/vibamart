@@ -172,9 +172,9 @@ export default function MobileProductListScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none p-3 space-y-3">
       {/* Top Filter & Sort Bar */}
-      <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-orange-100 flex items-center justify-between gap-2">
+      <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {/* Filter Drawer Trigger */}
           <motion.button
@@ -243,7 +243,7 @@ export default function MobileProductListScreen() {
       {loading ? (
         <div className="grid grid-cols-2 gap-3">
           {Array(6).fill(0).map((_, i) => (
-            <div key={i} className="h-64 bg-white rounded-2xl animate-pulse border border-orange-100" />
+            <div key={i} className="h-64 bg-white rounded-2xl animate-pulse border border-yellow-100" />
           ))}
         </div>
       ) : filteredProducts.length > 0 ? (
@@ -260,7 +260,7 @@ export default function MobileProductListScreen() {
                   key={product.id}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(`/product/${product.id}`)}
-                  className="bg-white rounded-2xl p-3 shadow-sm border border-orange-100 flex gap-3 cursor-pointer group hover:shadow-md transition-all"
+                  className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex gap-3 cursor-pointer group hover:shadow-md transition-all"
                 >
                   <div className="w-24 h-24 rounded-xl bg-gray-50 overflow-hidden relative shrink-0">
                     <img 
@@ -284,8 +284,8 @@ export default function MobileProductListScreen() {
                         {product.name}
                       </h4>
                       <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded flex items-center gap-0.5">
-                          {product.rating || 4.5} <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        <span className="text-[10px] font-bold text-yellow-700 bg-yellow-50 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                          {product.rating || 4.5} <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
                         </span>
                       </div>
                     </div>
@@ -307,7 +307,7 @@ export default function MobileProductListScreen() {
                           onClick={(e) => handleAddToCart(e, product)}
                           className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${
                             isInCart
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}
                         >
@@ -315,7 +315,7 @@ export default function MobileProductListScreen() {
                         </button>
                         <button
                           onClick={(e) => handleBuyNow(e, product)}
-                          className="px-2.5 py-1.5 bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider"
+                          className="px-2.5 py-1.5 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
                         >
                           Buy
                         </button>
@@ -331,7 +331,7 @@ export default function MobileProductListScreen() {
                 key={product.id}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate(`/product/${product.id}`)}
-                className="bg-white rounded-2xl p-2.5 shadow-sm border border-orange-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
+                className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
               >
                 <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">
                   <img 
@@ -346,7 +346,7 @@ export default function MobileProductListScreen() {
                   )}
                   <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                     <span>{product.rating || 4.5}</span>
-                    <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
                   </div>
                 </div>
 
@@ -376,7 +376,7 @@ export default function MobileProductListScreen() {
                       onClick={(e) => handleAddToCart(e, product)}
                       className={`flex-1 py-1.5 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider text-center transition-all ${
                         isInCart
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                     >
@@ -384,7 +384,7 @@ export default function MobileProductListScreen() {
                     </button>
                     <button
                       onClick={(e) => handleBuyNow(e, product)}
-                      className="py-1.5 px-2 bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider"
+                      className="py-1.5 px-2 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
                     >
                       Buy Now
                     </button>
@@ -395,7 +395,7 @@ export default function MobileProductListScreen() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl p-8 text-center border border-orange-100 space-y-3">
+        <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-3">
           <p className="text-sm font-bold text-gray-700">No products match your filters.</p>
           <button
             onClick={clearAllFilters}

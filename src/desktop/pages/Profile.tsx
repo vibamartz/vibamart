@@ -834,7 +834,7 @@ export default function Profile() {
                                         setSelectedReturnProducts(order.items.map(i => i.productId));
                                         setShowReturnModal(true); 
                                       }}
-                                      className="px-6 py-2.5 bg-orange-50 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-100 transition-all border border-orange-100 flex items-center gap-2"
+                                      className="px-6 py-2.5 bg-yellow-50 text-yellow-800 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-yellow-100 transition-all border border-yellow-200 flex items-center gap-2"
                                     >
                                       Request Return
                                     </button>

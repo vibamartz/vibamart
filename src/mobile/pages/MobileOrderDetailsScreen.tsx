@@ -79,7 +79,7 @@ export default function MobileOrderDetailsScreen() {
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
       {/* Header Info */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400">Order Reference</span>
@@ -111,7 +111,7 @@ export default function MobileOrderDetailsScreen() {
       </div>
 
       {/* Live Order Status Pipeline Tracker */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Shipment Tracking Pipeline
         </h3>
@@ -158,7 +158,7 @@ export default function MobileOrderDetailsScreen() {
       </div>
 
       {/* Ordered Items Breakdown */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Items Ordered ({order.items.length})
         </h3>
@@ -183,7 +183,7 @@ export default function MobileOrderDetailsScreen() {
       </div>
 
       {/* Shipping Address & Customer Contact */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-2 text-xs">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
           <MapPin className="w-4 h-4 text-emerald-600" /> Delivery Address
         </h3>

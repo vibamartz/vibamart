@@ -107,13 +107,13 @@ export default function MobileSearchScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans select-none p-3 space-y-4">
+    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none p-3 space-y-4">
       {/* Search Header Bar */}
       <div className="flex items-center gap-2">
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => navigate(-1)}
-          className="p-2.5 bg-white text-gray-700 rounded-full border border-orange-100 shadow-sm shrink-0"
+          className="p-2.5 bg-white text-gray-700 rounded-full border border-yellow-100 shadow-sm shrink-0"
         >
           <ArrowLeft className="w-5 h-5" />
         </motion.button>
@@ -125,7 +125,7 @@ export default function MobileSearchScreen() {
             placeholder="Search products, brands, categories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white h-[50px] rounded-2xl pl-10 pr-24 text-sm font-semibold text-gray-900 placeholder-gray-400 border border-orange-200/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            className="w-full bg-white h-[50px] rounded-2xl pl-10 pr-24 text-sm font-semibold text-gray-900 placeholder-gray-400 border border-yellow-200/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
           />
           <Search className="w-4 h-4 text-emerald-600 absolute left-3.5 pointer-events-none" />
 
@@ -166,7 +166,7 @@ export default function MobileSearchScreen() {
 
       {/* Live Matching Suggestions */}
       {liveSuggestions.length > 0 && (
-        <div className="bg-white rounded-2xl p-3 shadow-md border border-orange-100 space-y-2">
+        <div className="bg-white rounded-2xl p-3 shadow-md border border-yellow-100 space-y-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
             Matching Products ({liveSuggestions.length})
           </span>
@@ -175,7 +175,7 @@ export default function MobileSearchScreen() {
               <div
                 key={item.id}
                 onClick={() => navigate(`/product/${item.id}`)}
-                className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-orange-50/60 rounded-xl transition-all"
+                className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img 
@@ -199,7 +199,7 @@ export default function MobileSearchScreen() {
 
       {/* Recent Searches */}
       {recentSearches.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-gray-700 font-black text-xs uppercase tracking-wider">
               <History className="w-4 h-4 text-emerald-600" />
@@ -228,9 +228,9 @@ export default function MobileSearchScreen() {
       )}
 
       {/* Trending Searches */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center gap-1.5 text-gray-700 font-black text-xs uppercase tracking-wider">
-          <TrendingUp className="w-4 h-4 text-orange-500" />
+          <TrendingUp className="w-4 h-4 text-yellow-600" />
           <span>Trending Searches</span>
         </div>
 
@@ -239,7 +239,7 @@ export default function MobileSearchScreen() {
             <button
               key={index}
               onClick={() => handleSearchSubmit(undefined, term)}
-              className="bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 text-xs font-black px-3 py-1.5 rounded-full transition-all"
+              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 text-xs font-black px-3 py-1.5 rounded-full transition-all"
             >
               🔥 {term}
             </button>
@@ -248,7 +248,7 @@ export default function MobileSearchScreen() {
       </div>
 
       {/* Popular Categories Quick Links */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 space-y-3">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center gap-1.5 text-gray-700 font-black text-xs uppercase tracking-wider">
           <Sparkles className="w-4 h-4 text-amber-500" />
           <span>Browse by Category</span>
