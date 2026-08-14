@@ -263,31 +263,31 @@ export default function Home() {
 
       {/* Featured Collections / Categories */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Explore Categories</h2>
-            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">Curated catalog of authentic quality items</p>
+            <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Explore Categories</h2>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">Curated catalog of authentic quality items</p>
           </div>
           <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
             View All <ChevronRightIcon className="w-4 h-4" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
           {CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
               to={`/products?category=${cat.id}`}
-              className="group bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all flex flex-col items-center text-center"
+              className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center"
             >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gray-50 mb-3 group-hover:scale-105 transition-transform flex items-center justify-center border border-gray-100">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-gray-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-gray-100">
                 {cat.image ? (
                   <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                 ) : (
-                  <ShoppingBag className="w-8 h-8 text-gray-400" />
+                  <ShoppingBag className="w-5 h-5 text-gray-400" />
                 )}
               </div>
-              <h3 className="text-xs sm:text-sm font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">{cat.name}</h3>
+              <h3 className="text-xs font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">{cat.name}</h3>
             </Link>
           ))}
         </div>

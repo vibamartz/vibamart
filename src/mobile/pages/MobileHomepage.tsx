@@ -420,10 +420,10 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. CATEGORY CAROUSEL (w-130px, h-150px, gap-3.5, radius-20px, equal cards)  */}
+      {/* 4. CATEGORY CAROUSEL (Compact small size: w-74px, h-82px, gap-2.5)        */}
       {/* ========================================================================= */}
-      <section className="mt-5">
-        <div className="flex overflow-x-auto gap-3.5 hide-scrollbar scroll-smooth snap-x py-1">
+      <section className="mt-4">
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 px-0.5">
           {MOBILE_NAV_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -432,26 +432,26 @@ export default function MobileHomepage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex flex-col items-center justify-between p-3 w-[130px] h-[150px] flex-none shrink-0 rounded-[20px] transition-all snap-start border ${isSelected
-                  ? 'bg-blue-50/90 border-blue-300/80 text-blue-700 shadow-sm'
-                  : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50/50'
+                className={`flex flex-col items-center justify-between p-2 w-[74px] h-[82px] flex-none shrink-0 rounded-[16px] transition-all snap-start border ${isSelected
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
                   }`}
               >
-                <div className={`p-2.5 rounded-full mt-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                  <Icon className="w-5 h-5" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mt-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-                <span className={`text-xs tracking-tight leading-tight text-center ${isSelected ? 'font-black text-blue-900' : 'font-semibold'}`}>
+                <span className={`text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
                   {cat.name}
                 </span>
 
-                {/* Active indicator bar */}
+                {/* Active indicator dot */}
                 {isSelected ? (
                   <motion.div
                     layoutId="activeCategoryDot"
-                    className="w-5 h-1 bg-blue-600 rounded-full mt-0.5"
+                    className="w-4 h-1 bg-white rounded-full mb-0.5"
                   />
                 ) : (
-                  <div className="h-1 mt-0.5" />
+                  <div className="h-1 mb-0.5" />
                 )}
               </button>
             );
