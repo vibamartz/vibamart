@@ -242,7 +242,7 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="h-[110px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-600 rounded-[22px] p-3 sm:p-3.5 shadow-md shadow-emerald-900/10 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
+            className="h-[90px] w-full bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-500 rounded-[22px] p-3 sm:p-3.5 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform"
           >
             <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner">
               <Logo iconOnly className="scale-65" />
@@ -256,7 +256,7 @@ export default function MobileHomepage() {
           <motion.div
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? '/profile' : '/login')}
-            className="h-[110px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+            className="h-[90px] w-full bg-white rounded-[22px] p-3 sm:p-3.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
           >
             <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
               <Gift className="w-6 h-6" />
