@@ -92,9 +92,9 @@ function MainAppRoutes() {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen flex flex-col font-sans bg-[#FFF3EB] selection:bg-primary selection:text-white">
+      <div className="min-h-screen flex flex-col font-sans bg-[#FFF3EB] selection:bg-primary selection:text-white overflow-x-hidden w-full">
         <MobileHeader />
-        <main className="flex-1 max-w-md sm:max-w-lg md:max-w-xl mx-auto w-full">
+        <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0">
           <Routes>
             <Route path="/" element={<MobileHomepage />} />
             <Route path="/mobile" element={<MobileHomepage />} />
