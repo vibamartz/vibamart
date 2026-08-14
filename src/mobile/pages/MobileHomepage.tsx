@@ -246,9 +246,9 @@ export default function MobileHomepage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
             style={{ height: 'clamp(78px, 22vw, 105px)' }}
-            className="w-full bg-gradient-to-r from-emerald-400 via-emerald-600 to-yellow-500 rounded-[26px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0"
+            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0"
           >
-            <div className="w-[clamp(28px,8vw,38px)] h-[clamp(28px,8vw,38px)] bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner shrink-0">
+            <div className="w-[clamp(38px,8vw,38px)] h-[clamp(38px,8vw,38px)] bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner shrink-0">
               <Logo iconOnly className="scale-65" />
             </div>
             <span className="text-[clamp(12px,3.5vw,15px)] font-black tracking-wider text-white drop-shadow-sm truncate max-w-full">
@@ -263,8 +263,8 @@ export default function MobileHomepage() {
             style={{ height: 'clamp(78px, 22vw, 105px)' }}
             className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0"
           >
-            <div className="w-[clamp(28px,8vw,38px)] h-[clamp(28px,8vw,38px)] bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shrink-0">
-              <Gift className="w-[clamp(16px,4.5vw,22px)] h-[clamp(16px,4.5vw,22px)]" />
+            <div className="w-[clamp(38px,8vw,38px)] h-[clamp(38px,8vw,38px)] bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shrink-0">
+              <Gift className="w-[clamp(18px,4.5vw,22px)] h-[clamp(18px,4.5vw,22px)]" />
             </div>
             <span className="text-[clamp(12px,3.5vw,15px)] font-black tracking-wider text-gray-900 uppercase truncate max-w-full">
               REWARDS
