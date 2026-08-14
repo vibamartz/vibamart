@@ -231,7 +231,7 @@ export default function MobileHomepage() {
     : 'Recommended For You';
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-[#FFF3EB] w-full max-w-[768px] mx-auto font-sans select-none overflow-x-hidden space-y-4 sm:space-y-5 px-3.5 xs:px-4 sm:px-5 pt-3 sm:pt-4 min-w-0"
       style={{ paddingBottom: 'calc(clamp(60px, 18vw, 76px) + env(safe-area-inset-bottom, 0px) + 20px)' }}
     >
@@ -246,7 +246,7 @@ export default function MobileHomepage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
             style={{ height: 'clamp(78px, 22vw, 105px)' }}
-            className="w-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0"
+            className="w-full bg-gradient-to-r from-emerald-400 via-emerald-600 to-yellow-500 rounded-[26px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0"
           >
             <div className="w-[clamp(28px,8vw,38px)] h-[clamp(28px,8vw,38px)] bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-inner shrink-0">
               <Logo iconOnly className="scale-65" />
@@ -545,10 +545,10 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white/10 rounded-[20px] animate-pulse shrink-0" 
+                className="bg-white/10 rounded-[20px] animate-pulse shrink-0"
               />
             ))
           ) : (
@@ -619,10 +619,10 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" 
+                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0"
               />
             ))
           ) : (
@@ -659,10 +659,10 @@ export default function MobileHomepage() {
         <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {loading ? (
             Array(4).fill(0).map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0" 
+                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0"
               />
             ))
           ) : (
@@ -759,7 +759,7 @@ function MobileProductCardItem({
       className={`bg-white ${cardRadius} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Responsive clamp height) */}
-      <div 
+      <div
         style={{ height: 'clamp(120px, 34vw, 145px)' }}
         className="relative w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0"
       >
