@@ -274,34 +274,34 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. DELIVERY ADDRESS CARD (h-85-105px, radius-22px, icon left, right dropdown) */}
+      {/* 2. DELIVERY ADDRESS CARD (Compact small height ~48-52px, radius 16px)      */}
       {/* ========================================================================= */}
       <section className="w-full min-w-0">
         <motion.div
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          style={{ minHeight: '82px', height: 'clamp(85px, 24vw, 102px)', maxHeight: '105px' }}
-          className="w-full min-w-0 bg-white/95 backdrop-blur-md rounded-[22px] px-[clamp(12px,3.5vw,18px)] py-2.5 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden"
+          style={{ minHeight: '46px', height: 'clamp(46px, 12vw, 54px)', maxHeight: '56px' }}
+          className="w-full min-w-0 bg-white/95 backdrop-blur-md rounded-[16px] px-3.5 py-2 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden"
         >
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 fill-emerald-100" />
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
             </div>
             <div className="flex flex-col justify-center min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
-                <span className="text-xs font-black uppercase tracking-wider text-gray-900 shrink-0">
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="text-[11px] font-black uppercase tracking-wider text-gray-900 shrink-0">
                   HOME
                 </span>
-                <span className="text-xs font-bold text-gray-500 truncate">
+                <span className="text-[11px] font-bold text-gray-500 truncate">
                   ({userPincode})
                 </span>
               </div>
-              <p className="text-xs font-semibold text-gray-600 line-clamp-2 leading-snug overflow-hidden text-ellipsis min-w-0">
+              <p className="text-[11px] font-semibold text-gray-600 truncate leading-tight overflow-hidden text-ellipsis min-w-0">
                 {userAddress}
               </p>
             </div>
           </div>
-          <ChevronDown className="w-5 h-5 text-gray-400 shrink-0 ml-2" />
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1.5" />
         </motion.div>
       </section>
 
@@ -426,10 +426,10 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. CATEGORY CAROUSEL (Identical card dimensions: w-115-140px, h-135-170px) */}
+      {/* 4. CATEGORY CAROUSEL (Compact small size: w-74px, h-82px, gap-2.5)        */}
       {/* ========================================================================= */}
       <section className="w-full min-w-0">
-        <div className="flex overflow-x-auto gap-[clamp(10px,3vw,14px)] hide-scrollbar scroll-smooth snap-x py-1 px-0.5 min-w-0 w-full">
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 px-0.5 min-w-0 w-full">
           {MOBILE_NAV_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isSelected = selectedCategory === cat.id;
@@ -439,18 +439,18 @@ export default function MobileHomepage() {
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 style={{
-                  width: 'clamp(115px, 30vw, 140px)',
-                  height: 'clamp(135px, 37vw, 170px)'
+                  width: 'clamp(70px, 19vw, 78px)',
+                  height: 'clamp(76px, 21vw, 84px)'
                 }}
-                className={`flex flex-col items-center justify-between p-3 flex-none shrink-0 rounded-[20px] transition-all snap-start border overflow-hidden ${isSelected
+                className={`flex flex-col items-center justify-between p-2 flex-none shrink-0 rounded-[16px] transition-all snap-start border overflow-hidden ${isSelected
                   ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/20'
                   : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
                   }`}
               >
-                <div className={`w-[clamp(42px,11vw,54px)] h-[clamp(42px,11vw,54px)] rounded-full flex items-center justify-center mt-1 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                  <Icon className="w-[clamp(20px,5vw,26px)] h-[clamp(20px,5vw,26px)]" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-                <span className={`text-[clamp(11px,3vw,13px)] tracking-tight leading-tight text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                <span className={`text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
                   {cat.name}
                 </span>
 
@@ -458,7 +458,7 @@ export default function MobileHomepage() {
                 {isSelected ? (
                   <motion.div
                     layoutId="activeCategoryDot"
-                    className="w-5 h-1 bg-white rounded-full mb-0.5 shrink-0"
+                    className="w-4 h-1 bg-white rounded-full mb-0.5 shrink-0"
                   />
                 ) : (
                   <div className="h-1 mb-0.5 shrink-0" />
