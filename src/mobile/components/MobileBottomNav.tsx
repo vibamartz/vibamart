@@ -60,11 +60,11 @@ export default function MobileBottomNav() {
   };
 
   return (
-    <div 
+    <div
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] w-full flex items-center justify-center"
-      style={{ 
-        height: 'clamp(60px, 18vw, 76px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)' 
+      style={{
+        height: 'clamp(50px, 18vw, 62px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
     >
       <nav className="grid grid-cols-4 w-full h-full max-w-[768px] mx-auto items-center px-1 sm:px-3 min-w-0">
@@ -90,11 +90,10 @@ export default function MobileBottomNav() {
                 {/* Icon styling: ViBa Green + Yellow for active */}
                 <div className="relative z-10 flex items-center justify-center">
                   <Icon
-                    className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-all duration-200 ${
-                      active
-                        ? 'text-emerald-600 stroke-[2.4px] scale-110 drop-shadow-[0_2px_4px_rgba(21,128,61,0.2)]'
-                        : 'text-gray-400 stroke-[1.8px] group-hover:text-gray-600'
-                    }`}
+                    className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-all duration-200 ${active
+                      ? 'text-emerald-600 stroke-[2.4px] scale-110 drop-shadow-[0_2px_4px_rgba(21,128,61,0.2)]'
+                      : 'text-gray-400 stroke-[1.8px] group-hover:text-gray-600'
+                      }`}
                   />
                   {active && (
                     <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping" />
@@ -115,11 +114,10 @@ export default function MobileBottomNav() {
 
               {/* Label styling */}
               <span
-                className={`text-[10px] sm:text-[11px] tracking-tight leading-none transition-all duration-200 mt-0.5 truncate max-w-full ${
-                  active
-                    ? 'text-emerald-700 font-extrabold scale-105'
-                    : 'text-gray-500 font-medium group-hover:text-gray-700'
-                }`}
+                className={`text-[10px] sm:text-[11px] tracking-tight leading-none transition-all duration-200 mt-0.5 truncate max-w-full ${active
+                  ? 'text-emerald-700 font-extrabold scale-105'
+                  : 'text-gray-500 font-medium group-hover:text-gray-700'
+                  }`}
               >
                 {item.label}
               </span>
