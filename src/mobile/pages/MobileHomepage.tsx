@@ -259,7 +259,7 @@ export default function MobileHomepage() {
           {/* Card 2: REWARDS */}
           <motion.div
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate(user ? '/profile' : '/login')}
+            onClick={() => navigate(user ? '/rewards' : '/login')}
             style={{ height: 'clamp(78px, 22vw, 105px)' }}
             className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0"
           >
