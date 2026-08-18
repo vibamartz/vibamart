@@ -14,7 +14,7 @@ import Logo from '../../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
-import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore } from '../../backend/store';
+import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import toast from 'react-hot-toast';
 
 export default function MobileHomepage() {
@@ -22,7 +22,9 @@ export default function MobileHomepage() {
   const { settings } = useSettingsStore();
   const { user } = useAuthStore();
   const { addItem, items } = useCartStore();
+  const { config: rewardsConfig } = useRewardsStore();
   const navigate = useNavigate();
+
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -259,10 +261,11 @@ export default function MobileHomepage() {
           {/* Card 2: REWARDS */}
           <motion.div
             whileTap={{ scale: 0.96 }}
-            onClick={() => navigate(user ? '/rewards' : '/login')}
+            onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
             style={{ height: 'clamp(78px, 22vw, 105px)' }}
             className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0"
           >
+
             <div className="w-[clamp(38px,8vw,38px)] h-[clamp(38px,8vw,38px)] bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shrink-0">
               <Gift className="w-[clamp(18px,4.5vw,22px)] h-[clamp(18px,4.5vw,22px)]" />
             </div>

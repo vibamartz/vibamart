@@ -1,4 +1,95 @@
-import { Category } from './types';
+import { Category, RewardsSectionConfig, RewardOffer } from './types';
+
+export const DEFAULT_REWARDS_CONFIG: RewardsSectionConfig = {
+  enabled: true,
+  title: 'Shop, Earn Points & Unlock Exclusive Discounts',
+  subtitle: 'Earn 1 point for every ₹10 spent. Redeem your accumulated points for instant cash vouchers, discount coupons, and VIP tier benefits across all categories.',
+  badgeText: 'ViBa Club Rewards',
+  headerIcon: 'Gift',
+  headerIconUrl: '',
+  cardImage: '',
+  cardText: 'Earn 1 point per ₹10 spent. Redeem points for instant discounts & vouchers!',
+  buttonText: 'Redeem Voucher',
+  targetLink: '/rewards',
+  pointsPerRupee: 0.1,
+  welcomeBonusPoints: 250,
+  minRedeemPoints: 100,
+  earningRules: 'Earn 1 point for every ₹10 spent on completed store orders. Points credited upon delivery.',
+  redemptionRules: 'Vouchers can be claimed using your active points balance. Minimum purchase thresholds apply per voucher code.',
+  termsAndConditions: 'Reward points and claimed voucher codes are non-transferable and subject to specified expiry periods. Store management reserves all rights.',
+};
+
+export const DEFAULT_VOUCHERS: RewardOffer[] = [
+  {
+    id: 'vouch-100',
+    title: '₹100 Instant Discount',
+    description: 'Valid on orders over ₹499 across all categories.',
+    pointsRequired: 100,
+    discountValue: 100,
+    discountType: 'fixed',
+    code: 'REWARD100',
+    expiryDays: 30,
+    category: 'All Products',
+    icon: 'Gift',
+    minPurchase: 499,
+    usageLimit: 1,
+    eligibilityTier: 'all',
+    active: true,
+    order: 1
+  },
+  {
+    id: 'vouch-250',
+    title: '₹250 Super Saver',
+    description: 'Valid on orders over ₹1,299 in Electronics & Fashion.',
+    pointsRequired: 250,
+    discountValue: 250,
+    discountType: 'fixed',
+    code: 'REWARD250',
+    expiryDays: 30,
+    category: 'Electronics & Fashion',
+    icon: 'Sparkles',
+    minPurchase: 1299,
+    usageLimit: 1,
+    eligibilityTier: 'Silver',
+    active: true,
+    order: 2
+  },
+  {
+    id: 'vouch-500',
+    title: '₹500 VIP Voucher',
+    description: 'Valid on orders over ₹2,499. Exclusive for loyal members.',
+    pointsRequired: 500,
+    discountValue: 500,
+    discountType: 'fixed',
+    code: 'REWARD500VIP',
+    expiryDays: 45,
+    category: 'Storewide',
+    icon: 'Award',
+    minPurchase: 2499,
+    usageLimit: 1,
+    eligibilityTier: 'Gold',
+    active: true,
+    order: 3
+  },
+  {
+    id: 'vouch-15pct',
+    title: '15% Off Mega Coupon',
+    description: 'Max discount ₹300. Valid on any purchase.',
+    pointsRequired: 300,
+    discountValue: 15,
+    discountType: 'percentage',
+    code: 'REWARD15PCT',
+    expiryDays: 30,
+    category: 'Storewide',
+    icon: 'Tag',
+    minPurchase: 0,
+    usageLimit: 1,
+    eligibilityTier: 'all',
+    active: true,
+    order: 4
+  }
+];
+
 
 export const CATEGORIES: Category[] = [
   {
@@ -218,54 +309,4 @@ export const DEFAULT_FEATURES = [
   }
 ];
 
-export const DEFAULT_VOUCHERS = [
-  {
-    id: 'vouch-100',
-    title: '₹100 Instant Discount',
-    description: 'Valid on orders over ₹499 across all categories.',
-    pointsRequired: 100,
-    discountValue: 100,
-    discountType: 'fixed' as const,
-    code: 'REWARD100',
-    expiryDays: 30,
-    category: 'All Products',
-    icon: 'Gift'
-  },
-  {
-    id: 'vouch-250',
-    title: '₹250 Super Saver',
-    description: 'Valid on orders over ₹1,299 in Electronics & Fashion.',
-    pointsRequired: 250,
-    discountValue: 250,
-    discountType: 'fixed' as const,
-    code: 'REWARD250',
-    expiryDays: 30,
-    category: 'Electronics & Fashion',
-    icon: 'Sparkles'
-  },
-  {
-    id: 'vouch-500',
-    title: '₹500 VIP Voucher',
-    description: 'Valid on orders over ₹2,499. Exclusive for loyal members.',
-    pointsRequired: 500,
-    discountValue: 500,
-    discountType: 'fixed' as const,
-    code: 'REWARD500VIP',
-    expiryDays: 45,
-    category: 'Storewide',
-    icon: 'Award'
-  },
-  {
-    id: 'vouch-15pct',
-    title: '15% Off Mega Coupon',
-    description: 'Max discount ₹300. Valid on any purchase.',
-    pointsRequired: 300,
-    discountValue: 15,
-    discountType: 'percentage' as const,
-    code: 'REWARD15PCT',
-    expiryDays: 30,
-    category: 'Storewide',
-    icon: 'Tag'
-  }
-];
 

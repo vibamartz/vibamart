@@ -271,7 +271,7 @@ export interface RewardTransaction {
   description?: string;
 }
 
-export interface RewardVoucher {
+export interface RewardOffer {
   id: string;
   title: string;
   description: string;
@@ -280,8 +280,39 @@ export interface RewardVoucher {
   discountType: 'percentage' | 'fixed';
   code: string;
   expiryDays: number;
+  expiryDate?: string;
   category?: string;
   icon?: string;
+  imageUrl?: string;
+  minPurchase?: number;
+  usageLimit?: number;
+  eligibilityTier?: 'all' | 'Silver' | 'Gold' | 'Platinum';
+  active: boolean;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RewardVoucher extends RewardOffer {}
+
+export interface RewardsSectionConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  badgeText: string;
+  headerIcon: string;
+  headerIconUrl?: string;
+  cardImage?: string;
+  cardText: string;
+  buttonText: string;
+  targetLink: string;
+  pointsPerRupee: number;
+  welcomeBonusPoints: number;
+  minRedeemPoints: number;
+  earningRules: string;
+  redemptionRules: string;
+  termsAndConditions: string;
+  updatedAt?: string;
 }
 
 export interface UserRewards {
@@ -293,4 +324,5 @@ export interface UserRewards {
   claimedVouchers?: string[];
   transactions?: RewardTransaction[];
 }
+
 

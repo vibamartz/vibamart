@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -32,6 +32,8 @@ import AdminInvoicesView from '../components/AdminInvoicesView';
 import AdminCancellationManagementView from '../components/AdminCancellationManagementView';
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 import FeatureRegistryManagementView from '../components/FeatureRegistryManagementView';
+import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
+
 
 const STATS = [
   { label: 'Total Revenue', value: '₹2,45,000', change: '+12%', icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -459,7 +461,9 @@ export default function AdminDashboard() {
           <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
+
           <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
@@ -1001,6 +1005,7 @@ export default function AdminDashboard() {
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'settings' && <SettingsView />}
           {activeTab === 'features' && <FeatureRegistryManagementView />}
+          {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
           {activeTab === 'categories' && <NewCategoriesManagementView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
@@ -1008,7 +1013,8 @@ export default function AdminDashboard() {
           {activeTab === 'vendors' && <VendorsManagementView />}
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />
               <h3 className="text-lg font-bold text-gray-800">Coming Soon</h3>

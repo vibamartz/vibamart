@@ -3,36 +3,35 @@ import { motion } from 'motion/react';
 import {
   Gift, Award, Sparkles, Tag, Clock, ArrowUpRight,
   ArrowDownLeft, ShieldCheck, Check, Copy, Lock, Trophy,
-  Star, ChevronRight
+  Star, ChevronRight, Info, FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
-import { DEFAULT_VOUCHERS } from '../../shared/constants';
 import toast from 'react-hot-toast';
 
 export default function Rewards() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { rewards, loading, initRewards, claimVoucher } = useRewardsStore();
+  const { rewards, config, offers, loading, initRewards, claimVoucher } = useRewardsStore();
   const { isFeatureEnabled } = useFeatureStore();
-  const [activeTab, setActiveTab] = useState<'vouchers' | 'history'>('vouchers');
+  const [activeTab, setActiveTab] = useState<'vouchers' | 'history' | 'rules'>('vouchers');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   useEffect(() => {
     initRewards(user?.uid);
   }, [user]);
 
-  const enabled = isFeatureEnabled('rewards');
+  const enabled = isFeatureEnabled('rewards') && config.enabled;
 
   if (!enabled) {
     return (
-      <div className="max-w-4xl mx-auto my-16 p-12 bg-white rounded-3xl border border-gray-100 shadow-xl text-center space-y-4">
+      <div className="max-w-4xl mx-auto my-16 p-12 bg-white rounded-3xl border border-gray-100 shadow-xl text-center space-y-4 font-sans">
         <div className="w-16 h-16 bg-yellow-100 text-primary rounded-full flex items-center justify-center mx-auto">
           <Lock className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-black text-gray-900">Rewards Program Currently Offline</h2>
         <p className="text-sm text-gray-500 max-w-md mx-auto">
-          The ViBa Mart Rewards & Loyalty program is temporarily disabled by the store admin. Please check back later.
+          The Rewards & Loyalty program is temporarily disabled by the store admin. Please check back later.
         </p>
         <button
           onClick={() => navigate('/')}
@@ -43,6 +42,8 @@ export default function Rewards() {
       </div>
     );
   }
+
+  const activeOffers = offers.filter(o => o.active !== false);
 
   const handleClaim = async (voucherId: string) => {
     if (!user) {
@@ -75,13 +76,13 @@ export default function Rewards() {
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
           <div className="lg:col-span-2 space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-yellow-300 backdrop-blur-md">
-              <Gift className="w-3.5 h-3.5" /> ViBa Mart Club Rewards
+              <Gift className="w-3.5 h-3.5" /> {config.badgeText || 'ViBa Mart Club Rewards'}
             </div>
             <h1 className="text-3xl lg:text-4xl font-black tracking-tight leading-tight">
-              Shop, Earn Points & Unlock Exclusive Discounts
+              {config.title || 'Shop, Earn Points & Unlock Exclusive Discounts'}
             </h1>
             <p className="text-slate-300 text-sm max-w-xl leading-relaxed">
-              Earn 1 point for every ₹10 spent. Redeem your accumulated points for instant cash vouchers, discount coupons, and VIP tier benefits across all categories.
+              {config.subtitle}
             </p>
           </div>
 
@@ -91,7 +92,7 @@ export default function Rewards() {
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Available Points</span>
                 <span className="text-4xl font-black text-white flex items-center gap-2 mt-1">
-                  {rewards?.pointsBalance ?? 250} <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
+                  {rewards?.pointsBalance ?? config.welcomeBonusPoints ?? 250} <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
                 </span>
               </div>
               <span className="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-xs font-black uppercase tracking-wider">
@@ -102,12 +103,12 @@ export default function Rewards() {
             <div className="space-y-1.5 pt-4 border-t border-white/10">
               <div className="flex justify-between text-xs font-bold text-slate-300">
                 <span>Progress to Gold Tier</span>
-                <span>{(rewards?.pointsBalance ?? 250)} / 500 pts</span>
+                <span>{(rewards?.pointsBalance ?? config.welcomeBonusPoints ?? 250)} / 500 pts</span>
               </div>
               <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-amber-400 to-yellow-500 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, ((rewards?.pointsBalance ?? 250) / 500) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (((rewards?.pointsBalance ?? config.welcomeBonusPoints ?? 250)) / 500) * 100)}%` }}
                 />
               </div>
             </div>
@@ -126,7 +127,7 @@ export default function Rewards() {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            <Tag className="w-4 h-4" /> Available Vouchers ({DEFAULT_VOUCHERS.length})
+            <Tag className="w-4 h-4" /> Available Vouchers ({activeOffers.length})
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -138,6 +139,16 @@ export default function Rewards() {
           >
             <Clock className="w-4 h-4" /> Transaction History
           </button>
+          <button
+            onClick={() => setActiveTab('rules')}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+              activeTab === 'rules'
+                ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" /> Program Rules & Policy
+          </button>
         </div>
 
         <div className="text-xs font-bold text-gray-400">
@@ -148,7 +159,7 @@ export default function Rewards() {
       {/* Grid Content */}
       {activeTab === 'vouchers' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {DEFAULT_VOUCHERS.map((voucher) => {
+          {activeOffers.map((voucher) => {
             const isClaimed = rewards?.claimedVouchers?.includes(voucher.id);
             const canAfford = (rewards?.pointsBalance ?? 0) >= voucher.pointsRequired;
 
@@ -196,7 +207,7 @@ export default function Rewards() {
                           : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }`}
                     >
-                      {canAfford ? 'Redeem Voucher' : `Need ${voucher.pointsRequired - (rewards?.pointsBalance ?? 0)} More Pts`}
+                      {canAfford ? (config.buttonText || 'Redeem Voucher') : `Need ${voucher.pointsRequired - (rewards?.pointsBalance ?? 0)} More Pts`}
                     </button>
                   )}
                 </div>
@@ -237,6 +248,47 @@ export default function Rewards() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'rules' && (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 lg:p-8 space-y-6">
+          <h3 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-4">Rewards Program Rules & Terms</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-5 bg-amber-50/60 rounded-2xl border border-amber-100 space-y-2">
+              <h4 className="font-bold text-amber-900 text-sm flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" /> How to Earn Points
+              </h4>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                {config.earningRules || 'Earn points for every purchase made on ViBa Mart.'}
+              </p>
+              <div className="pt-2 text-[11px] font-bold text-amber-700">
+                Rate: Earn {config.pointsPerRupee ? Math.round(1 / config.pointsPerRupee) : 10} ₹ = 1 Point
+              </div>
+            </div>
+
+            <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-100 space-y-2">
+              <h4 className="font-bold text-emerald-900 text-sm flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600" /> Redemption Rules
+              </h4>
+              <p className="text-xs text-emerald-800 leading-relaxed">
+                {config.redemptionRules || 'Redeem points for instant store discount vouchers.'}
+              </p>
+              <div className="pt-2 text-[11px] font-bold text-emerald-700">
+                Minimum Points Required: {config.minRedeemPoints || 100} Pts
+              </div>
+            </div>
+
+            <div className="md:col-span-2 p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+              <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-600" /> Terms & Conditions
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                {config.termsAndConditions || 'Reward points and vouchers are subject to store validity terms.'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

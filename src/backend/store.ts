@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction } from "../shared/types";
-import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS } from "../shared/constants";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer } from "../shared/types";
+import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
+
 
 interface AuthState {
   user: UserProfile | null;
@@ -418,17 +419,78 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
 
 // Shared Rewards Store (Synchronized for Desktop + Mobile)
 interface RewardsState {
+  config: RewardsSectionConfig;
+  offers: RewardOffer[];
   rewards: UserRewards | null;
   loading: boolean;
   initRewards: (userId?: string) => void;
+  updateRewardsConfig: (updates: Partial<RewardsSectionConfig>) => Promise<void>;
+  addRewardOffer: (offer: Omit<RewardOffer, 'id'>) => Promise<void>;
+  updateRewardOffer: (offerId: string, updates: Partial<RewardOffer>) => Promise<void>;
+  toggleRewardOffer: (offerId: string, active: boolean) => Promise<void>;
+  deleteRewardOffer: (offerId: string) => Promise<void>;
   claimVoucher: (voucherId: string) => Promise<{ success: boolean; message: string; voucher?: any }>;
   addPoints: (points: number, title: string, description?: string) => Promise<void>;
 }
 
 export const useRewardsStore = create<RewardsState>((set, get) => ({
+  config: DEFAULT_REWARDS_CONFIG,
+  offers: DEFAULT_VOUCHERS,
   rewards: null,
   loading: true,
+
   initRewards: (userId?: string) => {
+    // 1. Subscribe to Global Rewards Config (settings/rewardsConfig)
+    const configRef = doc(db, 'settings', 'rewardsConfig');
+    onSnapshot(configRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as RewardsSectionConfig;
+        set({ config: { ...DEFAULT_REWARDS_CONFIG, ...data } });
+      } else {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          try {
+            await setDoc(configRef, DEFAULT_REWARDS_CONFIG);
+          } catch (e) {
+            console.error("Failed to seed default rewards config:", e);
+          }
+        }
+        set({ config: DEFAULT_REWARDS_CONFIG });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/rewardsConfig', false);
+    });
+
+    // 2. Subscribe to Reward Offers Collection (reward_offers)
+    const offersColRef = collection(db, 'reward_offers');
+    onSnapshot(offersColRef, async (snapshot) => {
+      if (!snapshot.empty) {
+        const fetchedOffers = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as RewardOffer));
+
+        fetchedOffers.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+        set({ offers: fetchedOffers });
+      } else {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.role === 'admin') {
+          // Auto-seed DEFAULT_VOUCHERS if empty
+          DEFAULT_VOUCHERS.forEach(async (vouch) => {
+            try {
+              await setDoc(doc(db, 'reward_offers', vouch.id), vouch);
+            } catch (e) {
+              console.error("Failed to seed default reward offer:", vouch.id, e);
+            }
+          });
+        }
+        set({ offers: DEFAULT_VOUCHERS });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'reward_offers', false);
+    });
+
+    // 3. Subscribe to User Personal Rewards (user_rewards/{userId})
     const currentUid = userId || useAuthStore.getState().user?.uid;
     if (!currentUid) {
       set({ rewards: null, loading: false });
@@ -440,11 +502,10 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       if (docSnap.exists()) {
         set({ rewards: docSnap.data() as UserRewards, loading: false });
       } else {
-        // Initialize default user rewards profile
         const initialRewards: UserRewards = {
           userId: currentUid,
-          pointsBalance: 250, // Welcome points bonus
-          totalEarned: 250,
+          pointsBalance: get().config.welcomeBonusPoints || 250,
+          totalEarned: get().config.welcomeBonusPoints || 250,
           totalSpent: 0,
           tier: 'Silver',
           claimedVouchers: [],
@@ -454,7 +515,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
               userId: currentUid,
               title: 'Welcome Bonus',
               type: 'earned',
-              points: 250,
+              points: get().config.welcomeBonusPoints || 250,
               date: new Date().toISOString(),
               description: 'Welcome gift for joining ViBa Mart Rewards!'
             }
@@ -474,6 +535,74 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       set({ loading: false });
     });
   },
+
+  updateRewardsConfig: async (updates: Partial<RewardsSectionConfig>) => {
+    try {
+      const configRef = doc(db, 'settings', 'rewardsConfig');
+      const payload = {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(configRef, payload, { merge: true });
+
+      // If 'enabled' status was updated, also sync feature registry
+      if (typeof updates.enabled === 'boolean') {
+        const featureRef = doc(db, 'features', 'rewards');
+        await setDoc(featureRef, { enabled: updates.enabled, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch (e) {
+      console.error("Failed to update rewards config:", e);
+      throw e;
+    }
+  },
+
+  addRewardOffer: async (offerData: Omit<RewardOffer, 'id'>) => {
+    try {
+      const offerId = `vouch-${Date.now()}`;
+      const newOffer: RewardOffer = {
+        ...offerData,
+        id: offerId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const docRef = doc(db, 'reward_offers', offerId);
+      await setDoc(docRef, newOffer);
+    } catch (e) {
+      console.error("Failed to add reward offer:", e);
+      throw e;
+    }
+  },
+
+  updateRewardOffer: async (offerId: string, updates: Partial<RewardOffer>) => {
+    try {
+      const docRef = doc(db, 'reward_offers', offerId);
+      await setDoc(docRef, { ...updates, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.error(`Failed to update reward offer ${offerId}:`, e);
+      throw e;
+    }
+  },
+
+  toggleRewardOffer: async (offerId: string, active: boolean) => {
+    try {
+      const docRef = doc(db, 'reward_offers', offerId);
+      await setDoc(docRef, { active, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (e) {
+      console.error(`Failed to toggle reward offer ${offerId}:`, e);
+      throw e;
+    }
+  },
+
+  deleteRewardOffer: async (offerId: string) => {
+    try {
+      const docRef = doc(db, 'reward_offers', offerId);
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.error(`Failed to delete reward offer ${offerId}:`, e);
+      throw e;
+    }
+  },
+
   claimVoucher: async (voucherId: string) => {
     const currentRewards = get().rewards;
     const currentUser = useAuthStore.getState().user;
@@ -481,9 +610,14 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       return { success: false, message: 'Please log in to claim reward vouchers.' };
     }
 
-    const voucher = DEFAULT_VOUCHERS.find(v => v.id === voucherId);
+    const availableOffers = get().offers.length > 0 ? get().offers : DEFAULT_VOUCHERS;
+    const voucher = availableOffers.find(v => v.id === voucherId);
     if (!voucher) {
       return { success: false, message: 'Invalid reward voucher.' };
+    }
+
+    if (!voucher.active) {
+      return { success: false, message: 'This reward offer is currently inactive.' };
     }
 
     if (currentRewards.pointsBalance < voucher.pointsRequired) {
@@ -523,6 +657,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       return { success: false, message: 'Failed to claim voucher due to network error.' };
     }
   },
+
   addPoints: async (points: number, title: string, description?: string) => {
     const currentRewards = get().rewards;
     const currentUser = useAuthStore.getState().user;
@@ -554,4 +689,5 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     }
   }
 }));
+
 
