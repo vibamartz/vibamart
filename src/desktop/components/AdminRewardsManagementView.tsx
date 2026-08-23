@@ -4,45 +4,76 @@ import {
   Gift, Sparkles, Award, Tag, Trophy, Plus, Edit3, Trash2,
   Check, Eye, Save, RefreshCw, Smartphone, Monitor, ShieldCheck,
   AlertCircle, ChevronRight, Lock, Image as ImageIcon, Link as LinkIcon,
-  CheckCircle2, XCircle, ArrowUp, ArrowDown, Info
+  CheckCircle2, XCircle, ArrowUp, ArrowDown, Info, ExternalLink,
+  Calendar, Clock, DollarSign, Layers, ShoppingBag, Search, Filter, AlertTriangle
 } from 'lucide-react';
 import { useRewardsStore } from '../../backend/store';
-import { RewardOffer, RewardsSectionConfig } from '../../shared/types';
+import { BrandCoupon, RewardsSectionConfig, RewardOrder } from '../../shared/types';
 import toast from 'react-hot-toast';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
 export default function AdminRewardsManagementView() {
-  const { config, offers, updateRewardsConfig, addRewardOffer, updateRewardOffer, toggleRewardOffer, deleteRewardOffer, initRewards } = useRewardsStore();
+  const {
+    config,
+    offers,
+    rewardOrders,
+    updateRewardsConfig,
+    addRewardOffer,
+    updateRewardOffer,
+    toggleRewardOffer,
+    deleteRewardOffer,
+    reorderRewardOffers,
+    confirmRewardOrderPayment,
+    rejectRewardOrderPayment,
+    markRewardOrderUsed,
+    initRewards
+  } = useRewardsStore();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'rules' | 'offers' | 'preview'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'coupons' | 'orders' | 'preview'>('general');
   const [formConfig, setFormConfig] = useState<RewardsSectionConfig>(config);
   const [savingConfig, setSavingConfig] = useState(false);
 
-  // Offer Modal State
-  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const [editingOffer, setEditingOffer] = useState<RewardOffer | null>(null);
-  const [savingOffer, setSavingOffer] = useState(false);
+  // Coupon Modal State
+  const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<BrandCoupon | null>(null);
+  const [savingCoupon, setSavingCoupon] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
-  // Offer Form State
-  const [offerForm, setOfferForm] = useState<Partial<RewardOffer>>({
+  // Coupon Search & Filter
+  const [couponSearch, setCouponSearch] = useState('');
+  const [couponCategoryFilter, setCouponCategoryFilter] = useState('all');
+
+  // Orders Filter
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'expired' | 'used'>('all');
+
+  // Coupon Form State
+  const [couponForm, setCouponForm] = useState<Partial<BrandCoupon>>({
+    brandName: '',
+    brandLogo: '',
+    brandWebsiteUrl: '',
     title: '',
-    description: '',
-    pointsRequired: 100,
-    discountValue: 100,
-    discountType: 'fixed',
     code: '',
-    minPurchase: 0,
-    expiryDays: 30,
-    usageLimit: 1,
-    eligibilityTier: 'all',
+    discountType: 'flat',
+    discountValue: 100,
+    minOrderValue: 499,
+    maxDiscount: 100,
+    productImage: '',
+    catalogImages: [],
+    buyNowPrice: 49,
+    validFrom: new Date().toISOString().slice(0, 16),
+    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    totalQuantity: 100,
+    remainingQuantity: 100,
     active: true,
-    order: 1,
-    category: 'Storewide',
-    icon: 'Gift',
-    imageUrl: ''
+    featured: false,
+    category: 'Fashion & Apparel',
+    subcategory: '',
+    terms: 'Valid on official brand web store. One voucher per order.',
+    order: 1
   });
+
+  const [catalogInput, setCatalogInput] = useState('');
 
   useEffect(() => {
     initRewards();
@@ -66,95 +97,201 @@ export default function AdminRewardsManagementView() {
     }
   };
 
-  const openAddOfferModal = () => {
-    setEditingOffer(null);
-    setOfferForm({
+  const openAddCouponModal = () => {
+    setEditingCoupon(null);
+    setCouponForm({
+      brandName: '',
+      brandLogo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop',
+      brandWebsiteUrl: 'https://',
       title: '',
-      description: '',
-      pointsRequired: 100,
+      code: `REWARD-${Math.floor(1000 + Math.random() * 9000)}`,
+      discountType: 'flat',
       discountValue: 100,
-      discountType: 'fixed',
-      code: `REWARD${Math.floor(100 + Math.random() * 900)}`,
-      minPurchase: 0,
-      expiryDays: 30,
-      usageLimit: 1,
-      eligibilityTier: 'all',
+      minOrderValue: 499,
+      maxDiscount: 100,
+      productImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop',
+      catalogImages: [],
+      buyNowPrice: 49,
+      validFrom: new Date().toISOString().slice(0, 16),
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+      totalQuantity: 100,
+      remainingQuantity: 100,
       active: true,
-      order: offers.length + 1,
-      category: 'Storewide',
-      icon: 'Gift',
-      imageUrl: ''
+      featured: false,
+      category: 'Fashion & Apparel',
+      subcategory: '',
+      terms: 'Valid on official brand store orders.',
+      order: offers.length + 1
     });
-    setIsOfferModalOpen(true);
+    setCatalogInput('');
+    setIsCouponModalOpen(true);
   };
 
-  const openEditOfferModal = (offer: RewardOffer) => {
-    setEditingOffer(offer);
-    setOfferForm({ ...offer });
-    setIsOfferModalOpen(true);
+  const openEditCouponModal = (coupon: BrandCoupon) => {
+    setEditingCoupon(coupon);
+    setCouponForm({
+      ...coupon,
+      validFrom: coupon.validFrom ? new Date(coupon.validFrom).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
+    });
+    setCatalogInput('');
+    setIsCouponModalOpen(true);
   };
 
-  const handleSaveOffer = async (e: React.FormEvent) => {
+  const handleAddCatalogImage = () => {
+    if (!catalogInput.trim()) return;
+    const updated = [...(couponForm.catalogImages || []), catalogInput.trim()];
+    setCouponForm({ ...couponForm, catalogImages: updated });
+    setCatalogInput('');
+  };
+
+  const handleRemoveCatalogImage = (index: number) => {
+    const updated = [...(couponForm.catalogImages || [])];
+    updated.splice(index, 1);
+    setCouponForm({ ...couponForm, catalogImages: updated });
+  };
+
+  const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!offerForm.title || !offerForm.code || !offerForm.pointsRequired) {
-      toast.error('Please fill in all required offer fields.');
+    if (!couponForm.brandName || !couponForm.title || !couponForm.code) {
+      toast.error('Please fill in all required fields (Brand Name, Title, Coupon Code).');
       return;
     }
 
-    setSavingOffer(true);
+    setSavingCoupon(true);
     try {
-      if (editingOffer) {
-        await updateRewardOffer(editingOffer.id, offerForm);
-        toast.success(`Reward offer "${offerForm.title}" updated.`);
+      const payload: Partial<BrandCoupon> = {
+        ...couponForm,
+        validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).toISOString() : new Date().toISOString(),
+        expiryDate: couponForm.expiryDate ? new Date(couponForm.expiryDate).toISOString() : new Date(Date.now() + 30*86400000).toISOString(),
+        discountValue: Number(couponForm.discountValue || 0),
+        buyNowPrice: Number(couponForm.buyNowPrice || 0),
+        minOrderValue: Number(couponForm.minOrderValue || 0),
+        maxDiscount: Number(couponForm.maxDiscount || 0),
+        totalQuantity: Number(couponForm.totalQuantity || 0),
+        remainingQuantity: Number(couponForm.remainingQuantity ?? couponForm.totalQuantity ?? 0)
+      };
+
+      if (editingCoupon) {
+        await updateRewardOffer(editingCoupon.id, payload);
+        toast.success(`Brand coupon "${payload.title}" updated successfully.`);
       } else {
-        await addRewardOffer(offerForm as Omit<RewardOffer, 'id'>);
-        toast.success(`New reward offer "${offerForm.title}" created!`);
+        await addRewardOffer(payload as Omit<BrandCoupon, 'id'>);
+        toast.success(`New brand coupon "${payload.title}" created!`);
       }
-      setIsOfferModalOpen(false);
+      setIsCouponModalOpen(false);
     } catch (err) {
-      toast.error('Failed to save reward offer');
+      toast.error('Failed to save brand coupon');
       console.error(err);
     } finally {
-      setSavingOffer(false);
+      setSavingCoupon(false);
     }
   };
 
-  const handleToggleOffer = async (offer: RewardOffer) => {
+  const handleToggleCoupon = async (coupon: BrandCoupon) => {
     try {
-      await toggleRewardOffer(offer.id, !offer.active);
-      toast.success(`Offer "${offer.title}" set to ${!offer.active ? 'Active' : 'Inactive'}`);
+      await toggleRewardOffer(coupon.id, !coupon.active);
+      toast.success(`Coupon "${coupon.title}" is now ${!coupon.active ? 'Active' : 'Inactive'}`);
     } catch (err) {
-      toast.error('Failed to toggle offer status');
+      toast.error('Failed to toggle coupon status');
     }
   };
 
-  const handleDeleteOffer = async (offerId: string, title: string) => {
+  const handleDeleteCoupon = async (couponId: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
     try {
-      await deleteRewardOffer(offerId);
-      toast.success(`Deleted reward offer "${title}".`);
+      await deleteRewardOffer(couponId);
+      toast.success(`Deleted coupon "${title}".`);
     } catch (err) {
-      toast.error('Failed to delete reward offer');
+      toast.error('Failed to delete brand coupon');
     }
   };
+
+  const handleMoveOrder = async (index: number, direction: 'up' | 'down') => {
+    const newOffers = [...offers];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newOffers.length) return;
+
+    const temp = newOffers[index];
+    newOffers[index] = newOffers[targetIndex];
+    newOffers[targetIndex] = temp;
+
+    try {
+      await reorderRewardOffers(newOffers);
+      toast.success('Display order updated.');
+    } catch (err) {
+      toast.error('Failed to reorder coupons.');
+    }
+  };
+
+  // Orders Actions
+  const handleConfirmPayment = async (orderId: string) => {
+    if (!window.confirm('Confirm payment and unlock actual coupon code for customer?')) return;
+    const res = await confirmRewardOrderPayment(orderId);
+    if (res.success) {
+      toast.success(res.message);
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  const handleRejectPayment = async (orderId: string) => {
+    const reason = prompt('Reason for payment rejection:', 'Payment verification failed / invalid reference');
+    if (reason === null) return;
+    const res = await rejectRewardOrderPayment(orderId, reason);
+    if (res.success) {
+      toast.success(res.message);
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  const handleMarkUsed = async (orderId: string) => {
+    const res = await markRewardOrderUsed(orderId);
+    if (res.success) {
+      toast.success(res.message);
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  // Filtered Coupons
+  const filteredCoupons = offers.filter(c => {
+    const matchesSearch = (c.brandName || '').toLowerCase().includes(couponSearch.toLowerCase()) ||
+                          (c.title || '').toLowerCase().includes(couponSearch.toLowerCase()) ||
+                          (c.code || '').toLowerCase().includes(couponSearch.toLowerCase());
+    const matchesCategory = couponCategoryFilter === 'all' || c.category === couponCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Filtered Reward Orders
+  const filteredOrders = rewardOrders.filter(o => {
+    if (orderStatusFilter === 'pending') return o.paymentStatus === 'pending' || o.paymentStatus === 'submitted';
+    if (orderStatusFilter === 'confirmed') return o.paymentStatus === 'confirmed';
+    if (orderStatusFilter === 'used') return o.couponStatus === 'used';
+    if (orderStatusFilter === 'expired') return new Date(o.expiryDate).getTime() < Date.now();
+    return true;
+  });
+
+  const pendingOrdersCount = rewardOrders.filter(o => o.paymentStatus === 'pending' || o.paymentStatus === 'submitted').length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-amber-100 text-amber-600 rounded-2xl">
+          <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-lg shadow-amber-500/20">
             <Gift className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Rewards & Loyalty Management</h1>
-            <p className="text-xs text-gray-500">Configure storewide rewards section, earning/redemption rules, and vouchers in real time.</p>
+            <h1 className="text-xl font-black text-gray-900">Rewards & Brand Coupons Management</h1>
+            <p className="text-xs text-gray-500">Configure storewide rewards section, create brand coupons, set discounts, and verify customer payments.</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-bold">
-            <span className="text-gray-500">Status:</span>
+            <span className="text-gray-500">System Status:</span>
             <span className={config.enabled ? 'text-emerald-600 font-black flex items-center gap-1' : 'text-rose-500 font-black flex items-center gap-1'}>
               {config.enabled ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
               {config.enabled ? 'ONLINE' : 'OFFLINE'}
@@ -169,368 +306,310 @@ export default function AdminRewardsManagementView() {
         </div>
       </div>
 
-      {/* Tabs Bar */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+      {/* Navigation Tabs Bar */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('general')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'general'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
           }`}
         >
-          <Gift className="w-4 h-4" /> Section & Branding
+          <Gift className="w-4 h-4" /> Section & Branding Settings
         </button>
         <button
-          onClick={() => setActiveTab('rules')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'rules'
+          onClick={() => setActiveTab('coupons')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'coupons'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
           }`}
         >
-          <ShieldCheck className="w-4 h-4" /> Points & Rules
+          <Tag className="w-4 h-4" /> Brand Coupons ({offers.length})
         </button>
         <button
-          onClick={() => setActiveTab('offers')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'offers'
+          onClick={() => setActiveTab('orders')}
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap relative ${
+            activeTab === 'orders'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
           }`}
         >
-          <Tag className="w-4 h-4" /> Reward Offers ({offers.length})
+          <ShoppingBag className="w-4 h-4" /> Reward Orders & Payment Verification ({rewardOrders.length})
+          {pendingOrdersCount > 0 && (
+            <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-black animate-pulse">
+              {pendingOrdersCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('preview')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'preview'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
           }`}
         >
-          <Monitor className="w-4 h-4" /> Device Preview
+          <Eye className="w-4 h-4" /> Device Preview
         </button>
       </div>
 
-      {/* Tab 1: General Section Settings */}
+      {/* TAB 1: SECTION & BRANDING SETTINGS */}
       {activeTab === 'general' && (
-        <form onSubmit={handleSaveConfig} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+        <form onSubmit={handleSaveConfig} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+          <div className="flex justify-between items-center pb-4 border-b border-gray-100">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Storefront Banner & Branding</h2>
-              <p className="text-xs text-gray-500">Configure how the Rewards section title, banner, card text, and icons display on storefront pages.</p>
+              <h2 className="text-base font-bold text-gray-900">Rewards Section & Branding Settings</h2>
+              <p className="text-xs text-gray-500">Manage visibility, title, header banner, icon, and permanent notices.</p>
             </div>
-
-            {/* Master Toggle */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-700">Enable Rewards Program</span>
-              <button
-                type="button"
-                onClick={() => setFormConfig({ ...formConfig, enabled: !formConfig.enabled })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formConfig.enabled ? 'bg-emerald-500' : 'bg-gray-300'
-                }`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  formConfig.enabled ? 'translate-x-6' : 'translate-x-1'
-                }`} />
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={savingConfig}
+              className="px-5 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" /> {savingConfig ? 'Saving...' : 'Save Settings'}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Header Badge Text</label>
-              <input
-                type="text"
-                value={formConfig.badgeText}
-                onChange={(e) => setFormConfig({ ...formConfig, badgeText: e.target.value })}
-                placeholder="e.g. ViBa Club Rewards"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
+            {/* Enable/Disable */}
+            <div className="col-span-2 bg-amber-50/50 p-4 rounded-xl border border-amber-100 flex items-center justify-between">
+              <div>
+                <span className="text-sm font-bold text-gray-900 block">Enable Rewards & Brand Coupons Section</span>
+                <span className="text-xs text-gray-500">Toggle whether customer storefront rewards page is active.</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formConfig.enabled}
+                  onChange={(e) => setFormConfig({ ...formConfig, enabled: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500" />
+              </label>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Section Main Title</label>
+            {/* Title */}
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Rewards Main Title</label>
               <input
                 type="text"
                 value={formConfig.title}
                 onChange={(e) => setFormConfig({ ...formConfig, title: e.target.value })}
-                placeholder="e.g. Shop, Earn Points & Unlock Exclusive Discounts"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                placeholder="Exclusive Brand Rewards & Instant Discount Vouchers"
               />
             </div>
 
-            <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-bold text-gray-700">Subtitle / Description</label>
+            {/* Badge Text */}
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Badge / Tagline Text</label>
+              <input
+                type="text"
+                value={formConfig.badgeText}
+                onChange={(e) => setFormConfig({ ...formConfig, badgeText: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                placeholder="ViBa Official Brand Coupons"
+              />
+            </div>
+
+            {/* Subtitle */}
+            <div className="col-span-2">
+              <label className="text-xs font-bold text-gray-700 block mb-1">Sub-heading Description</label>
               <textarea
-                rows={3}
+                rows={2}
                 value={formConfig.subtitle}
                 onChange={(e) => setFormConfig({ ...formConfig, subtitle: e.target.value })}
-                placeholder="Describe how customers earn and redeem reward points..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                placeholder="Claim premium brand coupons across Top Brands..."
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Header Icon Preset</label>
+            {/* Banner Image URL */}
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Rewards Banner Image URL</label>
+              <input
+                type="text"
+                value={formConfig.bannerImage || ''}
+                onChange={(e) => setFormConfig({ ...formConfig, bannerImage: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                placeholder="https://images.unsplash.com/..."
+              />
+            </div>
+
+            {/* Non-Refundable Notice Text */}
+            <div>
+              <label className="text-xs font-bold text-gray-700 block mb-1">Permanent Notice Header</label>
+              <input
+                type="text"
+                value={formConfig.nonRefundableNotice || '⚠️ NON REFUNDABLE'}
+                onChange={(e) => setFormConfig({ ...formConfig, nonRefundableNotice: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                placeholder="⚠️ NON REFUNDABLE"
+              />
+            </div>
+
+            {/* Earning & Redemption Terms */}
+            <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Redemption Rules Text</label>
+                <textarea
+                  rows={3}
+                  value={formConfig.redemptionRules}
+                  onChange={(e) => setFormConfig({ ...formConfig, redemptionRules: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1">Terms & Conditions</label>
+                <textarea
+                  rows={3}
+                  value={formConfig.termsAndConditions}
+                  onChange={(e) => setFormConfig({ ...formConfig, termsAndConditions: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* TAB 2: BRAND COUPONS MANAGEMENT */}
+      {activeTab === 'coupons' && (
+        <div className="space-y-6 font-sans">
+          {/* Action Bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[240px]">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={couponSearch}
+                  onChange={(e) => setCouponSearch(e.target.value)}
+                  placeholder="Search brand, coupon title, code..."
+                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
               <select
-                value={formConfig.headerIcon}
-                onChange={(e) => setFormConfig({ ...formConfig, headerIcon: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white"
+                value={couponCategoryFilter}
+                onChange={(e) => setCouponCategoryFilter(e.target.value)}
+                className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white"
               >
-                {PRESET_ICONS.map(iconName => (
-                  <option key={iconName} value={iconName}>{iconName}</option>
-                ))}
+                <option value="all">All Categories</option>
+                <option value="Fashion & Apparel">Fashion & Apparel</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+                <option value="Sports & Outdoors">Sports & Outdoors</option>
+                <option value="Grocery & Dining">Grocery & Dining</option>
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Custom Header Icon URL (Optional)</label>
-              <input
-                type="url"
-                value={formConfig.headerIconUrl || ''}
-                onChange={(e) => setFormConfig({ ...formConfig, headerIconUrl: e.target.value })}
-                placeholder="https://..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Homepage Reward Card Highlight Text</label>
-              <input
-                type="text"
-                value={formConfig.cardText}
-                onChange={(e) => setFormConfig({ ...formConfig, cardText: e.target.value })}
-                placeholder="e.g. Earn 1 point per ₹10 spent. Redeem points for instant discounts & vouchers!"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Primary Redeem Button Text</label>
-              <input
-                type="text"
-                value={formConfig.buttonText}
-                onChange={(e) => setFormConfig({ ...formConfig, buttonText: e.target.value })}
-                placeholder="e.g. Redeem Voucher"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Rewards Section Target Link / Route</label>
-              <input
-                type="text"
-                value={formConfig.targetLink}
-                onChange={(e) => setFormConfig({ ...formConfig, targetLink: e.target.value })}
-                placeholder="e.g. /rewards"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Banner Background Image URL (Optional)</label>
-              <input
-                type="url"
-                value={formConfig.cardImage || ''}
-                onChange={(e) => setFormConfig({ ...formConfig, cardImage: e.target.value })}
-                placeholder="https://..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t border-gray-100">
             <button
-              type="submit"
-              disabled={savingConfig}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2"
+              onClick={openAddCouponModal}
+              className="px-5 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20"
             >
-              {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Section Settings
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Tab 2: Points & Rules */}
-      {activeTab === 'rules' && (
-        <form onSubmit={handleSaveConfig} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-          <div className="pb-4 border-b border-gray-100">
-            <h2 className="text-base font-bold text-gray-900">Earning Rules, Points Calculation & Terms</h2>
-            <p className="text-xs text-gray-500">Define welcome bonuses, earning multipliers, and store policy text.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Points Earned per ₹ Spent</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formConfig.pointsPerRupee}
-                onChange={(e) => setFormConfig({ ...formConfig, pointsPerRupee: parseFloat(e.target.value) || 0.1 })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-              <p className="text-[11px] text-gray-400">e.g. 0.1 means 1 point for every ₹10 spent.</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Welcome Bonus Points</label>
-              <input
-                type="number"
-                min="0"
-                value={formConfig.welcomeBonusPoints}
-                onChange={(e) => setFormConfig({ ...formConfig, welcomeBonusPoints: parseInt(e.target.value) || 250 })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-              <p className="text-[11px] text-gray-400">Credited to newly created user accounts.</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-700">Minimum Redemption Points</label>
-              <input
-                type="number"
-                min="0"
-                value={formConfig.minRedeemPoints}
-                onChange={(e) => setFormConfig({ ...formConfig, minRedeemPoints: parseInt(e.target.value) || 100 })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-              <p className="text-[11px] text-gray-400">Minimum points user must hold to unlock voucher redemptions.</p>
-            </div>
-
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-gray-700">Earning Rules Explanation</label>
-              <textarea
-                rows={3}
-                value={formConfig.earningRules}
-                onChange={(e) => setFormConfig({ ...formConfig, earningRules: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-gray-700">Redemption Rules Explanation</label>
-              <textarea
-                rows={3}
-                value={formConfig.redemptionRules}
-                onChange={(e) => setFormConfig({ ...formConfig, redemptionRules: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-gray-700">Terms & Conditions</label>
-              <textarea
-                rows={3}
-                value={formConfig.termsAndConditions}
-                onChange={(e) => setFormConfig({ ...formConfig, termsAndConditions: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t border-gray-100">
-            <button
-              type="submit"
-              disabled={savingConfig}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2"
-            >
-              {savingConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Points & Rules
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Tab 3: Reward Offers Manager */}
-      {activeTab === 'offers' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Manage Reward Offers & Vouchers</h2>
-              <p className="text-xs text-gray-500">Create, activate, edit, reorder, or delete reward vouchers for storefront users.</p>
-            </div>
-            <button
-              onClick={openAddOfferModal}
-              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Create Reward Offer
+              <Plus className="w-4 h-4" /> Create Brand Coupon
             </button>
           </div>
 
-          {/* Offers Table / Cards */}
+          {/* Coupons List */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {offers.map((offer) => (
-              <div
-                key={offer.id}
-                className={`bg-white rounded-2xl border ${offer.active ? 'border-gray-200 shadow-sm' : 'border-gray-200 bg-gray-50 opacity-75'} p-5 flex flex-col justify-between space-y-4`}
-              >
+            {filteredCoupons.map((coupon, idx) => (
+              <div key={coupon.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
                 <div>
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-black rounded-xl">
-                      {offer.pointsRequired} pts required
-                    </span>
+                  {/* Top Image & Logo Header */}
+                  <div className="h-40 relative bg-gray-100 overflow-hidden">
+                    <img src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'} alt={coupon.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-                    <div className="flex items-center gap-1.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                        offer.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        {offer.active ? 'Active' : 'Inactive'}
-                      </span>
-                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                        Priority: #{offer.order}
+                    {/* Brand Logo Badge */}
+                    <div className="absolute left-4 bottom-3 flex items-center gap-2 z-10">
+                      <img src={coupon.brandLogo || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'} alt={coupon.brandName} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md bg-white" />
+                      <div>
+                        <span className="text-white font-black text-xs block leading-tight">{coupon.brandName}</span>
+                        <span className="text-[10px] text-amber-300 font-bold">{coupon.category || 'General'}</span>
+                      </div>
+                    </div>
+
+                    {/* Featured & Active Badges */}
+                    <div className="absolute right-3 top-3 flex items-center gap-1.5 z-10">
+                      {coupon.featured && (
+                        <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full shadow-sm">
+                          FEATURED
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black text-white ${coupon.active ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                        {coupon.active ? 'ACTIVE' : 'INACTIVE'}
                       </span>
                     </div>
                   </div>
 
-                  <h3 className="font-bold text-gray-900 text-base mb-1">{offer.title}</h3>
-                  <p className="text-xs text-gray-500 mb-3 leading-relaxed line-clamp-2">{offer.description}</p>
+                  {/* Body Content */}
+                  <div className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{coupon.title}</h3>
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0 ml-2">
+                        {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                      </span>
+                    </div>
 
-                  <div className="space-y-1 text-[11px] text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                    <div className="flex justify-between">
-                      <span>Code: <strong className="text-gray-800">{offer.code}</strong></span>
-                      <span>Discount: <strong className="text-emerald-600">{offer.discountType === 'percentage' ? `${offer.discountValue}%` : `₹${offer.discountValue}`}</strong></span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Min Purchase: <strong>₹{offer.minPurchase || 0}</strong></span>
-                      <span>Eligibility: <strong className="capitalize">{offer.eligibilityTier || 'all'}</strong></span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Expiry: <strong>{offer.expiryDays} Days</strong></span>
-                      <span>Category: <strong>{offer.category || 'Storewide'}</strong></span>
+                    <p className="text-xs text-gray-500 line-clamp-2">{coupon.description || coupon.terms}</p>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-gray-50 p-2.5 rounded-xl text-gray-600 font-medium">
+                      <div><span className="text-gray-400">Code:</span> <strong className="font-mono text-gray-900">{coupon.code}</strong></div>
+                      <div><span className="text-gray-400">Buy Price:</span> <strong className="text-amber-600">₹{coupon.buyNowPrice}</strong></div>
+                      <div><span className="text-gray-400">Stock:</span> <strong className="text-gray-900">{coupon.remainingQuantity} / {coupon.totalQuantity}</strong></div>
+                      <div><span className="text-gray-400">Min Order:</span> <strong className="text-gray-900">₹{coupon.minOrderValue || 0}</strong></div>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handleToggleOffer(offer)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                      offer.active
-                        ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {offer.active ? 'Deactivate' : 'Activate'}
-                  </button>
-
+                {/* Footer Controls */}
+                <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => openEditOfferModal(offer)}
-                      className="p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
-                      title="Edit Offer"
+                      onClick={() => handleMoveOrder(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
+                      title="Move Up"
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <ArrowUp className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDeleteOffer(offer.id, offer.title)}
-                      className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                      title="Delete Offer"
+                      onClick={() => handleMoveOrder(idx, 'down')}
+                      disabled={idx === offers.length - 1}
+                      className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
+                      title="Move Down"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggleCoupon(coupon)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                        coupon.active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                      }`}
+                    >
+                      {coupon.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => openEditCouponModal(coupon)}
+                      className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg"
+                      title="Edit Coupon"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCoupon(coupon.id, coupon.title)}
+                      className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg"
+                      title="Delete Coupon"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -540,307 +619,517 @@ export default function AdminRewardsManagementView() {
         </div>
       )}
 
-      {/* Tab 4: Live Device Preview */}
-      {activeTab === 'preview' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+      {/* TAB 3: REWARD ORDERS & PAYMENT VERIFICATION */}
+      {activeTab === 'orders' && (
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6 font-sans">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-100">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Live Device Storefront Preview</h2>
-              <p className="text-xs text-gray-500">Preview how Admin Rewards configuration renders on Desktop and Mobile user screens.</p>
+              <h2 className="text-base font-bold text-gray-900">Customer Reward Orders & Payment Approvals</h2>
+              <p className="text-xs text-gray-500">Verify customer payments. Confirming payment unlocks the real coupon code for the customer.</p>
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200 text-xs font-bold">
               <button
-                onClick={() => setPreviewDevice('desktop')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  previewDevice === 'desktop' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
+                onClick={() => setOrderStatusFilter('all')}
+                className={`px-3 py-1 rounded-lg ${orderStatusFilter === 'all' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
               >
-                <Monitor className="w-3.5 h-3.5" /> Desktop
+                All ({rewardOrders.length})
               </button>
               <button
-                onClick={() => setPreviewDevice('mobile')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  previewDevice === 'mobile' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
+                onClick={() => setOrderStatusFilter('pending')}
+                className={`px-3 py-1 rounded-lg flex items-center gap-1 ${orderStatusFilter === 'pending' ? 'bg-white shadow text-amber-600 font-black' : 'text-gray-500'}`}
               >
-                <Smartphone className="w-3.5 h-3.5" /> Mobile
+                Pending ({pendingOrdersCount})
+              </button>
+              <button
+                onClick={() => setOrderStatusFilter('confirmed')}
+                className={`px-3 py-1 rounded-lg ${orderStatusFilter === 'confirmed' ? 'bg-white shadow text-emerald-600 font-black' : 'text-gray-500'}`}
+              >
+                Confirmed
+              </button>
+              <button
+                onClick={() => setOrderStatusFilter('used')}
+                className={`px-3 py-1 rounded-lg ${orderStatusFilter === 'used' ? 'bg-white shadow text-slate-700' : 'text-gray-500'}`}
+              >
+                Used
               </button>
             </div>
           </div>
 
-          {!formConfig.enabled && (
-            <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2 font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>Note: Rewards program is currently <strong>DISABLED</strong>. Storefront users will see an offline banner.</span>
-            </div>
-          )}
-
-          {previewDevice === 'desktop' ? (
-            /* Desktop Mockup Preview */
-            <div className="border border-gray-200 rounded-2xl overflow-hidden bg-slate-50 p-6 space-y-6">
-              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-yellow-950 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-3 max-w-xl">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold text-yellow-300">
-                      <Gift className="w-3.5 h-3.5" /> {formConfig.badgeText || 'ViBa Club Rewards'}
-                    </div>
-                    <h2 className="text-2xl font-black">{formConfig.title || 'Shop, Earn Points & Unlock Exclusive Discounts'}</h2>
-                    <p className="text-slate-300 text-xs leading-relaxed">{formConfig.subtitle}</p>
-                  </div>
-
-                  <div className="bg-white/10 border border-white/20 p-5 rounded-2xl space-y-2 text-right shrink-0">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Sample Points Balance</span>
-                    <div className="text-3xl font-black text-amber-400">250 pts</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sample Offers Preview */}
-              <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Active Reward Vouchers Preview</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  {offers.filter(o => o.active).map(offer => (
-                    <div key={offer.id} className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-gray-900">{offer.title}</span>
-                        <span className="text-amber-600 font-black">{offer.pointsRequired} pts</span>
-                      </div>
-                      <p className="text-[11px] text-gray-500 line-clamp-2">{offer.description}</p>
-                      <button className="w-full py-2 bg-amber-500 text-white rounded-lg text-xs font-bold">
-                        {formConfig.buttonText || 'Redeem Voucher'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Table */}
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 space-y-2">
+              <ShoppingBag className="w-10 h-10 mx-auto opacity-30" />
+              <p className="text-xs font-bold">No reward orders match the current filter.</p>
             </div>
           ) : (
-            /* Mobile Mockup Preview */
-            <div className="max-w-sm mx-auto border-4 border-gray-800 rounded-[2.5rem] bg-[#FFF3EB] p-4 shadow-2xl space-y-4">
-              {/* Mobile Banner */}
-              <div className="bg-gradient-to-br from-gray-900 via-slate-900 to-yellow-950 text-white p-5 rounded-2xl space-y-3">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-yellow-300 font-bold">{formConfig.badgeText || 'ViBa Club Rewards'}</span>
-                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full">Silver Tier</span>
-                </div>
-                <div className="text-xl font-black text-amber-400">250 Pts</div>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase tracking-wider">
+                    <th className="p-3">Order ID & Date</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Brand & Product</th>
+                    <th className="p-3">Amount Paid</th>
+                    <th className="p-3">Payment Status</th>
+                    <th className="p-3">Coupon Code Status</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredOrders.map((order) => {
+                    const isPending = order.paymentStatus === 'pending' || order.paymentStatus === 'submitted';
+                    const isConfirmed = order.paymentStatus === 'confirmed';
 
-              {/* Mobile Card Preview */}
-              <div className="bg-white p-3.5 rounded-2xl border border-emerald-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
-                    <Gift className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-gray-900 uppercase">REWARDS</span>
-                    <p className="text-[10px] text-gray-500 line-clamp-1">{formConfig.cardText}</p>
-                  </div>
-                </div>
-              </div>
+                    return (
+                      <tr key={order.id} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="p-3 font-mono font-bold text-gray-900">
+                          <div>{order.id}</div>
+                          <div className="text-[10px] text-gray-400 font-normal">{new Date(order.createdAt).toLocaleString()}</div>
+                        </td>
 
-              {/* Mobile Offer List */}
-              <div className="space-y-2">
-                {offers.filter(o => o.active).slice(0, 2).map(offer => (
-                  <div key={offer.id} className="bg-white p-3 rounded-xl border border-yellow-100 flex justify-between items-center text-xs">
-                    <div>
-                      <div className="font-bold text-gray-900">{offer.title}</div>
-                      <div className="text-[10px] text-gray-400">{offer.pointsRequired} pts</div>
-                    </div>
-                    <button className="px-3 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-bold">
-                      Redeem
-                    </button>
-                  </div>
-                ))}
-              </div>
+                        <td className="p-3">
+                          <div className="font-bold text-gray-900">{order.userName || 'Customer'}</div>
+                          <div className="text-[10px] text-gray-500">{order.userEmail || order.userPhone}</div>
+                        </td>
+
+                        <td className="p-3">
+                          <div className="font-bold text-amber-700">{order.brandName}</div>
+                          <div className="text-gray-800 line-clamp-1">{order.productTitle}</div>
+                        </td>
+
+                        <td className="p-3 font-black text-gray-900">
+                          ₹{order.amountPaid}
+                          <span className="block text-[10px] font-normal text-gray-400 uppercase">{order.paymentMethod}</span>
+                          {order.paymentReference && <span className="block text-[10px] font-mono text-gray-500">Ref: {order.paymentReference}</span>}
+                        </td>
+
+                        <td className="p-3">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 ${
+                            isConfirmed ? 'bg-emerald-100 text-emerald-700' : isPending ? 'bg-amber-100 text-amber-700 animate-pulse' : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {isConfirmed ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                            {order.paymentStatus}
+                          </span>
+                        </td>
+
+                        <td className="p-3">
+                          {isConfirmed ? (
+                            <div>
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold rounded text-[11px]">
+                                {order.unlockedCode || 'UNLOCKED'}
+                              </span>
+                              <span className="block text-[10px] text-gray-400 mt-0.5">Unlocked</span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-400 font-mono font-bold rounded text-[11px]">
+                                XXX-XXX-XXX-XXX
+                              </span>
+                              <span className="block text-[10px] text-amber-600 font-bold mt-0.5">Locked until admin confirm</span>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="p-3 text-right">
+                          {isPending && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleConfirmPayment(order.id)}
+                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700 shadow-sm flex items-center gap-1"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Confirm & Unlock
+                              </button>
+                              <button
+                                onClick={() => handleRejectPayment(order.id)}
+                                className="px-2.5 py-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg font-bold text-[11px]"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          {isConfirmed && order.couponStatus !== 'used' && (
+                            <button
+                              onClick={() => handleMarkUsed(order.id)}
+                              className="px-2.5 py-1 bg-slate-800 text-white hover:bg-slate-900 rounded-lg font-bold text-[11px]"
+                            >
+                              Mark as Used
+                            </button>
+                          )}
+                          {order.couponStatus === 'used' && (
+                            <span className="text-[10px] font-bold text-gray-400">USED</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       )}
 
-      {/* Offer Modal Form */}
+      {/* TAB 4: LIVE PREVIEW */}
+      {activeTab === 'preview' && (
+        <div className="space-y-4 font-sans">
+          <div className="flex justify-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+            <button
+              onClick={() => setPreviewDevice('desktop')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                previewDevice === 'desktop' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <Monitor className="w-4 h-4" /> Desktop Preview
+            </button>
+            <button
+              onClick={() => setPreviewDevice('mobile')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                previewDevice === 'mobile' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <Smartphone className="w-4 h-4" /> Mobile Preview
+            </button>
+          </div>
+
+          <div className={`mx-auto bg-white rounded-3xl border-4 border-slate-900 shadow-2xl overflow-hidden transition-all duration-300 ${
+            previewDevice === 'mobile' ? 'max-w-[390px] min-h-[700px]' : 'max-w-6xl min-h-[600px]'
+          }`}>
+            {/* Live Storefront Mock Header */}
+            <div className="bg-amber-500 p-4 text-white text-center">
+              <div className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 text-amber-200" />
+                {config.nonRefundableNotice || '⚠️ NON REFUNDABLE'}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6 bg-[#FFF9F5]">
+              <div className="bg-gradient-to-r from-slate-900 to-amber-950 p-6 rounded-2xl text-white space-y-2">
+                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">{config.badgeText}</span>
+                <h2 className="text-xl font-black">{config.title}</h2>
+                <p className="text-xs text-slate-300">{config.subtitle}</p>
+              </div>
+
+              {/* Sample Coupons */}
+              <div className={`grid gap-4 ${previewDevice === 'mobile' ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                {offers.slice(0, 3).map(coupon => (
+                  <div key={coupon.id} className="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img src={coupon.brandLogo} alt="" className="w-8 h-8 rounded-full object-cover border" />
+                      <div>
+                        <h4 className="text-xs font-black text-gray-900">{coupon.brandName}</h4>
+                        <span className="text-[10px] text-emerald-600 font-bold">{coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}</span>
+                      </div>
+                    </div>
+                    <img src={coupon.productImage} alt="" className="w-full h-32 object-cover rounded-xl" />
+                    <h5 className="text-xs font-bold text-gray-900">{coupon.title}</h5>
+                    <div className="flex gap-2">
+                      <button className="flex-1 py-1.5 bg-amber-500 text-white rounded-xl text-[11px] font-black">Buy Now (₹{coupon.buyNowPrice})</button>
+                      <button className="px-3 py-1.5 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-600">Official Brand</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT BRAND COUPON MODAL */}
       <AnimatePresence>
-        {isOfferModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+        {isCouponModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl max-w-3xl w-full p-6 space-y-6 shadow-2xl border border-gray-100 my-8 font-sans max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center pb-4 border-b border-gray-100">
-                <h3 className="text-base font-bold text-gray-900">
-                  {editingOffer ? 'Edit Reward Offer' : 'Create New Reward Offer'}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-amber-500" />
+                  <h2 className="text-base font-black text-gray-900">
+                    {editingCoupon ? 'Edit Brand Coupon' : 'Create Unlimited Brand Coupon'}
+                  </h2>
+                </div>
                 <button
-                  onClick={() => setIsOfferModalOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full"
+                  onClick={() => setIsCouponModalOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveOffer} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Offer Title *</label>
+              <form onSubmit={handleSaveCoupon} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Brand Name */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Name *</label>
                     <input
                       type="text"
                       required
-                      value={offerForm.title}
-                      onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
-                      placeholder="e.g. ₹100 Instant Discount"
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={couponForm.brandName}
+                      onChange={(e) => setCouponForm({ ...couponForm, brandName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="e.g. Nike, Apple, Puma, Sephora"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Coupon Code *</label>
+                  {/* Brand Logo URL */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
+                    <input
+                      type="text"
+                      value={couponForm.brandLogo}
+                      onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="https://images.unsplash.com/..."
+                    />
+                  </div>
+
+                  {/* Official Brand Website URL */}
+                  <div className="col-span-2">
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Official Brand Website URL ("Visit Official Brand")</label>
+                    <input
+                      type="url"
+                      value={couponForm.brandWebsiteUrl}
+                      onChange={(e) => setCouponForm({ ...couponForm, brandWebsiteUrl: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="https://www.nike.com"
+                    />
+                  </div>
+
+                  {/* Coupon Title */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Coupon Title *</label>
                     <input
                       type="text"
                       required
-                      value={offerForm.code}
-                      onChange={(e) => setOfferForm({ ...offerForm, code: e.target.value.toUpperCase() })}
-                      placeholder="e.g. REWARD100"
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono"
+                      value={couponForm.title}
+                      onChange={(e) => setCouponForm({ ...couponForm, title: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="e.g. Flat ₹500 Off Nike Footwear"
                     />
                   </div>
 
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Description</label>
-                    <textarea
-                      rows={2}
-                      value={offerForm.description}
-                      onChange={(e) => setOfferForm({ ...offerForm, description: e.target.value })}
-                      placeholder="Short terms or conditions for claiming this voucher..."
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Points Required *</label>
+                  {/* Secret Coupon Code */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Actual Secret Coupon Code *</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
                       required
-                      value={offerForm.pointsRequired}
-                      onChange={(e) => setOfferForm({ ...offerForm, pointsRequired: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={couponForm.code}
+                      onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="e.g. NIKE-SUMMER-500"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Discount Type</label>
+                  {/* Discount Type */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Discount Type</label>
                     <select
-                      value={offerForm.discountType}
-                      onChange={(e) => setOfferForm({ ...offerForm, discountType: e.target.value as any })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white"
+                      value={couponForm.discountType}
+                      onChange={(e) => setCouponForm({ ...couponForm, discountType: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
                     >
-                      <option value="fixed">Fixed Amount (₹)</option>
-                      <option value="percentage">Percentage (%)</option>
+                      <option value="flat">Flat Amount (₹)</option>
+                      <option value="percent">Percentage (%)</option>
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Discount Value *</label>
+                  {/* Discount Value */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Discount Value</label>
                     <input
                       type="number"
-                      min="1"
                       required
-                      value={offerForm.discountValue}
-                      onChange={(e) => setOfferForm({ ...offerForm, discountValue: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={couponForm.discountValue}
+                      onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold text-amber-600"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Minimum Purchase (₹)</label>
+                  {/* Buy Now Price */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Buy Now Price (Amount Paid by Customer ₹)</label>
                     <input
                       type="number"
-                      min="0"
-                      value={offerForm.minPurchase}
-                      onChange={(e) => setOfferForm({ ...offerForm, minPurchase: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={couponForm.buyNowPrice}
+                      onChange={(e) => setCouponForm({ ...couponForm, buyNowPrice: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Expiry (Days)</label>
+                  {/* Minimum Order Value */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Minimum Order Value (₹)</label>
                     <input
                       type="number"
-                      min="1"
-                      value={offerForm.expiryDays}
-                      onChange={(e) => setOfferForm({ ...offerForm, expiryDays: parseInt(e.target.value) || 30 })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={couponForm.minOrderValue}
+                      onChange={(e) => setCouponForm({ ...couponForm, minOrderValue: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Eligibility Tier</label>
-                    <select
-                      value={offerForm.eligibilityTier}
-                      onChange={(e) => setOfferForm({ ...offerForm, eligibilityTier: e.target.value as any })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white"
-                    >
-                      <option value="all">All Members</option>
-                      <option value="Silver">Silver Tier & Above</option>
-                      <option value="Gold">Gold Tier & Above</option>
-                      <option value="Platinum">Platinum Tier Only</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Priority Order</label>
+                  {/* Main Product Image */}
+                  <div className="col-span-2">
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Main Product Image URL</label>
                     <input
-                      type="number"
-                      min="1"
-                      value={offerForm.order}
-                      onChange={(e) => setOfferForm({ ...offerForm, order: parseInt(e.target.value) || 1 })}
-                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      type="text"
+                      value={couponForm.productImage}
+                      onChange={(e) => setCouponForm({ ...couponForm, productImage: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700">Status</label>
-                    <div className="flex items-center gap-4 pt-1">
-                      <label className="flex items-center gap-2 text-xs cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="status"
-                          checked={offerForm.active === true}
-                          onChange={() => setOfferForm({ ...offerForm, active: true })}
-                        />
-                        Active
-                      </label>
-                      <label className="flex items-center gap-2 text-xs cursor-pointer font-medium">
-                        <input
-                          type="radio"
-                          name="status"
-                          checked={offerForm.active === false}
-                          onChange={() => setOfferForm({ ...offerForm, active: false })}
-                        />
-                        Inactive
-                      </label>
+                  {/* Catalog Images Gallery Uploader */}
+                  <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+                    <label className="text-xs font-bold text-gray-700 block">Product Catalog Gallery (Multiple Images)</label>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={catalogInput}
+                        onChange={(e) => setCatalogInput(e.target.value)}
+                        placeholder="Paste image URL..."
+                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-xl text-xs outline-none bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCatalogImage}
+                        className="px-4 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800"
+                      >
+                        Add Image
+                      </button>
                     </div>
+
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      {couponForm.catalogImages?.map((url, idx) => (
+                        <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-300 group">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCatalogImage(idx)}
+                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Validity Date & Time */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Validity Start Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={couponForm.validFrom}
+                      onChange={(e) => setCouponForm({ ...couponForm, validFrom: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Expiry Date & Time */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Expiry End Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={couponForm.expiryDate}
+                      onChange={(e) => setCouponForm({ ...couponForm, expiryDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Quantities */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Total Coupon Quantity</label>
+                    <input
+                      type="number"
+                      value={couponForm.totalQuantity}
+                      onChange={(e) => setCouponForm({ ...couponForm, totalQuantity: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Remaining Coupons</label>
+                    <input
+                      type="number"
+                      value={couponForm.remainingQuantity}
+                      onChange={(e) => setCouponForm({ ...couponForm, remainingQuantity: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Category & Subcategory */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
+                    <select
+                      value={couponForm.category}
+                      onChange={(e) => setCouponForm({ ...couponForm, category: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
+                    >
+                      <option value="Fashion & Apparel">Fashion & Apparel</option>
+                      <option value="Electronics">Electronics</option>
+                      <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+                      <option value="Sports & Outdoors">Sports & Outdoors</option>
+                      <option value="Grocery & Dining">Grocery & Dining</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Subcategory</label>
+                    <input
+                      type="text"
+                      value={couponForm.subcategory}
+                      onChange={(e) => setCouponForm({ ...couponForm, subcategory: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      placeholder="e.g. Footwear, Audio, Skincare"
+                    />
+                  </div>
+
+                  {/* Active & Featured Flags */}
+                  <div className="col-span-2 flex items-center gap-6 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={couponForm.active}
+                        onChange={(e) => setCouponForm({ ...couponForm, active: e.target.checked })}
+                        className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
+                      />
+                      Active Status
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={couponForm.featured}
+                        onChange={(e) => setCouponForm({ ...couponForm, featured: e.target.checked })}
+                        className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
+                      />
+                      Featured / Priority Badge
+                    </label>
                   </div>
                 </div>
 
+                {/* Submit Buttons */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button
                     type="button"
-                    onClick={() => setIsOfferModalOpen(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-200"
+                    onClick={() => setIsCouponModalOpen(false)}
+                    className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={savingOffer}
-                    className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-amber-500/20"
+                    disabled={savingCoupon}
+                    className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 disabled:opacity-50"
                   >
-                    {savingOffer ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {editingOffer ? 'Save Changes' : 'Create Offer'}
+                    {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Brand Coupon'}
                   </button>
                 </div>
               </form>

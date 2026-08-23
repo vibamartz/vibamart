@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer } from "../shared/types";
-import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder } from "../shared/types";
+import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -421,6 +421,7 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
 interface RewardsState {
   config: RewardsSectionConfig;
   offers: RewardOffer[];
+  rewardOrders: RewardOrder[];
   rewards: UserRewards | null;
   loading: boolean;
   initRewards: (userId?: string) => void;
@@ -429,13 +430,19 @@ interface RewardsState {
   updateRewardOffer: (offerId: string, updates: Partial<RewardOffer>) => Promise<void>;
   toggleRewardOffer: (offerId: string, active: boolean) => Promise<void>;
   deleteRewardOffer: (offerId: string) => Promise<void>;
+  reorderRewardOffers: (offers: RewardOffer[]) => Promise<void>;
+  placeRewardOrder: (orderData: Partial<RewardOrder>) => Promise<{ success: boolean; message: string; orderId?: string }>;
+  confirmRewardOrderPayment: (orderId: string) => Promise<{ success: boolean; message: string }>;
+  rejectRewardOrderPayment: (orderId: string, notes?: string) => Promise<{ success: boolean; message: string }>;
+  markRewardOrderUsed: (orderId: string) => Promise<{ success: boolean; message: string }>;
   claimVoucher: (voucherId: string) => Promise<{ success: boolean; message: string; voucher?: any }>;
   addPoints: (points: number, title: string, description?: string) => Promise<void>;
 }
 
 export const useRewardsStore = create<RewardsState>((set, get) => ({
   config: DEFAULT_REWARDS_CONFIG,
-  offers: DEFAULT_VOUCHERS,
+  offers: DEFAULT_BRAND_COUPONS,
+  rewardOrders: [],
   rewards: null,
   loading: true,
 
@@ -461,7 +468,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       handleFirestoreError(error, OperationType.GET, 'settings/rewardsConfig', false);
     });
 
-    // 2. Subscribe to Reward Offers Collection (reward_offers)
+    // 2. Subscribe to Reward Offers / Brand Coupons Collection (reward_offers)
     const offersColRef = collection(db, 'reward_offers');
     onSnapshot(offersColRef, async (snapshot) => {
       if (!snapshot.empty) {
@@ -475,8 +482,8 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       } else {
         const currentUser = useAuthStore.getState().user;
         if (currentUser && currentUser.role === 'admin') {
-          // Auto-seed DEFAULT_VOUCHERS if empty
-          DEFAULT_VOUCHERS.forEach(async (vouch) => {
+          // Auto-seed DEFAULT_BRAND_COUPONS if empty
+          DEFAULT_BRAND_COUPONS.forEach(async (vouch) => {
             try {
               await setDoc(doc(db, 'reward_offers', vouch.id), vouch);
             } catch (e) {
@@ -484,13 +491,31 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
             }
           });
         }
-        set({ offers: DEFAULT_VOUCHERS });
+        set({ offers: DEFAULT_BRAND_COUPONS });
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'reward_offers', false);
     });
 
-    // 3. Subscribe to User Personal Rewards (user_rewards/{userId})
+    // 3. Subscribe to Rewards Orders Collection (reward_orders)
+    const ordersColRef = collection(db, 'reward_orders');
+    onSnapshot(ordersColRef, async (snapshot) => {
+      if (!snapshot.empty) {
+        const fetchedOrders = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as RewardOrder));
+
+        fetchedOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        set({ rewardOrders: fetchedOrders });
+      } else {
+        set({ rewardOrders: [] });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'reward_orders', false);
+    });
+
+    // 4. Subscribe to User Personal Rewards (user_rewards/{userId})
     const currentUid = userId || useAuthStore.getState().user?.uid;
     if (!currentUid) {
       set({ rewards: null, loading: false });
@@ -603,6 +628,126 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     }
   },
 
+  reorderRewardOffers: async (orderedOffers: RewardOffer[]) => {
+    try {
+      for (let i = 0; i < orderedOffers.length; i++) {
+        const item = orderedOffers[i];
+        const docRef = doc(db, 'reward_offers', item.id);
+        await updateDoc(docRef, { order: i + 1, updatedAt: new Date().toISOString() });
+      }
+    } catch (e) {
+      console.error("Failed to reorder reward offers:", e);
+      throw e;
+    }
+  },
+
+  placeRewardOrder: async (orderData: Partial<RewardOrder>) => {
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) {
+      return { success: false, message: 'Please log in to purchase reward coupons.' };
+    }
+
+    const orderId = `RWD-ORD-${Date.now()}`;
+    const newOrder: RewardOrder = {
+      id: orderId,
+      userId: currentUser.uid,
+      userName: currentUser.displayName || 'Customer',
+      userEmail: currentUser.email || '',
+      userPhone: currentUser.phone || '',
+      couponId: orderData.couponId || '',
+      brandName: orderData.brandName || 'Brand',
+      brandLogo: orderData.brandLogo || '',
+      productTitle: orderData.productTitle || '',
+      productImage: orderData.productImage || '',
+      couponTitle: orderData.couponTitle || '',
+      discountType: orderData.discountType || 'flat',
+      discountValue: orderData.discountValue || 0,
+      amountPaid: orderData.amountPaid || 0,
+      paymentMethod: orderData.paymentMethod || 'upi',
+      paymentReference: orderData.paymentReference || '',
+      paymentStatus: 'submitted',
+      couponStatus: 'locked',
+      validFrom: orderData.validFrom || new Date().toISOString(),
+      expiryDate: orderData.expiryDate || new Date().toISOString(),
+      brandWebsiteUrl: orderData.brandWebsiteUrl || '',
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      const orderRef = doc(db, 'reward_orders', orderId);
+      await setDoc(orderRef, newOrder);
+
+      // Decrement coupon remaining count if applicable
+      if (orderData.couponId) {
+        const coupon = get().offers.find(o => o.id === orderData.couponId);
+        if (coupon && (coupon.remainingQuantity ?? 0) > 0) {
+          const couponRef = doc(db, 'reward_offers', coupon.id);
+          await updateDoc(couponRef, {
+            remainingQuantity: Math.max(0, (coupon.remainingQuantity || 1) - 1),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      return { success: true, message: 'Reward order placed! Payment submitted for admin verification.', orderId };
+    } catch (e) {
+      console.error("Failed to place reward order:", e);
+      return { success: false, message: 'Failed to submit reward order.' };
+    }
+  },
+
+  confirmRewardOrderPayment: async (orderId: string) => {
+    try {
+      const orderRef = doc(db, 'reward_orders', orderId);
+      const existing = get().rewardOrders.find(o => o.id === orderId);
+      const coupon = get().offers.find(o => o.id === existing?.couponId);
+      
+      const unlockedCode = coupon?.code || existing?.unlockedCode || `REWARD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      await updateDoc(orderRef, {
+        paymentStatus: 'confirmed',
+        couponStatus: 'unlocked',
+        unlockedCode,
+        unlockDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      return { success: true, message: `Payment confirmed! Coupon code unlocked for customer.` };
+    } catch (e) {
+      console.error("Failed to confirm reward order payment:", e);
+      return { success: false, message: 'Failed to confirm payment.' };
+    }
+  },
+
+  rejectRewardOrderPayment: async (orderId: string, notes?: string) => {
+    try {
+      const orderRef = doc(db, 'reward_orders', orderId);
+      await updateDoc(orderRef, {
+        paymentStatus: 'rejected',
+        notes: notes || 'Payment verification failed',
+        updatedAt: new Date().toISOString()
+      });
+      return { success: true, message: 'Reward order payment rejected.' };
+    } catch (e) {
+      console.error("Failed to reject reward order payment:", e);
+      return { success: false, message: 'Failed to reject payment.' };
+    }
+  },
+
+  markRewardOrderUsed: async (orderId: string) => {
+    try {
+      const orderRef = doc(db, 'reward_orders', orderId);
+      await updateDoc(orderRef, {
+        couponStatus: 'used',
+        updatedAt: new Date().toISOString()
+      });
+      return { success: true, message: 'Reward coupon marked as used.' };
+    } catch (e) {
+      console.error("Failed to mark reward order as used:", e);
+      return { success: false, message: 'Failed to update status.' };
+    }
+  },
+
   claimVoucher: async (voucherId: string) => {
     const currentRewards = get().rewards;
     const currentUser = useAuthStore.getState().user;
@@ -610,7 +755,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       return { success: false, message: 'Please log in to claim reward vouchers.' };
     }
 
-    const availableOffers = get().offers.length > 0 ? get().offers : DEFAULT_VOUCHERS;
+    const availableOffers = get().offers.length > 0 ? get().offers : DEFAULT_BRAND_COUPONS;
     const voucher = availableOffers.find(v => v.id === voucherId);
     if (!voucher) {
       return { success: false, message: 'Invalid reward voucher.' };
@@ -620,24 +765,24 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       return { success: false, message: 'This reward offer is currently inactive.' };
     }
 
-    if (currentRewards.pointsBalance < voucher.pointsRequired) {
-      return { success: false, message: `Insufficient points. You need ${voucher.pointsRequired - currentRewards.pointsBalance} more points.` };
+    if (currentRewards.pointsBalance < (voucher.pointsRequired || 100)) {
+      return { success: false, message: `Insufficient points. You need ${(voucher.pointsRequired || 100) - currentRewards.pointsBalance} more points.` };
     }
 
     if (currentRewards.claimedVouchers?.includes(voucherId)) {
       return { success: false, message: 'Voucher code already claimed!' };
     }
 
-    const updatedBalance = currentRewards.pointsBalance - voucher.pointsRequired;
-    const updatedSpent = currentRewards.totalSpent + voucher.pointsRequired;
+    const updatedBalance = currentRewards.pointsBalance - (voucher.pointsRequired || 100);
+    const updatedSpent = currentRewards.totalSpent + (voucher.pointsRequired || 100);
     const newTx: RewardTransaction = {
       id: `tx-${Date.now()}`,
       userId: currentUser.uid,
       title: `Claimed Voucher: ${voucher.code}`,
       type: 'spent',
-      points: voucher.pointsRequired,
+      points: voucher.pointsRequired || 100,
       date: new Date().toISOString(),
-      description: `Redeemed ${voucher.pointsRequired} points for ${voucher.title}`
+      description: `Redeemed ${voucher.pointsRequired || 100} points for ${voucher.title}`
     };
 
     const updatedClaimed = [...(currentRewards.claimedVouchers || []), voucherId];

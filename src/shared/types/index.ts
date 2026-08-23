@@ -271,29 +271,75 @@ export interface RewardTransaction {
   description?: string;
 }
 
-export interface RewardOffer {
+export interface BrandCoupon {
   id: string;
+  brandName: string;
+  brandLogo: string;
+  brandWebsiteUrl?: string;
   title: string;
-  description: string;
-  pointsRequired: number;
-  discountValue: number;
-  discountType: 'percentage' | 'fixed';
   code: string;
-  expiryDays: number;
-  expiryDate?: string;
-  category?: string;
-  icon?: string;
-  imageUrl?: string;
-  minPurchase?: number;
-  usageLimit?: number;
-  eligibilityTier?: 'all' | 'Silver' | 'Gold' | 'Platinum';
+  discountType: 'percent' | 'flat' | 'percentage' | 'fixed';
+  discountValue: number;
+  minOrderValue?: number;
+  maxDiscount?: number;
+  productImage: string;
+  catalogImages?: string[];
+  buyNowPrice: number;
+  pointsRequired?: number;
+  validFrom: string;
+  expiryDate: string;
+  expiryDays?: number;
+  totalQuantity: number;
+  remainingQuantity: number;
   active: boolean;
+  featured?: boolean;
+  category?: string;
+  subcategory?: string;
+  terms?: string;
+  description?: string;
+  icon?: string;
   order: number;
   createdAt?: string;
   updatedAt?: string;
+  // Dynamic fields
+  minPurchase?: number;
+  usageLimit?: number;
+  eligibilityTier?: 'all' | 'Silver' | 'Gold' | 'Platinum';
+  imageUrl?: string;
 }
 
-export interface RewardVoucher extends RewardOffer {}
+export interface RewardOffer extends BrandCoupon {}
+export interface RewardVoucher extends BrandCoupon {}
+
+export interface RewardOrder {
+  id: string; // e.g. RWD-ORD-1724419200000
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  couponId: string;
+  brandName: string;
+  brandLogo?: string;
+  productTitle: string;
+  productImage?: string;
+  couponTitle: string;
+  discountType: 'percent' | 'flat' | 'percentage' | 'fixed';
+  discountValue: number;
+  amountPaid: number;
+  paymentMethod: 'upi' | 'card' | 'netbanking' | 'cod' | 'wallet' | 'points';
+  paymentReference?: string;
+  paymentProofUrl?: string;
+  paymentStatus: 'pending' | 'submitted' | 'confirmed' | 'rejected';
+  couponStatus: 'locked' | 'unlocked' | 'used' | 'expired';
+  unlockedCode?: string;
+  unlockDate?: string;
+  validFrom: string;
+  expiryDate: string;
+  brandWebsiteUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+  notes?: string;
+}
 
 export interface RewardsSectionConfig {
   enabled: boolean;
@@ -302,10 +348,12 @@ export interface RewardsSectionConfig {
   badgeText: string;
   headerIcon: string;
   headerIconUrl?: string;
+  bannerImage?: string;
   cardImage?: string;
   cardText: string;
   buttonText: string;
   targetLink: string;
+  nonRefundableNotice?: string;
   pointsPerRupee: number;
   welcomeBonusPoints: number;
   minRedeemPoints: number;
@@ -324,5 +372,6 @@ export interface UserRewards {
   claimedVouchers?: string[];
   transactions?: RewardTransaction[];
 }
+
 
 
