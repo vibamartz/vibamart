@@ -326,10 +326,11 @@ export interface RewardOrder {
   discountType: 'percent' | 'flat' | 'percentage' | 'fixed';
   discountValue: number;
   amountPaid: number;
-  paymentMethod: 'upi' | 'card' | 'netbanking' | 'cod' | 'wallet' | 'points';
+  paymentMethod: 'upi' | 'card' | 'netbanking' | 'cod' | 'wallet' | 'points' | 'razorpay';
   paymentReference?: string;
   paymentProofUrl?: string;
   paymentStatus: 'pending' | 'submitted' | 'confirmed' | 'rejected';
+  verificationStatus?: 'pending' | 'approved' | 'rejected';
   couponStatus: 'locked' | 'unlocked' | 'used' | 'expired';
   unlockedCode?: string;
   unlockDate?: string;

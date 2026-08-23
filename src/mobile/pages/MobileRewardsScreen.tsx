@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, RewardOrder } from '../../shared/types';
+import { getValidBrandUrl } from '../../shared/utils/url';
 import toast from 'react-hot-toast';
 
 // Countdown Timer Component
@@ -131,14 +132,100 @@ export default function MobileRewardsScreen() {
     setTimeout(() => setCopiedCode(null), 3000);
   };
 
-  const handleStartBuyNow = (coupon: BrandCoupon) => {
+  const loadRazorpay = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleStartBuyNow = async (coupon: BrandCoupon) => {
     if (!user) {
       toast.error('Please log in to purchase reward coupons');
       navigate('/login');
       return;
     }
-    setBuyNowCoupon(coupon);
-    setPaymentRef('');
+
+    if ((coupon.remainingQuantity ?? 0) <= 0) {
+      toast.error('This brand coupon is currently Sold Out.');
+      return;
+    }
+
+    if (coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now()) {
+      toast.error('This brand coupon has Expired.');
+      return;
+    }
+
+    setSubmittingOrder(true);
+    try {
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded || !(window as any).Razorpay) {
+        setBuyNowCoupon(coupon);
+        setSubmittingOrder(false);
+        return;
+      }
+
+      const options = {
+        key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummyKey12345',
+        amount: Math.round(coupon.buyNowPrice * 100),
+        currency: 'INR',
+        name: 'ViBa Mart',
+        description: `Reward Coupon: ${coupon.title}`,
+        handler: async function (response: any) {
+          const paymentTxId = response.razorpay_payment_id || `PAY-RWD-${Date.now()}`;
+          const res = await placeRewardOrder({
+            couponId: coupon.id,
+            brandName: coupon.brandName,
+            brandLogo: coupon.brandLogo,
+            productTitle: coupon.title,
+            productImage: coupon.productImage,
+            couponTitle: coupon.title,
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue,
+            amountPaid: coupon.buyNowPrice,
+            paymentMethod: 'razorpay',
+            paymentReference: paymentTxId,
+            validFrom: coupon.validFrom,
+            expiryDate: coupon.expiryDate,
+            brandWebsiteUrl: coupon.brandWebsiteUrl
+          });
+
+          if (res.success) {
+            toast.success('Payment completed via ViBa Mart Payment Gateway! Order submitted for confirmation.');
+            setSelectedCoupon(null);
+            setActiveTab('history');
+          } else {
+            toast.error(res.message);
+          }
+          setSubmittingOrder(false);
+        },
+        prefill: {
+          name: user.displayName || '',
+          email: user.email || '',
+          contact: user.phone || '',
+        },
+        theme: {
+          color: '#f59e0b',
+        },
+        modal: {
+          ondismiss: function () {
+            setSubmittingOrder(false);
+            toast.error('Payment cancelled');
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error('Razorpay Error:', err);
+      setBuyNowCoupon(coupon);
+      setSubmittingOrder(false);
+    }
   };
 
   const handleSubmitBuyNow = async (e: React.FormEvent) => {
@@ -315,16 +402,33 @@ export default function MobileRewardsScreen() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => handleStartBuyNow(coupon)}
-                    className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 flex items-center justify-center gap-1"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" /> Buy Now (₹{coupon.buyNowPrice})
-                  </button>
+                  {(coupon.remainingQuantity ?? 0) <= 0 ? (
+                    <button
+                      disabled
+                      className="flex-1 py-2.5 bg-gray-200 text-gray-500 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1"
+                    >
+                      Sold Out
+                    </button>
+                  ) : (coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now()) ? (
+                    <button
+                      disabled
+                      className="flex-1 py-2.5 bg-rose-100 text-rose-500 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1"
+                    >
+                      Expired
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleStartBuyNow(coupon)}
+                      disabled={submittingOrder}
+                      className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 flex items-center justify-center gap-1"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" /> Buy Now (₹{coupon.buyNowPrice})
+                    </button>
+                  )}
 
-                  {coupon.brandWebsiteUrl && (
+                  {getValidBrandUrl(coupon.brandWebsiteUrl) && (
                     <a
-                      href={coupon.brandWebsiteUrl}
+                      href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1"
@@ -365,32 +469,32 @@ export default function MobileRewardsScreen() {
                     <div className="bg-gray-50 p-3 rounded-2xl border border-gray-200 space-y-2">
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block">Coupon Code:</span>
                       {isConfirmed ? (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-mono font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-                            {order.unlockedCode || 'UNLOCKED'}
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-mono font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 block text-center">
+                            COUPON CODE: {order.unlockedCode || 'UNLOCKED'}
                           </span>
                           <button
                             onClick={() => copyToClipboard(order.unlockedCode || '')}
-                            className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[11px] font-bold flex items-center gap-1"
+                            className="w-full py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm"
                           >
-                            <Copy className="w-3 h-3" /> {copiedCode === order.unlockedCode ? 'Copied' : 'Copy'}
+                            <Copy className="w-3 h-3" /> {copiedCode === order.unlockedCode ? 'Copied Code!' : 'Copy Code'}
                           </button>
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <span className="text-xs font-mono font-bold text-gray-400 bg-gray-200 px-2 py-0.5 rounded">
+                          <span className="text-xs font-mono font-bold text-gray-400 bg-gray-200 px-2 py-0.5 rounded block text-center">
                             XXX-XXX-XXX-XXX
                           </span>
-                          <p className="text-[10px] text-amber-600 font-bold">Locked until Admin payment verification</p>
+                          <p className="text-[10px] text-amber-600 font-bold text-center">Coupon code will unlock after payment confirmation</p>
                         </div>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
                       <span>Paid: <strong>₹{order.amountPaid}</strong></span>
-                      {order.brandWebsiteUrl && (
-                        <a href={order.brandWebsiteUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold flex items-center gap-0.5">
-                          Visit Brand <ExternalLink className="w-3 h-3" />
+                      {getValidBrandUrl(order.brandWebsiteUrl) && (
+                        <a href={getValidBrandUrl(order.brandWebsiteUrl)!} target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold flex items-center gap-0.5">
+                          Visit Official Brand <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
                     </div>

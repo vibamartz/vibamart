@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useRewardsStore } from '../../backend/store';
 import { BrandCoupon, RewardsSectionConfig, RewardOrder } from '../../shared/types';
+import { getValidBrandUrl } from '../../shared/utils/url';
 import toast from 'react-hot-toast';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
@@ -160,8 +161,10 @@ export default function AdminRewardsManagementView() {
 
     setSavingCoupon(true);
     try {
+      const validatedUrl = getValidBrandUrl(couponForm.brandWebsiteUrl);
       const payload: Partial<BrandCoupon> = {
         ...couponForm,
+        brandWebsiteUrl: validatedUrl || '',
         validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).toISOString() : new Date().toISOString(),
         expiryDate: couponForm.expiryDate ? new Date(couponForm.expiryDate).toISOString() : new Date(Date.now() + 30*86400000).toISOString(),
         discountValue: Number(couponForm.discountValue || 0),

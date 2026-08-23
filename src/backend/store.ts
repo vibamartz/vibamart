@@ -498,8 +498,14 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     });
 
     // 3. Subscribe to Rewards Orders Collection (reward_orders)
+    const currentUid = userId || useAuthStore.getState().user?.uid;
+    const currentUserRole = useAuthStore.getState().user?.role;
     const ordersColRef = collection(db, 'reward_orders');
-    onSnapshot(ordersColRef, async (snapshot) => {
+    const ordersQuery = (currentUserRole !== 'admin' && currentUid)
+      ? query(ordersColRef, where('userId', '==', currentUid))
+      : ordersColRef;
+
+    onSnapshot(ordersQuery, async (snapshot) => {
       if (!snapshot.empty) {
         const fetchedOrders = snapshot.docs.map(docSnap => ({
           id: docSnap.id,
@@ -516,7 +522,6 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     });
 
     // 4. Subscribe to User Personal Rewards (user_rewards/{userId})
-    const currentUid = userId || useAuthStore.getState().user?.uid;
     if (!currentUid) {
       set({ rewards: null, loading: false });
       return;
@@ -663,9 +668,10 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       discountType: orderData.discountType || 'flat',
       discountValue: orderData.discountValue || 0,
       amountPaid: orderData.amountPaid || 0,
-      paymentMethod: orderData.paymentMethod || 'upi',
+      paymentMethod: orderData.paymentMethod || 'razorpay',
       paymentReference: orderData.paymentReference || '',
-      paymentStatus: 'submitted',
+      paymentStatus: 'pending',
+      verificationStatus: 'pending',
       couponStatus: 'locked',
       validFrom: orderData.validFrom || new Date().toISOString(),
       expiryDate: orderData.expiryDate || new Date().toISOString(),
@@ -689,7 +695,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
         }
       }
 
-      return { success: true, message: 'Reward order placed! Payment submitted for admin verification.', orderId };
+      return { success: true, message: 'Reward order placed! Payment submitted for admin confirmation.', orderId };
     } catch (e) {
       console.error("Failed to place reward order:", e);
       return { success: false, message: 'Failed to submit reward order.' };
@@ -706,6 +712,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
 
       await updateDoc(orderRef, {
         paymentStatus: 'confirmed',
+        verificationStatus: 'approved',
         couponStatus: 'unlocked',
         unlockedCode,
         unlockDate: new Date().toISOString(),
@@ -724,6 +731,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       const orderRef = doc(db, 'reward_orders', orderId);
       await updateDoc(orderRef, {
         paymentStatus: 'rejected',
+        verificationStatus: 'rejected',
         notes: notes || 'Payment verification failed',
         updatedAt: new Date().toISOString()
       });

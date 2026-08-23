@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, RewardOrder } from '../../shared/types';
+import { getValidBrandUrl } from '../../shared/utils/url';
 import toast from 'react-hot-toast';
 
 // Countdown Timer Component
@@ -158,14 +159,101 @@ export default function Rewards() {
     setSelectedGalleryImgIndex(0);
   };
 
-  const handleStartBuyNow = (coupon: BrandCoupon) => {
+  const loadRazorpay = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleStartBuyNow = async (coupon: BrandCoupon) => {
     if (!user) {
       toast.error('Please log in to purchase reward coupons');
       navigate('/login');
       return;
     }
-    setBuyNowCoupon(coupon);
-    setPaymentRef('');
+
+    if ((coupon.remainingQuantity ?? 0) <= 0) {
+      toast.error('This brand coupon is currently Sold Out.');
+      return;
+    }
+
+    if (coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now()) {
+      toast.error('This brand coupon has Expired.');
+      return;
+    }
+
+    setSubmittingOrder(true);
+    try {
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded || !(window as any).Razorpay) {
+        // Fallback to manual checkout modal if Razorpay fails to load
+        setBuyNowCoupon(coupon);
+        setSubmittingOrder(false);
+        return;
+      }
+
+      const options = {
+        key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummyKey12345',
+        amount: Math.round(coupon.buyNowPrice * 100),
+        currency: 'INR',
+        name: 'ViBa Mart',
+        description: `Reward Coupon: ${coupon.title}`,
+        handler: async function (response: any) {
+          const paymentTxId = response.razorpay_payment_id || `PAY-RWD-${Date.now()}`;
+          const res = await placeRewardOrder({
+            couponId: coupon.id,
+            brandName: coupon.brandName,
+            brandLogo: coupon.brandLogo,
+            productTitle: coupon.title,
+            productImage: coupon.productImage,
+            couponTitle: coupon.title,
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue,
+            amountPaid: coupon.buyNowPrice,
+            paymentMethod: 'razorpay',
+            paymentReference: paymentTxId,
+            validFrom: coupon.validFrom,
+            expiryDate: coupon.expiryDate,
+            brandWebsiteUrl: coupon.brandWebsiteUrl
+          });
+
+          if (res.success) {
+            toast.success('Payment completed via ViBa Mart Payment Gateway! Order submitted for confirmation.');
+            setSelectedCoupon(null);
+            setActiveTab('history');
+          } else {
+            toast.error(res.message);
+          }
+          setSubmittingOrder(false);
+        },
+        prefill: {
+          name: user.displayName || '',
+          email: user.email || '',
+          contact: user.phone || '',
+        },
+        theme: {
+          color: '#f59e0b',
+        },
+        modal: {
+          ondismiss: function () {
+            setSubmittingOrder(false);
+            toast.error('Payment cancelled');
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error('Razorpay Error:', err);
+      setBuyNowCoupon(coupon);
+      setSubmittingOrder(false);
+    }
   };
 
   const handleSubmitBuyNow = async (e: React.FormEvent) => {
@@ -457,16 +545,33 @@ export default function Rewards() {
 
                     {/* Card Footer Actions */}
                     <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex items-center gap-2">
-                      <button
-                        onClick={() => handleStartBuyNow(coupon)}
-                        className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <ShoppingBag className="w-4 h-4" /> Buy Now (₹{coupon.buyNowPrice})
-                      </button>
+                      {(coupon.remainingQuantity ?? 0) <= 0 ? (
+                        <button
+                          disabled
+                          className="flex-1 py-2.5 bg-gray-200 text-gray-500 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1.5"
+                        >
+                          Sold Out
+                        </button>
+                      ) : (coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now()) ? (
+                        <button
+                          disabled
+                          className="flex-1 py-2.5 bg-rose-100 text-rose-500 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1.5"
+                        >
+                          Expired
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStartBuyNow(coupon)}
+                          disabled={submittingOrder}
+                          className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <ShoppingBag className="w-4 h-4" /> {submittingOrder ? 'Processing...' : `Buy Now (₹${coupon.buyNowPrice})`}
+                        </button>
+                      )}
 
-                      {coupon.brandWebsiteUrl && (
+                      {getValidBrandUrl(coupon.brandWebsiteUrl) && (
                         <a
-                          href={coupon.brandWebsiteUrl}
+                          href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-3 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0"
@@ -490,7 +595,7 @@ export default function Rewards() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-100">
             <div>
               <h2 className="text-lg font-black text-gray-900">My Rewards Orders & Unlocked Coupons</h2>
-              <p className="text-xs text-gray-500">Track payment status and retrieve unlocked brand coupon codes after admin confirmation.</p>
+              <p className="text-xs text-gray-500">Track payment status and retrieve unlocked brand coupon codes after payment confirmation.</p>
             </div>
 
             {/* Filter Tabs */}
@@ -505,13 +610,13 @@ export default function Rewards() {
                 onClick={() => setHistoryFilter('pending')}
                 className={`px-3 py-1.5 rounded-lg ${historyFilter === 'pending' ? 'bg-amber-500 text-white' : 'text-gray-500'}`}
               >
-                Pending Verification
+                Payment Pending
               </button>
               <button
                 onClick={() => setHistoryFilter('confirmed')}
                 className={`px-3 py-1.5 rounded-lg ${historyFilter === 'confirmed' ? 'bg-emerald-500 text-white' : 'text-gray-500'}`}
               >
-                Confirmed (Unlocked)
+                Payment Confirmed
               </button>
               <button
                 onClick={() => setHistoryFilter('used')}
@@ -551,13 +656,13 @@ export default function Rewards() {
                       </div>
                     </div>
 
-                    {/* Security Flow Progress Step Bar */}
+                    {/* Customer Flow Progress Step Bar */}
                     <div className="bg-white p-3 rounded-xl border border-gray-100 text-xs font-bold grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
-                      <div className={`p-2 rounded-lg ${isPending ? 'bg-amber-100 text-amber-800' : 'bg-gray-50 text-gray-400'}`}>
-                        1. Payment Submitted
+                      <div className={`p-2 rounded-lg ${isPending || isConfirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-50 text-gray-400'}`}>
+                        1. Payment Completed
                       </div>
-                      <div className={`p-2 rounded-lg ${isPending ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-gray-50 text-gray-400'}`}>
-                        2. Admin Verification
+                      <div className={`p-2 rounded-lg ${isPending ? 'bg-amber-100 text-amber-800 animate-pulse' : isConfirmed ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-50 text-gray-400'}`}>
+                        2. Payment Verification
                       </div>
                       <div className={`p-2 rounded-lg ${isConfirmed ? 'bg-emerald-100 text-emerald-800 font-black' : 'bg-gray-50 text-gray-400'}`}>
                         3. Payment Confirmed
@@ -570,11 +675,11 @@ export default function Rewards() {
                     {/* Unlocked Code vs Masked Code Display */}
                     <div className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Actual Coupon Code:</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Coupon Code:</span>
                         {isConfirmed ? (
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-lg font-mono font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200">
-                              {order.unlockedCode || 'NIKE-SUMMER-500'}
+                          <div className="flex flex-wrap items-center gap-3 mt-1">
+                            <span className="text-base font-mono font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                              COUPON CODE: {order.unlockedCode || 'UNLOCKED'}
                             </span>
                             <button
                               onClick={() => copyToClipboard(order.unlockedCode || '')}
@@ -584,12 +689,12 @@ export default function Rewards() {
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-lg font-mono font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-xl border border-gray-200">
+                          <div className="flex flex-wrap items-center gap-3 mt-1">
+                            <span className="text-base font-mono font-black text-gray-400 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
                               XXX-XXX-XXX-XXX
                             </span>
-                            <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2.5 py-1 rounded-lg">
-                              Locked until Admin confirms payment
+                            <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg">
+                              Coupon code will unlock after payment confirmation
                             </span>
                           </div>
                         )}
@@ -597,9 +702,9 @@ export default function Rewards() {
 
                       <div className="text-right space-y-1">
                         <div className="text-xs font-bold text-gray-700">Amount Paid: <strong className="text-gray-900">₹{order.amountPaid}</strong></div>
-                        {order.brandWebsiteUrl && (
+                        {getValidBrandUrl(order.brandWebsiteUrl) && (
                           <a
-                            href={order.brandWebsiteUrl}
+                            href={getValidBrandUrl(order.brandWebsiteUrl)!}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:underline"
