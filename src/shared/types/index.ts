@@ -118,6 +118,7 @@ export interface Order {
   status: OrderStatus;
   paymentStatus: "pending" | "paid" | "failed";
   paymentMethod: "cod" | "razorpay" | "upi" | "wallet";
+  paymentReference?: string;
   address: Address;
   contactEmail?: string;
   contactName?: string;

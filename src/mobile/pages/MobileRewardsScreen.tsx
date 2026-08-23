@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, RewardOrder } from '../../shared/types';
 import { getValidBrandUrl } from '../../shared/utils/url';
+import { processPayment } from '../../shared/utils/razorpay';
 import toast from 'react-hot-toast';
 
 // Countdown Timer Component
@@ -162,68 +163,55 @@ export default function MobileRewardsScreen() {
 
     setSubmittingOrder(true);
     try {
-      const isLoaded = await loadRazorpay();
-      if (!isLoaded || !(window as any).Razorpay) {
-        setBuyNowCoupon(coupon);
-        setSubmittingOrder(false);
-        return;
-      }
-
-      const options = {
-        key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummyKey12345',
-        amount: Math.round(coupon.buyNowPrice * 100),
+      const payResult = await processPayment({
+        amount: coupon.buyNowPrice,
         currency: 'INR',
-        name: 'ViBa Mart',
+        name: 'ViBa Mart Rewards',
         description: `Reward Coupon: ${coupon.title}`,
-        handler: async function (response: any) {
-          const paymentTxId = response.razorpay_payment_id || `PAY-RWD-${Date.now()}`;
-          const res = await placeRewardOrder({
-            couponId: coupon.id,
-            brandName: coupon.brandName,
-            brandLogo: coupon.brandLogo,
-            productTitle: coupon.title,
-            productImage: coupon.productImage,
-            couponTitle: coupon.title,
-            discountType: coupon.discountType,
-            discountValue: coupon.discountValue,
-            amountPaid: coupon.buyNowPrice,
-            paymentMethod: 'razorpay',
-            paymentReference: paymentTxId,
-            validFrom: coupon.validFrom,
-            expiryDate: coupon.expiryDate,
-            brandWebsiteUrl: coupon.brandWebsiteUrl
-          });
-
-          if (res.success) {
-            toast.success('Payment completed via ViBa Mart Payment Gateway! Order submitted for confirmation.');
-            setSelectedCoupon(null);
-            setActiveTab('history');
-          } else {
-            toast.error(res.message);
-          }
-          setSubmittingOrder(false);
-        },
         prefill: {
           name: user.displayName || '',
           email: user.email || '',
-          contact: user.phone || '',
-        },
-        theme: {
-          color: '#f59e0b',
-        },
-        modal: {
-          ondismiss: function () {
-            setSubmittingOrder(false);
-            toast.error('Payment cancelled');
-          }
+          contact: user.phone || ''
         }
-      };
+      });
 
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      if (payResult.success) {
+        const paymentTxId = payResult.paymentId || `PAY-RWD-${Date.now()}`;
+        const res = await placeRewardOrder({
+          couponId: coupon.id,
+          brandName: coupon.brandName,
+          brandLogo: coupon.brandLogo,
+          productTitle: coupon.title,
+          productImage: coupon.productImage,
+          couponTitle: coupon.title,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          amountPaid: coupon.buyNowPrice,
+          paymentMethod: 'razorpay',
+          paymentReference: paymentTxId,
+          validFrom: coupon.validFrom,
+          expiryDate: coupon.expiryDate,
+          brandWebsiteUrl: coupon.brandWebsiteUrl
+        });
+
+        if (res.success) {
+          toast.success('Payment completed via ViBa Mart Payment Gateway! Order submitted for confirmation.');
+          setSelectedCoupon(null);
+          setActiveTab('history');
+        } else {
+          toast.error(res.message);
+        }
+      } else {
+        if (payResult.error && payResult.error !== 'Payment cancelled by user') {
+          toast.error(payResult.error);
+        } else if (payResult.error === 'Payment cancelled by user') {
+          toast.error('Payment cancelled');
+        }
+      }
     } catch (err) {
       console.error('Razorpay Error:', err);
       setBuyNowCoupon(coupon);
+    } finally {
       setSubmittingOrder(false);
     }
   };

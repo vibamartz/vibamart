@@ -670,7 +670,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       amountPaid: orderData.amountPaid || 0,
       paymentMethod: orderData.paymentMethod || 'razorpay',
       paymentReference: orderData.paymentReference || '',
-      paymentStatus: 'pending',
+      paymentStatus: (orderData.paymentMethod === 'razorpay' || orderData.paymentReference) ? 'submitted' : 'pending',
       verificationStatus: 'pending',
       couponStatus: 'locked',
       validFrom: orderData.validFrom || new Date().toISOString(),

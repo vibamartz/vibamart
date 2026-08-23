@@ -10,6 +10,7 @@ import { Address, Order } from '../../shared/types';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { processPayment } from '../../shared/utils/razorpay';
 
 export default function MobileCheckoutScreen() {
   const navigate = useNavigate();
@@ -104,6 +105,33 @@ export default function MobileCheckoutScreen() {
     }
 
     setIsPlacingOrder(true);
+
+    let payResult: any = { success: true, method: paymentMethod, paymentId: '' };
+
+    if (paymentMethod !== 'cod') {
+      payResult = await processPayment({
+        amount: grandTotal,
+        currency: 'INR',
+        name: 'ViBa Mart Mobile',
+        description: 'Mobile Order Checkout',
+        prefill: {
+          name: selectedAddress.fullName || contactName || user?.displayName || '',
+          email: user?.email || '',
+          contact: contactPhone || selectedAddress.phone || user?.phone || ''
+        }
+      });
+
+      if (!payResult.success) {
+        setIsPlacingOrder(false);
+        if (payResult.error && payResult.error !== 'Payment cancelled by user') {
+          toast.error(payResult.error);
+        } else if (payResult.error === 'Payment cancelled by user') {
+          toast.error('Payment cancelled');
+        }
+        return;
+      }
+    }
+
     const customId = `VBM${Date.now().toString().slice(-6)}`;
 
     const newOrder: Omit<Order, 'id'> = {
@@ -124,6 +152,7 @@ export default function MobileCheckoutScreen() {
       status: 'pending',
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
       paymentMethod,
+      paymentReference: payResult.paymentId || undefined,
       address: selectedAddress,
       createdAt: new Date().toISOString(),
       statusHistory: [

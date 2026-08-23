@@ -10,6 +10,8 @@ import { Order, OrderItem, Address } from '../../shared/types';
 import axios from 'axios';
 import { lookupZipcode } from '../../backend/services/zipcode';
 
+import { processPayment } from '../../shared/utils/razorpay';
+
 declare global {
   interface Window {
     Razorpay: any;
@@ -387,33 +389,28 @@ export default function Checkout() {
       if (paymentMethod === 'cod') {
         await finalizeOrder('cod', 'pending');
       } else {
-        const options = {
-          key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummyKey12345',
-          amount: Math.round(grandTotal * 100),
+        const result = await processPayment({
+          amount: grandTotal,
           currency: 'INR',
           name: 'ViBa Mart',
-          description: 'Purchase Payment',
-          handler: async function (response: any) {
-            await finalizeOrder('razorpay', 'paid');
-          },
+          description: 'Store Purchase Payment',
           prefill: {
             name: address.fullName || user?.displayName || guestInfo.name || '',
             email: user?.email || guestInfo.email || '',
             contact: address.phone || user?.phone || guestInfo.phone || '',
-          },
-          theme: {
-            color: '#16a34a',
-          },
-          modal: {
-            ondismiss: function() {
-              setLoading(false);
-              toast.error('Payment cancelled');
-            }
           }
-        };
+        });
 
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        if (result.success) {
+          await finalizeOrder(result.method || 'razorpay', 'paid');
+        } else {
+          setLoading(false);
+          if (result.error && result.error !== 'Payment cancelled by user') {
+            toast.error(result.error);
+          } else if (result.error === 'Payment cancelled by user') {
+            toast.error('Payment cancelled');
+          }
+        }
       }
     } catch (err: any) {
       console.error(err);
