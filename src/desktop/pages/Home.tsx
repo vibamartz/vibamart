@@ -36,7 +36,7 @@ export default function Home() {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [userAddress, setUserAddress] = useState("Home centre 2nd floor Esplanade mall, Ras...");
   const [userPincode, setUserPincode] = useState("560064");
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -173,7 +173,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6">
-        <div className="relative h-[220px] sm:h-[350px] md:h-[420px] lg:h-[480px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20">
+        <div className="relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20">
           <AnimatePresence mode="wait">
             {banners.length > 0 ? (
               <motion.div
