@@ -452,7 +452,7 @@ export default function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-6">
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'super_admin') && (
               <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors p-2 touch-target" aria-label="Admin Dashboard">
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="text-sm font-medium">Admin</span>

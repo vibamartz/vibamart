@@ -47,7 +47,7 @@ export default async function handler(req: any, res: any) {
       try {
         console.log(`[FIRESTORE READ] Fetching user document from 'users' collection. Document ID: ${decodedToken.uid}`);
         const userDoc = await admin.firestore().collection("users").doc(decodedToken.uid).get();
-        if (userDoc.exists && userDoc.data()?.role === 'admin') isAdmin = true;
+        if (userDoc.exists && (userDoc.data()?.role === 'admin' || userDoc.data()?.role === 'super_admin')) isAdmin = true;
       } catch (e) {
         console.error("Error fetching user role", e);
       }

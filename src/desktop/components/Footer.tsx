@@ -19,7 +19,7 @@ export default function Footer() {
             <p className="text-sm leading-relaxed font-medium">
               India's premier digital destination for fashion, electronics, and lifestyle. Experience the future of online shopping with ViBa Mart.
             </p>
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'super_admin') && (
               <Link to="/admin" className="inline-flex items-center gap-2 text-primary font-black uppercase tracking-widest text-[10px] bg-primary/10 px-4 py-2 rounded-lg hover:bg-primary/20 transition-all">
                 Admin Dashboard
               </Link>

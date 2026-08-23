@@ -176,7 +176,7 @@ export default function AdminDashboard() {
 
   // Live Firebase snapshot listener for orders
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
 
   // Live Firebase listener for admin notifications
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notificationsData = snapshot.docs.map(doc => ({
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
 
   // Live Firebase snapshot listener for return requests
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     const q = query(collection(db, 'return_requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const returnsData = snapshot.docs.map(doc => ({
@@ -391,7 +391,7 @@ export default function AdminDashboard() {
     }
   }, [loadingOrders, orders, hasShownPopup]);
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'super_admin') {
     return <Navigate to="/" />;
   }
 
@@ -441,7 +441,7 @@ export default function AdminDashboard() {
         <div className="p-6 border-b border-gray-100 italic flex items-center justify-between">
           <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2">
             <Logo />
-            <span className="font-bold text-gray-800">Admin</span>
+            <span className="font-bold text-gray-800">{user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
           </Link>
           <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden p-2 -mr-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
             <X className="w-5 h-5" />
@@ -1696,6 +1696,12 @@ function UserManagementView() {
               All
             </button>
             <button
+              onClick={() => setRoleFilter('super_admin')}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilter === 'super_admin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              Super Admins
+            </button>
+            <button
               onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${roleFilter === 'admin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             >
@@ -1798,7 +1804,9 @@ function UserManagementView() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${user.role === 'admin' ? 'bg-red-100 text-red-600' :
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                          user.role === 'admin' ? 'bg-red-100 text-red-600' :
                           user.role === 'vendor' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                         }`}>
                         {user.role}
@@ -1853,8 +1861,14 @@ function UserManagementView() {
                 <RoleOption
                   role="admin"
                   current={selectedUser.role}
-                  description="Full access to the admin dashboard and all system settings."
+                  description="Full access to the admin dashboard and standard store management."
                   onClick={() => updateRole(selectedUser.uid, 'admin')}
+                />
+                <RoleOption
+                  role="super_admin"
+                  current={selectedUser.role}
+                  description="Unrestricted management access across all modules, permissions, system settings, and destructive actions."
+                  onClick={() => updateRole(selectedUser.uid, 'super_admin')}
                 />
               </div>
 
@@ -2015,7 +2029,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
         <div>
           <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1.5 ml-1">Initial Role</label>
           <div className="flex gap-1 h-[46px]">
-            {(['customer', 'vendor', 'admin'] as Role[]).map((role) => (
+            {(['customer', 'vendor', 'admin', 'super_admin'] as Role[]).map((role) => (
               <button
                 key={role}
                 type="button"

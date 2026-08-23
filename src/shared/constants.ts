@@ -252,9 +252,11 @@ export const AVAILABLE_PERMISSIONS = [
   'can_view_orders',
   'can_edit_orders',
   'can_manage_users',
+  'can_manage_roles',
   'can_view_analytics',
   'can_manage_banners',
-  'can_manage_features'
+  'can_manage_features',
+  'can_full_admin_access'
 ];
 
 export const DEFAULT_FEATURES = [

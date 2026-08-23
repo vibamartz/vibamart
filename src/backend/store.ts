@@ -50,12 +50,12 @@ export const useAuthStore = create<AuthState>((set) => ({
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
 
-            if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin') {
+            if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin' && data.role !== 'super_admin') {
               try {
-                await setDoc(docRef, { role: 'admin' }, { merge: true });
+                await setDoc(docRef, { role: 'super_admin' }, { merge: true });
               } catch (err) {
-                console.error("Failed to bootstrap admin role:", err);
-                set({ user: { ...data, role: 'admin' }, loading: false });
+                console.error("Failed to bootstrap super_admin role:", err);
+                set({ user: { ...data, role: 'super_admin' }, loading: false });
               }
             } else {
               set({ user: data, loading: false });
@@ -276,7 +276,7 @@ export const useCategoryStore = create<CategoryState>((set) => ({
 
         // Auto-seed missing initial categories to Firestore (admins only)
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           INITIAL_CATEGORIES.forEach(async (initialCat) => {
             const exists = fetchedCategories.some(c => c.id === initialCat.id);
             if (!exists) {
@@ -294,7 +294,7 @@ export const useCategoryStore = create<CategoryState>((set) => ({
       } else {
         // If empty, seed Firestore with initial categories (admins only)
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           INITIAL_CATEGORIES.forEach(async (cat) => {
             try {
               await setDoc(doc(db, 'categories', cat.id), cat);
@@ -342,7 +342,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         set({ settings: { ...DEFAULT_SETTINGS, ...docSnap.data() as StoreSettings }, loading: false });
       } else {
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           try {
             await setDoc(docRef, DEFAULT_SETTINGS);
             set({ settings: DEFAULT_SETTINGS, loading: false });
@@ -394,7 +394,7 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
 
         // Auto-seed missing default features if admin
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           DEFAULT_FEATURES.forEach(async (defFeature) => {
             const exists = fetchedFeatures.some(f => f.id === defFeature.id);
             if (!exists) {
@@ -414,7 +414,7 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
       } else {
         // Seed default features if collection is completely empty
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           DEFAULT_FEATURES.forEach(async (defFeature) => {
             try {
               await setDoc(doc(db, 'features', defFeature.id), {
@@ -495,7 +495,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
         set({ config: { ...DEFAULT_REWARDS_CONFIG, ...data } });
       } else {
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           try {
             await setDoc(configRef, DEFAULT_REWARDS_CONFIG);
           } catch (e) {
@@ -524,7 +524,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       } else if (!hasSeededCoupons) {
         hasSeededCoupons = true;
         const currentUser = useAuthStore.getState().user;
-        if (currentUser && currentUser.role === 'admin') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           // Auto-seed DEFAULT_BRAND_COUPONS if empty on initial creation only
           DEFAULT_BRAND_COUPONS.forEach(async (vouch) => {
             try {
@@ -546,7 +546,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     const currentUid = userId || useAuthStore.getState().user?.uid;
     const currentUserRole = useAuthStore.getState().user?.role;
     const ordersColRef = collection(db, 'reward_orders');
-    const ordersQuery = (currentUserRole !== 'admin' && currentUid)
+    const ordersQuery = ((currentUserRole !== 'admin' && currentUserRole !== 'super_admin') && currentUid)
       ? query(ordersColRef, where('userId', '==', currentUid))
       : ordersColRef;
 

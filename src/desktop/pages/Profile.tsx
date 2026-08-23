@@ -1125,7 +1125,7 @@ export default function Profile() {
                         </button>
                       </div>
 
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.role === 'super_admin') && (
                         <div className="p-6 bg-primary/5 rounded-3xl flex items-center justify-between group hover:bg-white hover:border-primary/20 border border-transparent transition-all">
                           <div className="flex items-center gap-4">
                             <div className="p-3 bg-white rounded-2xl shadow-sm text-primary">

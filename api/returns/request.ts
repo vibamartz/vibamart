@@ -75,7 +75,8 @@ export default async function handler(req: any, res: any) {
     } else {
       try {
         const userDoc = await db.collection("users").doc(uid).get();
-        if (userDoc.exists && userDoc.data()?.role === 'admin') {
+        const role = userDoc.data()?.role;
+        if (userDoc.exists && (role === 'admin' || role === 'super_admin')) {
           isAdmin = true;
         }
       } catch (adminErr) {

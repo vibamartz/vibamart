@@ -225,7 +225,7 @@ export default function Login() {
         displayName: providedName || firebaseUser.displayName || `User ${Math.floor(Math.random() * 10000)}`,
         phone: providedPhone || '',
         photoURL: firebaseUser.photoURL || '',
-        role: userEmail === 'vk311779@gmail.com' ? 'admin' : 'customer',
+        role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
         isVerified: true,
         accountStatus: 'active',
         createdAt: now,
@@ -243,9 +243,9 @@ export default function Login() {
         lastLoginAt: now,
       };
 
-      if (isAdmin && userData.role !== 'admin') {
-        updateData.role = 'admin';
-        userData.role = 'admin';
+      if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
+        updateData.role = 'super_admin';
+        userData.role = 'super_admin';
       }
 
       if (providedPhone && !userData.phone) {

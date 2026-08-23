@@ -31,6 +31,9 @@ export default function MobileHomepage() {
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const bannerScrollRef = useRef<HTMLDivElement>(null);
+  const isAutoScrollingBanner = useRef(false);
+
   // Modals & Address
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -121,11 +124,56 @@ export default function MobileHomepage() {
     };
   }, []);
 
+  const scrollToBannerSlide = (index: number) => {
+    setCurrentSlide(index);
+    if (bannerScrollRef.current) {
+      const container = bannerScrollRef.current;
+      const child = container.children[index] as HTMLElement;
+      if (child) {
+        isAutoScrollingBanner.current = true;
+        const targetLeft = child.offsetLeft - (container.offsetWidth - child.offsetWidth) / 2;
+        container.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: 'smooth',
+        });
+        setTimeout(() => {
+          isAutoScrollingBanner.current = false;
+        }, 500);
+      }
+    }
+  };
+
+  const handleBannerScroll = () => {
+    if (isAutoScrollingBanner.current || !bannerScrollRef.current) return;
+    const container = bannerScrollRef.current;
+    const containerCenter = container.scrollLeft + container.offsetWidth / 2;
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    Array.from(container.children).forEach((child, index) => {
+      const el = child as HTMLElement;
+      const childCenter = el.offsetLeft + el.offsetWidth / 2;
+      const dist = Math.abs(containerCenter - childCenter);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = index;
+      }
+    });
+
+    if (closestIndex !== currentSlide) {
+      setCurrentSlide(closestIndex);
+    }
+  };
+
   // Banner auto slide
   useEffect(() => {
     if (banners.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % banners.length);
+      setCurrentSlide((prev) => {
+        const next = (prev + 1) % banners.length;
+        scrollToBannerSlide(next);
+        return next;
+      });
     }, 5000);
     return () => clearInterval(timer);
   }, [banners.length]);
@@ -476,21 +524,23 @@ export default function MobileHomepage() {
       {/* 5. PROMOTIONAL BANNER (aspect-ratio 2:1, rounded corners 22px)            */}
       {/* ========================================================================= */}
       {settings.enableBanner && banners.length > 0 && (
-        <section className="w-full min-w-0 space-y-2">
-          <div className="relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 aspect-[2/1] bg-gray-900 w-full min-w-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                onClick={() => navigateBanner(banners[currentSlide].link)}
-                className="absolute inset-0 cursor-pointer group active:scale-[0.99] transition-transform w-full h-full"
+        <section className="w-full min-w-0 space-y-2 overflow-hidden">
+          <div
+            ref={bannerScrollRef}
+            onScroll={handleBannerScroll}
+            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-3 px-0.5 py-0.5 min-w-0 w-full"
+          >
+            {banners.map((banner, i) => (
+              <div
+                key={banner.id || i}
+                onClick={() => navigateBanner(banner.link)}
+                className={`relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 aspect-[2/1] bg-gray-900 cursor-pointer group active:scale-[0.99] transition-transform ${
+                  banners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
+                }`}
               >
                 <img
-                  src={banners[currentSlide].image}
-                  alt={banners[currentSlide].title}
+                  src={banner.image}
+                  alt={banner.title}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
@@ -498,17 +548,17 @@ export default function MobileHomepage() {
 
                 <div className="absolute bottom-0 inset-x-0 p-[clamp(12px,3.5vw,20px)] text-white">
                   <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[clamp(8px,2.2vw,10px)] font-black uppercase tracking-widest rounded-full mb-1">
-                    {banners[currentSlide].subtitle || 'Special Offer'}
+                    {banner.subtitle || 'Special Offer'}
                   </span>
                   <h2 className="text-[clamp(13px,4vw,18px)] font-black text-white leading-snug line-clamp-1">
-                    {banners[currentSlide].title}
+                    {banner.title}
                   </h2>
                   <div className="mt-2 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-wider shadow">
                     Shop Now <ArrowRight className="w-3 h-3 text-emerald-600" />
                   </div>
                 </div>
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            ))}
           </div>
 
           {/* Pagination Indicators directly below banner */}
@@ -517,9 +567,10 @@ export default function MobileHomepage() {
               {banners.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`h-1.5 rounded-full transition-all ${currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-gray-300'
-                    }`}
+                  onClick={() => scrollToBannerSlide(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-gray-300'
+                  }`}
                 />
               ))}
             </div>

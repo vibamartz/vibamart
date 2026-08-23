@@ -1,4 +1,14 @@
-export type Role = "customer" | "vendor" | "admin";
+export type Role = "customer" | "vendor" | "admin" | "super_admin";
+
+export function isAdminUser(user: { role?: Role; email?: string } | null | undefined): boolean {
+  if (!user) return false;
+  return user.role === 'admin' || user.role === 'super_admin' || user.email === 'vk311779@gmail.com';
+}
+
+export function isSuperAdminUser(user: { role?: Role; email?: string } | null | undefined): boolean {
+  if (!user) return false;
+  return user.role === 'super_admin' || user.email === 'vk311779@gmail.com';
+}
 
 export interface UserProfile {
   uid: string;

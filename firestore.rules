@@ -17,7 +17,16 @@ service cloud.firestore {
     function isAdmin() { 
       return isSignedIn() && (
         request.auth.token.email == 'vk311779@gmail.com' ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
+        ))
+      );
+    }
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'vk311779@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
       );
     }
 
@@ -28,7 +37,7 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.uid is string && 
              (data.email is string || data.phone is string) && 
-             data.role in ['customer', 'admin', 'vendor'];
+             data.role in ['customer', 'admin', 'vendor', 'super_admin'];
     }
 
     function isValidProduct(data) {

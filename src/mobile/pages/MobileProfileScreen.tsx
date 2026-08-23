@@ -69,7 +69,7 @@ export default function MobileProfileScreen() {
             <div className="flex items-center gap-1.5">
               <h2 className="text-base font-black truncate">{accountName}</h2>
               <span className="text-[9px] font-black uppercase bg-emerald-400 text-emerald-950 px-2 py-0.5 rounded-full">
-                {user.role === 'admin' ? 'Admin' : 'Verified'}
+                {user.role === 'super_admin' ? 'Super Admin' : user.role === 'admin' ? 'Admin' : 'Verified'}
               </span>
             </div>
             <p className="text-xs text-emerald-100 font-medium truncate mt-0.5">{user.email}</p>
@@ -77,7 +77,7 @@ export default function MobileProfileScreen() {
           </div>
         </div>
 
-        {user.role === 'admin' && (
+        {(user.role === 'admin' || user.role === 'super_admin') && (
           <div className="mt-4 pt-3 border-t border-white/20 flex justify-between items-center">
             <span className="text-xs font-bold text-emerald-100">Administrator System Dashboard</span>
             <button

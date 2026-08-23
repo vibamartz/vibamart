@@ -231,7 +231,7 @@ export default function Home() {
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}
-          className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 sm:gap-6 px-0.5 py-0.5 min-w-0 w-full"
+          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 sm:gap-6 px-0.5 py-0.5 min-w-0 w-full"
         >
           {banners.length > 0 ? (
             banners.map((banner, i) => (
