@@ -104,6 +104,21 @@ export default function MobileCheckoutScreen() {
       return;
     }
 
+    // Validate stock for all cart items before proceeding
+    const invalidItems = items.filter(item => {
+      const p = item.product;
+      const variant = item.variantId ? p?.variants?.find(v => v.id === item.variantId) : null;
+      const stock = variant ? variant.stock : p?.stock;
+      return !p || p.inStock === false || p.status === 'out_of_stock' || p.status === 'inactive' || stock === undefined || stock <= 0 || item.quantity > stock;
+    });
+
+    if (invalidItems.length > 0) {
+      const validItems = items.filter(item => !invalidItems.includes(item));
+      useCartStore.getState().setItems(validItems);
+      toast.error("Some out-of-stock items were automatically removed from your cart.");
+      return;
+    }
+
     setIsPlacingOrder(true);
 
     let payResult: any = { success: true, method: paymentMethod, paymentId: '' };

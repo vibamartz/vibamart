@@ -390,12 +390,12 @@ export default function MobileRewardsScreen() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-1">
-                  {(coupon.remainingQuantity ?? 0) <= 0 ? (
+                  {(coupon.remainingQuantity ?? 0) <= 0 || !coupon.active || (user && rewardOrders.some(ro => ro.couponId === coupon.id && ro.userId === user.uid)) ? (
                     <button
                       disabled
-                      className="flex-1 py-2.5 bg-gray-200 text-gray-500 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1"
+                      className="flex-1 py-2.5 bg-rose-100 text-rose-600 rounded-xl text-xs font-black cursor-not-allowed flex items-center justify-center gap-1"
                     >
-                      Sold Out
+                      Expired/Used
                     </button>
                   ) : (coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now()) ? (
                     <button

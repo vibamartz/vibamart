@@ -123,6 +123,7 @@ interface CartState {
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
+  syncWithProducts: (products: Product[]) => void;
   total: () => number;
 }
 
@@ -169,8 +170,12 @@ export const useCartStore = create<CartState>((set, get) => ({
       return { success: false };
     }
 
-    // Validation: Check stock for the selected variant or base product
+    // Validation: Check stock & status for the selected variant or base product
     const availableStock = variant ? variant.stock : product.stock;
+    if (product.inStock === false || product.status === 'out_of_stock' || product.status === 'inactive' || availableStock === undefined || availableStock <= 0) {
+      return { success: false };
+    }
+
     const existing = items.find(i => i.productId === product.id && i.variantId === variantId);
 
     if (existing) {
@@ -208,6 +213,41 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ items: [] });
     localStorage.removeItem(getCartKey());
     syncCartToFirebase([]);
+  },
+  syncWithProducts: (products) => {
+    if (!products || products.length === 0) return;
+    const currentItems = get().items;
+    let modified = false;
+
+    const validItems = currentItems.filter(item => {
+      const liveProd = products.find(p => p.id === item.productId);
+      if (!liveProd || liveProd.inStock === false || liveProd.status === 'out_of_stock' || liveProd.status === 'inactive') {
+        modified = true;
+        return false;
+      }
+
+      const variant = item.variantId ? liveProd.variants?.find(v => v.id === item.variantId) : null;
+      const stock = variant ? variant.stock : liveProd.stock;
+
+      if (stock === undefined || stock <= 0) {
+        modified = true;
+        return false;
+      }
+
+      if (item.quantity > stock) {
+        item.quantity = stock;
+        modified = true;
+      }
+
+      item.product = liveProd;
+      return true;
+    });
+
+    if (modified) {
+      set({ items: validItems });
+      localStorage.setItem(getCartKey(), JSON.stringify(validItems));
+      syncCartToFirebase(validItems);
+    }
   },
   total: () => {
     return get().items.reduce((acc, item) => {
@@ -470,8 +510,10 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
 
     // 2. Subscribe to Reward Offers / Brand Coupons Collection (reward_offers)
     const offersColRef = collection(db, 'reward_offers');
+    let hasSeededCoupons = false;
     onSnapshot(offersColRef, async (snapshot) => {
       if (!snapshot.empty) {
+        hasSeededCoupons = true;
         const fetchedOffers = snapshot.docs.map(docSnap => ({
           id: docSnap.id,
           ...docSnap.data()
@@ -479,10 +521,11 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
 
         fetchedOffers.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
         set({ offers: fetchedOffers });
-      } else {
+      } else if (!hasSeededCoupons) {
+        hasSeededCoupons = true;
         const currentUser = useAuthStore.getState().user;
         if (currentUser && currentUser.role === 'admin') {
-          // Auto-seed DEFAULT_BRAND_COUPONS if empty
+          // Auto-seed DEFAULT_BRAND_COUPONS if empty on initial creation only
           DEFAULT_BRAND_COUPONS.forEach(async (vouch) => {
             try {
               await setDoc(doc(db, 'reward_offers', vouch.id), vouch);
@@ -492,6 +535,8 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
           });
         }
         set({ offers: DEFAULT_BRAND_COUPONS });
+      } else {
+        set({ offers: [] });
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'reward_offers', false);
@@ -683,13 +728,14 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       const orderRef = doc(db, 'reward_orders', orderId);
       await setDoc(orderRef, newOrder);
 
-      // Decrement coupon remaining count if applicable
+      // Auto-expire coupon on successful purchase (set remainingQuantity: 0 & active: false)
       if (orderData.couponId) {
         const coupon = get().offers.find(o => o.id === orderData.couponId);
-        if (coupon && (coupon.remainingQuantity ?? 0) > 0) {
+        if (coupon) {
           const couponRef = doc(db, 'reward_offers', coupon.id);
           await updateDoc(couponRef, {
-            remainingQuantity: Math.max(0, (coupon.remainingQuantity || 1) - 1),
+            remainingQuantity: 0,
+            active: false,
             updatedAt: new Date().toISOString()
           });
         }

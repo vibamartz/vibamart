@@ -52,6 +52,7 @@ export interface Product {
   sku?: string;
   tags?: string[]; // Keywords / search tags
   stock: number;
+  inStock?: boolean;
   status: 'active' | 'inactive' | 'draft' | 'out_of_stock';
   rating: number;
   numReviews: number;
