@@ -31,6 +31,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const bannerScrollRef = useRef<HTMLDivElement>(null);
+  const isAutoScrollingBanner = useRef(false);
+
   // Header & Modal states
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -157,108 +160,167 @@ export default function Home() {
     return () => unsubscribeBanners();
   }, []);
 
+  const scrollToBannerSlide = (index: number) => {
+    setCurrentSlide(index);
+    if (bannerScrollRef.current) {
+      const container = bannerScrollRef.current;
+      const child = container.children[index] as HTMLElement;
+      if (child) {
+        isAutoScrollingBanner.current = true;
+        const targetLeft = child.offsetLeft - (container.offsetWidth - child.offsetWidth) / 2;
+        container.scrollTo({
+          left: Math.max(0, targetLeft),
+          behavior: 'smooth',
+        });
+        setTimeout(() => {
+          isAutoScrollingBanner.current = false;
+        }, 500);
+      }
+    }
+  };
+
+  const handleBannerScroll = () => {
+    if (isAutoScrollingBanner.current || !bannerScrollRef.current) return;
+    const container = bannerScrollRef.current;
+    const containerCenter = container.scrollLeft + container.offsetWidth / 2;
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    Array.from(container.children).forEach((child, index) => {
+      const el = child as HTMLElement;
+      const childCenter = el.offsetLeft + el.offsetWidth / 2;
+      const dist = Math.abs(containerCenter - childCenter);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = index;
+      }
+    });
+
+    if (closestIndex !== currentSlide) {
+      setCurrentSlide(closestIndex);
+    }
+  };
+
   useEffect(() => {
     if (banners.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % banners.length);
+      setCurrentSlide((prev) => {
+        const next = (prev + 1) % banners.length;
+        scrollToBannerSlide(next);
+        return next;
+      });
     }, 6000);
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % banners.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length);
+  const nextSlide = () => {
+    const next = (currentSlide + 1) % banners.length;
+    scrollToBannerSlide(next);
+  };
+
+  const prevSlide = () => {
+    const prev = (currentSlide - 1 + banners.length) % banners.length;
+    scrollToBannerSlide(prev);
+  };
 
   return (
     <div className="space-y-12 sm:space-y-16 pb-20">
 
       {/* Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6">
-        <div className="relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20">
-          <AnimatePresence mode="wait">
-            {banners.length > 0 ? (
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.8 }}
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6 overflow-hidden">
+        <div
+          ref={bannerScrollRef}
+          onScroll={handleBannerScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 sm:gap-6 px-0.5 py-0.5 min-w-0 w-full"
+        >
+          {banners.length > 0 ? (
+            banners.map((banner, i) => (
+              <div
+                key={banner.id || i}
                 onClick={() => {
-                  if (banners[currentSlide].link) {
-                    navigate(banners[currentSlide].link!);
+                  if (banner.link) {
+                    navigate(banner.link);
                   } else {
                     navigate('/products');
                   }
                 }}
-                className="absolute inset-0 cursor-pointer"
+                className={`relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20 ${
+                  banners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
+                } cursor-pointer`}
               >
                 <img
-                  src={banners[currentSlide].image}
-                  alt={banners[currentSlide].title}
+                  src={banner.image}
+                  alt={banner.title}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
                 <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
                   <div className="max-w-2xl">
-                    <motion.div
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
-                        {banners[currentSlide].subtitle || 'Exclusive Offer'}
-                      </span>
-                      <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
-                        {banners[currentSlide].title}
-                      </h1>
-                      <div className="flex flex-wrap gap-4">
-                        <div
-                          className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2"
-                        >
-                          Explore Now <ArrowRight className="w-5 h-5" />
-                        </div>
+                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
+                      {banner.subtitle || 'Exclusive Offer'}
+                    </span>
+                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
+                      {banner.title}
+                    </h1>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2">
+                        Explore Now <ArrowRight className="w-5 h-5" />
                       </div>
-                    </motion.div>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <div
-                onClick={() => navigate('/products')}
-                className="absolute inset-0 bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150"
-              >
-                <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
-                    UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
-                  </h1>
-                  <p className="text-xs sm:text-lg text-white/80 max-w-lg">
-                    Elevate your lifestyle with the latest tech and fashion.
-                  </p>
-                  <div className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
-                    Shop Now
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </AnimatePresence>
-
-          {banners.length > 1 && (
-            <>
-              <button
-                onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-                className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-                className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </>
+            ))
+          ) : (
+            <div
+              onClick={() => navigate('/products')}
+              className="relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl border border-white/20 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+            >
+              <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
+                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
+                  UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
+                </h1>
+                <p className="text-xs sm:text-lg text-white/80 max-w-lg">
+                  Elevate your lifestyle with the latest tech and fashion.
+                </p>
+                <div className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
+                  Shop Now
+                </div>
+              </div>
+            </div>
           )}
         </div>
+
+        {banners.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); prevSlide(); }}
+              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+
+            {/* Pagination Indicators directly below banner */}
+            <div className="flex justify-center items-center gap-2 pt-3">
+              {banners.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => scrollToBannerSlide(i)}
+                  className={`h-2 rounded-full transition-all ${
+                    currentSlide === i ? 'w-8 bg-primary' : 'w-2 bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Featured Collections / Categories */}
