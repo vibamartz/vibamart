@@ -128,51 +128,98 @@ export default function BannersManagementView() {
     setIsModalOpen(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxWidth = 1200, maxHeight = 600, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) { // 3MB max for banners
-        toast.error('Image size must be less than 3MB');
-        return;
+      try {
+        const compressedBase64 = await compressImage(file, 1200, 600, 0.8);
+        setFormData(prev => ({ ...prev, image: compressedBase64 }));
+      } catch (err) {
+        console.error("Failed to compress image:", err);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, image: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
     }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.image) {
+    if (!formData.image || !formData.image.trim()) {
       toast.error('Banner Image is required.');
       return;
     }
 
     setIsSaving(true);
     try {
+      const payload: Record<string, any> = {
+        title: formData.title || '',
+        subtitle: formData.subtitle || '',
+        image: formData.image,
+        link: formData.link || '',
+        active: formData.active ?? true,
+        platform: formData.platform || 'all',
+        startDate: formData.startDate || '',
+        endDate: formData.endDate || ''
+      };
+
       if (editingBanner) {
-        // Update existing
+        payload.id = editingBanner.id;
+        payload.order = editingBanner.order ?? 0;
         const bannerRef = doc(db, 'banners', editingBanner.id);
-        await updateDoc(bannerRef, {
-          ...formData,
-        });
+        await setDoc(bannerRef, payload, { merge: true });
         toast.success('Banner updated successfully');
       } else {
-        // Create new
         const newDocRef = doc(collection(db, 'banners'));
-        await setDoc(newDocRef, {
-          id: newDocRef.id,
-          ...formData,
-          order: filteredBanners.length, // Put at the end of the current platform list
-        });
+        payload.id = newDocRef.id;
+        payload.order = banners.length;
+        await setDoc(newDocRef, payload);
         toast.success('Banner created successfully');
       }
       setIsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving banner:', error);
-      toast.error('Failed to save banner');
+      toast.error(`Failed to save banner: ${error?.message || error}`);
     } finally {
       setIsSaving(false);
     }
