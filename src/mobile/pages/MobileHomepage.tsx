@@ -630,39 +630,7 @@ export default function MobileHomepage() {
         </div>
       </section>
 
-      {/* ========================================================================= */}
-      {/* 7. SECONDARY FEATURED BANNER                                              */}
-      {/* ========================================================================= */}
-      <section className="w-full min-w-0">
-        <div
-          onClick={() => navigateBanner(banners[1]?.link || banners[0]?.link || '/products')}
-          className="w-full aspect-[2.2/1] rounded-[22px] overflow-hidden relative shadow-sm border border-orange-100 bg-gradient-to-r from-emerald-700 via-teal-600 to-orange-500 cursor-pointer active:scale-[0.99] transition-transform min-w-0"
-        >
-          {banners[1]?.image ? (
-            <img
-              src={banners[1].image}
-              alt={banners[1].title || "Special Deal"}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-between p-3.5 sm:p-5 text-white">
-              <div className="max-w-[75%] space-y-1">
-                <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full">
-                  Featured Deals
-                </span>
-                <h3 className="text-xs sm:text-base font-black leading-tight line-clamp-1">
-                  Exclusive Savings & Cashback
-                </h3>
-                <p className="text-[10px] sm:text-xs text-white/80 font-medium truncate">Up to 50% OFF Top Categories</p>
-              </div>
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white text-emerald-700 flex items-center justify-center shadow shrink-0">
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
+
 
       {/* ========================================================================= */}
       {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
