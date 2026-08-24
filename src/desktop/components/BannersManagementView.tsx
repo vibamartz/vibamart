@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Banner } from '../../shared/types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud } from 'lucide-react';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function BannersManagementView() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activePlatformTab, setActivePlatformTab] = useState<'desktop' | 'mobile'>('desktop');
+  const [activePlatformTab, setActivePlatformTab] = useState<'all' | 'desktop' | 'mobile'>('all');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,7 +22,7 @@ export default function BannersManagementView() {
     image: '',
     link: '',
     active: true,
-    platform: 'desktop',
+    platform: 'all',
     startDate: '',
     endDate: ''
   });
@@ -50,7 +50,11 @@ export default function BannersManagementView() {
     return () => unsubscribe();
   }, []);
 
-  const filteredBanners = banners.filter(b => (b.platform || 'desktop') === activePlatformTab);
+  const filteredBanners = banners.filter(b => {
+    const p = b.platform || 'all';
+    if (activePlatformTab === 'all') return true;
+    return p === 'all' || p === activePlatformTab;
+  });
 
   // --- Drag and Drop Logic ---
   const handleDragStart = (e: React.DragEvent, position: number) => {
@@ -75,7 +79,6 @@ export default function BannersManagementView() {
       newFilteredList.splice(dragOverItem.current, 0, draggedItemContent);
       
       // Update local state temporarily for immediate feedback
-      // We only update the order for the active tab's banners
       const batch = writeBatch(db);
       newFilteredList.forEach((banner, index) => {
         const bannerRef = doc(db, 'banners', banner.id);
@@ -105,7 +108,7 @@ export default function BannersManagementView() {
         image: banner.image || '',
         link: banner.link || '',
         active: banner.active ?? true,
-        platform: banner.platform || activePlatformTab,
+        platform: banner.platform || 'all',
         startDate: banner.startDate || '',
         endDate: banner.endDate || ''
       });
@@ -117,7 +120,7 @@ export default function BannersManagementView() {
         image: '',
         link: '',
         active: true,
-        platform: activePlatformTab,
+        platform: 'all',
         startDate: '',
         endDate: ''
       });
@@ -229,6 +232,13 @@ export default function BannersManagementView() {
 
       {/* Platform Tabs */}
       <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm w-fit">
+        <button
+          onClick={() => setActivePlatformTab('all')}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'all' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+        >
+          <Layers className="w-4 h-4" />
+          All Banners (Mobile + Desktop)
+        </button>
         <button
           onClick={() => setActivePlatformTab('desktop')}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'desktop' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
@@ -357,7 +367,7 @@ export default function BannersManagementView() {
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="text-xl font-bold text-gray-900">
-                  {editingBanner ? 'Edit Banner' : `Create New ${formData.platform === 'desktop' ? 'Desktop' : 'Mobile'} Banner`}
+                  {editingBanner ? 'Edit Banner' : 'Create New Banner'}
                 </h3>
                 <button
                   onClick={() => !isSaving && setIsModalOpen(false)}
@@ -393,7 +403,7 @@ export default function BannersManagementView() {
                             <ImageIcon className="w-8 h-8 text-gray-400 group-hover:text-indigo-500" />
                           </div>
                           <p className="text-sm font-bold text-gray-700">Click to upload image</p>
-                          <p className="text-xs text-gray-500 mt-1">Recommended ratio: {formData.platform === 'desktop' ? '3:1 (Desktop)' : '4:5 (Mobile)'}</p>
+                          <p className="text-xs text-gray-500 mt-1">Recommended ratio: 3:1 (Desktop) / 2:1 (Mobile)</p>
                           <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                         </label>
                       )}
@@ -402,6 +412,19 @@ export default function BannersManagementView() {
 
                   {/* Settings Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-sm font-bold text-gray-700">Target Platform</label>
+                      <select
+                        value={formData.platform || 'all'}
+                        onChange={(e) => setFormData({ ...formData, platform: e.target.value as any })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium text-sm text-gray-900"
+                      >
+                        <option value="all">All Devices (Mobile + Desktop) — Default</option>
+                        <option value="desktop">Desktop Only</option>
+                        <option value="mobile">Mobile Only</option>
+                      </select>
+                      <p className="text-[11px] text-gray-400">Selecting 'All Devices' syncs this banner automatically to both Mobile & Desktop.</p>
+                    </div>
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="text-sm font-bold text-gray-700">Banner Title</label>
                       <input

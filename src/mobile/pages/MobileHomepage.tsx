@@ -97,8 +97,18 @@ export default function MobileHomepage() {
     );
 
     const unsubscribeBanners = onSnapshot(bannersQuery, (snapshot) => {
-      const bannerData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
-      setBanners(bannerData.filter(b => b.active !== false));
+      const now = Date.now();
+      const bannerData = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
+        .filter(b => {
+          if (b.active === false) return false;
+          const p = b.platform || 'all';
+          if (p !== 'all' && p !== 'mobile') return false;
+          const start = b.startDate ? new Date(b.startDate).getTime() : 0;
+          const end = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+          return now >= start && now <= end;
+        });
+      setBanners(bannerData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'banners', false);
     });

@@ -66,6 +66,7 @@ export default function MobileBottomNav() {
         height: 'clamp(50px, 18vw, 62px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)'
       }}
+      
     >
       <nav className="grid grid-cols-4 w-full h-full max-w-[768px] mx-auto items-center px-1 sm:px-3 min-w-0">
         {navItems.map((item) => {

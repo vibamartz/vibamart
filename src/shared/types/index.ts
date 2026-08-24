@@ -212,7 +212,7 @@ export interface Banner {
   link?: string;
   active?: boolean;
   order: number;
-  platform?: 'mobile' | 'desktop';
+  platform?: 'mobile' | 'desktop' | 'all';
   startDate?: string;
   endDate?: string;
 }

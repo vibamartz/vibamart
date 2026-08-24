@@ -150,11 +150,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const bQuery = query(collection(db, 'banners'), where('active', '==', true), orderBy('order', 'asc'));
+    const bQuery = query(collection(db, 'banners'), orderBy('order', 'asc'));
     const unsubscribeBanners = onSnapshot(bQuery, (snapshot) => {
+      const now = Date.now();
       const desktopBanners = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
-        .filter(b => (b.platform || 'desktop') === 'desktop');
+        .filter(b => {
+          if (b.active === false) return false;
+          const p = b.platform || 'all';
+          if (p !== 'all' && p !== 'desktop') return false;
+          const start = b.startDate ? new Date(b.startDate).getTime() : 0;
+          const end = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+          return now >= start && now <= end;
+        });
       setBanners(desktopBanners);
     });
     return () => unsubscribeBanners();

@@ -13,8 +13,18 @@ export default function MobileOffersScreen() {
 
   useEffect(() => {
     const unsubBanners = onSnapshot(query(collection(db, 'banners'), orderBy('order', 'asc')), (snap) => {
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Banner));
-      setBanners(docs.filter(b => b.active !== false));
+      const now = Date.now();
+      const docs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Banner))
+        .filter(b => {
+          if (b.active === false) return false;
+          const p = b.platform || 'all';
+          if (p !== 'all' && p !== 'mobile') return false;
+          const start = b.startDate ? new Date(b.startDate).getTime() : 0;
+          const end = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+          return now >= start && now <= end;
+        });
+      setBanners(docs);
     });
 
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snap) => {
