@@ -283,7 +283,9 @@ export default function MobileProductDetailScreen() {
             </span>
           )}
         </div>
-        <p className="text-[10px] font-bold text-gray-500">Inclusive of all taxes (GST included)</p>
+        <p className="text-[10px] font-bold text-gray-500">
+          {product.enableGst === false || (product.gst || 0) === 0 ? 'GST Exempt / Tax: 0%' : `Inclusive of all taxes (GST ${product.gst || 18}% included)`}
+        </p>
       </div>
 
       {/* Product Variants (Colors / Sizes / Extra Options) */}

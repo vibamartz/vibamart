@@ -52,6 +52,7 @@ export interface Product {
   mrp?: number;
   discountPercentage?: number;
   gst?: number;
+  enableGst?: boolean;
   categoryId: string;
   categories?: string[];
   subCategoryId?: string;
@@ -185,6 +186,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   image: string;
+  gst?: number;
+  enableGst?: boolean;
 }
 
 export type OrderStatus = "pending" | "confirmed" | "packed" | "shipped" | "out_for_delivery" | "delivered" | "cancel_requested" | "cancel_rejected" | "cancelled" | "returned" | "refunded";

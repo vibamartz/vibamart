@@ -267,7 +267,9 @@ export default function ProductDetail() {
                   </p>
                 )}
               </div>
-              <p className="text-sm font-bold text-gray-500">Free delivery on this item. Usually delivered in 2-3 days.</p>
+              <p className="text-sm font-bold text-gray-500">
+                {product.enableGst === false || (product.gst || 0) === 0 ? 'Tax: GST Exempt (0%)' : `Inclusive of ${product.gst || 18}% GST`}. Free delivery on this item.
+              </p>
            </div>
 
            <div>

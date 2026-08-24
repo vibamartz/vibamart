@@ -106,7 +106,34 @@ service cloud.firestore {
 
     match /categories/{catId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /features/{featureId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reward_offers/{offerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reward_orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /user_rewards/{userId} {
+      allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin() || (isSignedIn() && userId == request.auth.uid);
+    }
+
+    match /user_notifications/{notifId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if true;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /products/{productId} {

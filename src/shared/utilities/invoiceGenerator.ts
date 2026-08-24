@@ -123,7 +123,12 @@ export function generateNativePDF(order: Order, invoiceNum: string): void {
   y += 6;
 
   // Totals Breakdown
-  const taxAmount = Math.round(subtotal * 0.18);
+  const taxAmount = order.items.reduce((sum, item) => {
+    const isEnabled = item.enableGst !== false && (item.gst || 0) > 0;
+    if (!isEnabled) return sum;
+    const rate = item.gst || 18;
+    return sum + Math.round((item.price * item.quantity * rate) / 100);
+  }, 0);
   const discountAmount = Math.max(0, subtotal - order.total);
   const grandTotal = order.total;
 
@@ -138,7 +143,7 @@ export function generateNativePDF(order: Order, invoiceNum: string): void {
     y += 5;
   }
 
-  pdf.text('GST (18% Included):', 140, y);
+  pdf.text(`GST Tax (${taxAmount > 0 ? 'Included' : 'Exempt'}):`, 140, y);
   pdf.text(`Rs. ${taxAmount.toLocaleString('en-IN')}`, 194, y, { align: 'right' });
   y += 5;
 

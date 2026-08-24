@@ -24,6 +24,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       mrp: 0,
       discountPercentage: 0,
       gst: 0,
+      enableGst: true,
       categoryId: '',
       subCategoryId: '',
       nestedSubCategoryId: '',
@@ -76,6 +77,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         price: product.discountPrice !== undefined && product.discountPrice !== null ? product.discountPrice : product.price,
         mrp: product.discountPrice !== undefined && product.discountPrice !== null ? product.price : (product.mrp || product.price),
         stock: product.stock || 0,
+        enableGst: product.enableGst !== undefined ? product.enableGst : (product.gst ? product.gst > 0 : true),
         gst: product.gst || 0,
         discountPercentage: product.discountPercentage || 0,
       };
@@ -448,14 +450,54 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                     ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST/Tax (%)</label>
-                  <input
-                    type="number"
-                    value={formData.gst}
-                    onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
-                    className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
-                  />
+                <div className="space-y-3 col-span-full md:col-span-2 bg-gray-50/80 p-6 rounded-[28px] border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
+                      <span className="text-[11px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enableGst !== false}
+                        onChange={e => {
+                          const enabled = e.target.checked;
+                          setFormData(p => ({
+                            ...p,
+                            enableGst: enabled,
+                            gst: enabled ? (p.gst || 18) : 0
+                          }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                  {formData.enableGst !== false ? (
+                    <div className="pt-2 flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST Rate (%)</label>
+                        <input
+                          type="number"
+                          value={formData.gst}
+                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
+                          placeholder="18"
+                          className="w-full bg-white border-2 border-gray-100 rounded-[20px] px-6 py-3 outline-none focus:border-primary transition-all font-black text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-5">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                          GST Active ({formData.gst || 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-1">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-3 py-1.5 rounded-full">
+                        🚫 GST Disabled / Tax Exempt
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

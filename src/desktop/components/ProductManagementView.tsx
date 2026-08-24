@@ -162,6 +162,31 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     }
   };
 
+  const handleToggleGst = async (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const currentEnabled = product.enableGst !== false && (product.gst || 0) > 0;
+    const nextEnabled = !currentEnabled;
+    const nextGst = nextEnabled ? (product.gst && product.gst > 0 ? product.gst : 18) : 0;
+
+    const toastId = toast.loading(`${nextEnabled ? 'Enabling' : 'Disabling'} GST for ${product.name}...`);
+    try {
+      await updateDoc(doc(db, 'products', product.id), {
+        enableGst: nextEnabled,
+        gst: nextGst
+      });
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `${nextEnabled ? 'Enabled' : 'Disabled'} GST (${nextGst}%) for product: ${product.name}`,
+        product.id,
+        'products'
+      );
+      toast.success(`GST ${nextEnabled ? `enabled (${nextGst}%)` : 'disabled'} for ${product.name}`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update GST setting', { id: toastId });
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -189,6 +214,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 <th className="px-6 py-4">Product Info</th>
                 <th className="px-6 py-4">Total Stock</th>
                 <th className="px-6 py-4">Variants Count</th>
+                <th className="px-6 py-4">GST Tax</th>
                 <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
@@ -225,6 +251,23 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                         </span>
                       </td>
                       <td className="px-6 py-4">
+                        <button
+                          onClick={(e) => handleToggleGst(e, product)}
+                          title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
+                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                            product.enableGst !== false && (product.gst || 0) > 0
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
+                          }`}
+                        >
+                          {product.enableGst !== false && (product.gst || 0) > 0 ? (
+                            <><span>✅</span> GST {product.gst}%</>
+                          ) : (
+                            <><span>🚫</span> GST Off</>
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
                             {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
@@ -255,7 +298,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
                     {isExpanded && (
                       <tr className="bg-gray-50/30">
-                        <td colSpan={5} className="px-8 py-6">
+                        <td colSpan={6} className="px-8 py-6">
                           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                               <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Variants Table</h4>

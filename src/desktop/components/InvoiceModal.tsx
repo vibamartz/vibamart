@@ -34,7 +34,12 @@ export default function InvoiceModal({ order, isOpen, onClose }: InvoiceModalPro
 
   // Financial calculations
   const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxAmount = Math.round(subtotal * 0.18); // 18% GST included
+  const taxAmount = order.items.reduce((sum, item) => {
+    const isEnabled = item.enableGst !== false && (item.gst || 0) > 0;
+    if (!isEnabled) return sum;
+    const rate = item.gst || 18;
+    return sum + Math.round((item.price * item.quantity * rate) / 100);
+  }, 0);
   const discountAmount = Math.max(0, subtotal - order.total);
   const grandTotal = order.total;
 

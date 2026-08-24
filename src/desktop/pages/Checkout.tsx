@@ -196,7 +196,12 @@ export default function Checkout() {
   if (items.length === 0) return <Navigate to="/cart" />;
 
   const subtotal = total();
-  const tax = subtotal * 0.18;
+  const tax = items.reduce((sum, item) => {
+    const isEnabled = item.product?.enableGst !== false && (item.product?.gst || 0) > 0;
+    if (!isEnabled) return sum;
+    const rate = item.product?.gst || 18;
+    return sum + (item.product.price * item.quantity * (rate / 100));
+  }, 0);
   const shipping = subtotal > 500 ? 0 : 50;
   const grandTotal = subtotal + tax + shipping;
 
@@ -328,7 +333,9 @@ export default function Checkout() {
           name: item.product.name,
           price: finalPrice,
           quantity: item.quantity,
-          image: item.product.images?.[0] || ""
+          image: item.product.images?.[0] || "",
+          gst: item.product.gst || 0,
+          enableGst: item.product.enableGst !== false
         };
 
         if (item.variantId) {

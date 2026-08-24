@@ -1591,6 +1591,8 @@ function OrderRow({ id, customer, date, amount, status }: any) {
 }
 
 function UserManagementView() {
+  const { user: currentUser } = useAuthStore();
+  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com';
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEmail, setSearchEmail] = useState('');
@@ -1646,6 +1648,10 @@ function UserManagementView() {
   };
 
   const updateRole = async (targetUserId: string, newRole: Role) => {
+    if (newRole === 'super_admin' && !isCurrentSuperAdmin) {
+      toast.error('Only a Super Admin can assign the Super Admin role.');
+      return;
+    }
     setUpdating(true);
     const toastId = toast.loading('Updating role...');
     try {
@@ -1864,12 +1870,14 @@ function UserManagementView() {
                   description="Full access to the admin dashboard and standard store management."
                   onClick={() => updateRole(selectedUser.uid, 'admin')}
                 />
-                <RoleOption
-                  role="super_admin"
-                  current={selectedUser.role}
-                  description="Unrestricted management access across all modules, permissions, system settings, and destructive actions."
-                  onClick={() => updateRole(selectedUser.uid, 'super_admin')}
-                />
+                {isCurrentSuperAdmin && (
+                  <RoleOption
+                    role="super_admin"
+                    current={selectedUser.role}
+                    description="Unrestricted management access across all modules, permissions, system settings, and destructive actions."
+                    onClick={() => updateRole(selectedUser.uid, 'super_admin')}
+                  />
+                )}
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-100">
@@ -1933,6 +1941,8 @@ function RoleOption({ role, current, description, onClick }: { role: Role, curre
 }
 
 function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+  const { user: currentUser } = useAuthStore();
+  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com';
   const [formData, setFormData] = useState({
     email: '',
     displayName: '',
@@ -2029,7 +2039,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
         <div>
           <label className="block text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1.5 ml-1">Initial Role</label>
           <div className="flex gap-1 h-[46px]">
-            {(['customer', 'vendor', 'admin', 'super_admin'] as Role[]).map((role) => (
+            {(isCurrentSuperAdmin ? ['customer', 'vendor', 'admin', 'super_admin'] : ['customer', 'vendor', 'admin'] as Role[]).map((role) => (
               <button
                 key={role}
                 type="button"
@@ -3853,6 +3863,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
       mrp: 0,
       discountPercentage: 0,
       gst: 0,
+      enableGst: true,
       categoryId: '',
       subCategoryId: '',
       nestedSubCategoryId: '',
@@ -3905,6 +3916,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
         price: product.discountPrice !== undefined && product.discountPrice !== null ? product.discountPrice : product.price,
         mrp: product.discountPrice !== undefined && product.discountPrice !== null ? product.price : (product.mrp || product.price),
         stock: product.stock || 0,
+        enableGst: product.enableGst !== undefined ? product.enableGst : (product.gst ? product.gst > 0 : true),
         gst: product.gst || 0,
         discountPercentage: product.discountPercentage || 0,
       };
@@ -4277,14 +4289,54 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                     ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST/Tax (%)</label>
-                  <input
-                    type="number"
-                    value={formData.gst}
-                    onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
-                    className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
-                  />
+                <div className="space-y-3 col-span-full md:col-span-2 bg-gray-50/80 p-6 rounded-[28px] border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
+                      <span className="text-[11px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enableGst !== false}
+                        onChange={e => {
+                          const enabled = e.target.checked;
+                          setFormData(p => ({
+                            ...p,
+                            enableGst: enabled,
+                            gst: enabled ? (p.gst || 18) : 0
+                          }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                  {formData.enableGst !== false ? (
+                    <div className="pt-2 flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST Rate (%)</label>
+                        <input
+                          type="number"
+                          value={formData.gst}
+                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
+                          placeholder="18"
+                          className="w-full bg-white border-2 border-gray-100 rounded-[20px] px-6 py-3 outline-none focus:border-primary transition-all font-black text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-5">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                          GST Active ({formData.gst || 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-1">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-3 py-1.5 rounded-full">
+                        🚫 GST Disabled / Tax Exempt
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -161,7 +161,9 @@ export default function MobileCheckoutScreen() {
         name: i.product.name,
         price: i.product.discountPrice || i.product.price,
         quantity: i.quantity,
-        image: i.product.images?.[0] || ''
+        image: i.product.images?.[0] || '',
+        gst: i.product.gst || 0,
+        enableGst: i.product.enableGst !== false
       })),
       total: grandTotal,
       status: 'pending',
