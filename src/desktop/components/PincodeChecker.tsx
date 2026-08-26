@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, CheckCircle2, AlertCircle, Loader2, Navigation, Map as MapIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Address } from '../../shared/types';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { reverseGeocodeCoords } from '../../shared/utilities/reverseGeocode';
 import GoogleMapsLoader from './GoogleMapsLoader';
 import LocationPickerModal from './LocationPickerModal';
 
@@ -11,21 +13,29 @@ interface PincodeCheckerProps {
   savedAddresses?: Address[];
 }
 
-export default function PincodeChecker({ serviceablePincodes, onAvailabilityChange, savedAddresses }: PincodeCheckerProps) {
-  const [pincode, setPincode] = useState('');
+export default function PincodeChecker({ serviceablePincodes, onAvailabilityChange, savedAddresses: propsSaved }: PincodeCheckerProps) {
+  const { selectedAddress, savedAddresses: storeSaved, selectAddress } = useLocationStore();
+  const activeSavedAddresses = (propsSaved && propsSaved.length > 0) ? propsSaved : storeSaved;
+
+  const [pincode, setPincode] = useState(selectedAddress?.zip || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [locationName, setLocationName] = useState('');
+  const [locationName, setLocationName] = useState(selectedAddress?.city ? `${selectedAddress.city}, ${selectedAddress.state}` : '');
   const [status, setStatus] = useState<'idle' | 'loading' | 'available' | 'unavailable'>('idle');
   const [isMapOpen, setIsMapOpen] = useState(false);
 
-  // Try to set default pincode from saved addresses
   useEffect(() => {
-    if (savedAddresses && savedAddresses.length > 0 && !pincode) {
-      const defaultPin = savedAddresses[0].zip;
+    if (selectedAddress?.zip) {
+      setPincode(selectedAddress.zip);
+      if (selectedAddress.city) {
+        setLocationName(`${selectedAddress.city}, ${selectedAddress.state || ''}`);
+      }
+      checkAvailability(selectedAddress.zip);
+    } else if (activeSavedAddresses.length > 0 && !pincode) {
+      const defaultPin = activeSavedAddresses[0].zip;
       setPincode(defaultPin);
       checkAvailability(defaultPin);
     }
-  }, [savedAddresses]);
+  }, [selectedAddress, activeSavedAddresses]);
 
   const fetchLocationInfo = async (pin: string) => {
     if (pin.length !== 6) return;
@@ -69,35 +79,15 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          
-          // Try multiple reverse geocoding services for accuracy
-          let foundPincode = '';
-          let detectedCity = '';
+          const res = await reverseGeocodeCoords({ lat: latitude, lng: longitude });
 
-          try {
-            const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
-            const data = await response.json();
-            foundPincode = data.postcode;
-            detectedCity = data.city || data.locality;
-          } catch (e) {
-            console.warn('BigDataCloud failed, trying Nominatim...');
-          }
-
-          // Fallback to Nominatim if needed
-          if (!foundPincode) {
-            const nomResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const nomData = await nomResponse.json();
-            foundPincode = nomData.address?.postcode;
-            detectedCity = detectedCity || nomData.address?.city || nomData.address?.town || nomData.address?.village;
-          }
-
-          if (foundPincode) {
-            // Clean the pincode (remove spaces, etc.)
-            const cleanPincode = foundPincode.replace(/\D/g, '').slice(0, 6);
+          if (res.zip) {
+            const cleanPincode = res.zip.replace(/\D/g, '').slice(0, 6);
             setPincode(cleanPincode);
             checkAvailability(cleanPincode);
-            if (detectedCity) {
-              toast.success(`Detected: ${detectedCity}`);
+            if (res.city) {
+              setLocationName(`${res.city}, ${res.state}`);
+              toast.success(`Detected: ${res.city}`);
             }
           } else {
             toast.error('Could not fetch pincode for your location. Please enter it manually.');
@@ -200,11 +190,11 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
         onLocationSelect={handleLocationFromMap}
       />
 
-      {savedAddresses && savedAddresses.length > 0 && isEditing && (
+      {activeSavedAddresses && activeSavedAddresses.length > 0 && isEditing && (
         <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Saved Addresses</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {savedAddresses.map((addr, idx) => (
+            {activeSavedAddresses.map((addr, idx) => (
               <button
                 key={idx}
                 onClick={() => {

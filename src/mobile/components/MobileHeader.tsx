@@ -4,6 +4,7 @@ import {
   ArrowLeft, Search, Bell, ShoppingCart, MapPin, ChevronDown, Sparkles 
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
@@ -20,23 +21,13 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
   const location = useLocation();
   const { user } = useAuthStore();
   const { items } = useCartStore();
+  const { selectedAddress } = useLocationStore();
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [userAddress, setUserAddress] = useState<string>('Home centre, Esplanade Mall...');
-  const [userPincode, setUserPincode] = useState<string>('560064');
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
 
   const isHomePage = location.pathname === '/' || location.pathname === '/mobile-home' || location.pathname === '/mobile';
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
-
-  useEffect(() => {
-    if (user?.address) {
-      const addr = user.address;
-      const formatted = `${addr.house ? addr.house + ', ' : ''}${addr.street || ''}, ${addr.city || ''}`.trim();
-      setUserAddress(formatted || "Home centre, Esplanade Mall...");
-      if (addr.zip) setUserPincode(addr.zip);
-    }
-  }, [user]);
 
   // Fetch unread notifications for logged-in user
   useEffect(() => {
@@ -61,9 +52,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     return null;
   }
 
-  const handleLocationSelect = (pincode: string, address: string) => {
-    setUserPincode(pincode);
-    setUserAddress(address);
+  const handleLocationSelect = () => {
     setIsLocationModalOpen(false);
   };
 
@@ -123,10 +112,10 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
               <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0 fill-yellow-100" />
               <div className="flex flex-col min-w-0">
                 <span className="text-[9px] font-black text-yellow-800 uppercase tracking-wide leading-none truncate">
-                  Deliver to {userPincode}
+                  Deliver to {selectedAddress?.zip || 'Location'}
                 </span>
                 <span className="text-[10px] font-bold text-gray-700 truncate leading-none mt-0.5">
-                  {userAddress}
+                  {selectedAddress ? `${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || ''}` : 'Select Location'}
                 </span>
               </div>
               <ChevronDown className="w-3 h-3 text-yellow-500 shrink-0 ml-0.5" />

@@ -8,6 +8,7 @@ import { collection, addDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Address, Order } from '../../shared/types';
 import { useCartStore, useAuthStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPayment } from '../../shared/utils/razorpay';
@@ -16,8 +17,9 @@ export default function MobileCheckoutScreen() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { items, total, clearCart } = useCartStore();
+  const { savedAddresses, selectedAddress: activeStoreAddress, addSavedAddress } = useLocationStore();
 
-  const [addresses, setAddresses] = useState<Address[]>(user?.addresses || []);
+  const [addresses, setAddresses] = useState<Address[]>(savedAddresses.length > 0 ? savedAddresses : (user?.addresses || []));
   const [selectedAddressIndex, setSelectedAddressIndex] = useState<number>(0);
   const [contactPhone, setContactPhone] = useState<string>(user?.phone || user?.address?.phone || '');
   const [contactName, setContactName] = useState<string>(user?.displayName || '');
@@ -30,32 +32,34 @@ export default function MobileCheckoutScreen() {
   const [newPhone, setNewPhone] = useState(user?.phone || '');
   const [newHouse, setNewHouse] = useState('');
   const [newStreet, setNewStreet] = useState('');
-  const [newCity, setNewCity] = useState('Bangalore');
-  const [newState, setNewState] = useState('Karnataka');
+  const [newCity, setNewCity] = useState('');
+  const [newState, setNewState] = useState('');
   const [newCountry, setNewCountry] = useState('India');
-  const [newZip, setNewZip] = useState('560064');
+  const [newZip, setNewZip] = useState('');
 
   const cartTotal = total();
   const deliveryCharge = cartTotal > 500 || items.length === 0 ? 0 : 40;
   const grandTotal = cartTotal + deliveryCharge;
 
   useEffect(() => {
-    if (user?.addresses && user.addresses.length > 0) {
+    if (savedAddresses.length > 0) {
+      setAddresses(savedAddresses);
+    } else if (user?.addresses && user.addresses.length > 0) {
       setAddresses(user.addresses);
     } else if (user?.address) {
       setAddresses([user.address]);
     }
-  }, [user]);
+  }, [savedAddresses, user]);
 
-  const selectedAddress = addresses[selectedAddressIndex] || {
-    fullName: contactName || 'Customer',
-    phone: contactPhone || '9876543210',
-    house: 'No. 42',
-    street: 'Main Road, Esplanade',
-    city: 'Bangalore',
-    state: 'Karnataka',
+  const selectedAddress = addresses[selectedAddressIndex] || activeStoreAddress || user?.address || {
+    fullName: contactName || user?.displayName || 'Customer',
+    phone: contactPhone || user?.phone || '',
+    house: '',
+    street: '',
+    city: '',
+    state: '',
     country: 'India',
-    zip: '560064'
+    zip: ''
   };
 
   const handleSaveNewAddress = async (e: React.FormEvent) => {

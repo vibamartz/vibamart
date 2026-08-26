@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useCartStore, useAuthStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { MapPin, CreditCard, ChevronRight, ShieldCheck, Truck, Smartphone, Building2, Globe, Save, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -111,8 +112,9 @@ export default function Checkout() {
     phone: ''
   });
 
-  // Load default address from user profile when available
+  // Load default address from user profile or location store when available
   React.useEffect(() => {
+    const storeSelected = useLocationStore.getState().selectedAddress;
     if (user) {
       if (!user.displayName || user.displayName.startsWith('User ') || !user.phone) {
         toast.error("Please complete your Name and Contact Number before placing an order.", { duration: 5000 });
@@ -123,7 +125,10 @@ export default function Checkout() {
       if (step === 1) {
         setStep(2);
       }
-      if (user.addresses && user.addresses.length > 0) {
+      if (storeSelected) {
+        setAddress(storeSelected);
+        setIsEditingAddress(false);
+      } else if (user.addresses && user.addresses.length > 0) {
         setAddress(user.addresses[0]);
         setIsEditingAddress(false);
       } else if (user.address) {
@@ -144,6 +149,9 @@ export default function Checkout() {
         });
         setIsEditingAddress(true);
       }
+    } else if (storeSelected) {
+      setAddress(storeSelected);
+      setIsEditingAddress(false);
     } else {
       setIsEditingAddress(true);
     }

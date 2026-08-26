@@ -38,7 +38,10 @@ export interface Address {
   state: string;
   country: string;
   zip: string;
-  label?: string;
+  label?: string; // 'Home' | 'Work' | 'Other'
+  lat?: number;
+  lng?: number;
+  isDefault?: boolean;
 }
 
 export interface Product {

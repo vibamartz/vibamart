@@ -15,6 +15,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
 
 export default function MobileHomepage() {
@@ -23,6 +24,7 @@ export default function MobileHomepage() {
   const { user } = useAuthStore();
   const { addItem, items } = useCartStore();
   const { config: rewardsConfig } = useRewardsStore();
+  const { selectedAddress, initLocation } = useLocationStore();
   const navigate = useNavigate();
 
 
@@ -37,8 +39,6 @@ export default function MobileHomepage() {
   // Modals & Address
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [userAddress, setUserAddress] = useState<string>('');
-  const [userPincode, setUserPincode] = useState<string>('560064');
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,17 +50,14 @@ export default function MobileHomepage() {
   // Active Category filter
   const [selectedCategory, setSelectedCategory] = useState<string>('for-you');
 
-  // Derive initial user address from user profile if logged in
+  // Initialize location store on mount/user change
   useEffect(() => {
-    if (user?.address) {
-      const addr = user.address;
-      const formatted = `${addr.house ? addr.house + ', ' : ''}${addr.street || ''}, ${addr.city || ''}`.trim();
-      setUserAddress(formatted || "Home centre 2nd floor Esplanade mall, Ras...");
-      if (addr.zip) setUserPincode(addr.zip);
-    } else {
-      setUserAddress("Home centre 2nd floor Esplanade mall, Ras...");
-    }
+    initLocation();
   }, [user]);
+
+  const displayAddress = selectedAddress
+    ? `${selectedAddress.label ? selectedAddress.label + ', ' : ''}${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || ''} (${selectedAddress.zip})`
+    : 'Select Delivery Location';
 
   // Load recent searches
   useEffect(() => {
@@ -188,10 +185,8 @@ export default function MobileHomepage() {
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  const handleLocationSelect = (pincode: string, address: string) => {
-    setUserPincode(pincode);
-    setUserAddress(address);
-    toast.success(`Delivery pincode set to ${pincode}`);
+  const handleLocationSelect = (pincode: string) => {
+    toast.success(`Delivery location set to ${pincode}`);
   };
 
   const navigateBanner = (link?: string) => {
@@ -335,35 +330,22 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. DELIVERY ADDRESS CARD (Compact small height ~48-52px, radius 16px)      */}
+      {/* 2. DELIVERY ADDRESS CARD (Compact single-line, clean, truncated)          */}
       {/* ========================================================================= */}
       <section className="w-full min-w-0">
-        <motion.div
+        <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setIsLocationModalOpen(true)}
-          style={{ minHeight: '46px', height: 'clamp(46px, 12vw, 54px)', maxHeight: '56px' }}
-          className="w-full min-w-0 bg-white/95 backdrop-blur-md rounded-[16px] px-3.5 py-2 shadow-sm border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden"
+          className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden h-10 min-w-0"
         >
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-              <MapPin className="w-3.5 h-3.5 text-emerald-600 fill-emerald-100" />
-            </div>
-            <div className="flex flex-col justify-center min-w-0 flex-1">
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="text-[11px] font-black uppercase tracking-wider text-gray-900 shrink-0">
-                  HOME
-                </span>
-                <span className="text-[11px] font-bold text-gray-500 truncate">
-                  ({userPincode})
-                </span>
-              </div>
-              <p className="text-[11px] font-semibold text-gray-600 truncate leading-tight overflow-hidden text-ellipsis min-w-0">
-                {userAddress}
-              </p>
-            </div>
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100" />
+            <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+              📍 {displayAddress}
+            </span>
           </div>
-          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1.5" />
-        </motion.div>
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1.5" />
+        </motion.button>
       </section>
 
       {/* ========================================================================= */}
