@@ -22,16 +22,16 @@ export async function lookupZipcode(zip: string, countryCode: string = 'in'): Pr
 
   if (isIndianFormat) {
     if (cleanZip.length < 6) {
-      throw new Error('Please enter a complete 6-digit pincode');
+      throw new Error('Enter a 6-digit pincode');
     }
     if (!/^\d{6}$/.test(cleanZip)) {
-      throw new Error('Invalid pincode. Indian pincodes must be 6 digits');
+      throw new Error('Invalid pincode');
     }
 
     try {
       const response = await fetch(`https://api.postalpincode.in/pincode/${cleanZip}`);
       if (!response.ok) {
-        throw new Error('Failed to reach location service. Please check network connection.');
+        throw new Error('Unable to fetch address. Please try again.');
       }
       const data = await response.json();
       if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
@@ -56,7 +56,7 @@ export async function lookupZipcode(zip: string, countryCode: string = 'in'): Pr
           }))
         };
       } else if (data && data[0] && data[0].Status === 'Error') {
-        throw new Error(`No location found for pincode ${cleanZip}. Please check the pincode.`);
+        throw new Error('Invalid pincode');
       }
     } catch (error: any) {
       if (error.message && !error.message.includes('fetch')) {

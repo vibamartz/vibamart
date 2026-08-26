@@ -119,11 +119,11 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       (error) => {
         setIsGeocoding(false);
         if (error.code === 1) {
-          toast.error('Location permission denied. Please allow location access.');
+          toast.error('Location permission denied. Please allow location access in your browser settings.');
         } else if (error.code === 2) {
-          toast.error('GPS position unavailable.');
+          toast.error('GPS position unavailable. Please try searching or entering address manually.');
         } else {
-          toast.error('Location detection timed out.');
+          toast.error('Location detection timed out. Please try again.');
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -183,12 +183,16 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       setFormCity(info.city);
       setFormState(info.state);
       setFormCountry(info.country || country);
-      if (!formStreet && info.area) {
-        setFormStreet(info.area);
+      if (info.area) {
+        setFormStreet(prev => prev || info.area || '');
       }
       toast.success(`Location found: ${info.area || info.city}, ${info.state}`);
     } catch (err: any) {
-      setPincodeError(err.message || 'Invalid pincode');
+      if (err.message?.includes('fetch') || err.message?.includes('network')) {
+        setPincodeError('Unable to fetch address. Please try again.');
+      } else {
+        setPincodeError('Invalid pincode');
+      }
     } finally {
       setIsFormPincodeLoading(false);
     }
@@ -669,14 +673,20 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                     placeholder="6-digit PIN code" 
                     value={formZip} 
                     onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                       setFormZip(val);
+                      setPincodeError('');
                       if (val.length === 6) {
                         handleZipcodeAutoLookup(val, formCountry);
                       }
                     }} 
+                    onBlur={() => {
+                      if (formZip && formZip.length < 6) {
+                        setPincodeError('Enter a 6-digit pincode');
+                      }
+                    }}
                     className={`w-full bg-gray-50 border h-10 rounded-xl px-3 text-xs font-bold outline-none transition-colors ${
-                      pincodeError ? 'border-rose-400 focus:border-rose-600' : 'border-gray-200 focus:border-emerald-600'
+                      pincodeError ? 'border-rose-400 focus:border-rose-600 text-rose-900' : 'border-gray-200 focus:border-emerald-600'
                     }`} 
                   />
                 </div>

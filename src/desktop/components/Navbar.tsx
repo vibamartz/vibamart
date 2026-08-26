@@ -2,15 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
-  Mic, Camera, TrendingUp, History, ArrowRight, Bell,
+  Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown,
   Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
+import LocationPickerModal from './LocationPickerModal';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
@@ -28,14 +30,20 @@ export default function Navbar() {
   ];
   const { user } = useAuthStore();
   const { items } = useCartStore();
+  const { selectedAddress, initLocation } = useLocationStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isCameraSearchOpen, setIsCameraSearchOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    initLocation();
+  }, [user]);
   const location = useLocation();
 
   const getCategoryIcon = (cat: any) => {
@@ -258,9 +266,11 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Search Bar - Responsive and Wide */}
-          <div className="flex flex-1 max-w-4xl mx-2 sm:mx-4 lg:mx-12 relative group items-center">
-            <form onSubmit={handleSearch} className="w-full relative flex items-center">
+          {/* Search Bar & Address Selector Container */}
+          <div className="flex flex-1 max-w-4xl mx-2 sm:mx-4 lg:mx-8 items-center gap-2 sm:gap-3 min-w-0">
+            {/* Search Bar - Responsive and Wide */}
+            <div className="flex-1 relative group items-center min-w-0">
+              <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className={`h-4 w-4 transition-colors ${isSearchFocused ? 'text-primary' : 'text-gray-400'}`} />
               </div>
@@ -449,6 +459,24 @@ export default function Navbar() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Desktop Delivery Address Selector NEXT TO Search Bar */}
+          <button
+            type="button"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs"
+            title={selectedAddress ? `${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || selectedAddress.zip}` : 'Select Delivery Address'}
+          >
+            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
+              <span className="text-xs font-bold text-gray-800 truncate">
+                📍 {selectedAddress ? `${selectedAddress.label ? selectedAddress.label + ': ' : ''}${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || selectedAddress.zip}` : 'Select Delivery Address'}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
+          </button>
+        </div>
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-6">
@@ -858,6 +886,11 @@ export default function Navbar() {
           }}
         />
       )}
+
+      <LocationPickerModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+      />
     </nav>
   );
 }

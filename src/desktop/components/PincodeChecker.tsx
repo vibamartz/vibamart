@@ -44,43 +44,58 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
   }, [selectedAddress, activeSavedAddresses]);
 
   const fetchLocationInfo = async (pin: string) => {
-    if (!pin || pin.length < 5) return;
+    if (!pin || pin.length < 6) return;
     try {
       const info = await lookupZipcode(pin, 'in');
       setLocationName(`${info.area ? info.area + ', ' : ''}${info.city}, ${info.state}`);
       setErrorMessage('');
+      return info;
     } catch (error: any) {
       console.error('Error fetching location:', error);
       setLocationName('');
-      setErrorMessage(error.message || 'Invalid pincode format');
+      if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        setErrorMessage('Unable to fetch address. Please try again.');
+      } else {
+        setErrorMessage('Invalid pincode');
+      }
+      throw error;
     }
   };
 
   const checkAvailability = async (code: string) => {
-    if (!code) return;
-    if (code.length < 6) {
-      setErrorMessage('Please enter a complete 6-digit pincode');
+    const cleanPin = (code || '').trim().replace(/\D/g, '').slice(0, 6);
+    if (!cleanPin) {
+      setErrorMessage('');
+      setStatus('idle');
+      return;
+    }
+    if (cleanPin.length < 6) {
+      setErrorMessage('Enter a 6-digit pincode');
       setStatus('idle');
       return;
     }
     
     setStatus('loading');
     setErrorMessage('');
-    await fetchLocationInfo(code);
-    
-    const isAvailable = !serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(code);
-    setStatus(isAvailable ? 'available' : 'unavailable');
-    onAvailabilityChange?.(isAvailable);
-    setIsEditing(false);
+    try {
+      await fetchLocationInfo(cleanPin);
+      const isAvailable = !serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(cleanPin);
+      setStatus(isAvailable ? 'available' : 'unavailable');
+      onAvailabilityChange?.(isAvailable);
+      setIsEditing(false);
+    } catch {
+      setStatus('idle');
+    }
   };
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
+      toast.error('Geolocation not supported by your browser');
       return;
     }
 
     setStatus('loading');
+    setErrorMessage('');
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -96,12 +111,12 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
               toast.success(`Detected: ${res.city}`);
             }
           } else {
-            toast.error('Could not fetch pincode for your location. Please enter it manually.');
+            toast.error('Could not fetch pincode for your location. Please enter manually.');
             setStatus('idle');
           }
         } catch (error) {
           console.error('Location detection error:', error);
-          toast.error('Failed to detect location accurately');
+          toast.error('Unable to fetch address. Please try again.');
           setStatus('idle');
         }
       },
@@ -147,42 +162,59 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 max-w-sm">
-              <div className="relative flex-1">
-                <input 
-                  type="text" 
-                  maxLength={6}
-                  autoFocus
-                  placeholder="Enter Pincode"
-                  value={pincode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setPincode(val);
-                    if (val.length === 6) checkAvailability(val);
-                  }}
-                  className="w-full bg-gray-50 border-b-2 border-gray-200 focus:border-primary px-0 py-2 outline-none font-black text-sm transition-all"
-                />
-                {status === 'loading' && (
-                  <Loader2 className="absolute right-0 top-3 w-4 h-4 animate-spin text-primary" />
-                )}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 max-w-sm">
+                <div className="relative flex-1">
+                  <input 
+                    type="text" 
+                    maxLength={6}
+                    autoFocus
+                    placeholder="Enter 6-digit Pincode"
+                    value={pincode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPincode(val);
+                      setErrorMessage('');
+                      if (val.length === 6) {
+                        checkAvailability(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (pincode && pincode.length < 6) {
+                        setErrorMessage('Enter a 6-digit pincode');
+                      }
+                    }}
+                    className={`w-full bg-gray-50 border-b-2 px-0 py-2 outline-none font-black text-sm transition-all ${
+                      errorMessage ? 'border-rose-500 focus:border-rose-600 text-rose-900' : 'border-gray-200 focus:border-primary'
+                    }`}
+                  />
+                  {status === 'loading' && (
+                    <Loader2 className="absolute right-0 top-3 w-4 h-4 animate-spin text-primary" />
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={useMyLocation}
+                    className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                    title="Detect Pincode"
+                  >
+                    <Navigation className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setIsMapOpen(true)}
+                    className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2"
+                    title="Select on Map"
+                  >
+                    <MapIcon className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Exact Location</span>
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={useMyLocation}
-                  className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                  title="Detect Pincode"
-                >
-                  <Navigation className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => setIsMapOpen(true)}
-                  className="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2"
-                  title="Select on Map"
-                >
-                  <MapIcon className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Exact Location</span>
-                </button>
-              </div>
+              {errorMessage && (
+                <p className="text-[11px] font-bold text-rose-500 animate-in fade-in duration-200">
+                  {errorMessage}
+                </p>
+              )}
             </div>
           )}
           
