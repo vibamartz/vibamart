@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { 
   X, Navigation, Check, MapPin, Plus, Trash2, Edit2, 
-  Home as HomeIcon, Building, Briefcase, Star, ChevronRight, Loader2
+  Home as HomeIcon, Building, Briefcase, Star, Search, Loader2, ArrowLeft, Map as MapIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -11,6 +11,7 @@ import { Address } from '../../shared/types';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { useAuthStore } from '../../backend/store';
 import { reverseGeocodeCoords, GeocodedAddress } from '../../shared/utilities/reverseGeocode';
+import { lookupZipcode } from '../../backend/services/zipcode';
 
 interface LocationPickerModalProps {
   isOpen: boolean;
@@ -33,10 +34,12 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     setDefaultAddress 
   } = useLocationStore();
 
-  const [activeTab, setActiveTab] = useState<'map' | 'saved'>('map');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMap, setShowMap] = useState(false);
   const [markerPosition, setMarkerPosition] = useState<google.maps.LatLngLiteral | null>(null);
   const [geocodedData, setGeocodedData] = useState<GeocodedAddress | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [gpsDetectedAddress, setGpsDetectedAddress] = useState<Address | null>(null);
 
   // Add / Edit Form State
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -51,6 +54,8 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
   const [formZip, setFormZip] = useState('');
   const [formLabel, setFormLabel] = useState<'Home' | 'Work' | 'Other'>('Home');
   const [formIsDefault, setFormIsDefault] = useState(false);
+  const [isFormPincodeLoading, setIsFormPincodeLoading] = useState(false);
+  const [pincodeError, setPincodeError] = useState('');
 
   const map = useMap();
   const geocodingLib = useMapsLibrary('geocoding');
@@ -60,12 +65,29 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     try {
       const result = await reverseGeocodeCoords(pos, geocodingLib);
       setGeocodedData(result);
+      if (result) {
+        const detectedObj: Address = {
+          id: `gps-${Date.now()}`,
+          fullName: user?.displayName || 'Customer',
+          phone: user?.phone || '',
+          house: result.house || 'GPS Location',
+          street: result.street || result.fullAddress,
+          city: result.city || 'City',
+          state: result.state || 'State',
+          country: result.country || 'India',
+          zip: result.zip || '000000',
+          label: 'Home',
+          lat: result.lat,
+          lng: result.lng
+        };
+        setGpsDetectedAddress(detectedObj);
+      }
     } catch (err) {
       console.error('Geocoding error:', err);
     } finally {
       setIsGeocoding(false);
     }
-  }, [geocodingLib]);
+  }, [geocodingLib, user]);
 
   const handleDragEnd = useCallback(async (e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
@@ -92,13 +114,14 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
         map?.panTo(pos);
         map?.setZoom(17);
         await doReverseGeocode(pos);
+        toast.success('Location detected successfully!');
       },
       (error) => {
         setIsGeocoding(false);
         if (error.code === 1) {
-          toast.error('Location permission denied. Please allow location access or select on map.');
+          toast.error('Location permission denied. Please allow location access.');
         } else if (error.code === 2) {
-          toast.error('GPS position unavailable. Try moving pin on map.');
+          toast.error('GPS position unavailable.');
         } else {
           toast.error('Location detection timed out.');
         }
@@ -107,35 +130,14 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     );
   }, [map, doReverseGeocode]);
 
-  useEffect(() => {
-    if (!markerPosition) {
-      useCurrentLocation();
-    }
-  }, []);
-
   const handleConfirmGPSLocation = async () => {
-    if (!geocodedData) {
+    if (!geocodedData || !gpsDetectedAddress) {
       toast.error('Location details not detected yet.');
       return;
     }
 
-    const newAddrObj: Address = {
-      id: `gps-${Date.now()}`,
-      fullName: user?.displayName || 'Customer',
-      phone: user?.phone || '',
-      house: geocodedData.house || 'GPS Location',
-      street: geocodedData.street || geocodedData.fullAddress,
-      city: geocodedData.city || 'City',
-      state: geocodedData.state || 'State',
-      country: geocodedData.country || 'India',
-      zip: geocodedData.zip || '000000',
-      label: 'Home',
-      lat: geocodedData.lat,
-      lng: geocodedData.lng
-    };
-
-    await selectAddress(newAddrObj);
-    onLocationSelect?.(newAddrObj.zip, newAddrObj.street || geocodedData.fullAddress, newAddrObj);
+    await selectAddress(gpsDetectedAddress);
+    onLocationSelect?.(gpsDetectedAddress.zip, gpsDetectedAddress.street || geocodedData.fullAddress, gpsDetectedAddress);
     onClose();
   };
 
@@ -166,7 +168,30 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     setFormZip(addr.zip || '');
     setFormLabel((addr.label as any) || 'Home');
     setFormIsDefault(!!addr.isDefault);
+    setPincodeError('');
     setShowAddressForm(true);
+  };
+
+  const handleZipcodeAutoLookup = async (pin: string, country: string) => {
+    const cleanPin = pin.trim().replace(/\D/g, '');
+    if (cleanPin.length !== 6) return;
+
+    setIsFormPincodeLoading(true);
+    setPincodeError('');
+    try {
+      const info = await lookupZipcode(cleanPin, country);
+      setFormCity(info.city);
+      setFormState(info.state);
+      setFormCountry(info.country || country);
+      if (!formStreet && info.area) {
+        setFormStreet(info.area);
+      }
+      toast.success(`Location found: ${info.area || info.city}, ${info.state}`);
+    } catch (err: any) {
+      setPincodeError(err.message || 'Invalid pincode');
+    } finally {
+      setIsFormPincodeLoading(false);
+    }
   };
 
   const handleSaveFormSubmit = async (e: React.FormEvent) => {
@@ -180,7 +205,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       return;
     }
     if (!formHouse.trim() || !formStreet.trim() || !formCity.trim() || !formState.trim() || !formZip.trim()) {
-      toast.error('Please fill in all address fields');
+      toast.error('Please fill in all required address fields');
       return;
     }
 
@@ -217,88 +242,118 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     onClose();
   };
 
-  return (
-    <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row h-[90vh] max-h-[660px] md:h-[620px]">
-      <button 
-        onClick={onClose}
-        className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white transition-all border border-gray-100"
-      >
-        <X className="w-5 h-5 text-gray-900" />
-      </button>
+  // Filter saved addresses based on top search query
+  const filteredAddresses = savedAddresses.filter(addr => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (addr.fullName || '').toLowerCase().includes(q) ||
+      (addr.house || '').toLowerCase().includes(q) ||
+      (addr.street || '').toLowerCase().includes(q) ||
+      (addr.city || '').toLowerCase().includes(q) ||
+      (addr.state || '').toLowerCase().includes(q) ||
+      (addr.zip || '').toLowerCase().includes(q) ||
+      (addr.phone || '').toLowerCase().includes(q) ||
+      (addr.label || '').toLowerCase().includes(q)
+    );
+  });
 
-      {/* Main Interactive Content */}
-      <div className="flex-1 flex flex-col min-w-0 relative h-full">
-        {/* Header Tabs */}
-        <div className="flex items-center gap-2 p-4 bg-gray-50 border-b border-gray-100 z-10">
-          <button
-            onClick={() => { setActiveTab('map'); setShowAddressForm(false); }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              activeTab === 'map' && !showAddressForm
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" /> Use GPS Location
-          </button>
-          
-          <button
-            onClick={() => { setActiveTab('saved'); setShowAddressForm(false); }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              activeTab === 'saved' && !showAddressForm
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            <HomeIcon className="w-3.5 h-3.5" /> Saved Addresses ({savedAddresses.length})
-          </button>
+  return (
+    <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] md:max-h-[640px] border border-gray-100">
+      
+      {/* Header Bar */}
+      <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-2">
+          {showAddressForm || showMap ? (
+            <button
+              onClick={() => { setShowAddressForm(false); setShowMap(false); }}
+              className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors mr-1"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          ) : (
+            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-100">
+              <MapPin className="w-5 h-5 stroke-[2.5]" />
+            </div>
+          )}
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+              {showAddressForm
+                ? (editingAddress ? 'Edit Address' : 'Add New Address')
+                : showMap
+                ? 'Confirm Location on Map'
+                : 'Select Delivery Address'}
+            </h2>
+            <p className="text-[11px] text-gray-500 font-semibold">
+              {showAddressForm
+                ? 'Enter customer details and shipping location'
+                : showMap
+                ? 'Drag pin to your exact delivery location'
+                : 'Choose or add your preferred delivery destination'}
+            </p>
+          </div>
         </div>
 
-        {/* Tab 1: Map View */}
-        {activeTab === 'map' && !showAddressForm && (
-          <div className="flex-1 relative min-h-[300px]">
-            <Map
-              defaultCenter={{ lat: 20.5937, lng: 78.9629 }}
-              defaultZoom={5}
-              mapId="DEMO_MAP_ID"
-              onClick={handleDragEnd}
-              internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-              className="w-full h-full"
-              options={{
-                disableDefaultUI: true,
-                zoomControl: true,
-                gestureHandling: 'greedy'
-              }}
-            >
-              {markerPosition && (
-                <AdvancedMarker
-                  position={markerPosition}
-                  draggable={true}
-                  onDragEnd={handleDragEnd}
+        <button 
+          onClick={onClose}
+          aria-label="Close"
+          className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-all shrink-0"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Content Body */}
+      <div className="flex-1 overflow-y-auto min-h-0 bg-gray-50/50">
+
+        {/* VIEW 1: Main Address Selection */}
+        {!showAddressForm && !showMap && (
+          <div className="p-4 sm:p-6 space-y-5">
+            
+            {/* 1. SEARCH FIELD */}
+            <div className="relative w-full">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                <Search className="w-4 h-4 text-emerald-600" />
+              </div>
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, area, street or pincode"
+                className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-9 py-3 text-xs sm:text-sm font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all shadow-xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  aria-label="Clear search"
                 >
-                  <div className="relative">
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-500/20 rounded-full animate-ping" />
-                    <MapPin className="w-10 h-10 text-emerald-600 fill-white stroke-[2.5px]" />
-                  </div>
-                </AdvancedMarker>
+                  <X className="w-4 h-4" />
+                </button>
               )}
-            </Map>
+            </div>
 
-            <button 
-              onClick={useCurrentLocation}
-              aria-label="Locate me"
-              className="absolute bottom-6 right-6 p-3.5 bg-white rounded-2xl shadow-xl hover:bg-gray-50 transition-all group border border-gray-200 z-10 flex items-center gap-2"
-            >
-              <Navigation className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold text-gray-800 hidden sm:inline">Recenter GPS</span>
-            </button>
-          </div>
-        )}
+            {/* 2. LOCATION OPTIONS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Option A: Use My Current Location */}
+              <button
+                onClick={() => {
+                  useCurrentLocation();
+                  setShowMap(true);
+                }}
+                className="flex items-center gap-3 p-3.5 bg-white border border-emerald-200/80 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all shadow-xs text-left group"
+              >
+                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
+                  <Navigation className="w-4 h-4 fill-emerald-700" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-black text-gray-900 block truncate">📍 Use My Current Location</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Detect via GPS geolocation</span>
+                </div>
+              </button>
 
-        {/* Tab 2: Saved Addresses View */}
-        {activeTab === 'saved' && !showAddressForm && (
-          <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-gray-50/50">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Select Delivery Address</h3>
+              {/* Option B: Add New Address */}
               <button
                 onClick={() => {
                   setEditingAddress(null);
@@ -312,122 +367,234 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                   setFormZip('');
                   setFormLabel('Home');
                   setFormIsDefault(savedAddresses.length === 0);
+                  setPincodeError('');
                   setShowAddressForm(true);
                 }}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-emerald-700 transition-all"
+                className="flex items-center gap-3 p-3.5 bg-white border border-emerald-200/80 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all shadow-xs text-left group"
               >
-                <Plus className="w-4 h-4" /> Add Address
+                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-black text-gray-900 block truncate">＋ Add New Address</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Enter custom address details</span>
+                </div>
               </button>
             </div>
 
-            {savedAddresses.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">
-                {savedAddresses.map((addr, idx) => {
-                  const isSelected = activeStoreAddress?.id === addr.id || (activeStoreAddress?.house === addr.house && activeStoreAddress?.zip === addr.zip);
-                  return (
-                    <div 
-                      key={addr.id || idx}
-                      onClick={() => handleSelectSaved(addr)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer bg-white relative flex flex-col justify-between space-y-2 ${
-                        isSelected 
-                          ? 'border-emerald-600 ring-2 ring-emerald-600/20 shadow-md' 
-                          : 'border-gray-200 hover:border-emerald-300 shadow-xs'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase rounded-full">
-                            {addr.label || 'Home'}
-                          </span>
-                          {addr.isDefault && (
-                            <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black uppercase rounded-full">
-                              Default
-                            </span>
-                          )}
-                          <span className="font-bold text-sm text-gray-900">{addr.fullName}</span>
-                        </div>
-
-                        <div className="flex items-center gap-1 z-10" onClick={(e) => e.stopPropagation()}>
-                          {!addr.isDefault && (
-                            <button
-                              onClick={() => setDefaultAddress(addr.id || idx)}
-                              className="p-1.5 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-gray-100 transition-all"
-                              title="Set as Default"
-                            >
-                              <Star className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => openFormForEdit(addr)}
-                            className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-all"
-                            title="Edit Address"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => deleteSavedAddress(addr.id || idx)}
-                            className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-gray-100 transition-all"
-                            title="Delete Address"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-gray-700 font-semibold leading-relaxed">
-                        {addr.house}, {addr.street}{addr.landmark ? `, ${addr.landmark}` : ''}
-                      </p>
-                      <p className="text-xs text-gray-500 font-medium">
-                        {addr.city}, {addr.state}, {addr.country} - <span className="font-bold text-gray-800">{addr.zip}</span>
-                      </p>
-                      <p className="text-xs text-emerald-700 font-bold">
-                        📞 {addr.phone}
-                      </p>
-
-                      {isSelected && (
-                        <div className="absolute bottom-3 right-3 flex items-center gap-1 text-emerald-600 text-xs font-black">
-                          <Check className="w-4 h-4 stroke-[3]" /> Selected
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-gray-300 space-y-3">
-                <p className="text-sm font-bold text-gray-600">No saved addresses found.</p>
-                <p className="text-xs text-gray-400">Save your addresses for faster checkout and delivery.</p>
-                <button
-                  onClick={() => {
-                    setEditingAddress(null);
-                    setShowAddressForm(true);
-                  }}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm"
-                >
-                  + Add Your First Address
-                </button>
+            {/* GPS Detected Quick Card (if geocoded recently) */}
+            {gpsDetectedAddress && geocodedData && (
+              <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                    <Navigation className="w-3 h-3 fill-emerald-700" /> Current Detected Location
+                  </span>
+                  <button
+                    onClick={handleConfirmGPSLocation}
+                    className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-700 transition-all shadow-xs"
+                  >
+                    Select This Location
+                  </button>
+                </div>
+                <p className="text-xs font-extrabold text-gray-900 leading-snug">
+                  {geocodedData.fullAddress}
+                </p>
+                <p className="text-[11px] font-bold text-gray-600">
+                  {geocodedData.city}, {geocodedData.state}, {geocodedData.country} - <span className="text-emerald-700 font-black">{geocodedData.zip}</span>
+                </p>
               </div>
             )}
+
+            {/* 3. SAVED ADDRESSES SECTION */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                  Saved Addresses ({filteredAddresses.length})
+                </h3>
+              </div>
+
+              {filteredAddresses.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3">
+                  {filteredAddresses.map((addr, idx) => {
+                    const isSelected = activeStoreAddress?.id === addr.id || 
+                      (activeStoreAddress?.house === addr.house && activeStoreAddress?.zip === addr.zip);
+
+                    return (
+                      <div 
+                        key={addr.id || idx}
+                        onClick={() => handleSelectSaved(addr)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer bg-white relative flex flex-col justify-between space-y-2.5 ${
+                          isSelected 
+                            ? 'border-emerald-600 ring-2 ring-emerald-600/20 shadow-sm' 
+                            : 'border-gray-200 hover:border-emerald-300 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase rounded-full">
+                              {addr.label || 'Home'}
+                            </span>
+                            {addr.isDefault && (
+                              <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black uppercase rounded-full">
+                                Default
+                              </span>
+                            )}
+                            <span className="font-bold text-sm text-gray-900">{addr.fullName}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 z-10" onClick={(e) => e.stopPropagation()}>
+                            {!addr.isDefault && (
+                              <button
+                                onClick={() => setDefaultAddress(addr.id || idx)}
+                                className="p-1.5 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-gray-100 transition-all"
+                                title="Set as Default"
+                              >
+                                <Star className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openFormForEdit(addr)}
+                              className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-gray-100 transition-all"
+                              title="Edit Address"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteSavedAddress(addr.id || idx)}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-gray-100 transition-all"
+                              title="Delete Address"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-gray-800 font-bold leading-relaxed">
+                            {addr.house}, {addr.street}{addr.landmark ? `, ${addr.landmark}` : ''}
+                          </p>
+                          <p className="text-xs text-gray-500 font-medium">
+                            {addr.city}, {addr.state}, {addr.country} - <span className="font-extrabold text-gray-900">{addr.zip}</span>
+                          </p>
+                          <p className="text-xs text-emerald-700 font-bold pt-0.5">
+                            📞 {addr.phone}
+                          </p>
+                        </div>
+
+                        {isSelected && (
+                          <div className="flex items-center gap-1 text-emerald-600 text-xs font-black pt-1 border-t border-gray-100">
+                            <Check className="w-4 h-4 stroke-[3]" /> Currently Selected Delivery Address
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-8 text-center border border-dashed border-gray-300 space-y-3">
+                  <p className="text-xs sm:text-sm font-bold text-gray-600">
+                    {searchQuery ? `No saved addresses found matching "${searchQuery}".` : 'No saved addresses found.'}
+                  </p>
+                  <p className="text-xs text-gray-400">Save an address for faster checkout and delivery across devices.</p>
+                  <button
+                    onClick={() => {
+                      setEditingAddress(null);
+                      setFormName(user?.displayName || '');
+                      setFormPhone(user?.phone || '');
+                      setFormHouse('');
+                      setFormStreet('');
+                      setFormCity('');
+                      setFormState('');
+                      setFormCountry('India');
+                      setFormZip('');
+                      setFormLabel('Home');
+                      setFormIsDefault(savedAddresses.length === 0);
+                      setPincodeError('');
+                      setShowAddressForm(true);
+                    }}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:bg-emerald-700 transition-all"
+                  >
+                    + Add New Address
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
-        {/* Add / Edit Address Form View */}
-        {showAddressForm && (
-          <div className="flex-1 p-6 overflow-y-auto bg-white z-20">
-            <div className="flex items-center justify-between mb-4 border-b pb-3">
-              <h3 className="text-base font-black text-gray-900">
-                {editingAddress ? 'Edit Saved Address' : 'Add New Address'}
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowAddressForm(false)}
-                className="text-xs font-bold text-gray-500 hover:text-gray-900 uppercase"
+        {/* VIEW 2: Interactive Map View */}
+        {showMap && !showAddressForm && (
+          <div className="flex flex-col h-full min-h-[420px] relative">
+            <div className="flex-1 relative min-h-[320px]">
+              <Map
+                defaultCenter={{ lat: markerPosition?.lat || 20.5937, lng: markerPosition?.lng || 78.9629 }}
+                defaultZoom={15}
+                mapId="DEMO_MAP_ID"
+                onClick={handleDragEnd}
+                internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                className="w-full h-full"
+                options={{
+                  disableDefaultUI: true,
+                  zoomControl: true,
+                  gestureHandling: 'greedy'
+                }}
               >
-                Back
+                {markerPosition && (
+                  <AdvancedMarker
+                    position={markerPosition}
+                    draggable={true}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="relative">
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-500/20 rounded-full animate-ping" />
+                      <MapPin className="w-9 h-9 text-emerald-600 fill-white stroke-[2.5px]" />
+                    </div>
+                  </AdvancedMarker>
+                )}
+              </Map>
+
+              <button 
+                onClick={useCurrentLocation}
+                aria-label="Locate me"
+                className="absolute bottom-4 right-4 p-3 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-all border border-gray-200 z-10 flex items-center gap-2"
+              >
+                <Navigation className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-gray-800">GPS Recenter</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveFormSubmit} className="space-y-3 max-w-lg mx-auto">
+            <div className="p-4 bg-white border-t border-gray-200 space-y-3">
+              <div>
+                <span className="text-[10px] font-black text-gray-400 uppercase">Selected Location:</span>
+                <p className="text-xs font-bold text-gray-900 truncate">
+                  {isGeocoding ? 'Detecting location...' : (geocodedData?.fullAddress || 'Click map to place pin')}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={openFormWithGeocode}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-xs font-bold uppercase"
+                >
+                  Save as New Address
+                </button>
+                <button
+                  disabled={!geocodedData || isGeocoding}
+                  onClick={handleConfirmGPSLocation}
+                  className="flex-1 py-2.5 bg-emerald-600 disabled:bg-gray-300 text-white rounded-xl text-xs font-black uppercase shadow-sm"
+                >
+                  Deliver Here
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: Add / Edit Address Form */}
+        {showAddressForm && (
+          <div className="p-4 sm:p-6 bg-white min-h-full">
+            <form onSubmit={handleSaveFormSubmit} className="space-y-3.5 max-w-lg mx-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Customer Name *</label>
@@ -480,6 +647,47 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Country *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Country" 
+                    value={formCountry} 
+                    onChange={(e) => setFormCountry(e.target.value)} 
+                    className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold focus:border-emerald-600 outline-none" 
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">PIN / ZIP Code *</label>
+                    {isFormPincodeLoading && <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />}
+                  </div>
+                  <input 
+                    type="text" 
+                    required
+                    maxLength={6} 
+                    placeholder="6-digit PIN code" 
+                    value={formZip} 
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormZip(val);
+                      if (val.length === 6) {
+                        handleZipcodeAutoLookup(val, formCountry);
+                      }
+                    }} 
+                    className={`w-full bg-gray-50 border h-10 rounded-xl px-3 text-xs font-bold outline-none transition-colors ${
+                      pincodeError ? 'border-rose-400 focus:border-rose-600' : 'border-gray-200 focus:border-emerald-600'
+                    }`} 
+                  />
+                </div>
+              </div>
+
+              {pincodeError && (
+                <p className="text-[11px] font-bold text-rose-500">{pincodeError}</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
                   <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">City *</label>
                   <input 
                     type="text" 
@@ -503,32 +711,6 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">Country *</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Country" 
-                    value={formCountry} 
-                    onChange={(e) => setFormCountry(e.target.value)} 
-                    className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold focus:border-emerald-600 outline-none" 
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">PIN / ZIP Code *</label>
-                  <input 
-                    type="text" 
-                    required
-                    maxLength={6} 
-                    placeholder="6-digit PIN code" 
-                    value={formZip} 
-                    onChange={(e) => setFormZip(e.target.value.replace(/\D/g, ''))} 
-                    className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold focus:border-emerald-600 outline-none" 
-                  />
-                </div>
-              </div>
-
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
                   {(['Home', 'Work', 'Other'] as const).map((lbl) => (
@@ -538,7 +720,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                       onClick={() => setFormLabel(lbl)}
                       className={`px-3 py-1 rounded-lg text-xs font-black uppercase transition-all ${
                         formLabel === lbl 
-                          ? 'bg-emerald-600 text-white' 
+                          ? 'bg-emerald-600 text-white shadow-xs' 
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
@@ -562,13 +744,13 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                 <button 
                   type="button" 
                   onClick={() => setShowAddressForm(false)} 
-                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider"
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-3 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg hover:bg-emerald-700 transition-all"
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-all"
                 >
                   Save & Select Address
                 </button>
@@ -576,76 +758,8 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
             </form>
           </div>
         )}
+
       </div>
-
-      {/* Sidebar Info Section (for Map view) */}
-      {activeTab === 'map' && !showAddressForm && (
-        <div className="w-full md:w-80 p-6 border-t md:border-t-0 md:border-l border-gray-100 flex flex-col justify-between bg-gray-50/50">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-100">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Detected Location</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Address</p>
-                <p className="text-xs font-bold text-gray-900 leading-relaxed min-h-[3.5rem] bg-white p-3 rounded-2xl border border-gray-200">
-                  {isGeocoding ? (
-                    <span className="flex items-center gap-2 text-emerald-600 font-bold">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Detecting location details...
-                    </span>
-                  ) : geocodedData?.fullAddress ? (
-                    geocodedData.fullAddress
-                  ) : (
-                    'Click on the map or move the pin to detect location'
-                  )}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">City</p>
-                  <p className="text-xs font-extrabold text-gray-900 truncate">{geocodedData?.city || '-'}</p>
-                </div>
-                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">State</p>
-                  <p className="text-xs font-extrabold text-gray-900 truncate">{geocodedData?.state || '-'}</p>
-                </div>
-                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Country</p>
-                  <p className="text-xs font-extrabold text-gray-900 truncate">{geocodedData?.country || 'India'}</p>
-                </div>
-                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Pincode/ZIP</p>
-                  <p className="text-xs font-black text-emerald-600 truncate">{geocodedData?.zip || '-'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2 mt-6">
-            <button 
-              disabled={isGeocoding || !geocodedData}
-              onClick={handleConfirmGPSLocation}
-              className="w-full bg-emerald-600 disabled:bg-gray-300 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
-            >
-              Confirm & Deliver Here
-              <Check className="w-4 h-4" />
-            </button>
-
-            <button
-              disabled={isGeocoding || !geocodedData}
-              onClick={openFormWithGeocode}
-              className="w-full bg-white text-gray-800 border border-gray-200 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-gray-100 transition-all flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5 text-emerald-600" /> Save as New Address
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -667,7 +781,7 @@ export default function LocationPickerModal({ isOpen, onClose, onLocationSelect 
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-4xl z-10"
+            className="relative w-full max-w-2xl z-10"
           >
             <GoogleMapsLoader>
               <LocationPickerContent onClose={onClose} onLocationSelect={onLocationSelect} />

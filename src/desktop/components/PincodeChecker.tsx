@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Address } from '../../shared/types';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { reverseGeocodeCoords } from '../../shared/utilities/reverseGeocode';
+import { lookupZipcode } from '../../backend/services/zipcode';
 import GoogleMapsLoader from './GoogleMapsLoader';
 import LocationPickerModal from './LocationPickerModal';
 
@@ -19,15 +20,20 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
 
   const [pincode, setPincode] = useState(selectedAddress?.zip || '');
   const [isEditing, setIsEditing] = useState(false);
-  const [locationName, setLocationName] = useState(selectedAddress?.city ? `${selectedAddress.city}, ${selectedAddress.state}` : '');
+  const [locationName, setLocationName] = useState(
+    selectedAddress?.city 
+      ? `${selectedAddress.street ? selectedAddress.street + ', ' : ''}${selectedAddress.city}, ${selectedAddress.state || ''}` 
+      : ''
+  );
   const [status, setStatus] = useState<'idle' | 'loading' | 'available' | 'unavailable'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isMapOpen, setIsMapOpen] = useState(false);
 
   useEffect(() => {
     if (selectedAddress?.zip) {
       setPincode(selectedAddress.zip);
       if (selectedAddress.city) {
-        setLocationName(`${selectedAddress.city}, ${selectedAddress.state || ''}`);
+        setLocationName(`${selectedAddress.street ? selectedAddress.street + ', ' : ''}${selectedAddress.city}, ${selectedAddress.state || ''}`);
       }
       checkAvailability(selectedAddress.zip);
     } else if (activeSavedAddresses.length > 0 && !pincode) {
@@ -38,34 +44,34 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
   }, [selectedAddress, activeSavedAddresses]);
 
   const fetchLocationInfo = async (pin: string) => {
-    if (pin.length !== 6) return;
+    if (!pin || pin.length < 5) return;
     try {
-      const response = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-      const data = await response.json();
-      if (data[0]?.Status === 'Success') {
-        const postOffice = data[0].PostOffice[0];
-        setLocationName(`${postOffice.Name}, ${postOffice.District}, ${postOffice.State}`);
-      } else {
-        setLocationName('');
-      }
-    } catch (error) {
+      const info = await lookupZipcode(pin, 'in');
+      setLocationName(`${info.area ? info.area + ', ' : ''}${info.city}, ${info.state}`);
+      setErrorMessage('');
+    } catch (error: any) {
       console.error('Error fetching location:', error);
       setLocationName('');
+      setErrorMessage(error.message || 'Invalid pincode format');
     }
   };
 
-  const checkAvailability = (code: string) => {
-    if (!code || code.length !== 6) return;
+  const checkAvailability = async (code: string) => {
+    if (!code) return;
+    if (code.length < 6) {
+      setErrorMessage('Please enter a complete 6-digit pincode');
+      setStatus('idle');
+      return;
+    }
     
     setStatus('loading');
-    fetchLocationInfo(code);
+    setErrorMessage('');
+    await fetchLocationInfo(code);
     
-    setTimeout(() => {
-      const isAvailable = !serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(code);
-      setStatus(isAvailable ? 'available' : 'unavailable');
-      onAvailabilityChange?.(isAvailable);
-      setIsEditing(false);
-    }, 600);
+    const isAvailable = !serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(code);
+    setStatus(isAvailable ? 'available' : 'unavailable');
+    onAvailabilityChange?.(isAvailable);
+    setIsEditing(false);
   };
 
   const useMyLocation = () => {

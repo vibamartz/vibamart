@@ -1,45 +1,72 @@
 export interface ZipcodeInfo {
+  area?: string;
   city: string;
   state: string;
   country: string;
+  pincode: string;
+  postOffices?: Array<{ name: string; district: string; state: string }>;
 }
 
 /**
- * Looks up address details (City, State, Country) by Zipcode / Pincode.
+ * Looks up address details (Area, City, State, Country, Pincode) by Zipcode / Pincode.
  * Supports Indian pincodes (via postalpincode.in) and International zipcodes (via zippopotam.us).
  */
 export async function lookupZipcode(zip: string, countryCode: string = 'in'): Promise<ZipcodeInfo> {
-  const cleanZip = zip.trim();
+  const cleanZip = zip.trim().replace(/\s+/g, '');
   if (!cleanZip) {
-    throw new Error('Zipcode is required');
+    throw new Error('Pincode is required');
   }
 
-  // Normalize countryCode to lowercase
   const cc = countryCode.toLowerCase();
+  const isIndianFormat = cc === 'in' || cc === 'india' || /^\d{6}$/.test(cleanZip);
 
-  // If country is India or 6-digit numeric, try postalpincode.in first
-  if (cc === 'in' || (cc === 'india' || (/^\d{6}$/.test(cleanZip)))) {
+  if (isIndianFormat) {
+    if (cleanZip.length < 6) {
+      throw new Error('Please enter a complete 6-digit pincode');
+    }
+    if (!/^\d{6}$/.test(cleanZip)) {
+      throw new Error('Invalid pincode. Indian pincodes must be 6 digits');
+    }
+
     try {
       const response = await fetch(`https://api.postalpincode.in/pincode/${cleanZip}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch from postalpincode.in');
+        throw new Error('Failed to reach location service. Please check network connection.');
       }
       const data = await response.json();
       if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-        const postOffice = data[0].PostOffice[0];
+        const postOffices = data[0].PostOffice;
+        const mainPostOffice = postOffices[0];
+
+        // District is the City, Name/Block is the Area/Locality
+        const city = mainPostOffice.District || mainPostOffice.Block || mainPostOffice.Circle || 'Unknown City';
+        const area = mainPostOffice.Name || mainPostOffice.Block || city;
+        const state = mainPostOffice.State || '';
+
         return {
-          city: postOffice.District || postOffice.Block || postOffice.Name,
-          state: postOffice.State,
+          area,
+          city,
+          state,
           country: 'India',
+          pincode: cleanZip,
+          postOffices: postOffices.map((po: any) => ({
+            name: po.Name,
+            district: po.District,
+            state: po.State
+          }))
         };
+      } else if (data && data[0] && data[0].Status === 'Error') {
+        throw new Error(`No location found for pincode ${cleanZip}. Please check the pincode.`);
       }
-    } catch (error) {
-      console.warn('Failed Indian pincode lookup, trying fallback:', error);
+    } catch (error: any) {
+      if (error.message && !error.message.includes('fetch')) {
+        throw error;
+      }
+      console.warn('Indian pincode lookup failed, trying fallback:', error);
     }
   }
 
   // Fallback / International lookup using zippopotam.us
-  // Maps common country selections to 2-letter codes for zippopotam
   let zippoCountry = cc;
   if (cc === 'india') zippoCountry = 'in';
   else if (cc === 'united states' || cc === 'usa' || cc === 'us') zippoCountry = 'us';
@@ -51,7 +78,6 @@ export async function lookupZipcode(zip: string, countryCode: string = 'in'): Pr
   else if (cc === 'spain' || cc === 'es') zippoCountry = 'es';
   else if (cc === 'italy' || cc === 'it') zippoCountry = 'it';
   
-  // If no specific country or fallback matches, default to 'us' or if length is 5 digits, default to 'us'
   if (!zippoCountry || zippoCountry.length > 2) {
     zippoCountry = /^\d{5}$/.test(cleanZip) ? 'us' : 'in';
   }
@@ -59,40 +85,25 @@ export async function lookupZipcode(zip: string, countryCode: string = 'in'): Pr
   try {
     const response = await fetch(`https://api.zippopotam.us/${zippoCountry}/${cleanZip}`);
     if (!response.ok) {
-      throw new Error(`Zipcode not found for country code ${zippoCountry}`);
+      throw new Error(`No location found for pincode ${cleanZip}`);
     }
     const data = await response.json();
     if (data && data.places && data.places.length > 0) {
       const place = data.places[0];
       return {
+        area: place['place name'],
         city: place['place name'],
         state: place['state'] || place['state abbreviation'] || '',
         country: data['country'] || zippoCountry.toUpperCase(),
+        pincode: cleanZip,
       };
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message && !error.message.includes('fetch')) {
+      throw error;
+    }
     console.warn('Failed zippopotam.us lookup:', error);
   }
 
-  // Final attempt: If it looks like zippo failed but we didn't try the other of (in/us), try it
-  if (zippoCountry !== 'us' && /^\d{5}$/.test(cleanZip)) {
-    try {
-      const response = await fetch(`https://api.zippopotam.us/us/${cleanZip}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.places && data.places.length > 0) {
-          const place = data.places[0];
-          return {
-            city: place['place name'],
-            state: place['state'] || place['state abbreviation'] || '',
-            country: data['country'] || 'United States',
-          };
-        }
-      }
-    } catch (e) {
-      // Ignore
-    }
-  }
-
-  throw new Error('Invalid zipcode or could not auto-detect address. Please enter manually.');
+  throw new Error(`Invalid pincode or no matching location found for ${cleanZip}.`);
 }
