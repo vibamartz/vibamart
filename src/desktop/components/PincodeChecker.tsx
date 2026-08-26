@@ -194,13 +194,11 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
         </div>
       </div>
 
-      <GoogleMapsLoader>
-        <LocationPickerModal 
-          isOpen={isMapOpen} 
-          onClose={() => setIsMapOpen(false)}
-          onLocationSelect={handleLocationFromMap}
-        />
-      </GoogleMapsLoader>
+      <LocationPickerModal 
+        isOpen={isMapOpen} 
+        onClose={() => setIsMapOpen(false)}
+        onLocationSelect={handleLocationFromMap}
+      />
 
       {savedAddresses && savedAddresses.length > 0 && isEditing && (
         <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
