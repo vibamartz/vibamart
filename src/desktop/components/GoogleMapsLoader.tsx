@@ -1,6 +1,8 @@
 import React from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
+const DEFAULT_KEY = "AIzaSyCmL3HVLTK4nssuIo_QL5KVL4dUull17wU";
+
 const getApiKey = () => {
   const metaEnv = (import.meta as any).env;
   if (metaEnv) {
@@ -11,10 +13,10 @@ const getApiKey = () => {
     if (process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY) return process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY;
     if (process.env.GOOGLE_MAPS_PLATFORM_KEY) return process.env.GOOGLE_MAPS_PLATFORM_KEY;
   }
-  return '';
+  return DEFAULT_KEY;
 };
 
-const API_KEY = getApiKey();
+const API_KEY = getApiKey() || DEFAULT_KEY;
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'YOUR_GOOGLE_MAPS_KEY';
 
 interface GoogleMapsLoaderProps {
