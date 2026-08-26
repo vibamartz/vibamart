@@ -49,6 +49,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         set({ selectedAddress: user.address });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(user.address));
       }
+    } else if (!user) {
+      set({ savedAddresses: [], selectedAddress: null });
+      localStorage.removeItem(STORAGE_KEY);
     }
   },
 
@@ -239,14 +242,39 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   }
 }));
 
+export function formatHeaderAddress(address?: Address | null): string {
+  if (!address) return 'Select Delivery Address';
+  
+  const houseStr = address.house ? address.house.trim() : '';
+  const streetStr = address.street ? address.street.trim() : '';
+  const cityStr = address.city ? address.city.trim() : '';
+  const zipStr = address.zip ? address.zip.trim() : '';
+  const labelStr = address.label ? address.label.trim() : '';
+
+  const locationDetail = houseStr 
+    ? `${houseStr}${streetStr || cityStr || zipStr ? ', ' + (streetStr || cityStr || zipStr) : ''}`
+    : (streetStr || cityStr || zipStr);
+
+  if (!locationDetail) return 'Select Delivery Address';
+  
+  return labelStr ? `${labelStr}: ${locationDetail}` : locationDetail;
+}
+
 // Sync location store when auth user changes
 useAuthStore.subscribe((state) => {
   if (state.user) {
     const addresses = state.user.addresses || (state.user.address ? [state.user.address] : []);
     useLocationStore.setState({ savedAddresses: addresses });
-    if (!useLocationStore.getState().selectedAddress && state.user.address) {
-      useLocationStore.setState({ selectedAddress: state.user.address });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.user.address));
+    const currentSelected = useLocationStore.getState().selectedAddress;
+    if (!currentSelected && (addresses.length > 0 || state.user.address)) {
+      const defaultAddr = addresses.find(a => a.isDefault) || state.user.address || addresses[0];
+      useLocationStore.setState({ selectedAddress: defaultAddr });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultAddr));
     }
+  } else {
+    // When logged out, clear user saved addresses and reset selected address
+    useLocationStore.setState({ savedAddresses: [], selectedAddress: null });
+    localStorage.removeItem(STORAGE_KEY);
   }
 });
+

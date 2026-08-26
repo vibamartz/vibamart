@@ -6,7 +6,7 @@ import {
   Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
-import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
@@ -465,13 +465,13 @@ export default function Navbar() {
             type="button"
             onClick={() => setIsLocationModalOpen(true)}
             className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs"
-            title={selectedAddress ? `${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || selectedAddress.zip}` : 'Select Delivery Address'}
+            title={formatHeaderAddress(selectedAddress)}
           >
             <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
             <div className="flex flex-col min-w-0 leading-tight">
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
               <span className="text-xs font-bold text-gray-800 truncate">
-                📍 {selectedAddress ? `${selectedAddress.label ? selectedAddress.label + ': ' : ''}${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || selectedAddress.zip}` : 'Select Delivery Address'}
+                📍 {formatHeaderAddress(selectedAddress)}
               </span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />

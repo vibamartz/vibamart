@@ -15,7 +15,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
-import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
 
 export default function MobileHomepage() {
@@ -55,9 +55,7 @@ export default function MobileHomepage() {
     initLocation();
   }, [user]);
 
-  const displayAddress = selectedAddress
-    ? `${selectedAddress.label ? selectedAddress.label + ', ' : ''}${selectedAddress.house ? selectedAddress.house + ', ' : ''}${selectedAddress.street || selectedAddress.city || selectedAddress.zip}`
-    : 'Select Delivery Address';
+  const displayAddress = formatHeaderAddress(selectedAddress);
 
   // Load recent searches
   useEffect(() => {

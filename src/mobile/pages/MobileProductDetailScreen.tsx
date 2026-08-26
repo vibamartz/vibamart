@@ -8,6 +8,7 @@ import { doc, getDoc, collection, query, where, onSnapshot, addDoc } from 'fireb
 import { db } from '../../backend/firebase/firebase';
 import { Product, Review } from '../../shared/types';
 import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -17,6 +18,7 @@ export default function MobileProductDetailScreen() {
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
   const { addItem, items: cartItems } = useCartStore();
+  const { selectedAddress } = useLocationStore();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,8 +27,14 @@ export default function MobileProductDetailScreen() {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   // Delivery check state
-  const [pincode, setPincode] = useState('560064');
+  const [pincode, setPincode] = useState(selectedAddress?.zip || '');
   const [deliveryStatus, setDeliveryStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+
+  useEffect(() => {
+    if (selectedAddress?.zip) {
+      setPincode(selectedAddress.zip);
+    }
+  }, [selectedAddress]);
 
   // Reviews state
   const [reviews, setReviews] = useState<Review[]>([]);

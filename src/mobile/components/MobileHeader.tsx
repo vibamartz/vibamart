@@ -4,7 +4,7 @@ import {
   ArrowLeft, Search, Bell, ShoppingCart, MapPin, ChevronDown, Sparkles 
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../../backend/store';
-import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
@@ -111,7 +111,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
             >
               <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0 fill-yellow-100" />
               <span className="text-[10px] font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-                📍 {selectedAddress ? `${selectedAddress.label ? selectedAddress.label + ', ' : ''}${selectedAddress.house || selectedAddress.street || selectedAddress.city || selectedAddress.zip}` : 'Select Location'}
+                📍 {formatHeaderAddress(selectedAddress)}
               </span>
               <ChevronDown className="w-3 h-3 text-yellow-500 shrink-0 ml-0.5" />
             </motion.button>

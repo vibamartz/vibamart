@@ -37,8 +37,6 @@ export default function Home() {
   // Header & Modal states
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [userAddress, setUserAddress] = useState("Home centre 2nd floor Esplanade mall, Ras...");
-  const [userPincode, setUserPincode] = useState("560064");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -442,10 +440,6 @@ export default function Home() {
       <LocationPickerModal
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
-        onLocationSelect={(pincode, address) => {
-          setUserAddress(address);
-          setUserPincode(pincode);
-        }}
       />
 
       <CameraSearchModal
