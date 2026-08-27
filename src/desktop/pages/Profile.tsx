@@ -1509,8 +1509,8 @@ function AddressModal({
   if (!show) return null;
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
-    const cleanZip = zipCode.trim();
-    if (!cleanZip || cleanZip.length < 5) return;
+    const cleanZip = (zipCode || '').trim().replace(/\D/g, '');
+    if (!cleanZip || cleanZip.length !== 6) return;
     setZipLoading(true);
     try {
       const info = await lookupZipcode(cleanZip, countryVal);
@@ -1520,9 +1520,9 @@ function AddressModal({
         state: info.state,
         country: info.country
       });
-      toast.success(`Zipcode detected: ${info.city}, ${info.state}, ${info.country}`);
+      toast.success(`Pincode detected: ${info.city}, ${info.state}, ${info.country}`);
     } catch (err: any) {
-      toast.error(err.message || 'Invalid zipcode');
+      toast.error(err.message || 'Invalid pincode');
     } finally {
       setZipLoading(false);
     }
@@ -1616,19 +1616,24 @@ function AddressModal({
 
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Zipcode *</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Pincode / Zipcode *</label>
                 <div className="relative">
                   <input 
                     value={address.zip || ''}
+                    maxLength={6}
                     onChange={e => {
-                      const val = e.target.value;
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                       setAddress({ ...address, zip: val });
-                      if (/^\d{6}$/.test(val.trim()) || (/^\d{5}$/.test(val.trim()) && address.country.toLowerCase() === 'us')) {
-                        handleZipcodeLookup(val, address.country);
+                      if (val.length === 6) {
+                        handleZipcodeLookup(val, address.country || 'India');
                       }
                     }}
-                    onBlur={() => handleZipcodeLookup(address.zip, address.country)}
-                    placeholder="Zip / Pin code" 
+                    onBlur={() => {
+                      if (address.zip && address.zip.length === 6) {
+                        handleZipcodeLookup(address.zip, address.country || 'India');
+                      }
+                    }}
+                    placeholder="6-digit Pincode" 
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-4 pr-10 py-3 text-sm font-bold focus:bg-white focus:border-primary outline-none transition-all" 
                     required
                   />

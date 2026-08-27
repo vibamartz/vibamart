@@ -87,8 +87,8 @@ export default function Checkout() {
   const [zipLoading, setZipLoading] = useState(false);
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
-    const cleanZip = zipCode.trim();
-    if (!cleanZip || cleanZip.length < 5) return;
+    const cleanZip = zipCode.trim().replace(/\D/g, '');
+    if (!cleanZip || cleanZip.length !== 6) return;
     setZipLoading(true);
     try {
       const info = await lookupZipcode(cleanZip, countryVal);
@@ -98,9 +98,9 @@ export default function Checkout() {
         state: info.state,
         country: info.country
       }));
-      toast.success(`Zipcode detected: ${info.city}, ${info.state}, ${info.country}`);
+      toast.success(`Pincode detected: ${info.city}, ${info.state}, ${info.country}`);
     } catch (err: any) {
-      toast.error(err.message || 'Invalid zipcode');
+      toast.error(err.message || 'Invalid pincode');
     } finally {
       setZipLoading(false);
     }
@@ -714,11 +714,13 @@ export default function Checkout() {
                         <input
                           type="text"
                           required
+                          maxLength={6}
+                          placeholder="6-digit Pincode"
                           value={editAddressForm.zip}
                           onChange={(e) => {
-                            const val = e.target.value;
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                             setEditAddressForm({ ...editAddressForm, zip: val });
-                            if (val.length >= 5) {
+                            if (val.length === 6) {
                               handleZipcodeLookup(val, editAddressForm.country || 'India');
                             }
                           }}

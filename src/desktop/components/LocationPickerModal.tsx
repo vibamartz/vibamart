@@ -339,7 +339,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
             </div>
 
             {/* 2. LOCATION OPTIONS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Option A: Use My Current Location */}
               <button
                 onClick={() => {
@@ -348,16 +348,37 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                 }}
                 className="flex items-center gap-3 p-3.5 bg-white border border-emerald-200/80 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all shadow-xs text-left group"
               >
-                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
                   <Navigation className="w-4 h-4 fill-emerald-700" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-black text-gray-900 block truncate">📍 Use My Current Location</span>
-                  <span className="text-[10px] font-medium text-gray-500 block truncate">Detect via GPS geolocation</span>
+                  <span className="text-xs font-black text-gray-900 block truncate">📍 Current GPS</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Detect via GPS</span>
                 </div>
               </button>
 
-              {/* Option B: Add New Address */}
+              {/* Option B: Pick Location on Map */}
+              <button
+                onClick={() => {
+                  const defaultPos = activeStoreAddress?.lat && activeStoreAddress?.lng
+                    ? { lat: activeStoreAddress.lat, lng: activeStoreAddress.lng }
+                    : { lat: 20.5937, lng: 78.9629 };
+                  setMarkerPosition(defaultPos);
+                  doReverseGeocode(defaultPos);
+                  setShowMap(true);
+                }}
+                className="flex items-center gap-3 p-3.5 bg-white border border-emerald-200/80 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all shadow-xs text-left group"
+              >
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
+                  <MapIcon className="w-4 h-4 text-emerald-700" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-black text-gray-900 block truncate">🗺️ Interactive Map</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Pinpoint on map</span>
+                </div>
+              </button>
+
+              {/* Option C: Add New Address */}
               <button
                 onClick={() => {
                   setEditingAddress(null);
@@ -376,12 +397,12 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                 }}
                 className="flex items-center gap-3 p-3.5 bg-white border border-emerald-200/80 hover:border-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all shadow-xs text-left group"
               >
-                <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform shrink-0">
                   <Plus className="w-4 h-4 stroke-[3]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-black text-gray-900 block truncate">＋ Add New Address</span>
-                  <span className="text-[10px] font-medium text-gray-500 block truncate">Enter custom address details</span>
+                  <span className="text-xs font-black text-gray-900 block truncate">＋ Add Address</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Custom address form</span>
                 </div>
               </button>
             </div>
@@ -529,64 +550,66 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
 
         {/* VIEW 2: Interactive Map View */}
         {showMap && !showAddressForm && (
-          <div className="flex flex-col h-full min-h-[420px] relative">
-            <div className="flex-1 relative min-h-[320px]">
-              <Map
-                defaultCenter={{ lat: markerPosition?.lat || 20.5937, lng: markerPosition?.lng || 78.9629 }}
-                defaultZoom={15}
-                mapId="DEMO_MAP_ID"
-                onClick={handleDragEnd}
-                internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                className="w-full h-full"
-                options={{
-                  disableDefaultUI: true,
-                  zoomControl: true,
-                  gestureHandling: 'greedy'
-                }}
-              >
-                {markerPosition && (
-                  <AdvancedMarker
-                    position={markerPosition}
-                    draggable={true}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div className="relative">
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-500/20 rounded-full animate-ping" />
-                      <MapPin className="w-9 h-9 text-emerald-600 fill-white stroke-[2.5px]" />
-                    </div>
-                  </AdvancedMarker>
-                )}
-              </Map>
+          <div className="flex flex-col h-full relative">
+            <div className="relative w-full h-[360px] sm:h-[400px] bg-gray-100 overflow-hidden border-b border-gray-200">
+              {/* Guaranteed Visual Map Image Renderer */}
+              <iframe
+                title="Delivery Location Map"
+                width="100%"
+                height="100%"
+                className="w-full h-full border-0"
+                loading="lazy"
+                allowFullScreen
+                src={`https://maps.google.com/maps?q=${markerPosition?.lat || 20.5937},${markerPosition?.lng || 78.9629}&z=15&output=embed`}
+              />
 
+              {/* Map Center Pin Indicator */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                <div className="relative -mt-8 flex flex-col items-center">
+                  <div className="px-2.5 py-1 bg-gray-900/90 backdrop-blur-xs text-white text-[10px] font-black rounded-lg shadow-lg mb-1 whitespace-nowrap border border-white/20 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                    Delivery Pin
+                  </div>
+                  <MapPin className="w-10 h-10 text-emerald-600 fill-emerald-500 drop-shadow-xl animate-bounce" />
+                  <div className="w-4 h-1.5 bg-black/30 rounded-full blur-[2px] mt-0.5" />
+                </div>
+              </div>
+
+              {/* Recenter Button */}
               <button 
                 onClick={useCurrentLocation}
                 aria-label="Locate me"
-                className="absolute bottom-4 right-4 p-3 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-all border border-gray-200 z-10 flex items-center gap-2"
+                className="absolute bottom-4 right-4 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl hover:bg-white transition-all border border-gray-200/80 z-20 flex items-center gap-2 text-gray-900 active:scale-95"
               >
-                <Navigation className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-bold text-gray-800">GPS Recenter</span>
+                <Navigation className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+                <span className="text-xs font-black">GPS Recenter</span>
               </button>
             </div>
 
-            <div className="p-4 bg-white border-t border-gray-200 space-y-3">
-              <div>
-                <span className="text-[10px] font-black text-gray-400 uppercase">Selected Location:</span>
-                <p className="text-xs font-bold text-gray-900 truncate">
-                  {isGeocoding ? 'Detecting location...' : (geocodedData?.fullAddress || 'Click map to place pin')}
+            <div className="p-4 bg-white border-t border-gray-100 space-y-3">
+              <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Selected Address</span>
+                <p className="text-xs font-bold text-gray-900 leading-snug mt-0.5 truncate">
+                  {isGeocoding ? 'Detecting location...' : (geocodedData?.fullAddress || 'Location selected on map')}
                 </p>
+                {geocodedData && (
+                  <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+                    {geocodedData.city}, {geocodedData.state} - <span className="font-extrabold">{geocodedData.zip}</span>
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={openFormWithGeocode}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-xs font-bold uppercase"
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                 >
                   Save as New Address
                 </button>
                 <button
                   disabled={!geocodedData || isGeocoding}
                   onClick={handleConfirmGPSLocation}
-                  className="flex-1 py-2.5 bg-emerald-600 disabled:bg-gray-300 text-white rounded-xl text-xs font-black uppercase shadow-sm"
+                  className="flex-1 py-3 bg-emerald-600 disabled:bg-gray-300 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all"
                 >
                   Deliver Here
                 </button>
