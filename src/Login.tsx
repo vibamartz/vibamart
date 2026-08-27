@@ -282,7 +282,7 @@ export default function Login() {
           <div className="p-8 sm:p-10">
             <div className="flex justify-center mb-8">
               <Link to="/" className="hover:opacity-80 transition-opacity">
-                <Logo className="scale-125" />
+                <Logo className="scale-125" showTextOnMobile={true} />
               </Link>
             </div>
 
