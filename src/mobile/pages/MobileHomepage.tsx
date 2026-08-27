@@ -299,13 +299,13 @@ export default function MobileHomepage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
             style={{ height: 'clamp(74px, 20vw, 95px)' }}
-            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0"
+            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
           >
-            <div className="flex items-center justify-center shrink-0 h-[clamp(36px,8.5vw,44px)] overflow-visible">
-              <Logo iconOnly className="scale-85 sm:scale-95" />
+            <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+              <Logo iconOnly className="scale-75 sm:scale-85" />
             </div>
-            <span className="text-[clamp(12px,3.5vw,15px)] font-black tracking-wider text-white drop-shadow-sm truncate max-w-full">
-              ViBa
+            <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+              VIBA
             </span>
           </motion.div>
 
@@ -314,42 +314,44 @@ export default function MobileHomepage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
             style={{ height: 'clamp(74px, 20vw, 95px)' }}
-            className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0"
+            className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
           >
             {/* Colorful Gift Logo (increased size, no shadow circle) */}
-            <svg
-              className="w-[clamp(32px,8vw,40px)] h-[clamp(32px,8vw,40px)] shrink-0 drop-shadow-xs"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient id="rewardsGiftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#F59E0B" />
-                  <stop offset="30%" stopColor="#EF4444" />
-                  <stop offset="70%" stopColor="#EC4899" />
-                  <stop offset="100%" stopColor="#8B5CF6" />
-                </linearGradient>
-                <linearGradient id="rewardsRibbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FCD34D" />
-                  <stop offset="100%" stopColor="#F59E0B" />
-                </linearGradient>
-              </defs>
-              {/* Gift Box Base */}
-              <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="url(#rewardsGiftGrad)" />
-              {/* Box Top / Lid */}
-              <rect x="2" y="5" width="20" height="4" rx="1.5" fill="url(#rewardsGiftGrad)" filter="brightness(1.15)" />
-              {/* Vertical Ribbon */}
-              <rect x="10.5" y="5" width="3" height="15" fill="url(#rewardsRibbonGrad)" />
-              {/* Horizontal Ribbon */}
-              <rect x="2" y="6.2" width="20" height="1.6" fill="url(#rewardsRibbonGrad)" opacity="0.85" />
-              {/* Bow Left */}
-              <path d="M12 5.2C10.2 2.2 6.5 1.8 6.5 3.8C6.5 5.5 10.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
-              {/* Bow Right */}
-              <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
-            </svg>
+            <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+              <svg
+                className="w-full h-full shrink-0 drop-shadow-xs"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="rewardsGiftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#F59E0B" />
+                    <stop offset="30%" stopColor="#EF4444" />
+                    <stop offset="70%" stopColor="#EC4899" />
+                    <stop offset="100%" stopColor="#8B5CF6" />
+                  </linearGradient>
+                  <linearGradient id="rewardsRibbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FCD34D" />
+                    <stop offset="100%" stopColor="#F59E0B" />
+                  </linearGradient>
+                </defs>
+                {/* Gift Box Base */}
+                <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="url(#rewardsGiftGrad)" />
+                {/* Box Top / Lid */}
+                <rect x="2" y="5" width="20" height="4" rx="1.5" fill="url(#rewardsGiftGrad)" filter="brightness(1.15)" />
+                {/* Vertical Ribbon */}
+                <rect x="10.5" y="5" width="3" height="15" fill="url(#rewardsRibbonGrad)" />
+                {/* Horizontal Ribbon */}
+                <rect x="2" y="6.2" width="20" height="1.6" fill="url(#rewardsRibbonGrad)" opacity="0.85" />
+                {/* Bow Left */}
+                <path d="M12 5.2C10.2 2.2 6.5 1.8 6.5 3.8C6.5 5.5 10.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
+                {/* Bow Right */}
+                <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
+              </svg>
+            </div>
 
-            <span className="text-[clamp(12px,3.5vw,15px)] font-black tracking-wider text-gray-900 uppercase truncate max-w-full">
+            <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
               REWARDS
             </span>
           </motion.div>
