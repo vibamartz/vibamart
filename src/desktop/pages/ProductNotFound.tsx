@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, Search, Sparkles } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Search, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useCategoryStore } from '../../backend/store';
 
 export default function ProductNotFound() {
   const { categories } = useCategoryStore();
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategoryLeft = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: -250, behavior: 'smooth' });
+    }
+  };
+
+  const scrollCategoryRight = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: 250, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -62,20 +75,43 @@ export default function ProductNotFound() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.6 }}
-            className="space-y-6"
+            className="space-y-6 relative group/pnf"
           >
-            <div className="text-center">
+            <div className="flex items-center justify-between px-2">
               <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">
                 Or Continue Shopping by Category
               </h2>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={scrollCategoryLeft}
+                  className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+                  title="Scroll Left"
+                  aria-label="Scroll Left"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={scrollCategoryRight}
+                  className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+                  title="Scroll Right"
+                  aria-label="Scroll Right"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
+            <div
+              ref={categoryScrollRef}
+              className="flex gap-4 overflow-x-auto scroll-smooth hide-scrollbar py-2 min-w-0 w-full snap-x snap-mandatory px-1"
+            >
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
                   to={`/products?category=${cat.id}`}
-                  className="group flex flex-col items-center gap-3 p-4 bg-white hover:bg-green-50/20 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1"
+                  className="group flex flex-col items-center gap-3 p-4 bg-white hover:bg-green-50/20 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl shrink-0 w-32 snap-start"
                 >
                   <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-100 group-hover:border-primary p-0.5 bg-white transition-all shadow-sm">
                     <img src={cat.image} alt={cat.name} className="w-full h-full rounded-full object-cover" />

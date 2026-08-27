@@ -32,7 +32,20 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const bannerScrollRef = useRef<HTMLDivElement>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingBanner = useRef(false);
+
+  const scrollCategoryLeft = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollCategoryRight = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+    }
+  };
 
   // Header & Modal states
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -336,17 +349,42 @@ export default function Home() {
             <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Explore Categories</h2>
             <p className="text-xs text-gray-500 font-medium mt-0.5">Curated catalog of authentic quality items</p>
           </div>
-          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-            View All <ChevronRightIcon className="w-4 h-4" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={scrollCategoryLeft}
+                className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+                title="Scroll Left"
+                aria-label="Scroll Left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={scrollCategoryRight}
+                className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+                title="Scroll Right"
+                aria-label="Scroll Right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
+              View All <ChevronRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+        <div
+          ref={categoryScrollRef}
+          className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1.5 min-w-0 w-full snap-x snap-mandatory"
+        >
           {CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
               to={`/products?category=${cat.id}`}
-              className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center"
+              className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start"
             >
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-gray-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-gray-100">
                 {cat.image ? (

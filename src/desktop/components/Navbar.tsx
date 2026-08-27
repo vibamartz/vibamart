@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
-  Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown,
+  Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown, ChevronLeft, ChevronRight,
   Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
@@ -40,6 +40,19 @@ export default function Navbar() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const navCategoryScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollNavCategoryLeft = () => {
+    if (navCategoryScrollRef.current) {
+      navCategoryScrollRef.current.scrollBy({ left: -250, behavior: 'smooth' });
+    }
+  };
+
+  const scrollNavCategoryRight = () => {
+    if (navCategoryScrollRef.current) {
+      navCategoryScrollRef.current.scrollBy({ left: 250, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     initLocation();
@@ -615,14 +628,27 @@ export default function Navbar() {
       </div>
 
       {/* Secondary Category Nav */}
-      <div className="border-t border-gray-100 bg-white overflow-x-auto hide-scrollbar">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest">
+      <div className="border-t border-gray-100 bg-white relative group/secnav">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex items-center">
+          <button
+            type="button"
+            onClick={scrollNavCategoryLeft}
+            className="absolute left-1 z-10 p-1 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-600 hover:text-primary transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center"
+            title="Scroll Left"
+            aria-label="Scroll Left"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          
+          <div
+            ref={navCategoryScrollRef}
+            className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto scroll-smooth hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest min-w-0 w-full"
+          >
             {navCategories.map(cat => (
               <Link
                 key={cat.id}
                 to={`/products?category=${cat.id}`}
-                className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group"
+                className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group shrink-0"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = cat.color || '#3b82f6';
                   e.currentTarget.style.borderColor = cat.color || '#3b82f6';
@@ -649,6 +675,16 @@ export default function Navbar() {
               </Link>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={scrollNavCategoryRight}
+            className="absolute right-1 z-10 p-1 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-600 hover:text-primary transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center"
+            title="Scroll Right"
+            aria-label="Scroll Right"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
