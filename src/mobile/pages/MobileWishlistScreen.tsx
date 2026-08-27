@@ -80,7 +80,7 @@ export default function MobileWishlistScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <h2 className="text-sm font-black text-gray-900">My Saved Wishlist ({products.length})</h2>
         <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />

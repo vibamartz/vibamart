@@ -77,7 +77,7 @@ export default function MobileOrderDetailsScreen() {
   const isReturnEligible = order.status === 'delivered' && daysDiff <= 7;
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       {/* Header Info */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
         <div className="flex items-center justify-between">

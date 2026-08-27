@@ -39,7 +39,7 @@ export default function MobileOffersScreen() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-28 font-sans select-none p-3 space-y-4">
+    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-4">
       {/* Deals Header Banner */}
       <div className="bg-gradient-to-r from-rose-600 via-yellow-500 to-amber-500 rounded-3xl p-5 text-white shadow-md flex items-center justify-between">
         <div>

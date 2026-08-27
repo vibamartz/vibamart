@@ -107,7 +107,7 @@ export default function MobileSearchScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none p-3 space-y-4">
+    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-4">
       {/* Search Header Bar */}
       <div className="flex items-center gap-2">
         <motion.button

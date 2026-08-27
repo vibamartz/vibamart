@@ -255,7 +255,7 @@ export default function MobileRewardsScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans">
+    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans">
       {/* PERMANENT MANDATORY TOP NOTICE */}
       <div className="bg-amber-500 text-white p-3.5 text-center flex items-center justify-center gap-2 shadow-md">
         <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0" />

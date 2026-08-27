@@ -13,7 +13,7 @@ export default function MobileCategoriesScreen() {
   const selectedCategory = categories.find(c => c.id === activeCategoryId) || categories[0];
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none flex flex-col">
+    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none flex flex-col">
       {/* Top Header Banner */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 p-4 text-white shadow-md">
         <div className="flex items-center justify-between">
@@ -34,7 +34,7 @@ export default function MobileCategoriesScreen() {
       {/* Main Split Layout: Left Sidebar + Right Content Grid */}
       <div className="flex-1 flex overflow-hidden min-h-[70vh]">
         {/* Left Sidebar (Categories) */}
-        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto hide-scrollbar py-2 space-y-1.5 shrink-0">
+        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto hide-scrollbar py-2 pb-36 sm:pb-40 space-y-1.5 shrink-0">
           {categories.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -74,7 +74,7 @@ export default function MobileCategoriesScreen() {
         </div>
 
         {/* Right Content Area (Selected Category & Subcategories Grid) */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 pb-36 sm:pb-40 space-y-4">
           {selectedCategory && (
             <AnimatePresence mode="wait">
               <motion.div

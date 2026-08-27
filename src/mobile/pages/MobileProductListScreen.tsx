@@ -172,7 +172,7 @@ export default function MobileProductListScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       {/* Top Filter & Sort Bar */}
       <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">

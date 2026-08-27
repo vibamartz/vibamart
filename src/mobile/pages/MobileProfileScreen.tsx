@@ -58,7 +58,7 @@ export default function MobileProfileScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-28 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       {/* Profile Header Card */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">

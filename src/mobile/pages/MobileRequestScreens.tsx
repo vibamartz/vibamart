@@ -158,7 +158,7 @@ export default function MobileRequestScreens() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       {/* Header & Tabs */}
       <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
