@@ -35,6 +35,9 @@ export default function Logo({ className = '', iconOnly = false, variant = 'ligh
               </linearGradient>
             </defs>
 
+            {/* White background plate for clean contrast */}
+            <rect width="100" height="100" rx="20" fill="#ffffff" />
+
             {/* Stylized V */}
             <path
               d="M10 25 L38 85 L48 85 L32 25 Z"
