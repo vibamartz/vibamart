@@ -67,3 +67,15 @@
     @apply min-h-[44px] min-w-[44px];
   }
 }
+
+/* Auto hide bottom nav bar in any full screen mode */
+:fullscreen .mobile-bottom-nav,
+:-webkit-full-screen .mobile-bottom-nav,
+:-moz-full-screen .mobile-bottom-nav,
+:root:has(:fullscreen) .mobile-bottom-nav,
+html[data-fullscreen="true"] .mobile-bottom-nav,
+body[data-fullscreen="true"] .mobile-bottom-nav,
+body.fullscreen-mode .mobile-bottom-nav,
+[data-fullscreen="true"] .mobile-bottom-nav {
+  display: none !important;
+}

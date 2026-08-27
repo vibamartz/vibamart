@@ -3,11 +3,17 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, LayoutGrid, Flame, User, ShoppingCart } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { motion } from 'motion/react';
+import { useIsFullscreen } from '../../shared/utilities/useIsFullscreen';
 
 export default function MobileBottomNav() {
   const location = useLocation();
   const { items } = useCartStore();
   const { user } = useAuthStore();
+  const isFullscreen = useIsFullscreen();
+
+  if (isFullscreen) {
+    return null;
+  }
 
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -61,7 +67,7 @@ export default function MobileBottomNav() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] w-full flex items-center justify-center"
+      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] w-full flex items-center justify-center"
       style={{
         minHeight: '60px',
         paddingTop: '6px',
