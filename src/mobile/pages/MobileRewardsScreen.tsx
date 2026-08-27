@@ -508,12 +508,12 @@ export default function MobileRewardsScreen() {
       {/* MOBILE COUPON DETAILS BOTTOM SHEET */}
       <AnimatePresence>
         {selectedCoupon && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="bg-white rounded-t-3xl w-full p-5 space-y-4 max-h-[85vh] overflow-y-auto font-sans"
+              className="bg-white rounded-t-3xl w-full p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] space-y-4 max-h-[85vh] overflow-y-auto font-sans"
             >
               <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -566,7 +566,7 @@ export default function MobileRewardsScreen() {
       {/* MOBILE BUY NOW MODAL */}
       <AnimatePresence>
         {buyNowCoupon && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
