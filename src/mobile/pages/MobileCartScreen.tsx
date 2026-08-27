@@ -60,7 +60,7 @@ export default function MobileCartScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-32 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-3">
       {/* Top Header Card */}
       <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
         <div>
@@ -222,7 +222,7 @@ export default function MobileCartScreen() {
       </div>
 
       {/* Sticky Bottom Checkout Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
+      <div className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
         <div>
           <span className="text-[10px] font-black uppercase text-gray-400">Total</span>
           <p className="text-base font-black text-gray-900">₹{grandTotal.toLocaleString()}</p>

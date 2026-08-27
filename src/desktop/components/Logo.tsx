@@ -4,9 +4,10 @@ interface LogoProps {
   className?: string;
   iconOnly?: boolean;
   variant?: 'light' | 'dark';
+  showTextOnMobile?: boolean;
 }
 
-export default function Logo({ className = '', iconOnly = false, variant = 'light' }: LogoProps) {
+export default function Logo({ className = '', iconOnly = false, variant = 'light', showTextOnMobile = false }: LogoProps) {
   const textColor = variant === 'light' ? 'text-gray-900' : 'text-white';
   const martColor = variant === 'light' ? 'text-gray-800' : 'text-gray-200';
   const subTextColor = variant === 'light' ? 'text-gray-400' : 'text-gray-500';
@@ -66,7 +67,7 @@ export default function Logo({ className = '', iconOnly = false, variant = 'ligh
       </div>
 
       {!iconOnly && (
-        <div className="hidden sm:flex flex-col justify-center leading-none">
+        <div className={`${showTextOnMobile ? 'flex' : 'hidden sm:flex'} flex-col justify-center leading-none`}>
           <div className="flex items-baseline gap-0.5">
             <span className="text-2xl font-black tracking-tight flex">
               <span className={`${primaryColor} italic`}>Vi</span>

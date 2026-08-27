@@ -203,7 +203,7 @@ export default function MobileProductDetailScreen() {
   const images = product.images?.length > 0 ? product.images : ['https://via.placeholder.com/600'];
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-28 font-sans select-none space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none space-y-3">
       {/* Top Media & Image Gallery */}
       <div className="bg-white relative">
         <div className="aspect-square w-full relative overflow-hidden bg-gray-50">
@@ -442,7 +442,7 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Fixed Mobile Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center gap-2 max-w-md mx-auto">
+      <div className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center gap-2 max-w-md mx-auto">
         <button
           onClick={handleAddToCart}
           className={`flex-1 py-3.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 ${

@@ -63,10 +63,10 @@ export default function MobileBottomNav() {
     <div
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] w-full flex items-center justify-center"
       style={{
-        height: 'clamp(50px, 18vw, 62px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        minHeight: '60px',
+        paddingTop: '6px',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)'
       }}
-      
     >
       <nav className="grid grid-cols-4 w-full h-full max-w-[768px] mx-auto items-center px-1 sm:px-3 min-w-0">
         {navItems.map((item) => {

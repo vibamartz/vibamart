@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { motion, AnimatePresence } from 'motion/react';
+import Logo from './desktop/components/Logo';
 import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore } from './backend/store';
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import PermissionModal from './desktop/components/PermissionModal';
@@ -94,7 +96,7 @@ function MainAppRoutes() {
     return (
       <div className="min-h-screen flex flex-col font-sans bg-[#FFF3EB] selection:bg-primary selection:text-white overflow-x-hidden w-full">
         <MobileHeader />
-        <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0">
+        <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-24 sm:pb-28">
           <Routes>
             <Route path="/" element={<MobileHomepage />} />
             <Route path="/mobile" element={<MobileHomepage />} />
@@ -162,11 +164,37 @@ function MainAppRoutes() {
   );
 }
 
+function SplashScreen({ isVisible }: { isVisible: boolean }) {
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          key="viba-splash"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#FFF3EB] select-none pointer-events-none"
+        >
+          <motion.div
+            initial={{ scale: 0.92, opacity: 0.8 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="flex items-center justify-center p-6"
+          >
+            <Logo showTextOnMobile={true} className="scale-125 sm:scale-150 transform transition-transform" />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
   const { initSettings, loading: settingsLoading } = useSettingsStore();
   const [showPermissions, setShowPermissions] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     initAuth();
@@ -181,24 +209,35 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const isStoreLoading = loading || catsLoading || settingsLoading;
+    
+    // Minimum 700ms display for smooth feel, hide when stores finish
+    const minTimer = setTimeout(() => {
+      if (!isStoreLoading) {
+        setShowSplash(false);
+      }
+    }, 700);
+
+    // Hard fallback safety timer (2.5s) so app never hangs permanently
+    const maxSafetyTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxSafetyTimer);
+    };
+  }, [loading, catsLoading, settingsLoading]);
+
   const handlePermissionsAccept = () => {
     localStorage.setItem('permissionsAcknowledged', 'true');
     setShowPermissions(false);
   };
 
-  if (loading || catsLoading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50 font-sans">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest animate-pulse">Initializing ViBa Mart...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <ErrorBoundary>
+      <SplashScreen isVisible={showSplash} />
       <Router>
         <ScrollToTop />
         <MainAppRoutes />
