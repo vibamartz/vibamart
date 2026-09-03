@@ -252,24 +252,6 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
         map?.panTo(pos);
       }
 
-      // Sync Current Location
-      const detectedObj: Address = {
-        id: `pincode-${cleanPin}`,
-        fullName: formName || user?.displayName || 'Customer',
-        phone: formPhone || user?.phone || '',
-        house: formHouse || '',
-        street: info.area || info.city,
-        city: info.city,
-        state: info.state,
-        country: info.country || 'India',
-        zip: info.pincode,
-        label: formLabel || 'Home',
-        lat: info.lat,
-        lng: info.lng
-      };
-      await selectAddress(detectedObj);
-      onLocationSelect?.(info.pincode, `${info.area ? info.area + ', ' : ''}${info.city}`, detectedObj);
-
       toast.success(`Location found: ${info.area || info.city}, ${info.state}`);
     } catch (err: any) {
       if (err.message?.includes('fetch') || err.message?.includes('network')) {
