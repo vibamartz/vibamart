@@ -6,9 +6,10 @@ import {
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
-import { Product, Review } from '../../shared/types';
+import { Product, Review, Address } from '../../shared/types';
 import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -18,7 +19,7 @@ export default function MobileProductDetailScreen() {
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
   const { addItem, items: cartItems } = useCartStore();
-  const { selectedAddress } = useLocationStore();
+  const { selectedAddress, selectAddress } = useLocationStore();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);

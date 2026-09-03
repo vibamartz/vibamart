@@ -19,6 +19,64 @@ interface LocationPickerModalProps {
   onLocationSelect?: (pincode: string, address: string, fullAddrObj?: Address) => void;
 }
 
+function MapDragController({
+  center,
+  onCenterChange,
+  onDragEnd
+}: {
+  center: google.maps.LatLngLiteral;
+  onCenterChange: (pos: google.maps.LatLngLiteral) => void;
+  onDragEnd: (pos: google.maps.LatLngLiteral) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+
+    map.setOptions({
+      gestureHandling: 'greedy', // Single finger dragging only on mobile & desktop
+      disableDefaultUI: true,
+      zoomControl: false,
+      mapTypeControl: false,
+      scaleControl: false,
+      streetViewControl: false,
+      rotateControl: false,
+      fullscreenControl: false,
+      clickableIcons: false
+    });
+
+    const centerListener = map.addListener('center_changed', () => {
+      const c = map.getCenter();
+      if (c) {
+        onCenterChange({ lat: c.lat(), lng: c.lng() });
+      }
+    });
+
+    const dragEndListener = map.addListener('dragend', () => {
+      const c = map.getCenter();
+      if (c) {
+        onDragEnd({ lat: c.lat(), lng: c.lng() });
+      }
+    });
+
+    return () => {
+      google.maps.event.removeListener(centerListener);
+      google.maps.event.removeListener(dragEndListener);
+    };
+  }, [map, onCenterChange, onDragEnd]);
+
+  useEffect(() => {
+    if (map && center) {
+      const currentC = map.getCenter();
+      if (!currentC || Math.abs(currentC.lat() - center.lat) > 0.0001 || Math.abs(currentC.lng() - center.lng) > 0.0001) {
+        map.panTo(center);
+      }
+    }
+  }, [map, center.lat, center.lng]);
+
+  return null;
+}
+
 function LocationPickerContent({ onClose, onLocationSelect }: { 
   onClose: () => void; 
   onLocationSelect?: (pincode: string, address: string, fullAddrObj?: Address) => void 
@@ -36,7 +94,12 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showMap, setShowMap] = useState(false);
-  const [markerPosition, setMarkerPosition] = useState<google.maps.LatLngLiteral | null>(null);
+  const [markerPosition, setMarkerPosition] = useState<google.maps.LatLngLiteral>(() => {
+    if (activeStoreAddress?.lat && activeStoreAddress?.lng) {
+      return { lat: activeStoreAddress.lat, lng: activeStoreAddress.lng };
+    }
+    return { lat: 20.5937, lng: 78.9629 };
+  });
   const [geocodedData, setGeocodedData] = useState<GeocodedAddress | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [gpsDetectedAddress, setGpsDetectedAddress] = useState<Address | null>(null);
@@ -81,21 +144,16 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
           lng: result.lng
         };
         setGpsDetectedAddress(detectedObj);
+        // Automatically sync Current Location in store
+        await selectAddress(detectedObj);
+        onLocationSelect?.(result.zip, result.street || result.fullAddress, detectedObj);
       }
     } catch (err) {
       console.error('Geocoding error:', err);
     } finally {
       setIsGeocoding(false);
     }
-  }, [geocodingLib, user]);
-
-  const handleDragEnd = useCallback(async (e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-      const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      setMarkerPosition(pos);
-      await doReverseGeocode(pos);
-    }
-  }, [doReverseGeocode]);
+  }, [geocodingLib, user, selectAddress, onLocationSelect]);
 
   const useCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -112,7 +170,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
         };
         setMarkerPosition(pos);
         map?.panTo(pos);
-        map?.setZoom(17);
+        map?.setZoom(16);
         await doReverseGeocode(pos);
         toast.success('Location detected successfully!');
       },
@@ -173,7 +231,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
   };
 
   const handleZipcodeAutoLookup = async (pin: string, country: string) => {
-    const cleanPin = pin.trim().replace(/\D/g, '');
+    const cleanPin = pin.trim().replace(/\D/g, '').slice(0, 6);
     if (cleanPin.length !== 6) return;
 
     setIsFormPincodeLoading(true);
@@ -186,6 +244,32 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       if (info.area) {
         setFormStreet(prev => prev || info.area || '');
       }
+
+      // Update map position if coordinates available
+      if (info.lat && info.lng) {
+        const pos = { lat: info.lat, lng: info.lng };
+        setMarkerPosition(pos);
+        map?.panTo(pos);
+      }
+
+      // Sync Current Location
+      const detectedObj: Address = {
+        id: `pincode-${cleanPin}`,
+        fullName: formName || user?.displayName || 'Customer',
+        phone: formPhone || user?.phone || '',
+        house: formHouse || '',
+        street: info.area || info.city,
+        city: info.city,
+        state: info.state,
+        country: info.country || 'India',
+        zip: info.pincode,
+        label: formLabel || 'Home',
+        lat: info.lat,
+        lng: info.lng
+      };
+      await selectAddress(detectedObj);
+      onLocationSelect?.(info.pincode, `${info.area ? info.area + ', ' : ''}${info.city}`, detectedObj);
+
       toast.success(`Location found: ${info.area || info.city}, ${info.state}`);
     } catch (err: any) {
       if (err.message?.includes('fetch') || err.message?.includes('network')) {
@@ -195,6 +279,14 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       }
     } finally {
       setIsFormPincodeLoading(false);
+    }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    const cleanPin = value.trim().replace(/\D/g, '').slice(0, 6);
+    if (cleanPin.length === 6) {
+      handleZipcodeAutoLookup(cleanPin, 'India');
     }
   };
 
@@ -286,14 +378,14 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
               {showAddressForm
                 ? (editingAddress ? 'Edit Address' : 'Add New Address')
                 : showMap
-                ? 'Confirm Location on Map'
+                ? 'Select Location on Map'
                 : 'Select Delivery Address'}
             </h2>
             <p className="text-[11px] text-gray-500 font-semibold">
               {showAddressForm
                 ? 'Enter customer details and shipping location'
                 : showMap
-                ? 'Drag pin to your exact delivery location'
+                ? 'Drag map to select exact delivery point'
                 : 'Choose or add your preferred delivery destination'}
             </p>
           </div>
@@ -323,8 +415,8 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
               <input 
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, area, street or pincode"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search by area, street, city or 6-digit pincode"
                 className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-9 py-3 text-xs sm:text-sm font-bold text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all shadow-xs"
               />
               {searchQuery && (
@@ -373,8 +465,8 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                   <MapIcon className="w-4 h-4 text-emerald-700" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-black text-gray-900 block truncate">🗺️ Interactive Map</span>
-                  <span className="text-[10px] font-medium text-gray-500 block truncate">Pinpoint on map</span>
+                  <span className="text-xs font-black text-gray-900 block truncate">🗺️ Map Location</span>
+                  <span className="text-[10px] font-medium text-gray-500 block truncate">Select on map</span>
                 </div>
               </button>
 
@@ -552,25 +644,31 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
         {showMap && !showAddressForm && (
           <div className="flex flex-col h-full relative">
             <div className="relative w-full h-[360px] sm:h-[400px] bg-gray-100 overflow-hidden border-b border-gray-200">
-              {/* Guaranteed Visual Map Image Renderer */}
-              <iframe
-                title="Delivery Location Map"
-                width="100%"
-                height="100%"
-                className="w-full h-full border-0"
-                loading="lazy"
-                allowFullScreen
-                src={`https://maps.google.com/maps?q=${markerPosition?.lat || 20.5937},${markerPosition?.lng || 78.9629}&z=15&output=embed`}
-              />
+              <Map
+                defaultCenter={markerPosition}
+                defaultZoom={16}
+                gestureHandling={'greedy'}
+                disableDefaultUI={true}
+                className="w-full h-full"
+              >
+                <MapDragController
+                  center={markerPosition}
+                  onCenterChange={(pos) => setMarkerPosition(pos)}
+                  onDragEnd={async (pos) => {
+                    setMarkerPosition(pos);
+                    await doReverseGeocode(pos);
+                  }}
+                />
+              </Map>
 
-              {/* Map Center Pin Indicator */}
+              {/* Fixed Map Center Pin Overlay */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                 <div className="relative -mt-8 flex flex-col items-center">
                   <div className="px-2.5 py-1 bg-gray-900/90 backdrop-blur-xs text-white text-[10px] font-black rounded-lg shadow-lg mb-1 whitespace-nowrap border border-white/20 flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-emerald-400 fill-emerald-400" />
-                    Delivery Pin
+                    Selected Location
                   </div>
-                  <MapPin className="w-10 h-10 text-emerald-600 fill-emerald-500 drop-shadow-xl animate-bounce" />
+                  <MapPin className="w-10 h-10 text-emerald-600 fill-emerald-500 drop-shadow-xl" />
                   <div className="w-4 h-1.5 bg-black/30 rounded-full blur-[2px] mt-0.5" />
                 </div>
               </div>
@@ -588,14 +686,23 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
 
             <div className="p-4 bg-white border-t border-gray-100 space-y-3">
               <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Selected Address</span>
-                <p className="text-xs font-bold text-gray-900 leading-snug mt-0.5 truncate">
-                  {isGeocoding ? 'Detecting location...' : (geocodedData?.fullAddress || 'Location selected on map')}
-                </p>
-                {geocodedData && (
-                  <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">
-                    {geocodedData.city}, {geocodedData.state} - <span className="font-extrabold">{geocodedData.zip}</span>
-                  </p>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Selected Location</span>
+                {isGeocoding ? (
+                  <div className="flex items-center gap-2 text-emerald-600 py-1">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs font-bold">Detecting location...</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-gray-900 leading-snug mt-0.5 truncate">
+                      {geocodedData?.fullAddress || 'Selected Location on Map'}
+                    </p>
+                    {geocodedData && (
+                      <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+                        {geocodedData.street ? `${geocodedData.street}, ` : ''}{geocodedData.city}, {geocodedData.state}, {geocodedData.country} - <span className="font-extrabold">{geocodedData.zip}</span>
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

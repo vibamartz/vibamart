@@ -49,6 +49,24 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
       const info = await lookupZipcode(pin, 'in');
       setLocationName(`${info.area ? info.area + ', ' : ''}${info.city}, ${info.state}`);
       setErrorMessage('');
+
+      // Update Current Location automatically
+      const detectedObj: Address = {
+        id: `pincode-${info.pincode}`,
+        fullName: 'Customer',
+        phone: '',
+        house: '',
+        street: info.area || info.city,
+        city: info.city,
+        state: info.state,
+        country: info.country || 'India',
+        zip: info.pincode,
+        label: 'Home',
+        lat: info.lat,
+        lng: info.lng
+      };
+      await selectAddress(detectedObj);
+
       return info;
     } catch (error: any) {
       console.error('Error fetching location:', error);

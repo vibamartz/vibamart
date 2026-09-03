@@ -4,6 +4,8 @@ export interface ZipcodeInfo {
   state: string;
   country: string;
   pincode: string;
+  lat?: number;
+  lng?: number;
   postOffices?: Array<{ name: string; district: string; state: string }>;
 }
 
@@ -43,12 +45,31 @@ export async function lookupZipcode(zip: string, countryCode: string = 'in'): Pr
         const area = mainPostOffice.Name || mainPostOffice.Block || city;
         const state = mainPostOffice.State || '';
 
+        let lat: number | undefined;
+        let lng: number | undefined;
+
+        // Try to fetch lat/lng coordinates for pincode
+        try {
+          const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${cleanZip}&country=India&format=jsonv2`);
+          if (nomRes.ok) {
+            const nomData = await nomRes.json();
+            if (nomData && nomData.length > 0) {
+              lat = parseFloat(nomData[0].lat);
+              lng = parseFloat(nomData[0].lon);
+            }
+          }
+        } catch {
+          // Ignore coordinates fetch error gracefully
+        }
+
         return {
           area,
           city,
           state,
           country: 'India',
           pincode: cleanZip,
+          lat,
+          lng,
           postOffices: postOffices.map((po: any) => ({
             name: po.Name,
             district: po.District,
