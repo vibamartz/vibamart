@@ -94,6 +94,7 @@ export default function Checkout() {
       const info = await lookupZipcode(cleanZip, countryVal);
       setEditAddressForm(prev => ({
         ...prev,
+        street: info.area || info.city,
         city: info.city,
         state: info.state,
         country: info.country

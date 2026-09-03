@@ -1516,6 +1516,7 @@ function AddressModal({
       const info = await lookupZipcode(cleanZip, countryVal);
       setAddress({
         ...address,
+        street: info.area || info.city,
         city: info.city,
         state: info.state,
         country: info.country

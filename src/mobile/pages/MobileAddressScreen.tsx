@@ -3,6 +3,7 @@ import { MapPin, Plus, Trash2, Edit2, Star, Check, Home as HomeIcon, Building, B
 import { Address } from '../../shared/types';
 import { useAuthStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -264,7 +265,21 @@ export default function MobileAddressScreen() {
                   maxLength={6} 
                   placeholder="PIN Code *" 
                   value={zip} 
-                  onChange={(e) => setZip(e.target.value.replace(/\D/g, ''))} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setZip(val);
+                    if (val.length === 6) {
+                      lookupZipcode(val, country).then((info) => {
+                        if (info.area || info.city) setStreet(info.area || info.city);
+                        if (info.city) setCity(info.city);
+                        if (info.state) setState(info.state);
+                        if (info.country) setCountry(info.country);
+                        toast.success(`Location detected: ${info.area || info.city}, ${info.state}`);
+                      }).catch((err) => {
+                        toast.error(err.message || 'Invalid pincode');
+                      });
+                    }
+                  }} 
                   className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-semibold focus:border-emerald-600 outline-none" 
                 />
               </div>

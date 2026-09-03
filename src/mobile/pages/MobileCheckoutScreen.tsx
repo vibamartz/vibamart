@@ -9,6 +9,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Address, Order } from '../../shared/types';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPayment } from '../../shared/utils/razorpay';
@@ -445,7 +446,20 @@ export default function MobileCheckoutScreen() {
                   placeholder="PIN Code"
                   maxLength={6}
                   value={newZip}
-                  onChange={(e) => setNewZip(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setNewZip(val);
+                    if (val.length === 6) {
+                      lookupZipcode(val, 'India').then((info) => {
+                        if (info.area || info.city) setNewStreet(info.area || info.city);
+                        if (info.city) setNewCity(info.city);
+                        if (info.state) setNewState(info.state);
+                        toast.success(`Location detected: ${info.area || info.city}, ${info.state}`);
+                      }).catch((err) => {
+                        toast.error(err.message || 'Invalid pincode');
+                      });
+                    }
+                  }}
                   className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 />
               </div>

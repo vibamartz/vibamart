@@ -241,8 +241,8 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       setFormCity(info.city);
       setFormState(info.state);
       setFormCountry(info.country || country);
-      if (info.area) {
-        setFormStreet(prev => prev || info.area || '');
+      if (info.area || info.city) {
+        setFormStreet(info.area || info.city);
       }
 
       // Update map position if coordinates available
