@@ -87,13 +87,14 @@ export default function Checkout() {
   const [zipLoading, setZipLoading] = useState(false);
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
-    const cleanZip = zipCode.trim().replace(/\D/g, '');
+    const cleanZip = zipCode.trim().replace(/\D/g, '').slice(0, 6);
     if (!cleanZip || cleanZip.length !== 6) return;
     setZipLoading(true);
     try {
       const info = await lookupZipcode(cleanZip, countryVal);
       setEditAddressForm(prev => ({
         ...prev,
+        zip: cleanZip,
         street: info.area || info.city,
         city: info.city,
         state: info.state,
@@ -720,7 +721,7 @@ export default function Checkout() {
                           value={editAddressForm.zip}
                           onChange={(e) => {
                             const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                            setEditAddressForm({ ...editAddressForm, zip: val });
+                            setEditAddressForm(prev => ({ ...prev, zip: val }));
                             if (val.length === 6) {
                               handleZipcodeLookup(val, editAddressForm.country || 'India');
                             }

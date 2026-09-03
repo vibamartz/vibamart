@@ -270,6 +270,7 @@ export default function MobileAddressScreen() {
                     setZip(val);
                     if (val.length === 6) {
                       lookupZipcode(val, country).then((info) => {
+                        setZip(val);
                         if (info.area || info.city) setStreet(info.area || info.city);
                         if (info.city) setCity(info.city);
                         if (info.state) setState(info.state);

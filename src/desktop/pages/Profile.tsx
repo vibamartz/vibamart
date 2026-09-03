@@ -1500,7 +1500,7 @@ function AddressModal({
   show: boolean; 
   onClose: () => void; 
   address: Address; 
-  setAddress: (a: Address) => void;
+  setAddress: React.Dispatch<React.SetStateAction<Address>>;
   onSave: () => void;
   isEditing: boolean;
 }) {
@@ -1509,18 +1509,19 @@ function AddressModal({
   if (!show) return null;
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
-    const cleanZip = (zipCode || '').trim().replace(/\D/g, '');
+    const cleanZip = (zipCode || '').trim().replace(/\D/g, '').slice(0, 6);
     if (!cleanZip || cleanZip.length !== 6) return;
     setZipLoading(true);
     try {
       const info = await lookupZipcode(cleanZip, countryVal);
-      setAddress({
-        ...address,
+      setAddress(prev => ({
+        ...prev,
+        zip: cleanZip,
         street: info.area || info.city,
         city: info.city,
         state: info.state,
         country: info.country
-      });
+      }));
       toast.success(`Pincode detected: ${info.city}, ${info.state}, ${info.country}`);
     } catch (err: any) {
       toast.error(err.message || 'Invalid pincode');
@@ -1624,7 +1625,7 @@ function AddressModal({
                     maxLength={6}
                     onChange={e => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      setAddress({ ...address, zip: val });
+                      setAddress(prev => ({ ...prev, zip: val }));
                       if (val.length === 6) {
                         handleZipcodeLookup(val, address.country || 'India');
                       }

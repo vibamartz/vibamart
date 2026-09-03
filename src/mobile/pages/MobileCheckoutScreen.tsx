@@ -451,6 +451,7 @@ export default function MobileCheckoutScreen() {
                     setNewZip(val);
                     if (val.length === 6) {
                       lookupZipcode(val, 'India').then((info) => {
+                        setNewZip(val);
                         if (info.area || info.city) setNewStreet(info.area || info.city);
                         if (info.city) setNewCity(info.city);
                         if (info.state) setNewState(info.state);

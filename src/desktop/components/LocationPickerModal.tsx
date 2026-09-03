@@ -238,6 +238,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
     setPincodeError('');
     try {
       const info = await lookupZipcode(cleanPin, country);
+      setFormZip(cleanPin);
       setFormCity(info.city);
       setFormState(info.state);
       setFormCountry(info.country || country);
