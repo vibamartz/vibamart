@@ -382,7 +382,7 @@ export default function MobileHomepage() {
           <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
             <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
             <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-              📍 {displayAddress}
+              {displayAddress}
             </span>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />

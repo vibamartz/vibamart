@@ -111,7 +111,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
             >
               <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0 fill-yellow-100" />
               <span className="text-[10px] font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-                📍 {formatHeaderAddress(selectedAddress)}
+                {formatHeaderAddress(selectedAddress)}
               </span>
               <ChevronDown className="w-3 h-3 text-yellow-500 shrink-0 ml-0.5" />
             </motion.button>

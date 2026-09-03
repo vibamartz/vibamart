@@ -484,7 +484,7 @@ export default function Navbar() {
             <div className="flex flex-col min-w-0 leading-tight">
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
               <span className="text-xs font-bold text-gray-800 truncate">
-                📍 {formatHeaderAddress(selectedAddress)}
+                {formatHeaderAddress(selectedAddress)}
               </span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />

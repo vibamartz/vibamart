@@ -429,7 +429,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                   <Navigation className="w-4 h-4 fill-emerald-700" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-black text-gray-900 block truncate">📍 Current GPS</span>
+                  <span className="text-xs font-black text-gray-900 block truncate">Current GPS</span>
                   <span className="text-[10px] font-medium text-gray-500 block truncate">Detect via GPS</span>
                 </div>
               </button>
