@@ -69,6 +69,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   };
   console.error("Firestore Error: ", JSON.stringify(errInfo));
   if (shouldThrow) {
-    throw new Error(JSON.stringify(errInfo));
+    throw new Error("We couldn't complete this request right now. Please try again.");
   }
 }

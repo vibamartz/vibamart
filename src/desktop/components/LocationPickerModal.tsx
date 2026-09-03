@@ -12,6 +12,7 @@ import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { useAuthStore } from '../../backend/store';
 import { reverseGeocodeCoords, GeocodedAddress } from '../../shared/utilities/reverseGeocode';
 import { lookupZipcode } from '../../backend/services/zipcode';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 interface LocationPickerModalProps {
   isOpen: boolean;
@@ -119,6 +120,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [isFormPincodeLoading, setIsFormPincodeLoading] = useState(false);
   const [pincodeError, setPincodeError] = useState('');
+  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
   const map = useMap();
   const geocodingLib = useMapsLibrary('geocoding');
@@ -177,9 +179,9 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
       (error) => {
         setIsGeocoding(false);
         if (error.code === 1) {
-          toast.error('Location permission denied. Please allow location access in your browser settings.');
+          setShowLocationPermissionModal(true);
         } else if (error.code === 2) {
-          toast.error('GPS position unavailable. Please try searching or entering address manually.');
+          toast.error('GPS position unavailable. Please search or enter address manually.');
         } else {
           toast.error('Location detection timed out. Please try again.');
         }
@@ -882,6 +884,13 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
           </div>
         )}
 
+        {/* Location Permission Modal */}
+        <PermissionPromptModal
+          isOpen={showLocationPermissionModal}
+          type="location"
+          onClose={() => setShowLocationPermissionModal(false)}
+          onAllowAccess={useCurrentLocation}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { reverseGeocodeCoords } from '../../shared/utilities/reverseGeocode';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import GoogleMapsLoader from './GoogleMapsLoader';
 import LocationPickerModal from './LocationPickerModal';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 interface PincodeCheckerProps {
   serviceablePincodes?: string[];
@@ -20,6 +21,7 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
 
   const [pincode, setPincode] = useState(selectedAddress?.zip || '');
   const [isEditing, setIsEditing] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [locationName, setLocationName] = useState(
     selectedAddress?.city 
       ? `${selectedAddress.street ? selectedAddress.street + ', ' : ''}${selectedAddress.city}, ${selectedAddress.state || ''}` 
@@ -139,11 +141,14 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
         }
       },
       (error) => {
-        const errorMsg = error.code === 1 ? 'Location access denied' : 
-                        error.code === 2 ? 'Location unavailable' : 
-                        'Location request timed out';
-        toast.error(errorMsg);
         setStatus('idle');
+        if (error.code === 1) {
+          setShowPermissionModal(true);
+        } else if (error.code === 2) {
+          toast.error('Location unavailable. Please search or enter address manually.');
+        } else {
+          toast.error('Location request timed out. Please try again.');
+        }
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
@@ -266,6 +271,13 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
           </div>
         </div>
       )}
+
+      <PermissionPromptModal
+        isOpen={showPermissionModal}
+        type="location"
+        onClose={() => setShowPermissionModal(false)}
+        onAllowAccess={useMyLocation}
+      />
     </div>
   );
 }

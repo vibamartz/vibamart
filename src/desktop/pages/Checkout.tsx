@@ -10,6 +10,7 @@ import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, setDoc
 import { Order, OrderItem, Address } from '../../shared/types';
 import axios from 'axios';
 import { lookupZipcode } from '../../backend/services/zipcode';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 import { processPayment } from '../../shared/utils/razorpay';
 
@@ -85,6 +86,7 @@ export default function Checkout() {
     label: "Home"
   });
   const [zipLoading, setZipLoading] = useState(false);
+  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
     const cleanZip = zipCode.trim().replace(/\D/g, '').slice(0, 6);
@@ -274,19 +276,14 @@ export default function Checkout() {
         }
       },
       (error) => {
-        let message = 'Location access denied.';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            message = 'Location permission denied. Please allow location access in your browser settings.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            message = 'Location unavailable. Please check your device settings.';
-            break;
-          case error.TIMEOUT:
-            message = 'Location request timed out. Please try again.';
-            break;
+        toast.dismiss(toastId);
+        if (error.code === error.PERMISSION_DENIED) {
+          setShowLocationPermissionModal(true);
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          toast.error('Location unavailable. Please check your device settings or enter address manually.');
+        } else {
+          toast.error('Location request timed out. Please try again.');
         }
-        toast.error(message, { id: toastId });
       },
       {
         enableHighAccuracy: true,
@@ -890,6 +887,13 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+
+      <PermissionPromptModal
+        isOpen={showLocationPermissionModal}
+        type="location"
+        onClose={() => setShowLocationPermissionModal(false)}
+        onAllowAccess={handleUseCurrentLocation}
+      />
     </div>
   );
 }

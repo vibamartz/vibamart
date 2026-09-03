@@ -58,7 +58,9 @@ function ScrollToTop() {
   return null;
 }
 
-// Simple Error Boundary
+import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
+
+// Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
   children: React.ReactNode;
 }
@@ -72,16 +74,27 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Unhandled Application Error:', error, errorInfo);
+  }
+
+  handleRetry = () => {
+    (this as any).setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-red-50 text-red-900 font-sans">
-          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
-          <pre className="bg-white p-4 rounded border border-red-200 overflow-auto max-w-full text-xs">
-            {this.state.error?.toString()}
-            {'\n'}
-            {this.state.error?.stack}
-          </pre>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <ProfessionalErrorState
+            type="error"
+            title="Something went wrong"
+            description="We couldn't complete this request right now. Please try again."
+            onAction={this.handleRetry}
+            actionText="Try Again"
+          />
         </div>
       );
     }

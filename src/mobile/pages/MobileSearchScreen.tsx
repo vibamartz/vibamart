@@ -10,6 +10,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 export default function MobileSearchScreen() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function MobileSearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
+  const [showMicPermissionModal, setShowMicPermissionModal] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveSuggestions, setLiveSuggestions] = useState<Product[]>([]);
 
@@ -101,9 +103,19 @@ export default function MobileSearchScreen() {
       setIsListening(false);
       handleSearchSubmit(undefined, transcript);
     };
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+        setShowMicPermissionModal(true);
+      }
+    };
     recognition.onend = () => setIsListening(false);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+      setShowMicPermissionModal(true);
+    }
   };
 
   return (
@@ -276,6 +288,14 @@ export default function MobileSearchScreen() {
           setSearchQuery(queryStr);
           handleSearchSubmit(undefined, queryStr);
         }}
+      />
+
+      {/* Microphone Permission Modal */}
+      <PermissionPromptModal
+        isOpen={showMicPermissionModal}
+        type="microphone"
+        onClose={() => setShowMicPermissionModal(false)}
+        onAllowAccess={startVoiceSearch}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import Tesseract from 'tesseract.js';
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as tf from '@tensorflow/tfjs';
 import toast from 'react-hot-toast';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 interface Props {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface Props {
 export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) {
   const [activeTab, setActiveTab] = useState<'barcode' | 'ai'>('ai');
   const [isScanning, setIsScanning] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [processingState, setProcessingState] = useState<string>('');
   const [scannedResult, setScannedResult] = useState<string>('');
   
@@ -71,8 +73,9 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
         }
       );
     } catch (err) {
-      toast.error("Failed to start camera. Please check permissions.");
+      console.error("Camera access error:", err);
       setIsScanning(false);
+      setShowPermissionModal(true);
     }
   };
 
@@ -283,6 +286,13 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
             )}
           </div>
         </motion.div>
+
+        <PermissionPromptModal
+          isOpen={showPermissionModal}
+          type="camera"
+          onClose={() => setShowPermissionModal(false)}
+          onAllowAccess={startBarcodeScanner}
+        />
       </div>
     </AnimatePresence>
   );

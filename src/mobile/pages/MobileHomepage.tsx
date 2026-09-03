@@ -17,6 +17,7 @@ import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
+import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -44,6 +45,7 @@ export default function MobileHomepage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [showMicPermissionModal, setShowMicPermissionModal] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -232,9 +234,19 @@ export default function MobileHomepage() {
       setIsListening(false);
       setIsSearchFocused(false);
     };
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      setIsListening(false);
+      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+        setShowMicPermissionModal(true);
+      }
+    };
     recognition.onend = () => setIsListening(false);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+      setShowMicPermissionModal(true);
+    }
   };
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
@@ -759,6 +771,13 @@ export default function MobileHomepage() {
           setSearchQuery(queryStr);
           navigate(`/products?q=${queryStr}`);
         }}
+      />
+
+      <PermissionPromptModal
+        isOpen={showMicPermissionModal}
+        type="microphone"
+        onClose={() => setShowMicPermissionModal(false)}
+        onAllowAccess={startVoiceSearch}
       />
     </div>
   );
