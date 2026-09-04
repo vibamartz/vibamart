@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, RewardOrder } from '../../shared/types';
+import { getRewardSlug } from '../../shared/utilities/slug';
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { processPayment } from '../../shared/utils/razorpay';
 import toast from 'react-hot-toast';
@@ -360,7 +361,7 @@ export default function MobileRewardsScreen() {
               <motion.div
                 key={coupon.id}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/rewards/${coupon.id}`)}
+                onClick={() => navigate(`/rewards/${getRewardSlug(coupon)}`)}
                 className="bg-white rounded-3xl p-4 border border-amber-100 shadow-md space-y-3 relative overflow-hidden cursor-pointer"
               >
                 {/* Brand Header */}

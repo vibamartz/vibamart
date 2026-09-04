@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
-import { Banner } from '../../shared/types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud, Layers } from 'lucide-react';
+import { Banner, Product } from '../../shared/types';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud, Layers, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useCategoryStore, useRewardsStore } from '../../backend/store';
+import { getCategorySlug, getProductSlug, getRewardSlug, createSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -11,6 +13,17 @@ export default function BannersManagementView() {
   const [loading, setLoading] = useState(true);
   const [activePlatformTab, setActivePlatformTab] = useState<'all' | 'desktop' | 'mobile'>('all');
   
+  // Data for destination picker and validation
+  const { categories } = useCategoryStore();
+  const { offers: rewardOffers } = useRewardsStore();
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    getDocs(collection(db, 'products')).then(snap => {
+      setDbProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    }).catch(err => console.error("Error loading products for banner validation:", err));
+  }, []);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
@@ -183,10 +196,64 @@ export default function BannersManagementView() {
     }
   };
 
+  // Validate link destination against real existing pages/products/categories/rewards
+  const isDestinationValid = useMemo(() => {
+    const rawLink = (formData.link || '').trim();
+    if (!rawLink) return true; // Optional link
+
+    // Standard static routes
+    const staticRoutes = ['/', '/products', '/categories', '/offers', '/rewards', '/cart', '/wishlist', '/faq'];
+    if (staticRoutes.includes(rawLink)) return true;
+
+    // Check category routes
+    if (rawLink.startsWith('/categories/') || rawLink.startsWith('/category/')) {
+      const parts = rawLink.replace(/^\/(categories|category)\//, '').split('/');
+      const catSlug = parts[0];
+      const subSlug = parts[1];
+      const catMatch = categories.find(c => c.id === catSlug || c.slug === catSlug || c.seoSlug === catSlug || createSlug(c.name) === catSlug);
+      if (!catMatch) return false;
+      if (subSlug) {
+        const subMatch = catMatch.subcategories?.find(s => s.id === subSlug || s.slug === subSlug || createSlug(s.name) === subSlug);
+        return Boolean(subMatch);
+      }
+      return true;
+    }
+
+    // Check product routes
+    if (rawLink.startsWith('/products/') || rawLink.startsWith('/product/')) {
+      const prodSlug = rawLink.replace(/^\/(products|product)\//, '');
+      return dbProducts.some(p => p.id === prodSlug || p.slug === prodSlug || getProductSlug(p) === prodSlug);
+    }
+
+    // Check reward routes
+    if (rawLink.startsWith('/rewards/')) {
+      const rwdSlug = rawLink.replace(/^\/rewards\//, '');
+      return rewardOffers.some(r => r.id === rwdSlug || r.slug === rwdSlug || getRewardSlug(r) === rwdSlug);
+    }
+
+    // Check brand routes
+    if (rawLink.startsWith('/brands/')) {
+      const brandSlug = rawLink.replace(/^\/brands\//, '');
+      return dbProducts.some(p => p.brand && createSlug(p.brand) === brandSlug);
+    }
+
+    // Check offer routes
+    if (rawLink.startsWith('/offers/') || rawLink.startsWith('/offer/')) {
+      return true;
+    }
+
+    return false;
+  }, [formData.link, categories, dbProducts, rewardOffers]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.image || !formData.image.trim()) {
       toast.error('Banner Image is required.');
+      return;
+    }
+
+    if (!isDestinationValid) {
+      toast.error(`Invalid Destination: The target URL "${formData.link}" does not exist. Please select or create a valid destination first.`);
       return;
     }
 
@@ -495,18 +562,75 @@ export default function BannersManagementView() {
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-sm font-bold text-gray-700">Destination URL</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-bold text-gray-700">Destination URL & Route Picker</label>
+                        {formData.link ? (
+                          isDestinationValid ? (
+                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified Route
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-rose-600" /> Route Does Not Exist
+                            </span>
+                          )
+                        ) : null}
+                      </div>
+
+                      {/* Quick Destination Picker */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Quick Select Category</label>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) setFormData({ ...formData, link: `/categories/${e.target.value}` });
+                            }}
+                            defaultValue=""
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium text-gray-800"
+                          >
+                            <option value="">Select Existing Category...</option>
+                            {categories.map(cat => (
+                              <option key={cat.id} value={getCategorySlug(cat)}>Category: {cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Quick Select Product</label>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) setFormData({ ...formData, link: `/products/${e.target.value}` });
+                            }}
+                            defaultValue=""
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium text-gray-800"
+                          >
+                            <option value="">Select Existing Product...</option>
+                            {dbProducts.map(prod => (
+                              <option key={prod.id} value={getProductSlug(prod)}>Product: {prod.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
                       <div className="relative">
                         <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
                           value={formData.link}
                           onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-mono text-sm"
-                          placeholder="/products?category=electronics"
+                          className={`w-full bg-gray-50 border rounded-xl pl-10 pr-4 py-3 focus:bg-white focus:ring-2 transition-all outline-none font-mono text-sm ${
+                            formData.link && !isDestinationValid 
+                              ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500 text-rose-900' 
+                              : 'border-gray-200 focus:ring-indigo-500/20 focus:border-indigo-500 text-gray-900'
+                          }`}
+                          placeholder="/categories/mobiles"
                         />
                       </div>
-                      <p className="text-[11px] text-gray-400">The entire banner will be clickable and link to this URL.</p>
+                      <p className="text-[11px] text-gray-400">
+                        {formData.link && !isDestinationValid 
+                          ? '⚠️ Destination page does not exist. Select an existing category, product, or valid route above.'
+                          : 'Valid clean canonical slug URL. Numerical temporary routes are strictly disallowed.'}
+                      </p>
                     </div>
 
                     {/* Scheduling */}

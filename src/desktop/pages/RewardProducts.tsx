@@ -10,6 +10,7 @@ import { BrandCoupon, Product } from '../../shared/types';
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getValidBrandUrl } from '../../shared/utils/url';
+import { getRewardSlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 
 function ExpiryCountdown({ expiryDate }: { expiryDate: string }) {
@@ -32,24 +33,25 @@ function ExpiryCountdown({ expiryDate }: { expiryDate: string }) {
     };
 
     calculate();
-    const timer = setInterval(calculate, 1000);
-    return () => clearInterval(timer);
+    const interval = setInterval(calculate, 1000);
+    return () => clearInterval(interval);
   }, [expiryDate]);
 
   if (timeLeft.isExpired) {
-    return <span className="text-xs font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-md">Expired</span>;
+    return <span className="text-rose-600 font-bold text-xs uppercase tracking-wider">Expired</span>;
   }
 
   return (
-    <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60">
-      <Clock className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-      <span>{String(timeLeft.days).padStart(2, '0')}d {String(timeLeft.hours).padStart(2, '0')}h {String(timeLeft.minutes).padStart(2, '0')}m {String(timeLeft.seconds).padStart(2, '0')}s</span>
+    <div className="flex items-center gap-1 text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+      <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+      <span>{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</span>
     </div>
   );
 }
 
 export default function RewardProducts() {
-  const { rewardId } = useParams<{ rewardId: string }>();
+  const params = useParams<{ rewardId?: string; rewardSlug?: string }>();
+  const targetRewardSlugOrId = params.rewardId || params.rewardSlug;
   const navigate = useNavigate();
   const { offers, initRewards } = useRewardsStore();
   const { addItem, items: cartItems } = useCartStore();
@@ -64,19 +66,47 @@ export default function RewardProducts() {
   }, [user]);
 
   useEffect(() => {
-    if (!rewardId) return;
-    const matched = offers.find(o => o.id === rewardId);
-    if (matched) {
-      setRewardCard(matched);
-    } else {
-      const docRef = doc(db, 'reward_offers', rewardId);
-      getDoc(docRef).then(snap => {
-        if (snap.exists()) {
-          setRewardCard({ id: snap.id, ...snap.data() } as BrandCoupon);
+    if (!targetRewardSlugOrId) return;
+
+    const findReward = async () => {
+      let matched = offers.find(o => o.id === targetRewardSlugOrId || o.slug === targetRewardSlugOrId || getRewardSlug(o) === targetRewardSlugOrId);
+
+      if (!matched) {
+        try {
+          const docRef = doc(db, 'reward_offers', targetRewardSlugOrId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            matched = { id: snap.id, ...snap.data() } as BrandCoupon;
+          }
+        } catch (_) {}
+      }
+
+      if (!matched) {
+        // Search Firestore reward_offers collection by slug
+        try {
+          const qSnap = await getDocs(collection(db, 'reward_offers'));
+          const foundDoc = qSnap.docs.find(d => {
+            const data = { id: d.id, ...d.data() } as BrandCoupon;
+            return getRewardSlug(data) === targetRewardSlugOrId || data.slug === targetRewardSlugOrId || createSlug(data.title) === targetRewardSlugOrId;
+          });
+          if (foundDoc) {
+            matched = { id: foundDoc.id, ...foundDoc.data() } as BrandCoupon;
+          }
+        } catch (_) {}
+      }
+
+      if (matched) {
+        setRewardCard(matched);
+        const canonicalSlug = getRewardSlug(matched);
+        if (targetRewardSlugOrId !== canonicalSlug && (targetRewardSlugOrId === matched.id || /^\d+$/.test(targetRewardSlugOrId))) {
+          navigate(`/rewards/${canonicalSlug}`, { replace: true });
         }
-      });
-    }
-  }, [rewardId, offers]);
+      }
+      setLoading(false);
+    };
+
+    findReward();
+  }, [targetRewardSlugOrId, offers, navigate]);
 
   useEffect(() => {
     if (!rewardCard) return;
@@ -317,7 +347,7 @@ export default function RewardProducts() {
               >
                 <div>
                   {/* Product Image */}
-                  <Link to={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-gray-50">
+                  <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square overflow-hidden bg-gray-50">
                     <img
                       src={product.images?.[0] || 'https://via.placeholder.com/400?text=No+Image'}
                       alt={product.name}
@@ -347,7 +377,7 @@ export default function RewardProducts() {
                       {product.brand || rewardCard.brandName}
                     </div>
 
-                    <Link to={`/product/${product.id}`} className="block">
+                    <Link to={`/products/${getProductSlug(product)}`} className="block">
                       <h3 className="font-bold text-gray-900 text-sm line-clamp-2 hover:text-amber-600 transition-colors leading-snug">
                         {product.name}
                       </h3>

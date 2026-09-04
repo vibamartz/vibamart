@@ -12,9 +12,11 @@ import {
   arrayUnion, arrayRemove, limit, documentId 
 } from 'firebase/firestore';
 import ProductCard from '../components/ProductCard';
+import { getProductSlug, createSlug } from '../../shared/utilities/slug';
 
 export default function ProductDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const targetSlugOrId = params.id || params.slug;
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,21 +29,56 @@ export default function ProductDetail() {
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(null);
 
-  // Fetch product by ID only
+  // Fetch product by Slug or ID & Redirect to Canonical URL if accessed via numeric/ID path
   useEffect(() => {
-    if (!id) return;
+    if (!targetSlugOrId) return;
     setLoading(true);
     setProduct(null);
     setNotFound(false);
 
     const fetchProduct = async () => {
       try {
-        const prodRef = doc(db, 'products', id);
-        const snap = await getDoc(prodRef);
-        if (snap.exists()) {
-          const data = { id: snap.id, ...snap.data() } as Product;
-          setProduct(data);
-          setSelectedVariant(data.variants?.[0]?.id);
+        let foundProduct: Product | null = null;
+
+        // 1. Check if target is a direct Firestore doc ID
+        try {
+          const prodRef = doc(db, 'products', targetSlugOrId);
+          const snap = await getDoc(prodRef);
+          if (snap.exists()) {
+            foundProduct = { id: snap.id, ...snap.data() } as Product;
+          }
+        } catch (_) {}
+
+        // 2. Query by 'slug' field if not found directly
+        if (!foundProduct) {
+          const qSlug = query(collection(db, 'products'), where('slug', '==', targetSlugOrId));
+          const snapSlug = await getDocs(qSlug);
+          if (!snapSlug.empty) {
+            const firstDoc = snapSlug.docs[0];
+            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+          }
+        }
+
+        // 3. Fallback scan by generated slug match
+        if (!foundProduct) {
+          const allSnap = await getDocs(collection(db, 'products'));
+          const matches = allSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Product))
+            .find(p => getProductSlug(p) === targetSlugOrId || createSlug(p.name) === targetSlugOrId);
+          if (matches) {
+            foundProduct = matches;
+          }
+        }
+
+        if (foundProduct) {
+          setProduct(foundProduct);
+          setSelectedVariant(foundProduct.variants?.[0]?.id);
+          
+          // Canonical URL enforcement (Replace numeric/ID paths with clean canonical slug URL)
+          const canonicalSlug = getProductSlug(foundProduct);
+          if (targetSlugOrId !== canonicalSlug && (targetSlugOrId === foundProduct.id || /^\d+$/.test(targetSlugOrId))) {
+            navigate(`/products/${canonicalSlug}`, { replace: true });
+          }
         } else {
           setNotFound(true);
         }
@@ -54,14 +91,14 @@ export default function ProductDetail() {
     };
 
     fetchProduct();
-  }, [id]);
+  }, [targetSlugOrId, navigate]);
 
   // Check waitlist separately when user is available
   useEffect(() => {
-    if (!user || !id || !product || product.stock > 0) return;
+    if (!user || !product || product.stock > 0) return;
     const checkWaitlist = async () => {
       try {
-        const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', id));
+        const wq = query(collection(db, 'waitlist'), where('userId', '==', user.uid), where('productId', '==', product.id));
         const wsnap = await getDocs(wq);
         setIsOnWaitlist(!wsnap.empty);
       } catch (err) {
@@ -69,7 +106,7 @@ export default function ProductDetail() {
       }
     };
     checkWaitlist();
-  }, [user, id, product]);
+  }, [user, product]);
 
   // Track recently viewed products
   useEffect(() => {

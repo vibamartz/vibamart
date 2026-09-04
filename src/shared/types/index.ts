@@ -46,6 +46,7 @@ export interface Address {
 
 export interface Product {
   id: string;
+  slug?: string;
   name: string;
   brand?: string;
   description: string;
@@ -95,6 +96,7 @@ export interface ProductVariant {
 
 export interface Category {
   id: string;
+  slug?: string;
   name: string;
   image: string;
   icon?: string;
@@ -110,6 +112,7 @@ export interface Category {
 
 export interface SubCategory {
   id: string;
+  slug?: string;
   name: string;
   image?: string;
   subcategories?: SubCategory[]; // Recursive subcategories
@@ -291,6 +294,7 @@ export interface RewardTransaction {
 
 export interface BrandCoupon {
   id: string;
+  slug?: string;
   brandName: string;
   brandLogo: string;
   brandWebsiteUrl?: string;

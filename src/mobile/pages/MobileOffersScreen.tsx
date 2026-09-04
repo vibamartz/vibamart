@@ -4,6 +4,7 @@ import { Flame, Tag, Sparkles, ArrowRight, Gift, Percent } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Banner, Product } from '../../shared/types';
+import { getProductSlug } from '../../shared/utilities/slug';
 import { motion } from 'motion/react';
 
 export default function MobileOffersScreen() {
@@ -91,7 +92,7 @@ export default function MobileOffersScreen() {
               <motion.div
                 key={product.id}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate(`/product/${product.id}`)}
+                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                 className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group"
               >
                 <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 mb-2">

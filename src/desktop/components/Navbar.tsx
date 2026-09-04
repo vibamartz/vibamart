@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
 import LocationPickerModal from './LocationPickerModal';
+import { getCategorySlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
@@ -362,7 +363,7 @@ export default function Navbar() {
                           {suggestedCategories.map(cat => (
                             <Link
                               key={cat.id}
-                              to={`/products?category=${cat.id}`}
+                              to={`/categories/${getCategorySlug(cat)}`}
                               onClick={() => setIsSearchFocused(false)}
                               className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
                             >
@@ -455,7 +456,7 @@ export default function Navbar() {
                         {CATEGORIES.slice(0, 4).map(cat => (
                           <Link
                             key={cat.id}
-                            to={`/products?category=${cat.id}`}
+                            to={`/categories/${getCategorySlug(cat)}`}
                             onClick={() => setIsSearchFocused(false)}
                             className="flex flex-col items-center gap-2 p-3 hover:bg-blue-50/50 rounded-2xl transition-all group border border-gray-50"
                           >
@@ -647,7 +648,7 @@ export default function Navbar() {
             {navCategories.map(cat => (
               <Link
                 key={cat.id}
-                to={`/products?category=${cat.id}`}
+                to={`/categories/${getCategorySlug(cat)}`}
                 className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group shrink-0"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = cat.color || '#3b82f6';
@@ -797,7 +798,7 @@ export default function Navbar() {
                     {CATEGORIES.map(cat => (
                       <Link
                         key={cat.id}
-                        to={`/products?category=${cat.id}`}
+                        to={`/categories/${getCategorySlug(cat)}`}
                         className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl transition-all group/cat border border-gray-50 hover:bg-white"
                         style={{ borderColor: 'transparent' }}
                         onMouseEnter={(e) => {

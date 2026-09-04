@@ -10,6 +10,7 @@ import {
 import { useRewardsStore } from '../../backend/store';
 import { BrandCoupon, RewardsSectionConfig, RewardOrder, Product } from '../../shared/types';
 import { getValidBrandUrl } from '../../shared/utils/url';
+import { generateUniqueSlug, createSlug } from '../../shared/utilities/slug';
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -328,8 +329,12 @@ export default function AdminRewardsManagementView() {
     setSavingCoupon(true);
     try {
       const validatedUrl = getValidBrandUrl(couponForm.brandWebsiteUrl);
+      const existingSlugs = offers.map(o => o.slug || '').filter(Boolean);
+      const generatedSlug = generateUniqueSlug(couponForm.title || couponForm.brandName || 'reward', existingSlugs, editingCoupon?.slug);
+
       const payload: Partial<BrandCoupon> = {
         ...couponForm,
+        slug: editingCoupon?.slug || generatedSlug,
         brandWebsiteUrl: validatedUrl || '',
         validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).toISOString() : new Date().toISOString(),
         expiryDate: couponForm.expiryDate ? new Date(couponForm.expiryDate).toISOString() : new Date(Date.now() + 30*86400000).toISOString(),

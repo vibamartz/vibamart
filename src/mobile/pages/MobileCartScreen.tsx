@@ -4,6 +4,7 @@ import {
   Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Tag, ShoppingCart 
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
+import { getProductSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 
@@ -108,7 +109,7 @@ export default function MobileCartScreen() {
             >
               {/* Product Image */}
               <div 
-                onClick={() => navigate(`/product/${product.id}`)}
+                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                 className="w-20 h-20 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 cursor-pointer"
               >
                 <img 
@@ -125,7 +126,7 @@ export default function MobileCartScreen() {
                     {product.brand || 'ViBa Select'}
                   </span>
                   <h4 
-                    onClick={() => navigate(`/product/${product.id}`)}
+                    onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                     className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight cursor-pointer"
                   >
                     {product.name}

@@ -11,6 +11,8 @@ import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 
+import { createSlug } from '../../shared/utilities/slug';
+
 export default function AddEditProductForm({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
   const { settings } = useSettingsStore();
@@ -127,10 +129,12 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
+      const generatedSlug = createSlug(formData.name || '') || `product-${pid}`;
 
       const rawData = {
         ...formData,
         id: pid,
+        slug: product?.slug || generatedSlug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
         mrp: mrp || price,

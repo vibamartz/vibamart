@@ -8,6 +8,7 @@ import { useSettingsStore, useCategoryStore } from '../../backend/store';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
+import { getProductSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
@@ -186,7 +187,7 @@ export default function MobileSearchScreen() {
             {liveSuggestions.map((item) => (
               <div
                 key={item.id}
-                onClick={() => navigate(`/product/${item.id}`)}
+                onClick={() => navigate(`/products/${getProductSlug(item)}`)}
                 className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2.5 min-w-0">

@@ -1730,7 +1730,7 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
           {products.map((product) => (
             <div 
               key={product.id} 
-              onClick={() => navigate(`/product/${getProductSlug(product.name)}`)}
+              onClick={() => navigate(`/products/${getProductSlug(product)}`)}
               className="bg-white p-4 rounded-[32px] border border-gray-100 shadow-sm flex gap-4 group hover:border-primary/20 hover:shadow-lg hover:scale-[1.01] transition-all cursor-pointer"
             >
               <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
@@ -1743,7 +1743,7 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
                 </div>
                 <div className="flex items-center gap-2">
                   <Link 
-                    to={`/product/${getProductSlug(product.name)}`} 
+                    to={`/products/${getProductSlug(product)}`} 
                     onClick={(e) => e.stopPropagation()}
                     className="flex-1 bg-gray-50 touch-target min-h-[44px] text-gray-900 py-2 rounded-xl text-center text-[10px] font-black uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center"
                   >

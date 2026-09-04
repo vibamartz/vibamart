@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, RewardOrder } from '../../shared/types';
+import { getRewardSlug } from '../../shared/utilities/slug';
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { processPayment } from '../../shared/utils/razorpay';
 import toast from 'react-hot-toast';
@@ -475,7 +476,7 @@ export default function Rewards() {
                     key={coupon.id}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    onClick={() => navigate(`/rewards/${coupon.id}`)}
+                    onClick={() => navigate(`/rewards/${getRewardSlug(coupon)}`)}
                     className="bg-white rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between group cursor-pointer"
                   >
                     <div>

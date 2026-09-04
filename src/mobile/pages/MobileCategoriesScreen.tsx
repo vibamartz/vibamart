@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCategoryStore } from '../../backend/store';
+import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { ChevronRight, Grid, Sparkles, ArrowRight, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -106,7 +107,7 @@ export default function MobileCategoriesScreen() {
 
                   <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate(`/products?category=${selectedCategory.id}`)}
+                    onClick={() => navigate(`/categories/${getCategorySlug(selectedCategory)}`)}
                     className="px-3 py-1.5 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 shrink-0"
                   >
                     All Items <ArrowRight className="w-3 h-3" />
@@ -125,7 +126,7 @@ export default function MobileCategoriesScreen() {
                         <motion.div
                           key={sub.id}
                           whileTap={{ scale: 0.96 }}
-                          onClick={() => navigate(`/products?category=${selectedCategory.id}&subCategory=${sub.id}`)}
+                          onClick={() => navigate(`/categories/${getCategorySlug(selectedCategory)}/${getSubcategorySlug(sub)}`)}
                           className="bg-white rounded-[20px] p-3 border border-yellow-100/90 shadow-sm flex flex-col items-center justify-center text-center cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all group"
                         >
                           <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-2 overflow-hidden group-hover:scale-105 transition-transform">
@@ -148,7 +149,7 @@ export default function MobileCategoriesScreen() {
                       Explore all products in {selectedCategory.name}
                     </p>
                     <button
-                      onClick={() => navigate(`/products?category=${selectedCategory.id}`)}
+                      onClick={() => navigate(`/categories/${getCategorySlug(selectedCategory)}`)}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider"
                     >
                       Browse {selectedCategory.name}

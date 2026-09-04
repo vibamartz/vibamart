@@ -58,8 +58,8 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.startsWith('/products')) return 'Categories & Products';
-    if (path.startsWith('/product/')) return 'Product Details';
+    if (path.startsWith('/products/') || path.startsWith('/product/')) return 'Product Details';
+    if (path.startsWith('/products') || path.startsWith('/categories') || path.startsWith('/category/')) return 'Categories & Products';
     if (path === '/cart') return 'My Cart';
     if (path === '/checkout') return 'Checkout';
     if (path === '/order-success') return 'Order Confirmed';
@@ -68,8 +68,8 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     if (path.startsWith('/track-order') || path === '/orders') return 'My Orders';
     if (path.startsWith('/returns') || path.startsWith('/track-request')) return 'Requests & Returns';
     if (path === '/notifications') return 'Notifications';
-    if (path === '/offers') return 'Deals & Offers';
-    if (path === '/rewards') return 'ViBa Rewards & Points';
+    if (path.startsWith('/offers')) return 'Deals & Offers';
+    if (path.startsWith('/rewards')) return 'ViBa Rewards & Points';
     if (path === '/login') return 'Account Login';
     return 'ViBa Mart';
   };

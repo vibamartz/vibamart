@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
@@ -10,12 +10,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
+import { getCategorySlug, getSubcategorySlug, createSlug } from '../../shared/utilities/slug';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
+  const navigate = useNavigate();
+
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('popularity');
@@ -26,6 +30,28 @@ export default function ProductList() {
       return JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
     } catch { return []; }
   });
+
+  // Resolve active category/subcategory/brand/offer from route params or search params
+  const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
+  const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
+  const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
+  const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
+
+  // Match category object by ID, seoSlug, or generated slug
+  const matchedCategory = useMemo(() => {
+    if (!rawCat) return null;
+    return CATEGORIES.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
+  }, [rawCat, CATEGORIES]);
+
+  // Backward compatibility redirect: if accessed via numeric category ID like /category/1, redirect replace to /categories/mobiles
+  useEffect(() => {
+    if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
+      const canonical = getCategorySlug(matchedCategory);
+      if (canonical && rawCat !== canonical) {
+        navigate(`/categories/${canonical}`, { replace: true });
+      }
+    }
+  }, [matchedCategory, rawCat, navigate]);
 
   // Persist and restore search state
   useEffect(() => {
@@ -140,14 +166,18 @@ export default function ProductList() {
     return () => unsubscribe();
   }, []);
 
-  // Sync category from URL
+  // Sync category and brand from URL params or route params
   useEffect(() => {
-    const cat = searchParams.get('category');
-    if (cat && !selectedCategories.includes(cat)) {
-      setSelectedCategories([cat]);
-      setSelectedSubCategories([]); // Clear subcategories when switching category from URL
+    const activeCatId = matchedCategory?.id || rawCat;
+    if (activeCatId && !selectedCategories.includes(activeCatId)) {
+      setSelectedCategories([activeCatId]);
+      setSelectedSubCategories([]);
     }
-  }, [searchParams]);
+    if (rawBrand && !selectedBrands.includes(rawBrand)) {
+      const foundBrand = allProducts.find(p => p.brand && (p.brand === rawBrand || createSlug(p.brand) === rawBrand))?.brand || rawBrand;
+      setSelectedBrands([foundBrand]);
+    }
+  }, [matchedCategory, rawCat, rawBrand, allProducts]);
 
   useEffect(() => {
     // Clear subcategories if they don't belong to any of the selected categories

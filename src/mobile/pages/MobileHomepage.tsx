@@ -16,6 +16,7 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
+import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
@@ -646,7 +647,7 @@ export default function MobileHomepage() {
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
-                onCardClick={() => navigate(`/product/${product.id}`)}
+                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
               />
             ))
           )}
@@ -688,7 +689,7 @@ export default function MobileHomepage() {
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
-                onCardClick={() => navigate(`/product/${product.id}`)}
+                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
               />
             ))
           )}
@@ -728,7 +729,7 @@ export default function MobileHomepage() {
                 cardRadius="rounded-[20px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
-                onCardClick={() => navigate(`/product/${product.id}`)}
+                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
               />
             ))
           )}

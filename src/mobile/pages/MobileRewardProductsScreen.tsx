@@ -10,6 +10,7 @@ import { BrandCoupon, Product } from '../../shared/types';
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getValidBrandUrl } from '../../shared/utils/url';
+import { getRewardSlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 
 function ExpiryCountdownMobile({ expiryDate }: { expiryDate: string }) {
@@ -48,7 +49,8 @@ function ExpiryCountdownMobile({ expiryDate }: { expiryDate: string }) {
 }
 
 export default function MobileRewardProductsScreen() {
-  const { rewardId } = useParams<{ rewardId: string }>();
+  const params = useParams<{ rewardId?: string; rewardSlug?: string }>();
+  const targetRewardSlugOrId = params.rewardId || params.rewardSlug;
   const navigate = useNavigate();
   const { offers, initRewards } = useRewardsStore();
   const { addItem, items: cartItems } = useCartStore();
@@ -63,19 +65,46 @@ export default function MobileRewardProductsScreen() {
   }, [user]);
 
   useEffect(() => {
-    if (!rewardId) return;
-    const matched = offers.find(o => o.id === rewardId);
-    if (matched) {
-      setRewardCard(matched);
-    } else {
-      const docRef = doc(db, 'reward_offers', rewardId);
-      getDoc(docRef).then(snap => {
-        if (snap.exists()) {
-          setRewardCard({ id: snap.id, ...snap.data() } as BrandCoupon);
+    if (!targetRewardSlugOrId) return;
+
+    const findReward = async () => {
+      let matched = offers.find(o => o.id === targetRewardSlugOrId || o.slug === targetRewardSlugOrId || getRewardSlug(o) === targetRewardSlugOrId);
+
+      if (!matched) {
+        try {
+          const docRef = doc(db, 'reward_offers', targetRewardSlugOrId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            matched = { id: snap.id, ...snap.data() } as BrandCoupon;
+          }
+        } catch (_) {}
+      }
+
+      if (!matched) {
+        try {
+          const qSnap = await getDocs(collection(db, 'reward_offers'));
+          const foundDoc = qSnap.docs.find(d => {
+            const data = { id: d.id, ...d.data() } as BrandCoupon;
+            return getRewardSlug(data) === targetRewardSlugOrId || data.slug === targetRewardSlugOrId || createSlug(data.title) === targetRewardSlugOrId;
+          });
+          if (foundDoc) {
+            matched = { id: foundDoc.id, ...foundDoc.data() } as BrandCoupon;
+          }
+        } catch (_) {}
+      }
+
+      if (matched) {
+        setRewardCard(matched);
+        const canonicalSlug = getRewardSlug(matched);
+        if (targetRewardSlugOrId !== canonicalSlug && (targetRewardSlugOrId === matched.id || /^\d+$/.test(targetRewardSlugOrId))) {
+          navigate(`/rewards/${canonicalSlug}`, { replace: true });
         }
-      });
-    }
-  }, [rewardId, offers]);
+      }
+      setLoading(false);
+    };
+
+    findReward();
+  }, [targetRewardSlugOrId, offers, navigate]);
 
   useEffect(() => {
     if (!rewardCard) return;
@@ -318,7 +347,7 @@ export default function MobileRewardProductsScreen() {
                 >
                   <div>
                     {/* Image */}
-                    <Link to={`/product/${product.id}`} className="block relative aspect-square bg-gray-50 overflow-hidden">
+                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square bg-gray-50 overflow-hidden">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300?text=No+Image'}
                         alt={product.name}
@@ -341,7 +370,7 @@ export default function MobileRewardProductsScreen() {
                       <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider block">
                         {product.brand || rewardCard.brandName}
                       </span>
-                      <Link to={`/product/${product.id}`} className="block">
+                      <Link to={`/products/${getProductSlug(product)}`} className="block">
                         <h4 className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight">
                           {product.name}
                         </h4>

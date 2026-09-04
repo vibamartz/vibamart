@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
+import { getProductSlug } from '../../shared/utilities/slug';
 
 interface ProductCardProps {
   product: Product;
@@ -82,7 +83,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link 
-      to={`/product/${product.id}`}
+      to={`/products/${getProductSlug(product)}`}
       className="block h-full no-underline text-inherit"
     >
       <motion.div

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { 
   Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw 
 } from 'lucide-react';
@@ -7,18 +7,36 @@ import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { useCartStore, useCategoryStore } from '../../backend/store';
+import { getCategorySlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
   const navigate = useNavigate();
   const { categories } = useCategoryStore();
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
-  const initialCategory = searchParams.get('category') || '';
-  const initialSubCategory = searchParams.get('subCategory') || '';
+  const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
+  const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
+  const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
+
+  const matchedCategory = useMemo(() => {
+    if (!rawCat) return null;
+    return categories.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
+  }, [rawCat, categories]);
+
+  // Backward compatibility redirect for numeric category routes
+  useEffect(() => {
+    if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
+      const canonical = getCategorySlug(matchedCategory);
+      if (canonical && rawCat !== canonical) {
+        navigate(`/categories/${canonical}`, { replace: true });
+      }
+    }
+  }, [matchedCategory, rawCat, navigate]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,9 +47,9 @@ export default function MobileProductListScreen() {
   const [sortBy, setSortBy] = useState<'featured' | 'low-high' | 'high-low' | 'rating'>('featured');
 
   // Filter States
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(initialSubCategory);
-  const [selectedBrand, setSelectedBrand] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>(matchedCategory?.id || rawCat);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(rawSubCat);
+  const [selectedBrand, setSelectedBrand] = useState<string>(rawBrand);
   const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [minRating, setMinRating] = useState<number>(0);
   const [minDiscount, setMinDiscount] = useState<number>(0);
@@ -39,9 +57,11 @@ export default function MobileProductListScreen() {
 
   // Sync state when URL params change
   useEffect(() => {
-    if (initialCategory) setSelectedCategory(initialCategory);
-    if (initialSubCategory) setSelectedSubCategory(initialSubCategory);
-  }, [initialCategory, initialSubCategory]);
+    const activeCatId = matchedCategory?.id || rawCat;
+    if (activeCatId) setSelectedCategory(activeCatId);
+    if (rawSubCat) setSelectedSubCategory(rawSubCat);
+    if (rawBrand) setSelectedBrand(rawBrand);
+  }, [matchedCategory, rawCat, rawSubCat, rawBrand]);
 
   // Fetch Products from Firestore
   useEffect(() => {
@@ -259,7 +279,7 @@ export default function MobileProductListScreen() {
                 <motion.div
                   key={product.id}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => navigate(`/product/${product.id}`)}
+                  onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                   className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex gap-3 cursor-pointer group hover:shadow-md transition-all"
                 >
                   <div className="w-24 h-24 rounded-xl bg-gray-50 overflow-hidden relative shrink-0">
@@ -330,7 +350,7 @@ export default function MobileProductListScreen() {
               <motion.div
                 key={product.id}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate(`/product/${product.id}`)}
+                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                 className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
               >
                 <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">

@@ -4,17 +4,19 @@ import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw, 
   ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft 
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Review, Address } from '../../shared/types';
 import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { lookupZipcode } from '../../backend/services/zipcode';
+import { getProductSlug, createSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProductDetailScreen() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; slug?: string }>();
+  const targetSlugOrId = params.id || params.slug;
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { settings } = useSettingsStore();
@@ -43,24 +45,68 @@ export default function MobileProductDetailScreen() {
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
 
-  // Check if item is already in cart
-  const isInCart = cartItems.some(i => i.productId === id && i.variantId === selectedVariantId);
+  const productId = product?.id || targetSlugOrId || '';
 
-  // Fetch product & reviews
+  // Check if item is already in cart
+  const isInCart = cartItems.some(i => i.productId === productId && i.variantId === selectedVariantId);
+
+  // Fetch product & reviews with slug or ID resolution and canonical redirect
   useEffect(() => {
-    if (!id) return;
+    if (!targetSlugOrId) return;
     setLoading(true);
 
     const fetchProduct = async () => {
       try {
-        const docRef = doc(db, 'products', id);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const prodData = { id: snap.id, ...snap.data() } as Product;
-          setProduct(prodData);
-          if (prodData.variants && prodData.variants.length > 0) {
-            setSelectedVariantId(prodData.variants[0].id);
+        let foundProduct: Product | null = null;
+
+        // 1. Check direct doc ID
+        try {
+          const docRef = doc(db, 'products', targetSlugOrId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            foundProduct = { id: snap.id, ...snap.data() } as Product;
           }
+        } catch (_) {}
+
+        // 2. Query slug field
+        if (!foundProduct) {
+          const qSlug = query(collection(db, 'products'), where('slug', '==', targetSlugOrId));
+          const snapSlug = await getDocs(qSlug);
+          if (!snapSlug.empty) {
+            const firstDoc = snapSlug.docs[0];
+            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+          }
+        }
+
+        // 3. Fallback scan by slug helper
+        if (!foundProduct) {
+          const allSnap = await getDocs(collection(db, 'products'));
+          const matches = allSnap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Product))
+            .find(p => getProductSlug(p) === targetSlugOrId || createSlug(p.name) === targetSlugOrId);
+          if (matches) {
+            foundProduct = matches;
+          }
+        }
+
+        if (foundProduct) {
+          setProduct(foundProduct);
+          if (foundProduct.variants && foundProduct.variants.length > 0) {
+            setSelectedVariantId(foundProduct.variants[0].id);
+          }
+
+          // Canonical redirect check
+          const canonicalSlug = getProductSlug(foundProduct);
+          if (targetSlugOrId !== canonicalSlug && (targetSlugOrId === foundProduct.id || /^\d+$/.test(targetSlugOrId))) {
+            navigate(`/products/${canonicalSlug}`, { replace: true });
+          }
+
+          // Subscribe to reviews for found product
+          const qReviews = query(collection(db, 'reviews'), where('productId', '==', foundProduct.id));
+          return onSnapshot(qReviews, (snap) => {
+            const revs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
+            setReviews(revs);
+          });
         } else {
           toast.error("Product not found");
           navigate('/products');
@@ -73,23 +119,14 @@ export default function MobileProductDetailScreen() {
     };
 
     fetchProduct();
-
-    // Subscribe to reviews
-    const qReviews = query(collection(db, 'reviews'), where('productId', '==', id));
-    const unsubscribeReviews = onSnapshot(qReviews, (snap) => {
-      const revs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
-      setReviews(revs);
-    });
-
-    return () => unsubscribeReviews();
-  }, [id, navigate]);
+  }, [targetSlugOrId, navigate]);
 
   // Wishlist check
   useEffect(() => {
-    if (user?.wishlist && id) {
-      setIsWishlisted(user.wishlist.includes(id));
+    if (user?.wishlist && productId) {
+      setIsWishlisted(user.wishlist.includes(productId));
     }
-  }, [user, id]);
+  }, [user, productId]);
 
   const handleToggleWishlist = () => {
     if (!user) {
@@ -168,7 +205,7 @@ export default function MobileProductDetailScreen() {
 
     try {
       await addDoc(collection(db, 'reviews'), {
-        productId: id,
+        productId: productId,
         userId: user.uid,
         userName: user.displayName || user.email.split('@')[0],
         userPhoto: user.photoURL || '',
