@@ -324,6 +324,8 @@ export interface BrandCoupon {
   usageLimit?: number;
   eligibilityTier?: 'all' | 'Silver' | 'Gold' | 'Platinum';
   imageUrl?: string;
+  productIds?: string[];
+  disabledProductIds?: string[];
 }
 
 export interface RewardOffer extends BrandCoupon {}

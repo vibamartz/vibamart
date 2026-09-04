@@ -475,11 +475,12 @@ export default function Rewards() {
                     key={coupon.id}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between group"
+                    onClick={() => navigate(`/rewards/${coupon.id}`)}
+                    className="bg-white rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between group cursor-pointer"
                   >
                     <div>
                       {/* Product & Brand Image Header */}
-                      <div className="h-48 relative overflow-hidden bg-gray-100 cursor-pointer" onClick={() => handleOpenDetails(coupon)}>
+                      <div className="h-48 relative overflow-hidden bg-gray-100">
                         <img
                           src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
                           alt={coupon.title}
@@ -511,8 +512,7 @@ export default function Rewards() {
                       {/* Card Body */}
                       <div className="p-5 space-y-3">
                         <h3
-                          onClick={() => handleOpenDetails(coupon)}
-                          className="font-black text-gray-900 text-base leading-snug line-clamp-1 cursor-pointer hover:text-amber-600 transition-colors"
+                          className="font-black text-gray-900 text-base leading-snug line-clamp-1 group-hover:text-amber-600 transition-colors"
                         >
                           {coupon.title}
                         </h3>
@@ -531,7 +531,7 @@ export default function Rewards() {
                     </div>
 
                     {/* Card Footer Actions */}
-                    <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex items-center gap-2">
+                    <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       {(coupon.remainingQuantity ?? 0) <= 0 || !coupon.active || (user && rewardOrders.some(ro => ro.couponId === coupon.id && ro.userId === user.uid)) ? (
                         <button
                           disabled
@@ -548,11 +548,11 @@ export default function Rewards() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleStartBuyNow(coupon)}
+                          onClick={(e) => { e.stopPropagation(); handleStartBuyNow(coupon); }}
                           disabled={submittingOrder}
                           className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
                         >
-                          <ShoppingBag className="w-4 h-4" /> {submittingOrder ? 'Processing...' : `Buy Now (₹${coupon.buyNowPrice})`}
+                          <ShoppingBag className="w-4 h-4" /> {submittingOrder ? 'Processing...' : `Buy Coupon (₹${coupon.buyNowPrice})`}
                         </button>
                       )}
 
@@ -561,6 +561,7 @@ export default function Rewards() {
                           href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="px-3 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0"
                           title="Visit Official Brand Webpage"
                         >

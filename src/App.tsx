@@ -27,6 +27,7 @@ import RequestTracking from './desktop/pages/RequestTracking';
 import FAQ from './desktop/pages/FAQ';
 import ProductNotFound from './desktop/pages/ProductNotFound';
 import Rewards from './desktop/pages/Rewards';
+import RewardProducts from './desktop/pages/RewardProducts';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -48,6 +49,7 @@ import MobileAddressScreen from './mobile/pages/MobileAddressScreen';
 import MobileNotificationsScreen from './mobile/pages/MobileNotificationsScreen';
 import MobileOffersScreen from './mobile/pages/MobileOffersScreen';
 import MobileRewardsScreen from './mobile/pages/MobileRewardsScreen';
+import MobileRewardProductsScreen from './mobile/pages/MobileRewardProductsScreen';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -132,6 +134,7 @@ function MainAppRoutes() {
             <Route path="/notifications" element={<MobileNotificationsScreen />} />
             <Route path="/offers" element={<MobileOffersScreen />} />
             <Route path="/rewards" element={<MobileRewardsScreen />} />
+            <Route path="/rewards/:rewardId" element={<MobileRewardProductsScreen />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
@@ -164,6 +167,7 @@ function MainAppRoutes() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/rewards" element={<Rewards />} />
+          <Route path="/rewards/:rewardId" element={<RewardProducts />} />
           <Route path="/track-order" element={<OrderTracking />} />
           <Route path="/track-order/:orderId" element={<OrderTracking />} />
           <Route path="/track-request/:requestId" element={<RequestTracking />} />

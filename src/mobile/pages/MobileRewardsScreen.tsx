@@ -360,10 +360,11 @@ export default function MobileRewardsScreen() {
               <motion.div
                 key={coupon.id}
                 whileTap={{ scale: 0.98 }}
-                className="bg-white rounded-3xl p-4 border border-amber-100 shadow-md space-y-3 relative overflow-hidden"
+                onClick={() => navigate(`/rewards/${coupon.id}`)}
+                className="bg-white rounded-3xl p-4 border border-amber-100 shadow-md space-y-3 relative overflow-hidden cursor-pointer"
               >
                 {/* Brand Header */}
-                <div className="flex items-center justify-between" onClick={() => setSelectedCoupon(coupon)}>
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <img src={coupon.brandLogo} alt="" className="w-9 h-9 rounded-full object-cover border" />
                     <div>
@@ -378,7 +379,7 @@ export default function MobileRewardsScreen() {
                 </div>
 
                 {/* Main Image */}
-                <div className="h-36 rounded-2xl overflow-hidden bg-gray-100 relative" onClick={() => setSelectedCoupon(coupon)}>
+                <div className="h-36 rounded-2xl overflow-hidden bg-gray-100 relative">
                   <img src={coupon.productImage} alt="" className="w-full h-full object-cover" />
                   <div className="absolute left-2 bottom-2">
                     <ExpiryCountdownMobile expiryDate={coupon.expiryDate} />
@@ -389,7 +390,7 @@ export default function MobileRewardsScreen() {
                 <h4 className="font-bold text-gray-900 text-xs line-clamp-1">{coupon.title}</h4>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-1">
+                <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                   {(coupon.remainingQuantity ?? 0) <= 0 || !coupon.active || (user && rewardOrders.some(ro => ro.couponId === coupon.id && ro.userId === user.uid)) ? (
                     <button
                       disabled
@@ -406,11 +407,11 @@ export default function MobileRewardsScreen() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleStartBuyNow(coupon)}
+                      onClick={(e) => { e.stopPropagation(); handleStartBuyNow(coupon); }}
                       disabled={submittingOrder}
                       className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 flex items-center justify-center gap-1"
                     >
-                      <ShoppingBag className="w-3.5 h-3.5" /> Buy Now (₹{coupon.buyNowPrice})
+                      <ShoppingBag className="w-3.5 h-3.5" /> Buy Coupon (₹{coupon.buyNowPrice})
                     </button>
                   )}
 
@@ -419,6 +420,7 @@ export default function MobileRewardsScreen() {
                       href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="px-3 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1"
                     >
                       Official <ExternalLink className="w-3 h-3 text-gray-400" />

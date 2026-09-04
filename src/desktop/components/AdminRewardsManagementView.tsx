@@ -5,11 +5,13 @@ import {
   Check, Eye, Save, RefreshCw, Smartphone, Monitor, ShieldCheck,
   AlertCircle, ChevronRight, Lock, Image as ImageIcon, Link as LinkIcon,
   CheckCircle2, XCircle, ArrowUp, ArrowDown, Info, ExternalLink,
-  Calendar, Clock, DollarSign, Layers, ShoppingBag, Search, Filter, AlertTriangle
+  Calendar, Clock, DollarSign, Layers, ShoppingBag, Search, Filter, AlertTriangle, X, CheckSquare, Square
 } from 'lucide-react';
 import { useRewardsStore } from '../../backend/store';
-import { BrandCoupon, RewardsSectionConfig, RewardOrder } from '../../shared/types';
+import { BrandCoupon, RewardsSectionConfig, RewardOrder, Product } from '../../shared/types';
 import { getValidBrandUrl } from '../../shared/utils/url';
+import { db } from '../../backend/firebase/firebase';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
@@ -40,6 +42,170 @@ export default function AdminRewardsManagementView() {
   const [editingCoupon, setEditingCoupon] = useState<BrandCoupon | null>(null);
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Store products for Reward Card assignment
+  const [storeProducts, setStoreProducts] = useState<Product[]>([]);
+  const [managingProductsCoupon, setManagingProductsCoupon] = useState<BrandCoupon | null>(null);
+  const [storeSearchQuery, setStoreSearchQuery] = useState('');
+  const [editingProductModal, setEditingProductModal] = useState<Product | null>(null);
+  const [isCreatingNewProduct, setIsCreatingNewProduct] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({
+    name: '',
+    brand: '',
+    description: '',
+    price: 999,
+    discountPrice: 699,
+    stock: 50,
+    images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'],
+    categoryId: 'fashion',
+    status: 'active' as const
+  });
+
+  useEffect(() => {
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+      setStoreProducts(data);
+    }, (err) => console.error("Error fetching store products:", err));
+    return () => unsub();
+  }, []);
+
+  // Product Management Handlers for Reward Cards
+  const handleAssignProductToCoupon = async (coupon: BrandCoupon, productId: string) => {
+    const currentList = coupon.productIds || [];
+    if (currentList.includes(productId)) return;
+    const updatedList = [...currentList, productId];
+    try {
+      await updateRewardOffer(coupon.id, { productIds: updatedList });
+      toast.success('Product assigned to Reward Card!');
+      if (managingProductsCoupon?.id === coupon.id) {
+        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList } : null);
+      }
+    } catch (e) {
+      toast.error('Failed to assign product');
+    }
+  };
+
+  const handleUnassignProductFromCoupon = async (coupon: BrandCoupon, productId: string) => {
+    const currentList = coupon.productIds || [];
+    const updatedList = currentList.filter(id => id !== productId);
+    try {
+      await updateRewardOffer(coupon.id, { productIds: updatedList });
+      toast.success('Product removed from Reward Card.');
+      if (managingProductsCoupon?.id === coupon.id) {
+        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList } : null);
+      }
+    } catch (e) {
+      toast.error('Failed to remove product');
+    }
+  };
+
+  const handleMoveAssignedProductOrder = async (coupon: BrandCoupon, index: number, direction: 'up' | 'down') => {
+    const currentList = [...(coupon.productIds || [])];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= currentList.length) return;
+
+    const temp = currentList[index];
+    currentList[index] = currentList[targetIdx];
+    currentList[targetIdx] = temp;
+
+    try {
+      await updateRewardOffer(coupon.id, { productIds: currentList });
+      toast.success('Product display order updated.');
+      if (managingProductsCoupon?.id === coupon.id) {
+        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: currentList } : null);
+      }
+    } catch (e) {
+      toast.error('Failed to reorder products');
+    }
+  };
+
+  const handleToggleProductDisabledForCoupon = async (coupon: BrandCoupon, productId: string) => {
+    const currentDisabled = coupon.disabledProductIds || [];
+    const isDisabled = currentDisabled.includes(productId);
+    const updatedDisabled = isDisabled
+      ? currentDisabled.filter(id => id !== productId)
+      : [...currentDisabled, productId];
+
+    try {
+      await updateRewardOffer(coupon.id, { disabledProductIds: updatedDisabled });
+      toast.success(`Product ${isDisabled ? 'enabled' : 'disabled'} for this Reward Card.`);
+      if (managingProductsCoupon?.id === coupon.id) {
+        setManagingProductsCoupon(prev => prev ? { ...prev, disabledProductIds: updatedDisabled } : null);
+      }
+    } catch (e) {
+      toast.error('Failed to toggle product status');
+    }
+  };
+
+  const handleCreateAndAssignProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managingProductsCoupon) return;
+    if (!newProductForm.name || !newProductForm.price) {
+      toast.error('Product name and price are required');
+      return;
+    }
+
+    try {
+      const newProd: Partial<Product> = {
+        name: newProductForm.name,
+        brand: newProductForm.brand || managingProductsCoupon.brandName,
+        description: newProductForm.description || `Official ${managingProductsCoupon.brandName} product`,
+        price: Number(newProductForm.price),
+        discountPrice: Number(newProductForm.discountPrice || newProductForm.price),
+        stock: Number(newProductForm.stock || 50),
+        inStock: Number(newProductForm.stock) > 0,
+        images: newProductForm.images,
+        categoryId: newProductForm.categoryId || 'fashion',
+        vendorId: 'admin',
+        status: newProductForm.status,
+        rating: 4.5,
+        numReviews: 12,
+        createdAt: new Date().toISOString()
+      };
+
+      const docRef = await addDoc(collection(db, 'products'), newProd);
+      const newId = docRef.id;
+
+      const currentList = managingProductsCoupon.productIds || [];
+      const updatedList = [...currentList, newId];
+      await updateRewardOffer(managingProductsCoupon.id, { productIds: updatedList });
+
+      toast.success(`Created "${newProductForm.name}" and assigned to Reward Card!`);
+      setIsCreatingNewProduct(false);
+      setNewProductForm({
+        name: '', brand: '', description: '', price: 999, discountPrice: 699, stock: 50,
+        images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'],
+        categoryId: 'fashion', status: 'active'
+      });
+      setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList } : null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create product');
+    }
+  };
+
+  const handleSaveEditedStoreProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProductModal) return;
+    try {
+      const prodRef = doc(db, 'products', editingProductModal.id);
+      await updateDoc(prodRef, {
+        name: editingProductModal.name,
+        brand: editingProductModal.brand,
+        price: Number(editingProductModal.price),
+        discountPrice: Number(editingProductModal.discountPrice),
+        stock: Number(editingProductModal.stock),
+        inStock: Number(editingProductModal.stock) > 0,
+        status: editingProductModal.stock > 0 ? 'active' : 'out_of_stock',
+        images: editingProductModal.images
+      });
+      toast.success(`Updated "${editingProductModal.name}" in store database.`);
+      setEditingProductModal(null);
+    } catch (err) {
+      toast.error('Failed to update product details');
+    }
+  };
 
   // Coupon Search & Filter
   const [couponSearch, setCouponSearch] = useState('');
@@ -593,6 +759,14 @@ export default function AdminRewardsManagementView() {
 
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => setManagingProductsCoupon(coupon)}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                      title="Manage Products for this Reward Card"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Products ({coupon.productIds?.length || 0})
+                    </button>
+                    <button
                       onClick={() => handleToggleCoupon(coupon)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
                         coupon.active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
@@ -755,9 +929,9 @@ export default function AdminRewardsManagementView() {
                           {isConfirmed && order.couponStatus !== 'used' && (
                             <button
                               onClick={() => handleMarkUsed(order.id)}
-                              className="px-2.5 py-1 bg-slate-800 text-white hover:bg-slate-900 rounded-lg font-bold text-[11px]"
+                              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px]"
                             >
-                              Mark as Used
+                              Mark Used
                             </button>
                           )}
                           {order.couponStatus === 'used' && (
@@ -774,99 +948,28 @@ export default function AdminRewardsManagementView() {
         </div>
       )}
 
-      {/* TAB 4: LIVE PREVIEW */}
-      {activeTab === 'preview' && (
-        <div className="space-y-4 font-sans">
-          <div className="flex justify-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
-            <button
-              onClick={() => setPreviewDevice('desktop')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
-                previewDevice === 'desktop' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <Monitor className="w-4 h-4" /> Desktop Preview
-            </button>
-            <button
-              onClick={() => setPreviewDevice('mobile')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
-                previewDevice === 'mobile' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <Smartphone className="w-4 h-4" /> Mobile Preview
-            </button>
-          </div>
-
-          <div className={`mx-auto bg-white rounded-3xl border-4 border-slate-900 shadow-2xl overflow-hidden transition-all duration-300 ${
-            previewDevice === 'mobile' ? 'max-w-[390px] min-h-[700px]' : 'max-w-6xl min-h-[600px]'
-          }`}>
-            {/* Live Storefront Mock Header */}
-            <div className="bg-amber-500 p-4 text-white text-center">
-              <div className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider">
-                <AlertTriangle className="w-4 h-4 text-amber-200" />
-                {config.nonRefundableNotice || '⚠️ NON REFUNDABLE'}
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6 bg-[#FFF9F5]">
-              <div className="bg-gradient-to-r from-slate-900 to-amber-950 p-6 rounded-2xl text-white space-y-2">
-                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">{config.badgeText}</span>
-                <h2 className="text-xl font-black">{config.title}</h2>
-                <p className="text-xs text-slate-300">{config.subtitle}</p>
-              </div>
-
-              {/* Sample Coupons */}
-              <div className={`grid gap-4 ${previewDevice === 'mobile' ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
-                {offers.slice(0, 3).map(coupon => (
-                  <div key={coupon.id} className="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm space-y-3">
-                    <div className="flex items-center gap-3">
-                      <img src={coupon.brandLogo} alt="" className="w-8 h-8 rounded-full object-cover border" />
-                      <div>
-                        <h4 className="text-xs font-black text-gray-900">{coupon.brandName}</h4>
-                        <span className="text-[10px] text-emerald-600 font-bold">{coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}</span>
-                      </div>
-                    </div>
-                    <img src={coupon.productImage} alt="" className="w-full h-32 object-cover rounded-xl" />
-                    <h5 className="text-xs font-bold text-gray-900">{coupon.title}</h5>
-                    <div className="flex gap-2">
-                      <button className="flex-1 py-1.5 bg-amber-500 text-white rounded-xl text-[11px] font-black">Buy Now (₹{coupon.buyNowPrice})</button>
-                      <button className="px-3 py-1.5 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-600">Official Brand</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE / EDIT BRAND COUPON MODAL */}
+      {/* MODAL 1: ADD / EDIT COUPON MODAL */}
       <AnimatePresence>
         {isCouponModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl max-w-3xl w-full p-6 space-y-6 shadow-2xl border border-gray-100 my-8 font-sans max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8"
             >
-              <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+              <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-amber-500" />
-                  <h2 className="text-base font-black text-gray-900">
-                    {editingCoupon ? 'Edit Brand Coupon' : 'Create Unlimited Brand Coupon'}
-                  </h2>
+                  <Tag className="w-5 h-5" />
+                  <h3 className="font-bold text-base">{editingCoupon ? 'Edit Brand Coupon' : 'Create New Brand Coupon'}</h3>
                 </div>
-                <button
-                  onClick={() => setIsCouponModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
-                >
-                  <XCircle className="w-5 h-5" />
+                <button onClick={() => setIsCouponModalOpen(false)} className="p-1 hover:bg-amber-600 rounded-lg">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveCoupon} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Brand Name */}
+              <form onSubmit={handleSaveCoupon} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto font-sans">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Brand Name *</label>
                     <input
@@ -875,35 +978,10 @@ export default function AdminRewardsManagementView() {
                       value={couponForm.brandName}
                       onChange={(e) => setCouponForm({ ...couponForm, brandName: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. Nike, Apple, Puma, Sephora"
+                      placeholder="e.g. Nike, Puma, Apple"
                     />
                   </div>
 
-                  {/* Brand Logo URL */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
-                    <input
-                      type="text"
-                      value={couponForm.brandLogo}
-                      onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="https://images.unsplash.com/..."
-                    />
-                  </div>
-
-                  {/* Official Brand Website URL */}
-                  <div className="col-span-2">
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Official Brand Website URL ("Visit Official Brand")</label>
-                    <input
-                      type="url"
-                      value={couponForm.brandWebsiteUrl}
-                      onChange={(e) => setCouponForm({ ...couponForm, brandWebsiteUrl: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="https://www.nike.com"
-                    />
-                  </div>
-
-                  {/* Coupon Title */}
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Coupon Title *</label>
                     <input
@@ -912,37 +990,45 @@ export default function AdminRewardsManagementView() {
                       value={couponForm.title}
                       onChange={(e) => setCouponForm({ ...couponForm, title: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. Flat ₹500 Off Nike Footwear"
+                      placeholder="e.g. Flat ₹500 Off Footwear"
                     />
                   </div>
 
-                  {/* Secret Coupon Code */}
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Actual Secret Coupon Code *</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Coupon Code *</label>
                     <input
                       type="text"
                       required
                       value={couponForm.code}
                       onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. NIKE-SUMMER-500"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-amber-500 outline-none uppercase font-bold"
+                      placeholder="NIKE-SUMMER-500"
                     />
                   </div>
 
-                  {/* Discount Type */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Buy Coupon Price (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      value={couponForm.buyNowPrice}
+                      onChange={(e) => setCouponForm({ ...couponForm, buyNowPrice: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold text-amber-600"
+                    />
+                  </div>
+
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Discount Type</label>
                     <select
                       value={couponForm.discountType}
                       onChange={(e) => setCouponForm({ ...couponForm, discountType: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white"
                     >
                       <option value="flat">Flat Amount (₹)</option>
                       <option value="percent">Percentage (%)</option>
                     </select>
                   </div>
 
-                  {/* Discount Value */}
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Discount Value</label>
                     <input
@@ -950,24 +1036,12 @@ export default function AdminRewardsManagementView() {
                       required
                       value={couponForm.discountValue}
                       onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold text-amber-600"
-                    />
-                  </div>
-
-                  {/* Buy Now Price */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Buy Now Price (Amount Paid by Customer ₹)</label>
-                    <input
-                      type="number"
-                      value={couponForm.buyNowPrice}
-                      onChange={(e) => setCouponForm({ ...couponForm, buyNowPrice: Number(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
                     />
                   </div>
 
-                  {/* Minimum Order Value */}
                   <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Minimum Order Value (₹)</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Min Order Value (₹)</label>
                     <input
                       type="number"
                       value={couponForm.minOrderValue}
@@ -976,9 +1050,18 @@ export default function AdminRewardsManagementView() {
                     />
                   </div>
 
-                  {/* Main Product Image */}
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
+                    <input
+                      type="text"
+                      value={couponForm.brandLogo}
+                      onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
                   <div className="col-span-2">
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Main Product Image URL</label>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Main Product / Banner Image URL</label>
                     <input
                       type="text"
                       value={couponForm.productImage}
@@ -987,66 +1070,16 @@ export default function AdminRewardsManagementView() {
                     />
                   </div>
 
-                  {/* Catalog Images Gallery Uploader */}
-                  <div className="col-span-2 bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
-                    <label className="text-xs font-bold text-gray-700 block">Product Catalog Gallery (Multiple Images)</label>
-
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={catalogInput}
-                        onChange={(e) => setCatalogInput(e.target.value)}
-                        placeholder="Paste image URL..."
-                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-xl text-xs outline-none bg-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddCatalogImage}
-                        className="px-4 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800"
-                      >
-                        Add Image
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 pt-2">
-                      {couponForm.catalogImages?.map((url, idx) => (
-                        <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-300 group">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCatalogImage(idx)}
-                            className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Validity Date & Time */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Validity Start Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={couponForm.validFrom}
-                      onChange={(e) => setCouponForm({ ...couponForm, validFrom: e.target.value })}
+                  <div className="col-span-2">
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Terms & Conditions / Description</label>
+                    <textarea
+                      rows={2}
+                      value={couponForm.terms}
+                      onChange={(e) => setCouponForm({ ...couponForm, terms: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                   </div>
 
-                  {/* Expiry Date & Time */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Expiry End Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={couponForm.expiryDate}
-                      onChange={(e) => setCouponForm({ ...couponForm, expiryDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
-
-                  {/* Quantities */}
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Total Coupon Quantity</label>
                     <input
@@ -1067,7 +1100,6 @@ export default function AdminRewardsManagementView() {
                     />
                   </div>
 
-                  {/* Category & Subcategory */}
                   <div>
                     <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
                     <select
@@ -1094,7 +1126,6 @@ export default function AdminRewardsManagementView() {
                     />
                   </div>
 
-                  {/* Active & Featured Flags */}
                   <div className="col-span-2 flex items-center gap-6 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
                       <input
@@ -1118,7 +1149,6 @@ export default function AdminRewardsManagementView() {
                   </div>
                 </div>
 
-                {/* Submit Buttons */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button
                     type="button"
@@ -1133,6 +1163,454 @@ export default function AdminRewardsManagementView() {
                     className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 disabled:opacity-50"
                   >
                     {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Brand Coupon'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL 2: MANAGE REWARD CARD PRODUCTS MODAL */}
+        {managingProductsCoupon && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col font-sans"
+            >
+              {/* Header */}
+              <div className="p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={managingProductsCoupon.brandLogo || 'https://via.placeholder.com/50'}
+                    alt={managingProductsCoupon.brandName}
+                    className="w-10 h-10 rounded-full bg-white object-cover border-2 border-amber-400"
+                  />
+                  <div>
+                    <h3 className="font-black text-base leading-tight">
+                      Manage Products for: {managingProductsCoupon.title}
+                    </h3>
+                    <p className="text-xs text-amber-300 font-bold">
+                      {managingProductsCoupon.brandName} • {(managingProductsCoupon.productIds || []).length} Products Assigned
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setManagingProductsCoupon(null)}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Main Body */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-gray-50/50">
+                {/* Section 1: Assigned Products List */}
+                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                    <div>
+                      <h4 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-amber-500" /> Assigned Reward Products (Ordered)
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Products shown on the public Reward Products page for this card. Reorder, toggle visibility, or edit details.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsCreatingNewProduct(true)}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <Plus className="w-4 h-4" /> Create & Assign Product
+                    </button>
+                  </div>
+
+                  {/* Assigned Products Table / Cards */}
+                  {(!managingProductsCoupon.productIds || managingProductsCoupon.productIds.length === 0) ? (
+                    <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200 text-xs text-amber-800 space-y-1">
+                      <strong className="block font-bold">No custom products assigned yet!</strong>
+                      <span>
+                        Until explicit products are assigned below, the customer Reward Products page will automatically fallback to showing all store products under brand <strong>"{managingProductsCoupon.brandName}"</strong>. Assign specific products below to override this fallback!
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {managingProductsCoupon.productIds.map((prodId, idx) => {
+                        const prod = storeProducts.find(p => p.id === prodId);
+                        const isDisabled = (managingProductsCoupon.disabledProductIds || []).includes(prodId);
+
+                        if (!prod) {
+                          return (
+                            <div key={prodId} className="flex items-center justify-between p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700 font-medium">
+                              <span>Product ID <strong>{prodId}</strong> not found in store database</span>
+                              <button
+                                onClick={() => handleUnassignProductFromCoupon(managingProductsCoupon, prodId)}
+                                className="text-rose-600 font-bold hover:underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={prod.id}
+                            className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                              isDisabled ? 'bg-gray-100 border-gray-200 opacity-60' : 'bg-white border-gray-200 shadow-sm hover:border-amber-300'
+                            }`}
+                          >
+                            {/* Reorder Buttons */}
+                            <div className="flex flex-col gap-0.5 shrink-0">
+                              <button
+                                onClick={() => handleMoveAssignedProductOrder(managingProductsCoupon, idx, 'up')}
+                                disabled={idx === 0}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-20"
+                                title="Move Up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleMoveAssignedProductOrder(managingProductsCoupon, idx, 'down')}
+                                disabled={idx === (managingProductsCoupon.productIds?.length || 0) - 1}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-500 disabled:opacity-20"
+                                title="Move Down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {/* Image & Title */}
+                            <img
+                              src={prod.images?.[0] || 'https://via.placeholder.com/80'}
+                              alt={prod.name}
+                              className="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0"
+                            />
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-bold text-xs text-gray-900 truncate">{prod.name}</h5>
+                                {isDisabled && (
+                                  <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-black uppercase">
+                                    DISABLED FOR CARD
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-gray-500 flex items-center gap-3">
+                                <span>Brand: <strong className="text-gray-700">{prod.brand || 'N/A'}</strong></span>
+                                <span>Price: <strong className="text-emerald-700">₹{prod.discountPrice || prod.price}</strong> {prod.price && prod.price > (prod.discountPrice || 0) && <del className="text-gray-400 text-[10px]">₹{prod.price}</del>}</span>
+                                <span>Stock: <strong className={prod.stock > 0 ? 'text-gray-900' : 'text-rose-600 font-bold'}>{prod.stock} left</strong></span>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => handleToggleProductDisabledForCoupon(managingProductsCoupon, prod.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                                  isDisabled ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                }`}
+                              >
+                                {isDisabled ? 'Enable' : 'Disable'}
+                              </button>
+
+                              <button
+                                onClick={() => setEditingProductModal(prod)}
+                                className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+                                title="Edit Product Details"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => handleUnassignProductFromCoupon(managingProductsCoupon, prod.id)}
+                                className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg"
+                                title="Remove from Reward Card"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Store Catalog Search & Assign */}
+                <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-3">
+                    <div>
+                      <h4 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-emerald-600" /> Store Product Database Catalog
+                      </h4>
+                      <p className="text-xs text-gray-500">Search existing store products to assign them to this Reward Card.</p>
+                    </div>
+
+                    <div className="relative w-full sm:w-64">
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={storeSearchQuery}
+                        onChange={(e) => setStoreSearchQuery(e.target.value)}
+                        placeholder="Search products by name/brand..."
+                        className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto p-1">
+                    {storeProducts
+                      .filter(p => p.name.toLowerCase().includes(storeSearchQuery.toLowerCase()) || (p.brand || '').toLowerCase().includes(storeSearchQuery.toLowerCase()))
+                      .map(p => {
+                        const isAssigned = (managingProductsCoupon.productIds || []).includes(p.id);
+                        return (
+                          <div key={p.id} className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between gap-3">
+                            <img src={p.images?.[0] || 'https://via.placeholder.com/50'} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-white" />
+                            <div className="flex-1 min-w-0">
+                              <h6 className="font-bold text-xs text-gray-900 truncate">{p.name}</h6>
+                              <p className="text-[10px] text-gray-500">{p.brand || 'Brand'} • ₹{p.discountPrice || p.price} • Stock: {p.stock}</p>
+                            </div>
+
+                            {isAssigned ? (
+                              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-lg border border-emerald-200 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Assigned
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleAssignProductToCoupon(managingProductsCoupon, p.id)}
+                                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm"
+                              >
+                                + Assign
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-gray-100 border-t border-gray-200 flex justify-end shrink-0">
+                <button
+                  onClick={() => setManagingProductsCoupon(null)}
+                  className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-md"
+                >
+                  Done Managing Products
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL 3: CREATE NEW STORE PRODUCT MODAL */}
+        {isCreatingNewProduct && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-8 font-sans"
+            >
+              <div className="p-5 bg-emerald-600 text-white flex justify-between items-center">
+                <h4 className="font-bold text-sm">Create New Product & Assign to Reward Card</h4>
+                <button onClick={() => setIsCreatingNewProduct(false)} className="p-1 hover:bg-emerald-700 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateAndAssignProduct} className="p-5 space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Product Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newProductForm.name}
+                    onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Nike Air Max Running Shoes"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Name</label>
+                    <input
+                      type="text"
+                      value={newProductForm.brand}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, brand: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                      placeholder={managingProductsCoupon?.brandName || 'Brand'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Stock Quantity</label>
+                    <input
+                      type="number"
+                      value={newProductForm.stock}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, stock: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Original Price (MRP ₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={newProductForm.price}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, price: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Selling Price (Discounted ₹)</label>
+                    <input
+                      type="number"
+                      value={newProductForm.discountPrice}
+                      onChange={(e) => setNewProductForm({ ...newProductForm, discountPrice: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-emerald-700"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Product Image URL</label>
+                  <input
+                    type="text"
+                    value={newProductForm.images[0]}
+                    onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    value={newProductForm.description}
+                    onChange={(e) => setNewProductForm({ ...newProductForm, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="Short product details..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreatingNewProduct(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md"
+                  >
+                    Save & Assign
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* MODAL 4: EDIT STORE PRODUCT MODAL */}
+        {editingProductModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden my-8 font-sans"
+            >
+              <div className="p-5 bg-amber-500 text-white flex justify-between items-center">
+                <h4 className="font-bold text-sm">Edit Product in Store Database</h4>
+                <button onClick={() => setEditingProductModal(null)} className="p-1 hover:bg-amber-600 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditedStoreProduct} className="p-5 space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Product Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingProductModal.name}
+                    onChange={(e) => setEditingProductModal({ ...editingProductModal, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand</label>
+                    <input
+                      type="text"
+                      value={editingProductModal.brand || ''}
+                      onChange={(e) => setEditingProductModal({ ...editingProductModal, brand: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Stock Level</label>
+                    <input
+                      type="number"
+                      value={editingProductModal.stock}
+                      onChange={(e) => setEditingProductModal({ ...editingProductModal, stock: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">MRP Price (₹)</label>
+                    <input
+                      type="number"
+                      value={editingProductModal.price}
+                      onChange={(e) => setEditingProductModal({ ...editingProductModal, price: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 block mb-1">Selling Price (₹)</label>
+                    <input
+                      type="number"
+                      value={editingProductModal.discountPrice || editingProductModal.price}
+                      onChange={(e) => setEditingProductModal({ ...editingProductModal, discountPrice: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold text-emerald-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 block mb-1">Image URL</label>
+                  <input
+                    type="text"
+                    value={editingProductModal.images?.[0] || ''}
+                    onChange={(e) => setEditingProductModal({ ...editingProductModal, images: [e.target.value] })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProductModal(null)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-md"
+                  >
+                    Save Changes
                   </button>
                 </div>
               </form>
