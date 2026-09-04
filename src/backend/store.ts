@@ -477,6 +477,7 @@ interface RewardsState {
   markRewardOrderUsed: (orderId: string) => Promise<{ success: boolean; message: string }>;
   claimVoucher: (voucherId: string) => Promise<{ success: boolean; message: string; voucher?: any }>;
   addPoints: (points: number, title: string, description?: string) => Promise<void>;
+  isCouponCodeUnique: (code: string, excludeId?: string) => boolean;
 }
 
 export const useRewardsStore = create<RewardsState>((set, get) => ({
@@ -631,11 +632,22 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     }
   },
 
+  isCouponCodeUnique: (code: string, excludeId?: string) => {
+    const clean = (code || '').trim().toUpperCase();
+    if (!clean) return true;
+    const match = get().offers.find(o => (o.code || '').trim().toUpperCase() === clean && o.id !== excludeId);
+    return !match;
+  },
+
   addRewardOffer: async (offerData: Omit<RewardOffer, 'id'>) => {
     try {
+      if (offerData.code && !get().isCouponCodeUnique(offerData.code)) {
+        throw new Error(`Coupon code '${offerData.code}' is already assigned to another product. Each product must have a unique coupon code.`);
+      }
       const offerId = `vouch-${Date.now()}`;
       const newOffer: RewardOffer = {
         ...offerData,
+        code: (offerData.code || '').trim().toUpperCase(),
         id: offerId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -650,8 +662,15 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
 
   updateRewardOffer: async (offerId: string, updates: Partial<RewardOffer>) => {
     try {
+      if (updates.code && !get().isCouponCodeUnique(updates.code, offerId)) {
+        throw new Error(`Coupon code '${updates.code}' is already assigned to another product. Each product must have a unique coupon code.`);
+      }
+      const payload = { ...updates, updatedAt: new Date().toISOString() };
+      if (updates.code) {
+        payload.code = updates.code.trim().toUpperCase();
+      }
       const docRef = doc(db, 'reward_offers', offerId);
-      await setDoc(docRef, { ...updates, updatedAt: new Date().toISOString() }, { merge: true });
+      await setDoc(docRef, payload, { merge: true });
     } catch (e) {
       console.error(`Failed to update reward offer ${offerId}:`, e);
       throw e;

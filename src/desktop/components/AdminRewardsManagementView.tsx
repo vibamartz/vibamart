@@ -31,7 +31,8 @@ export default function AdminRewardsManagementView() {
     confirmRewardOrderPayment,
     rejectRewardOrderPayment,
     markRewardOrderUsed,
-    initRewards
+    initRewards,
+    isCouponCodeUnique
   } = useRewardsStore();
 
   const [activeTab, setActiveTab] = useState<'general' | 'coupons' | 'orders' | 'preview'>('general');
@@ -319,10 +320,37 @@ export default function AdminRewardsManagementView() {
     setCouponForm({ ...couponForm, catalogImages: updated });
   };
 
+  const handleGenerateUniqueCode = () => {
+    const brand = (couponForm.brandName || 'PROMO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5) || 'PROMO';
+    const random = Math.floor(1000 + Math.random() * 9000);
+    const candidate = `${brand}-${random}`;
+    if (isCouponCodeUnique(candidate, editingCoupon?.id)) {
+      setCouponForm(prev => ({ ...prev, code: candidate }));
+      toast.success(`Generated unique coupon code: ${candidate}`);
+    } else {
+      handleGenerateUniqueCode();
+    }
+  };
+
+  const setExpiryPresetDays = (days: number) => {
+    const start = couponForm.validFrom ? new Date(couponForm.validFrom) : new Date();
+    const exp = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    setCouponForm(prev => ({ ...prev, expiryDate: exp.toISOString().slice(0, 16) }));
+    toast.success(`Set validity to +${days} days`);
+  };
+
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponForm.brandName || !couponForm.title || !couponForm.code) {
       toast.error('Please fill in all required fields (Brand Name, Title, Coupon Code).');
+      return;
+    }
+
+    const cleanCode = (couponForm.code || '').trim().toUpperCase();
+
+    if (!isCouponCodeUnique(cleanCode, editingCoupon?.id)) {
+      const match = offers.find(o => (o.code || '').trim().toUpperCase() === cleanCode && o.id !== editingCoupon?.id);
+      toast.error(`Coupon code "${cleanCode}" is already in use by "${match?.title || 'another product'}". Please use a unique coupon code.`);
       return;
     }
 
@@ -334,6 +362,7 @@ export default function AdminRewardsManagementView() {
 
       const payload: Partial<BrandCoupon> = {
         ...couponForm,
+        code: cleanCode,
         slug: editingCoupon?.slug || generatedSlug,
         brandWebsiteUrl: validatedUrl || '',
         validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).toISOString() : new Date().toISOString(),
@@ -348,14 +377,14 @@ export default function AdminRewardsManagementView() {
 
       if (editingCoupon) {
         await updateRewardOffer(editingCoupon.id, payload);
-        toast.success(`Brand coupon "${payload.title}" updated successfully.`);
+        toast.success(`Product coupon "${payload.title}" updated successfully.`);
       } else {
         await addRewardOffer(payload as Omit<BrandCoupon, 'id'>);
-        toast.success(`New brand coupon "${payload.title}" created!`);
+        toast.success(`New product coupon "${payload.title}" created!`);
       }
       setIsCouponModalOpen(false);
-    } catch (err) {
-      toast.error('Failed to save brand coupon');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save coupon code');
       console.error(err);
     } finally {
       setSavingCoupon(false);
@@ -500,7 +529,7 @@ export default function AdminRewardsManagementView() {
               : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
           }`}
         >
-          <Tag className="w-4 h-4" /> Brand Coupons ({offers.length})
+          <Tag className="w-4 h-4" /> Coupon Promo Engine ({offers.length})
         </button>
         <button
           onClick={() => setActiveTab('orders')}
@@ -650,19 +679,38 @@ export default function AdminRewardsManagementView() {
         </form>
       )}
 
-      {/* TAB 2: BRAND COUPONS MANAGEMENT */}
+      {/* TAB 2: COUPON PROMO ENGINE */}
       {activeTab === 'coupons' && (
         <div className="space-y-6 font-sans">
+          {/* Promo Engine Header Banner */}
+          <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white p-5 rounded-2xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-200" />
+                <h2 className="text-base font-black tracking-wide">Admin Coupon Promo Engine</h2>
+              </div>
+              <p className="text-xs text-amber-100 max-w-2xl">
+                Create and manage unique coupon codes assigned specifically to each Reward product/item. Each product has its own isolated, non-shared promo coupon.
+              </p>
+            </div>
+            <button
+              onClick={openAddCouponModal}
+              className="px-5 py-2.5 bg-white text-amber-900 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-amber-50 transition-colors shadow-lg shrink-0"
+            >
+              <Plus className="w-4 h-4 text-amber-600" /> Create Coupon Code
+            </button>
+          </div>
+
           {/* Action Bar */}
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[240px]">
+              <div className="relative min-w-[260px]">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={couponSearch}
                   onChange={(e) => setCouponSearch(e.target.value)}
-                  placeholder="Search brand, coupon title, code..."
+                  placeholder="Search product title, brand, coupon code..."
                   className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                 />
               </div>
@@ -670,7 +718,7 @@ export default function AdminRewardsManagementView() {
               <select
                 value={couponCategoryFilter}
                 onChange={(e) => setCouponCategoryFilter(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white"
+                className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
               >
                 <option value="all">All Categories</option>
                 <option value="Fashion & Apparel">Fashion & Apparel</option>
@@ -685,118 +733,139 @@ export default function AdminRewardsManagementView() {
               onClick={openAddCouponModal}
               className="px-5 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20"
             >
-              <Plus className="w-4 h-4" /> Create Brand Coupon
+              <Plus className="w-4 h-4" /> Create Coupon Code
             </button>
           </div>
 
-          {/* Coupons List */}
+          {/* Product-Specific Coupons Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCoupons.map((coupon, idx) => (
-              <div key={coupon.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div>
-                  {/* Top Image & Logo Header */}
-                  <div className="h-40 relative bg-gray-100 overflow-hidden">
-                    <img src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'} alt={coupon.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            {filteredCoupons.map((coupon, idx) => {
+              const isExpired = coupon.expiryDate && new Date(coupon.expiryDate).getTime() < Date.now();
+              const isUpcoming = coupon.validFrom && new Date(coupon.validFrom).getTime() > Date.now();
 
-                    {/* Brand Logo Badge */}
-                    <div className="absolute left-4 bottom-3 flex items-center gap-2 z-10">
-                      <img src={coupon.brandLogo || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'} alt={coupon.brandName} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md bg-white" />
-                      <div>
-                        <span className="text-white font-black text-xs block leading-tight">{coupon.brandName}</span>
-                        <span className="text-[10px] text-amber-300 font-bold">{coupon.category || 'General'}</span>
+              return (
+                <div key={coupon.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div>
+                    {/* Top Image & Logo Header */}
+                    <div className="h-40 relative bg-gray-100 overflow-hidden">
+                      <img src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'} alt={coupon.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                      {/* Brand Logo Badge */}
+                      <div className="absolute left-4 bottom-3 flex items-center gap-2 z-10">
+                        <img src={coupon.brandLogo || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'} alt={coupon.brandName} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md bg-white" />
+                        <div>
+                          <span className="text-white font-black text-xs block leading-tight">{coupon.brandName}</span>
+                          <span className="text-[10px] text-amber-300 font-bold">{coupon.category || 'General'}</span>
+                        </div>
+                      </div>
+
+                      {/* Expiration & Active Status Badges */}
+                      <div className="absolute right-3 top-3 flex items-center gap-1.5 z-10 flex-wrap justify-end">
+                        {isExpired ? (
+                          <span className="px-2 py-0.5 bg-rose-600 text-white text-[10px] font-black rounded-full shadow-sm">
+                            EXPIRED
+                          </span>
+                        ) : isUpcoming ? (
+                          <span className="px-2 py-0.5 bg-sky-600 text-white text-[10px] font-black rounded-full shadow-sm">
+                            UPCOMING
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-full shadow-sm">
+                            VALID
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black text-white ${coupon.active ? 'bg-amber-500' : 'bg-gray-500'}`}>
+                          {coupon.active ? 'ACTIVE' : 'DISABLED'}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Featured & Active Badges */}
-                    <div className="absolute right-3 top-3 flex items-center gap-1.5 z-10">
-                      {coupon.featured && (
-                        <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full shadow-sm">
-                          FEATURED
+                    {/* Body Content */}
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{coupon.title}</h3>
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0 ml-2">
+                          {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
                         </span>
-                      )}
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black text-white ${coupon.active ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-                        {coupon.active ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
+                      </div>
+
+                      {/* Coupon Code Pill */}
+                      <div className="flex items-center justify-between bg-amber-50/80 border border-amber-200 px-3 py-1.5 rounded-xl">
+                        <span className="text-[11px] text-amber-800 font-bold">Assigned Coupon:</span>
+                        <strong className="font-mono text-xs font-black text-amber-900 bg-white px-2 py-0.5 rounded border border-amber-300 shadow-xs">
+                          {coupon.code}
+                        </strong>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[11px] bg-gray-50 p-2.5 rounded-xl text-gray-600 font-medium">
+                        <div><span className="text-gray-400">Buy Price:</span> <strong className="text-amber-600 font-bold">₹{coupon.buyNowPrice}</strong></div>
+                        <div><span className="text-gray-400">Stock:</span> <strong className="text-gray-900 font-bold">{coupon.remainingQuantity} / {coupon.totalQuantity}</strong></div>
+                        <div className="col-span-2 text-[10px] text-gray-500 border-t border-gray-100 pt-1 mt-1 flex justify-between">
+                          <span>Valid: {new Date(coupon.validFrom).toLocaleDateString()}</span>
+                          <span>Expires: {new Date(coupon.expiryDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Body Content */}
-                  <div className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{coupon.title}</h3>
-                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0 ml-2">
-                        {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
-                      </span>
+                  {/* Footer Controls */}
+                  <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleMoveOrder(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
+                        title="Move Up"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveOrder(idx, 'down')}
+                        disabled={idx === offers.length - 1}
+                        className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
+                        title="Move Down"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    <p className="text-xs text-gray-500 line-clamp-2">{coupon.description || coupon.terms}</p>
-
-                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-gray-50 p-2.5 rounded-xl text-gray-600 font-medium">
-                      <div><span className="text-gray-400">Code:</span> <strong className="font-mono text-gray-900">{coupon.code}</strong></div>
-                      <div><span className="text-gray-400">Buy Price:</span> <strong className="text-amber-600">₹{coupon.buyNowPrice}</strong></div>
-                      <div><span className="text-gray-400">Stock:</span> <strong className="text-gray-900">{coupon.remainingQuantity} / {coupon.totalQuantity}</strong></div>
-                      <div><span className="text-gray-400">Min Order:</span> <strong className="text-gray-900">₹{coupon.minOrderValue || 0}</strong></div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setManagingProductsCoupon(coupon)}
+                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                        title="Manage Products for this Reward Card"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        Products ({coupon.productIds?.length || 0})
+                      </button>
+                      <button
+                        onClick={() => handleToggleCoupon(coupon)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                          coupon.active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        }`}
+                      >
+                        {coupon.active ? 'Disable' : 'Enable'}
+                      </button>
+                      <button
+                        onClick={() => openEditCouponModal(coupon)}
+                        className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg"
+                        title="Edit Coupon"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon.id, coupon.title)}
+                        className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg"
+                        title="Delete Coupon"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                {/* Footer Controls */}
-                <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleMoveOrder(idx, 'up')}
-                      disabled={idx === 0}
-                      className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
-                      title="Move Up"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleMoveOrder(idx, 'down')}
-                      disabled={idx === offers.length - 1}
-                      className="p-1.5 hover:bg-white rounded-lg text-gray-500 disabled:opacity-30"
-                      title="Move Down"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setManagingProductsCoupon(coupon)}
-                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-                      title="Manage Products for this Reward Card"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      Products ({coupon.productIds?.length || 0})
-                    </button>
-                    <button
-                      onClick={() => handleToggleCoupon(coupon)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
-                        coupon.active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                      }`}
-                    >
-                      {coupon.active ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
-                      onClick={() => openEditCouponModal(coupon)}
-                      className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg"
-                      title="Edit Coupon"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCoupon(coupon.id, coupon.title)}
-                      className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-lg"
-                      title="Delete Coupon"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -953,7 +1022,7 @@ export default function AdminRewardsManagementView() {
         </div>
       )}
 
-      {/* MODAL 1: ADD / EDIT COUPON MODAL */}
+      {/* MODAL 1: ADD / EDIT COUPON PROMO ENGINE MODAL */}
       <AnimatePresence>
         {isCouponModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -963,217 +1032,303 @@ export default function AdminRewardsManagementView() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8"
             >
-              <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
+              <div className="p-6 bg-gradient-to-r from-amber-500 to-amber-600 text-white flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <Tag className="w-5 h-5" />
-                  <h3 className="font-bold text-base">{editingCoupon ? 'Edit Brand Coupon' : 'Create New Brand Coupon'}</h3>
+                  <Tag className="w-5 h-5 text-amber-200" />
+                  <div>
+                    <h3 className="font-black text-base">{editingCoupon ? 'Edit Product Coupon Details' : 'Create Coupon Code — Promo Engine'}</h3>
+                    <p className="text-[11px] text-amber-100">Assign a unique, product-specific coupon code and validity period.</p>
+                  </div>
                 </div>
-                <button onClick={() => setIsCouponModalOpen(false)} className="p-1 hover:bg-amber-600 rounded-lg">
+                <button onClick={() => setIsCouponModalOpen(false)} className="p-1 hover:bg-amber-600 rounded-lg transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveCoupon} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto font-sans">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={couponForm.brandName}
-                      onChange={(e) => setCouponForm({ ...couponForm, brandName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. Nike, Puma, Apple"
-                    />
-                  </div>
+              {(() => {
+                const currentCleanCode = (couponForm.code || '').trim().toUpperCase();
+                const duplicateMatch = offers.find(o => (o.code || '').trim().toUpperCase() === currentCleanCode && o.id !== editingCoupon?.id);
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Coupon Title *</label>
-                    <input
-                      type="text"
-                      required
-                      value={couponForm.title}
-                      onChange={(e) => setCouponForm({ ...couponForm, title: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. Flat ₹500 Off Footwear"
-                    />
-                  </div>
+                return (
+                  <form onSubmit={handleSaveCoupon} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto font-sans">
+                    {/* Duplicate Warning Alert Banner */}
+                    {duplicateMatch && (
+                      <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-bold">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>
+                          Duplicate Code Warning: <strong>"{currentCleanCode}"</strong> is already assigned to product <strong>"{duplicateMatch.title}"</strong>. Each product must have its own unique coupon code.
+                        </span>
+                      </div>
+                    )}
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Coupon Code *</label>
-                    <input
-                      type="text"
-                      required
-                      value={couponForm.code}
-                      onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-amber-500 outline-none uppercase font-bold"
-                      placeholder="NIKE-SUMMER-500"
-                    />
-                  </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Product Item Title */}
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Reward Product / Item Title *</label>
+                        <input
+                          type="text"
+                          required
+                          value={couponForm.title}
+                          onChange={(e) => setCouponForm({ ...couponForm, title: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
+                          placeholder="e.g. Puma Nitro Running Shoe Coupon"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Buy Coupon Price (₹)</label>
-                    <input
-                      type="number"
-                      required
-                      value={couponForm.buyNowPrice}
-                      onChange={(e) => setCouponForm({ ...couponForm, buyNowPrice: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold text-amber-600"
-                    />
-                  </div>
+                      {/* Brand Name */}
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Brand Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={couponForm.brandName}
+                          onChange={(e) => setCouponForm({ ...couponForm, brandName: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
+                          placeholder="e.g. Puma, Nike, Apple"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Discount Type</label>
-                    <select
-                      value={couponForm.discountType}
-                      onChange={(e) => setCouponForm({ ...couponForm, discountType: e.target.value as any })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white"
-                    >
-                      <option value="flat">Flat Amount (₹)</option>
-                      <option value="percent">Percentage (%)</option>
-                    </select>
-                  </div>
+                      {/* Unique Coupon Code & Generator */}
+                      <div className="col-span-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-bold text-gray-700">Unique Product Coupon Code *</label>
+                          <button
+                            type="button"
+                            onClick={handleGenerateUniqueCode}
+                            className="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-200 transition-colors flex items-center gap-1"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-600" /> Auto-Generate Unique Code
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={couponForm.code}
+                          onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:ring-2 outline-none uppercase font-bold tracking-wider ${
+                            duplicateMatch ? 'border-rose-300 bg-rose-50 text-rose-800 focus:ring-rose-400' : 'border-gray-200 focus:ring-amber-500'
+                          }`}
+                          placeholder="e.g. PUMA-NITRO-500"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Discount Value</label>
-                    <input
-                      type="number"
-                      required
-                      value={couponForm.discountValue}
-                      onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
-                    />
-                  </div>
+                      {/* Buy Price */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Buy Coupon Price (₹)</label>
+                        <input
+                          type="number"
+                          required
+                          value={couponForm.buyNowPrice}
+                          onChange={(e) => setCouponForm({ ...couponForm, buyNowPrice: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-black text-amber-600"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Min Order Value (₹)</label>
-                    <input
-                      type="number"
-                      value={couponForm.minOrderValue}
-                      onChange={(e) => setCouponForm({ ...couponForm, minOrderValue: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Discount Type */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Discount Type</label>
+                        <select
+                          value={couponForm.discountType}
+                          onChange={(e) => setCouponForm({ ...couponForm, discountType: e.target.value as any })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
+                        >
+                          <option value="flat">Flat Amount (₹)</option>
+                          <option value="percent">Percentage (%)</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
-                    <input
-                      type="text"
-                      value={couponForm.brandLogo}
-                      onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Discount Value */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Discount Value</label>
+                        <input
+                          type="number"
+                          required
+                          value={couponForm.discountValue}
+                          onChange={(e) => setCouponForm({ ...couponForm, discountValue: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
+                        />
+                      </div>
 
-                  <div className="col-span-2">
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Main Product / Banner Image URL</label>
-                    <input
-                      type="text"
-                      value={couponForm.productImage}
-                      onChange={(e) => setCouponForm({ ...couponForm, productImage: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Min Order Value */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Min Order Value (₹)</label>
+                        <input
+                          type="number"
+                          value={couponForm.minOrderValue}
+                          onChange={(e) => setCouponForm({ ...couponForm, minOrderValue: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
 
-                  <div className="col-span-2">
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Terms & Conditions / Description</label>
-                    <textarea
-                      rows={2}
-                      value={couponForm.terms}
-                      onChange={(e) => setCouponForm({ ...couponForm, terms: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Validity Start Datetime */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-amber-600" /> Validity Start Date & Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          required
+                          value={couponForm.validFrom}
+                          onChange={(e) => setCouponForm({ ...couponForm, validFrom: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Total Coupon Quantity</label>
-                    <input
-                      type="number"
-                      value={couponForm.totalQuantity}
-                      onChange={(e) => setCouponForm({ ...couponForm, totalQuantity: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Expiration Datetime */}
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Expiration Date & Time
+                          </label>
+                        </div>
+                        <input
+                          type="datetime-local"
+                          required
+                          value={couponForm.expiryDate}
+                          onChange={(e) => setCouponForm({ ...couponForm, expiryDate: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-mono"
+                        />
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[10px] text-gray-400 font-medium">Add:</span>
+                          <button type="button" onClick={() => setExpiryPresetDays(7)} className="text-[10px] font-bold text-gray-600 hover:text-amber-700 bg-gray-100 hover:bg-amber-50 px-2 py-0.5 rounded border border-gray-200 transition-colors">+7 Days</button>
+                          <button type="button" onClick={() => setExpiryPresetDays(30)} className="text-[10px] font-bold text-gray-600 hover:text-amber-700 bg-gray-100 hover:bg-amber-50 px-2 py-0.5 rounded border border-gray-200 transition-colors">+30 Days</button>
+                          <button type="button" onClick={() => setExpiryPresetDays(90)} className="text-[10px] font-bold text-gray-600 hover:text-amber-700 bg-gray-100 hover:bg-amber-50 px-2 py-0.5 rounded border border-gray-200 transition-colors">+90 Days</button>
+                          <button type="button" onClick={() => setExpiryPresetDays(365)} className="text-[10px] font-bold text-gray-600 hover:text-amber-700 bg-gray-100 hover:bg-amber-50 px-2 py-0.5 rounded border border-gray-200 transition-colors">1 Year</button>
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Remaining Coupons</label>
-                    <input
-                      type="number"
-                      value={couponForm.remainingQuantity}
-                      onChange={(e) => setCouponForm({ ...couponForm, remainingQuantity: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                    />
-                  </div>
+                      {/* Brand Logo URL */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
+                        <input
+                          type="text"
+                          value={couponForm.brandLogo}
+                          onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
-                    <select
-                      value={couponForm.category}
-                      onChange={(e) => setCouponForm({ ...couponForm, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
-                    >
-                      <option value="Fashion & Apparel">Fashion & Apparel</option>
-                      <option value="Electronics">Electronics</option>
-                      <option value="Beauty & Personal Care">Beauty & Personal Care</option>
-                      <option value="Sports & Outdoors">Sports & Outdoors</option>
-                      <option value="Grocery & Dining">Grocery & Dining</option>
-                    </select>
-                  </div>
+                      {/* Main Product Image URL */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Main Product Image URL</label>
+                        <input
+                          type="text"
+                          value={couponForm.productImage}
+                          onChange={(e) => setCouponForm({ ...couponForm, productImage: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-700 block mb-1">Subcategory</label>
-                    <input
-                      type="text"
-                      value={couponForm.subcategory}
-                      onChange={(e) => setCouponForm({ ...couponForm, subcategory: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                      placeholder="e.g. Footwear, Audio, Skincare"
-                    />
-                  </div>
+                      {/* Total Quantity */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Total Quantity</label>
+                        <input
+                          type="number"
+                          value={couponForm.totalQuantity}
+                          onChange={(e) => setCouponForm({ ...couponForm, totalQuantity: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
 
-                  <div className="col-span-2 flex items-center gap-6 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
-                      <input
-                        type="checkbox"
-                        checked={couponForm.active}
-                        onChange={(e) => setCouponForm({ ...couponForm, active: e.target.checked })}
-                        className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
-                      />
-                      Active Status
-                    </label>
+                      {/* Remaining Quantity */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Remaining Stock</label>
+                        <input
+                          type="number"
+                          value={couponForm.remainingQuantity}
+                          onChange={(e) => setCouponForm({ ...couponForm, remainingQuantity: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
-                      <input
-                        type="checkbox"
-                        checked={couponForm.featured}
-                        onChange={(e) => setCouponForm({ ...couponForm, featured: e.target.checked })}
-                        className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
-                      />
-                      Featured / Priority Badge
-                    </label>
-                  </div>
-                </div>
+                      {/* Category */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Category</label>
+                        <select
+                          value={couponForm.category}
+                          onChange={(e) => setCouponForm({ ...couponForm, category: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold"
+                        >
+                          <option value="Fashion & Apparel">Fashion & Apparel</option>
+                          <option value="Electronics">Electronics</option>
+                          <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+                          <option value="Sports & Outdoors">Sports & Outdoors</option>
+                          <option value="Grocery & Dining">Grocery & Dining</option>
+                        </select>
+                      </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsCouponModalOpen(false)}
-                    className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingCoupon}
-                    className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 disabled:opacity-50"
-                  >
-                    {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Brand Coupon'}
-                  </button>
-                </div>
-              </form>
+                      {/* Subcategory */}
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Subcategory</label>
+                        <input
+                          type="text"
+                          value={couponForm.subcategory}
+                          onChange={(e) => setCouponForm({ ...couponForm, subcategory: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                          placeholder="e.g. Footwear, Audio, Skincare"
+                        />
+                      </div>
+
+                      {/* Terms */}
+                      <div className="col-span-2">
+                        <label className="text-xs font-bold text-gray-700 block mb-1">Terms & Conditions / Description</label>
+                        <textarea
+                          rows={2}
+                          value={couponForm.terms}
+                          onChange={(e) => setCouponForm({ ...couponForm, terms: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                      </div>
+
+                      {/* Status Toggles */}
+                      <div className="col-span-2 flex items-center justify-between bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={couponForm.active}
+                            onChange={(e) => setCouponForm({ ...couponForm, active: e.target.checked })}
+                            className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
+                          />
+                          Enable Coupon (Active Status)
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={couponForm.featured}
+                            onChange={(e) => setCouponForm({ ...couponForm, featured: e.target.checked })}
+                            className="w-4 h-4 text-amber-500 rounded focus:ring-amber-500"
+                          />
+                          Featured / Top Offer Badge
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsCouponModalOpen(false)}
+                        className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingCoupon || Boolean(duplicateMatch)}
+                        className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon Code' : 'Create Product Coupon'}
+                      </button>
+                    </div>
+                  </form>
+                );
+              })()}
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
         {/* MODAL 2: MANAGE REWARD CARD PRODUCTS MODAL */}
         {managingProductsCoupon && (
@@ -1622,7 +1777,6 @@ export default function AdminRewardsManagementView() {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
