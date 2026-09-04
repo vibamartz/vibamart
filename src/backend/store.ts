@@ -654,6 +654,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       };
       const docRef = doc(db, 'reward_offers', offerId);
       await setDoc(docRef, newOffer);
+      set((state) => ({ offers: [...state.offers, newOffer] }));
     } catch (e) {
       console.error("Failed to add reward offer:", e);
       throw e;
@@ -671,6 +672,11 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       }
       const docRef = doc(db, 'reward_offers', offerId);
       await setDoc(docRef, payload, { merge: true });
+      set((state) => ({
+        offers: state.offers.map((offer) =>
+          offer.id === offerId ? { ...offer, ...payload } : offer
+        )
+      }));
     } catch (e) {
       console.error(`Failed to update reward offer ${offerId}:`, e);
       throw e;
@@ -681,6 +687,11 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     try {
       const docRef = doc(db, 'reward_offers', offerId);
       await setDoc(docRef, { active, updatedAt: new Date().toISOString() }, { merge: true });
+      set((state) => ({
+        offers: state.offers.map((offer) =>
+          offer.id === offerId ? { ...offer, active, updatedAt: new Date().toISOString() } : offer
+        )
+      }));
     } catch (e) {
       console.error(`Failed to toggle reward offer ${offerId}:`, e);
       throw e;
@@ -691,6 +702,9 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
     try {
       const docRef = doc(db, 'reward_offers', offerId);
       await deleteDoc(docRef);
+      set((state) => ({
+        offers: state.offers.filter((offer) => offer.id !== offerId)
+      }));
     } catch (e) {
       console.error(`Failed to delete reward offer ${offerId}:`, e);
       throw e;

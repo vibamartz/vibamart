@@ -120,15 +120,13 @@ export default function RewardProducts() {
 
         let resultProds: Product[] = [];
 
-        // 1. Explicitly assigned product IDs
-        if (rewardCard.productIds && rewardCard.productIds.length > 0) {
+        // 1. Explicitly assigned product IDs (if productIds array exists)
+        if (Array.isArray(rewardCard.productIds)) {
           resultProds = rewardCard.productIds
             .map(id => allProds.find(p => p.id === id))
             .filter((p): p is Product => Boolean(p));
-        }
-
-        // 2. Fallback if no custom products assigned yet: match brand name or category
-        if (resultProds.length === 0) {
+        } else {
+          // 2. Fallback only if productIds array was never set on this offer
           const brandLower = (rewardCard.brandName || '').toLowerCase();
           const categoryLower = (rewardCard.category || '').toLowerCase();
 
@@ -143,14 +141,9 @@ export default function RewardProducts() {
               (categoryLower && p.categoryId.toLowerCase().includes(categoryLower))
             );
           });
-
-          // Fallback to all active products if none match
-          if (resultProds.length === 0) {
-            resultProds = allProds;
-          }
         }
 
-        // Exclude products explicitly disabled for this reward card
+        // Exclude products explicitly disabled or unassigned for this reward card
         if (rewardCard.disabledProductIds && rewardCard.disabledProductIds.length > 0) {
           resultProds = resultProds.filter(p => !rewardCard.disabledProductIds?.includes(p.id));
         }

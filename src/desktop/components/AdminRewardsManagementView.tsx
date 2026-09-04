@@ -75,13 +75,14 @@ export default function AdminRewardsManagementView() {
   // Product Management Handlers for Reward Cards
   const handleAssignProductToCoupon = async (coupon: BrandCoupon, productId: string) => {
     const currentList = coupon.productIds || [];
-    if (currentList.includes(productId)) return;
-    const updatedList = [...currentList, productId];
+    const updatedList = currentList.includes(productId) ? currentList : [...currentList, productId];
+    const currentDisabled = coupon.disabledProductIds || [];
+    const updatedDisabled = currentDisabled.filter(id => id !== productId);
     try {
-      await updateRewardOffer(coupon.id, { productIds: updatedList });
+      await updateRewardOffer(coupon.id, { productIds: updatedList, disabledProductIds: updatedDisabled });
       toast.success('Product assigned to Reward Card!');
       if (managingProductsCoupon?.id === coupon.id) {
-        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList } : null);
+        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList, disabledProductIds: updatedDisabled } : null);
       }
     } catch (e) {
       toast.error('Failed to assign product');
@@ -91,11 +92,16 @@ export default function AdminRewardsManagementView() {
   const handleUnassignProductFromCoupon = async (coupon: BrandCoupon, productId: string) => {
     const currentList = coupon.productIds || [];
     const updatedList = currentList.filter(id => id !== productId);
+    const currentDisabled = coupon.disabledProductIds || [];
+    const updatedDisabled = currentDisabled.includes(productId)
+      ? currentDisabled
+      : [...currentDisabled, productId];
+
     try {
-      await updateRewardOffer(coupon.id, { productIds: updatedList });
+      await updateRewardOffer(coupon.id, { productIds: updatedList, disabledProductIds: updatedDisabled });
       toast.success('Product removed from Reward Card.');
       if (managingProductsCoupon?.id === coupon.id) {
-        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList } : null);
+        setManagingProductsCoupon(prev => prev ? { ...prev, productIds: updatedList, disabledProductIds: updatedDisabled } : null);
       }
     } catch (e) {
       toast.error('Failed to remove product');
@@ -682,25 +688,6 @@ export default function AdminRewardsManagementView() {
       {/* TAB 2: COUPON PROMO ENGINE */}
       {activeTab === 'coupons' && (
         <div className="space-y-6 font-sans">
-          {/* Promo Engine Header Banner */}
-          <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white p-5 rounded-2xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-200" />
-                <h2 className="text-base font-black tracking-wide">Admin Coupon Promo Engine</h2>
-              </div>
-              <p className="text-xs text-amber-100 max-w-2xl">
-                Create and manage unique coupon codes assigned specifically to each Reward product/item. Each product has its own isolated, non-shared promo coupon.
-              </p>
-            </div>
-            <button
-              onClick={openAddCouponModal}
-              className="px-5 py-2.5 bg-white text-amber-900 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-amber-50 transition-colors shadow-lg shrink-0"
-            >
-              <Plus className="w-4 h-4 text-amber-600" /> Create Coupon Code
-            </button>
-          </div>
-
           {/* Action Bar */}
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
             <div className="flex flex-wrap items-center gap-3">
@@ -733,7 +720,7 @@ export default function AdminRewardsManagementView() {
               onClick={openAddCouponModal}
               className="px-5 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20"
             >
-              <Plus className="w-4 h-4" /> Create Coupon Code
+              <Plus className="w-4 h-4" /> Create Coupon
             </button>
           </div>
 
@@ -1036,7 +1023,7 @@ export default function AdminRewardsManagementView() {
                 <div className="flex items-center gap-2">
                   <Tag className="w-5 h-5 text-amber-200" />
                   <div>
-                    <h3 className="font-black text-base">{editingCoupon ? 'Edit Product Coupon Details' : 'Create Coupon Code — Promo Engine'}</h3>
+                    <h3 className="font-black text-base">{editingCoupon ? 'Edit Product Coupon Details' : 'Create Coupon — Promo Engine'}</h3>
                     <p className="text-[11px] text-amber-100">Assign a unique, product-specific coupon code and validity period.</p>
                   </div>
                 </div>
@@ -1319,7 +1306,7 @@ export default function AdminRewardsManagementView() {
                         className="px-6 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         <Save className="w-4 h-4" />
-                        {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon Code' : 'Create Product Coupon'}
+                        {savingCoupon ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Coupon'}
                       </button>
                     </div>
                   </form>
@@ -1777,6 +1764,17 @@ export default function AdminRewardsManagementView() {
             </motion.div>
           </div>
         )}
+
+      {/* Floating Action Button (FAB) for Creating Coupon */}
+      {activeTab === 'coupons' && (
+        <button
+          onClick={openAddCouponModal}
+          className="fixed bottom-6 right-6 z-40 p-4 bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border-2 border-white/20"
+          title="Create Coupon"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 }
