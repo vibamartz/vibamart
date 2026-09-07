@@ -39,7 +39,7 @@ export default function MobileCheckoutScreen() {
   const [newZip, setNewZip] = useState('');
 
   const cartTotal = total();
-  const deliveryCharge = cartTotal > 500 || items.length === 0 ? 0 : 40;
+  const deliveryCharge = cartTotal > 599 || items.length === 0 ? 0 : 40;
   const grandTotal = cartTotal + deliveryCharge;
 
   useEffect(() => {

@@ -32,7 +32,7 @@ export default function Cart() {
     const rate = item.product?.gst || 18;
     return sum + (item.product.price * item.quantity * (rate / 100));
   }, 0);
-  const shipping = subtotal > 500 ? 0 : 50;
+  const shipping = subtotal > 599 ? 0 : 50;
   const grandTotal = subtotal + tax + shipping;
 
   return (

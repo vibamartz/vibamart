@@ -65,11 +65,11 @@ export default function Footer() {
                </div>
                <div className="flex items-center gap-4">
                   <Mail className="w-5 h-5 text-primary shrink-0" />
-                  <p className="text-xs font-bold">support@vibamart.com</p>
+                  <p className="text-xs font-bold">viba.mart@hotmail.com</p>
                </div>
                <div className="flex items-center gap-4">
                   <Phone className="w-5 h-5 text-primary shrink-0" />
-                  <p className="text-xs font-bold">+91 1800 123 4567</p>
+                  <p className="text-xs font-bold">+91 9905 52 3505</p>
                </div>
             </div>
           </div>

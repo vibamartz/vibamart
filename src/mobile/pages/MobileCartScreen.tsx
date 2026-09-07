@@ -20,7 +20,7 @@ export default function MobileCartScreen() {
     return acc + (origPrice - actualPrice) * item.quantity;
   }, 0);
 
-  const deliveryCharge = cartTotal > 500 || items.length === 0 ? 0 : 40;
+  const deliveryCharge = cartTotal > 599 || items.length === 0 ? 0 : 40;
   const grandTotal = cartTotal + deliveryCharge;
 
   const handleDecreaseQuantity = (productId: string, currentQty: number, variantId?: string) => {
@@ -88,7 +88,7 @@ export default function MobileCartScreen() {
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs font-bold text-amber-800">
-          Add ₹{(500 - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
+          Add ₹{(599 - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
         </div>
       )}
 

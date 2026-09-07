@@ -256,7 +256,7 @@ export default function InvoiceModal({ order, isOpen, onClose }: InvoiceModalPro
             <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-3">
               <div>
                 <p className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Thank you for shopping with ViBa Mart!</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">For support, contact support@vibamart.com</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">For support, contact viba.mart@hotmail.com</p>
               </div>
               <div className="text-center md:text-right">
                 <div className="border-b-2 border-gray-900 w-28 mx-auto md:ml-auto pb-1 mb-1">

@@ -177,7 +177,7 @@ export default function FAQ() {
               <h2 className="text-3xl font-black text-white mb-6">Still have questions?</h2>
               <p className="text-gray-400 font-medium mb-10 max-w-md mx-auto">Our support team is available 24/7 to help you with any issues or queries.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                 <a href="mailto:support@vibamart.com" className="w-full sm:w-auto bg-primary text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-hover shadow-xl shadow-blue-900/40 transition-all active:scale-95">Contact Support</a>
+                 <a href="mailto:viba.mart@hotmail.com" className="w-full sm:w-auto bg-primary text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-primary-hover shadow-xl shadow-blue-900/40 transition-all active:scale-95">Contact Support</a>
                  <button className="w-full sm:w-auto bg-white/10 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/20 transition-all active:scale-95">Live Chat</button>
               </div>
            </div>

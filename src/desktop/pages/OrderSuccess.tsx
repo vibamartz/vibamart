@@ -67,7 +67,7 @@ export default function OrderSuccess() {
         </div>
 
         <p className="mt-12 text-[10px] font-black text-gray-300 uppercase tracking-widest max-w-xs leading-relaxed">
-          Need help with your order? Our support team is available 24/7. Contact us at <span className="text-primary">support@vibamart.com</span>
+          Need help with your order? Our support team is available 24/7. Contact us at <span className="text-primary">viba.mart@hotmail.com</span>
         </p>
       </motion.div>
     </div>
