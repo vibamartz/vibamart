@@ -72,7 +72,7 @@ export function renderCategoryFallbackIcon(
     return <Tv className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby')) {
-    return <Sparkles className={`${sizeClass} ${colorClass}`} />;
+    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit')) {
     return <Apple className={`${sizeClass} ${colorClass}`} />;
@@ -140,7 +140,7 @@ export default function CategoryLogo({
   const currentSize = sizeMap[size] || sizeMap.md;
 
   const baseStyle = `flex items-center justify-center overflow-hidden transition-all duration-200 ${currentSize.box}`;
-  
+
   const activeStyle = active
     ? 'bg-emerald-600 text-white shadow-md scale-105 ring-2 ring-emerald-500/20'
     : 'bg-emerald-50/60 border border-yellow-200/90 shadow-xs hover:border-emerald-300 hover:shadow-sm';
@@ -155,9 +155,8 @@ export default function CategoryLogo({
 
       {showLabel && (
         <span
-          className={`font-extrabold line-clamp-1 mt-1.5 px-0.5 leading-tight ${currentSize.text} ${
-            active ? 'text-emerald-800' : 'text-gray-700'
-          } ${labelClassName}`}
+          className={`font-extrabold line-clamp-1 mt-1.5 px-0.5 leading-tight ${currentSize.text} ${active ? 'text-emerald-800' : 'text-gray-700'
+            } ${labelClassName}`}
         >
           {name}
         </span>
