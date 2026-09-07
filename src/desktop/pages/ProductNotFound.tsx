@@ -4,6 +4,7 @@ import { ShoppingBag, ArrowLeft, Search, Sparkles, ChevronLeft, ChevronRight } f
 import { motion } from 'motion/react';
 import { useCategoryStore } from '../../backend/store';
 import { getCategorySlug } from '../../shared/utilities/slug';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function ProductNotFound() {
   const { categories } = useCategoryStore();
@@ -114,9 +115,7 @@ export default function ProductNotFound() {
                   to={`/category/${getCategorySlug(cat)}`}
                   className="group flex flex-col items-center gap-3 p-4 bg-white hover:bg-green-50/20 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl shrink-0 w-32 snap-start"
                 >
-                  <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-100 group-hover:border-primary p-0.5 bg-white transition-all shadow-sm">
-                    <img src={cat.image} alt={cat.name} className="w-full h-full rounded-full object-cover" />
-                  </div>
+                  <CategoryLogo name={cat.name} icon={cat.icon} size="lg" />
                   <span className="text-[10px] font-black text-gray-400 group-hover:text-primary transition-colors tracking-wider uppercase text-center truncate w-full">
                     {cat.name}
                   </span>

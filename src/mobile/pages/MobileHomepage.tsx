@@ -591,16 +591,8 @@ export default function MobileHomepage() {
                   : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
                   }`}
               >
-                <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                  {cat.id === 'for-you' || cat.slug === 'for-you' ? (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  ) : cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
-                    <Flame className="w-3.5 h-3.5 text-rose-500" />
-                  ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
-                    <Lipstick className="w-3.5 h-3.5 text-amber-500" />
-                  ) : (
-                    renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5')
-                  )}
+                <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                  {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
                 </div>
                 <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
                   {cat.name}

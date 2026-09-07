@@ -13,6 +13,7 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function MobileSearchScreen() {
   const navigate = useNavigate();
@@ -299,7 +300,7 @@ export default function MobileSearchScreen() {
               onClick={() => navigate(`/category/${getCategorySlug(cat)}`)}
               className="p-2.5 bg-gray-50 border border-gray-200/70 rounded-xl flex items-center gap-2 hover:bg-emerald-50 transition-all text-left"
             >
-              <img src={cat.image || 'https://via.placeholder.com/40'} alt={cat.name} className="w-7 h-7 rounded-lg object-cover" />
+              <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
               <span className="text-xs font-bold text-gray-800 truncate">{cat.name}</span>
             </button>
           ))}

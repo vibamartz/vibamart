@@ -16,7 +16,7 @@ import LocationPickerModal from './LocationPickerModal';
 import { getCategorySlug, getProductSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import { getDocs } from 'firebase/firestore';
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
@@ -26,11 +26,10 @@ export default function Navbar() {
     {
       id: 'for-you',
       name: 'For You',
-      iconImage: '✨',
-      color: '#f59e0b',
-      icon: undefined as string | undefined
+      color: '#059669',
+      icon: 'sparkles'
     },
-    ...CATEGORIES.filter(c => c.id !== 'all-deals')
+    ...CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true))
   ];
   const { user } = useAuthStore();
   const { items } = useCartStore();
@@ -64,18 +63,9 @@ export default function Navbar() {
   const location = useLocation();
 
   const getCategoryIcon = (cat: any) => {
-    if (cat.name === 'Toys') return <span className="text-sm scale-110">🧸</span>;
-    if (cat.name === 'Food & Health') return <span className="text-sm scale-110">🍎</span>;
-    
-    switch (cat.icon) {
-      case 'smartphone': return <span className="text-sm scale-110">📱</span>;
-      case 'shirt': return <span className="text-sm scale-110">👕</span>;
-      case 'laptop': return <span className="text-sm scale-110">💻</span>;
-      case 'home': return <span className="text-sm scale-110">🏠</span>;
-      case 'sparkles': return <span className="text-sm scale-110">✨</span>;
-      case 'tv': return <span className="text-sm scale-110">📺</span>;
-      default: return <span className="text-sm scale-110">📦</span>;
-    }
+    const catName = typeof cat === 'string' ? cat : (cat?.name || '');
+    const catIcon = typeof cat === 'string' ? cat : (cat?.icon || '');
+    return renderCategoryFallbackIcon(catName, catIcon, 'w-4 h-4', false);
   };
 
   // Sync search query with URL params
@@ -479,17 +469,17 @@ export default function Navbar() {
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Categories</span>
                       </div>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {CATEGORIES.slice(0, 4).map(cat => (
+                        {CATEGORIES.filter(c => c.isVisible ?? true).slice(0, 4).map(cat => (
                           <Link
                             key={cat.id}
                             to={`/categories/${getCategorySlug(cat)}`}
                             onClick={() => setIsSearchFocused(false)}
-                            className="flex flex-col items-center gap-2 p-3 hover:bg-blue-50/50 rounded-2xl transition-all group border border-gray-50"
+                            className="flex flex-col items-center gap-2 p-3 hover:bg-emerald-50/50 rounded-2xl transition-all group border border-gray-50"
                           >
                             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform">
-                              <img src={cat.image} className="w-full h-full rounded-lg object-cover" alt="" />
+                              <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
                             </div>
-                            <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-primary">{cat.name}</span>
+                            <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-emerald-700">{cat.name}</span>
                           </Link>
                         ))}
                       </div>
@@ -677,8 +667,8 @@ export default function Navbar() {
                 to={cat.id === 'for-you' ? '/for-you' : `/category/${getCategorySlug(cat)}`}
                 className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group shrink-0"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = cat.color || '#3b82f6';
-                  e.currentTarget.style.borderColor = cat.color || '#3b82f6';
+                  e.currentTarget.style.color = '#059669';
+                  e.currentTarget.style.borderColor = '#059669';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.color = '';
@@ -687,7 +677,6 @@ export default function Navbar() {
               >
                 <CategoryLogo
                   name={cat.name}
-                  image={(cat as any).image || (cat as any).iconImage}
                   icon={cat.icon}
                   size="sm"
                 />

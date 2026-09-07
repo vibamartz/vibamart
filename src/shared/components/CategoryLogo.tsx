@@ -1,5 +1,9 @@
 import React from 'react';
-import { Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag, Flame } from 'lucide-react';
+import {
+  Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag, Flame,
+  Headphones, Camera, Gamepad2, BookOpen, Dumbbell, Car, Watch, ShoppingBag, Apple,
+  Gift, Percent, Package
+} from 'lucide-react';
 
 export const Lipstick = ({ className = "w-5 h-5", size = 24, color = "currentColor", strokeWidth = 2, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
   <svg
@@ -32,35 +36,76 @@ interface CategoryLogoProps {
   labelClassName?: string;
 }
 
-export function renderCategoryFallbackIcon(name: string = '', iconName: string = '', sizeClass: string = 'w-5 h-5') {
-  const lower = name.toLowerCase();
-  
-  if (lower.includes('deal') || lower.includes('offer') || iconName === 'flame' || iconName === 'fire') {
-    return <Flame className={`${sizeClass} text-rose-500`} />;
+export function renderCategoryFallbackIcon(
+  name: string = '',
+  iconName: string = '',
+  sizeClass: string = 'w-5 h-5',
+  active: boolean = false,
+  customColor?: string
+) {
+  const lowerName = name.toLowerCase();
+  const lowerIcon = iconName.toLowerCase();
+  const colorClass = active ? 'text-white' : (customColor || 'text-emerald-600');
+
+  if (lowerName.includes('for you') || lowerName.includes('recommend') || lowerIcon === 'sparkles') {
+    return <Sparkles className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('beauty') || lower.includes('skin') || lower.includes('makeup') || iconName === 'sparkles' || iconName === 'lipstick') {
-    return <Lipstick className={`${sizeClass} text-amber-500`} />;
+  if (lowerName.includes('deal') || lowerName.includes('offer') || lowerName.includes('discount') || lowerIcon === 'flame' || lowerIcon === 'fire') {
+    return <Flame className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('mobile') || lower.includes('phone') || iconName === 'smartphone') {
-    return <Smartphone className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('beauty') || lowerName.includes('skin') || lowerName.includes('makeup') || lowerName.includes('cosmetic') || lowerIcon === 'lipstick') {
+    return <Lipstick className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('fashion') || lower.includes('cloth') || lower.includes('shirt') || lower.includes('men') || lower.includes('women') || iconName === 'shirt') {
-    return <Shirt className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('mobile') || lowerName.includes('phone') || lowerIcon === 'smartphone') {
+    return <Smartphone className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('electron') || lower.includes('laptop') || lower.includes('computer') || iconName === 'laptop') {
-    return <Laptop className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('fashion') || lowerName.includes('cloth') || lowerName.includes('shirt') || lowerName.includes('men') || lowerName.includes('women') || lowerName.includes('apparel') || lowerName.includes('footwear') || lowerName.includes('shoe') || lowerIcon === 'shirt') {
+    return <Shirt className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('home') || lower.includes('decor') || lower.includes('furnit') || iconName === 'home') {
-    return <HomeIcon className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('electron') || lowerName.includes('laptop') || lowerName.includes('computer') || lowerIcon === 'laptop') {
+    return <Laptop className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('appliance') || lower.includes('tv') || iconName === 'tv') {
-    return <Tv className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('home') || lowerName.includes('decor') || lowerName.includes('furnit') || lowerIcon === 'home') {
+    return <HomeIcon className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lower.includes('toy') || lower.includes('kid')) {
-    return <Sparkles className={`${sizeClass} text-yellow-500`} />;
+  if (lowerName.includes('appliance') || lowerName.includes('tv') || lowerName.includes('televis') || lowerName.includes('refrig') || lowerIcon === 'tv') {
+    return <Tv className={`${sizeClass} ${colorClass}`} />;
   }
-  
-  return <Layers className={`${sizeClass} text-emerald-600`} />;
+  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby')) {
+    return <Sparkles className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit')) {
+    return <Apple className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('audio') || lowerName.includes('headphone') || lowerName.includes('sound')) {
+    return <Headphones className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('camera') || lowerName.includes('photo')) {
+    return <Camera className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('game') || lowerName.includes('gaming')) {
+    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('book') || lowerName.includes('stationery')) {
+    return <BookOpen className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('sport') || lowerName.includes('fitness')) {
+    return <Dumbbell className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('auto') || lowerName.includes('car') || lowerName.includes('bike')) {
+    return <Car className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('watch') || lowerName.includes('jewel')) {
+    return <Watch className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('bag') || lowerName.includes('luggage')) {
+    return <ShoppingBag className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('reward') || lowerName.includes('gift')) {
+    return <Gift className={`${sizeClass} ${colorClass}`} />;
+  }
+
+  return <Layers className={`${sizeClass} ${colorClass}`} />;
 }
 
 export default function CategoryLogo({
@@ -73,7 +118,7 @@ export default function CategoryLogo({
   showLabel = false,
   labelClassName = '',
 }: CategoryLogoProps) {
-  // Dimension mappings matching Mobile Category UI specifications
+  // Dimension mappings matching Category UI specifications
   const sizeMap = {
     sm: {
       box: 'w-8 h-8 rounded-xl',
@@ -98,32 +143,13 @@ export default function CategoryLogo({
   
   const activeStyle = active
     ? 'bg-emerald-600 text-white shadow-md scale-105 ring-2 ring-emerald-500/20'
-    : 'bg-white border border-yellow-200/90 shadow-xs hover:border-emerald-300 hover:shadow-sm';
+    : 'bg-emerald-50/60 border border-yellow-200/90 shadow-xs hover:border-emerald-300 hover:shadow-sm';
 
   return (
     <div className="flex flex-col items-center justify-center text-center">
       <div className={`${baseStyle} ${activeStyle} ${className}`}>
-        {image ? (
-          <img
-            src={image}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-              const parent = (e.target as HTMLElement).parentElement;
-              if (parent) {
-                const fallbackContainer = parent.querySelector('.category-fallback-icon') as HTMLElement;
-                if (fallbackContainer) fallbackContainer.style.display = 'flex';
-              }
-            }}
-          />
-        ) : null}
-
-        <div
-          className="category-fallback-icon flex items-center justify-center w-full h-full bg-emerald-50/60"
-          style={{ display: image ? 'none' : 'flex' }}
-        >
-          {renderCategoryFallbackIcon(name, icon, currentSize.icon)}
+        <div className="flex items-center justify-center w-full h-full">
+          {renderCategoryFallbackIcon(name, icon, currentSize.icon, active)}
         </div>
       </div>
 
@@ -139,3 +165,4 @@ export default function CategoryLogo({
     </div>
   );
 }
+
