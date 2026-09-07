@@ -19,6 +19,7 @@ import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/us
 import { getProductSlug, getCategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -61,6 +62,15 @@ export default function MobileHomepage() {
     if (activeCategorySlug === 'for-you') return null;
     return CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug || c.seoSlug === activeCategorySlug || getCategorySlug(c) === activeCategorySlug) || null;
   }, [activeCategorySlug, CATEGORIES]);
+
+  const [selectedSubCatId, setSelectedSubCatId] = useState<string | null>(null);
+  const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
+
+  // Reset subcategory selection when active category changes
+  useEffect(() => {
+    setSelectedSubCatId(null);
+    setSelectedNestedSubCatId(null);
+  }, [activeCategorySlug]);
 
   // Initialize location store on mount/user change
   useEffect(() => {
@@ -320,18 +330,31 @@ export default function MobileHomepage() {
     navigate('/checkout');
   };
 
-  // Filter products by selected category
+  // Filter products by selected category hierarchy
   const filteredProducts = useMemo(() => {
     if (activeCategorySlug === 'for-you') {
       return products;
     }
-    const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
-    const targetSlug = activeCategorySlug.toLowerCase();
     return products.filter(p => {
+      if (p.status === 'inactive') return false;
+
+      // 1. Nested Subcategory Filter
+      if (selectedNestedSubCatId) {
+        return p.nestedSubCategoryId === selectedNestedSubCatId;
+      }
+
+      // 2. Subcategory Filter
+      if (selectedSubCatId) {
+        return p.subCategoryId === selectedSubCatId;
+      }
+
+      // 3. Category Filter
+      const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
+      const targetSlug = activeCategorySlug.toLowerCase();
       const catId = (p.categoryId || '').toLowerCase();
       return catId === targetId || catId === targetSlug;
     });
-  }, [products, activeCategorySlug, activeCategoryObj]);
+  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
 
   // User display name for personalized recommendations
   const userName = user?.displayName
@@ -557,57 +580,164 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. COMPACT CATEGORY CAROUSEL (w-64-72px, h-60-66px, gap-2)                 */}
+      {/* 4. COMPACT CATEGORY / SUBCATEGORY CAROUSEL                               */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0">
-        <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
-          {navCategoriesList.map((cat) => {
-            const Icon = cat.icon;
-            const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
+      <section className="w-full min-w-0 space-y-2">
+        {activeCategorySlug === 'for-you' ? (
+          <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
+            {navCategoriesList.map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
-            return (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  if (cat.slug === 'for-you' || cat.id === 'for-you') {
-                    navigate('/for-you');
-                  } else {
-                    navigate(`/category/${cat.slug}`);
-                  }
-                }}
-                style={{
-                  width: 'clamp(62px, 16vw, 70px)',
-                  height: 'clamp(60px, 16vw, 66px)'
-                }}
-                className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
-                  : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
-                  }`}
-              >
-                <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                  {cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                      navigate('/for-you');
+                    } else {
+                      navigate(`/category/${cat.slug}`);
+                    }
+                  }}
+                  style={{
+                    width: 'clamp(62px, 16vw, 70px)',
+                    height: 'clamp(60px, 16vw, 66px)'
+                  }}
+                  className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
+                    : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
+                    }`}
+                >
+                  <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
+                    {cat.image ? (
+                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <Icon className="w-3.5 h-3.5" />
+                    )}
+                  </div>
+                  <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                    {cat.name}
+                  </span>
+
+                  {/* Active indicator bar */}
+                  {isSelected ? (
+                    <motion.div
+                      layoutId="activeCategoryDot"
+                      className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
+                    />
                   ) : (
-                    <Icon className="w-3.5 h-3.5" />
+                    <div className="h-0.5 shrink-0" />
                   )}
-                </div>
-                <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
-                  {cat.name}
-                </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white rounded-[22px] p-3 shadow-sm border border-yellow-100 space-y-3">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2">
+                <CategoryLogo name={activeCategoryObj?.name || activeCategorySlug} image={activeCategoryObj?.image} size="sm" active />
+                <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">
+                  {activeCategoryObj?.name || 'Category'} Hierarchy
+                </h3>
+              </div>
+              {(selectedSubCatId || selectedNestedSubCatId) && (
+                <button
+                  onClick={() => { setSelectedSubCatId(null); setSelectedNestedSubCatId(null); }}
+                  className="text-[10px] font-bold text-emerald-700 hover:underline bg-emerald-50 px-2 py-0.5 rounded-full"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
 
-                {/* Active indicator bar */}
-                {isSelected ? (
-                  <motion.div
-                    layoutId="activeCategoryDot"
-                    className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
-                  />
-                ) : (
-                  <div className="h-0.5 shrink-0" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+            {/* Subcategories Horizontal Bar */}
+            {activeCategoryObj?.subcategories && activeCategoryObj.subcategories.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block px-0.5">
+                  Subcategories ({activeCategoryObj.subcategories.length})
+                </span>
+                <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+                  {activeCategoryObj.subcategories.map(sub => {
+                    const isSelected = selectedSubCatId === sub.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedSubCatId(null);
+                            setSelectedNestedSubCatId(null);
+                          } else {
+                            setSelectedSubCatId(sub.id);
+                            setSelectedNestedSubCatId(null);
+                          }
+                        }}
+                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${
+                          isSelected
+                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                            : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
+                        }`}
+                      >
+                        <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
+                        <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
+                          isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                        }`}>
+                          {sub.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Nested Subcategories Horizontal Bar */}
+            {(() => {
+              const availableNested = selectedSubCatId
+                ? activeCategoryObj?.subcategories?.find(s => s.id === selectedSubCatId)?.subcategories || []
+                : activeCategoryObj?.subcategories?.flatMap(s => s.subcategories || []) || [];
+
+              if (availableNested.length === 0) return null;
+
+              return (
+                <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/80 space-y-1.5">
+                  <div className="flex items-center justify-between px-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-900">
+                      Nested Subcategories
+                    </span>
+                    {selectedNestedSubCatId && (
+                      <button
+                        onClick={() => setSelectedNestedSubCatId(null)}
+                        className="text-[9px] font-bold text-emerald-700 hover:underline"
+                      >
+                        Show All
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+                    {availableNested.map(nested => {
+                      const isNestedSelected = selectedNestedSubCatId === nested.id;
+                      return (
+                        <button
+                          key={nested.id}
+                          onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border transition-all shrink-0 ${
+                            isNestedSelected
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                          }`}
+                        >
+                          <CategoryLogo name={nested.name} image={nested.image} size="sm" active={isNestedSelected} />
+                          <span>{nested.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </section>
 
       {/* ========================================================================= */}
@@ -738,7 +868,7 @@ export default function MobileHomepage() {
               />
             ))
           ) : (
-            products.slice(0, 10).map((product) => (
+            filteredProducts.slice(0, 10).map((product) => (
               <MobileProductCardItem
                 key={`trending-${product.id}`}
                 product={product}
@@ -778,7 +908,7 @@ export default function MobileHomepage() {
               />
             ))
           ) : (
-            [...products].reverse().slice(0, 8).map((product) => (
+            [...filteredProducts].reverse().slice(0, 8).map((product) => (
               <MobileProductCardItem
                 key={`recent-${product.id}`}
                 product={product}

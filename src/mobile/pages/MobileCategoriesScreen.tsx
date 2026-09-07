@@ -68,6 +68,13 @@ export default function MobileCategoriesScreen() {
     return selectedCategory.subcategories.find(s => s.id === selectedSubCatId) || null;
   }, [selectedCategory, selectedSubCatId]);
 
+  const availableNestedSubcategories = useMemo(() => {
+    if (selectedSubCategory) {
+      return selectedSubCategory.subcategories || [];
+    }
+    return selectedCategory?.subcategories?.flatMap(s => s.subcategories || []) || [];
+  }, [selectedCategory, selectedSubCategory]);
+
   // Reset subcategory selection when switching top-level category
   const handleCategorySelect = (catId: string) => {
     setActiveCategoryId(catId);
@@ -319,25 +326,25 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 3: Nested Subcategories (Appears directly below selected Subcategory - Requirement 5) */}
-                {selectedSubCategory && selectedSubCategory.subcategories && selectedSubCategory.subcategories.length > 0 && (
+                {/* Level 3: Nested Subcategories */}
+                {availableNestedSubcategories.length > 0 && (
                   <div className="space-y-2 bg-emerald-50/50 p-3 rounded-[22px] border border-emerald-100 animate-in fade-in slide-in-from-top-1 duration-200">
                     <div className="flex items-center justify-between px-1">
                       <h5 className="text-[11px] font-black text-emerald-900 uppercase tracking-wider">
-                        {selectedSubCategory.name} → Nested Subcategories
+                        {selectedSubCategory ? `${selectedSubCategory.name} → ` : ''}Nested Subcategories
                       </h5>
                       {selectedNestedSubCatId && (
                         <button
                           onClick={() => setSelectedNestedSubCatId(null)}
                           className="text-[10px] font-extrabold text-emerald-700 hover:underline"
                         >
-                          Show All {selectedSubCategory.name}
+                          Show All
                         </button>
                       )}
                     </div>
 
                     <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                      {selectedSubCategory.subcategories.map((nested) => {
+                      {availableNestedSubcategories.map((nested) => {
                         const isNestedSelected = selectedNestedSubCatId === nested.id;
                         return (
                           <motion.button

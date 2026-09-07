@@ -243,10 +243,10 @@ export default function ProductList() {
       }
 
       // SubCategory filter
-      if (selectedSubCategories.length > 0 && p.subCategoryId && !selectedSubCategories.includes(p.subCategoryId)) return false;
+      if (selectedSubCategories.length > 0 && (!p.subCategoryId || !selectedSubCategories.includes(p.subCategoryId))) return false;
 
       // Nested SubCategory filter
-      if (selectedNestedSubCategories.length > 0 && p.nestedSubCategoryId && !selectedNestedSubCategories.includes(p.nestedSubCategoryId)) return false;
+      if (selectedNestedSubCategories.length > 0 && (!p.nestedSubCategoryId || !selectedNestedSubCategories.includes(p.nestedSubCategoryId))) return false;
 
       // Brand filter
       if (selectedBrands.length > 0 && p.brand && !selectedBrands.includes(p.brand)) return false;
@@ -575,34 +575,44 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Nested Subcategories Horizontal Bar (Placed Directly Below Selected Subcategory - Requirement 5) */}
-          {selectedSubCategories.length > 0 && (
-            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80 mb-6 animate-in fade-in slide-in-from-top-1 duration-200">
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 block mb-3">
-                Nested Subcategories
-              </span>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar">
-                {selectedSubCategories.flatMap(subId => {
+          {/* Nested Subcategories Horizontal Bar */}
+          {(() => {
+            const availableNested = selectedSubCategories.length > 0
+              ? selectedSubCategories.flatMap(subId => {
                   const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
                   const sub = cat?.subcategories?.find(s => s.id === subId);
                   return sub?.subcategories || [];
-                }).map(nested => (
-                  <button
-                    key={nested.id}
-                    onClick={() => toggleNestedSubCategory(nested.id)}
-                    className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 border transition-all shrink-0 ${
-                      selectedNestedSubCategories.includes(nested.id)
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
-                    }`}
-                  >
-                    <CategoryLogo name={nested.name} image={nested.image} size="sm" active={selectedNestedSubCategories.includes(nested.id)} />
-                    <span>{nested.name}</span>
-                  </button>
-                ))}
+                })
+              : selectedCategories.flatMap(catId =>
+                  CATEGORIES.find(c => c.id === catId)?.subcategories?.flatMap(s => s.subcategories || []) || []
+                );
+
+            if (availableNested.length === 0) return null;
+
+            return (
+              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80 mb-6 animate-in fade-in slide-in-from-top-1 duration-200">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 block mb-3">
+                  Nested Subcategories
+                </span>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                  {availableNested.map(nested => (
+                    <button
+                      key={nested.id}
+                      onClick={() => toggleNestedSubCategory(nested.id)}
+                      className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 border transition-all shrink-0 ${
+                        selectedNestedSubCategories.includes(nested.id)
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                      <CategoryLogo name={nested.name} image={nested.image} size="sm" active={selectedNestedSubCategories.includes(nested.id)} />
+                      <span>{nested.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {searchParams.get('q') && (
             <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100 mb-4">
