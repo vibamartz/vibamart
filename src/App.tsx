@@ -141,6 +141,8 @@ function MainAppRoutes() {
             <Route path="/offers" element={<MobileOffersScreen />} />
             <Route path="/offers/:offerSlug" element={<MobileProductListScreen />} />
             <Route path="/offer/:offerSlug" element={<MobileProductListScreen />} />
+            <Route path="/banner/:offerSlug" element={<MobileProductListScreen />} />
+            <Route path="/banners/:offerSlug" element={<MobileProductListScreen />} />
             <Route path="/rewards" element={<MobileRewardsScreen />} />
             <Route path="/rewards/:rewardSlug" element={<MobileRewardProductsScreen />} />
             <Route path="/login" element={<Login />} />
@@ -175,6 +177,8 @@ function MainAppRoutes() {
           <Route path="/offers" element={<ProductList />} />
           <Route path="/offers/:offerSlug" element={<ProductList />} />
           <Route path="/offer/:offerSlug" element={<ProductList />} />
+          <Route path="/banner/:offerSlug" element={<ProductList />} />
+          <Route path="/banners/:offerSlug" element={<ProductList />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccess />} />

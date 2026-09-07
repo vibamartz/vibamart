@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { 
-  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers 
+  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
-import { Product } from '../../shared/types';
+import { Product, Banner } from '../../shared/types';
 import { useCartStore, useCategoryStore } from '../../backend/store';
-import { getCategorySlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,7 @@ export default function MobileProductListScreen() {
   const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
   const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
+  const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
   const matchedCategory = useMemo(() => {
     if (!rawCat) return null;
@@ -40,7 +41,14 @@ export default function MobileProductListScreen() {
   }, [matchedCategory, rawCat, navigate]);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Match banner if accessing a banner route
+  const matchedBanner = useMemo(() => {
+    if (!rawOffer) return null;
+    return banners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
+  }, [rawOffer, banners]);
 
   // Layout state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -77,10 +85,17 @@ export default function MobileProductListScreen() {
     return currentCategoryObj.subcategories.find(s => s.id === selectedSubCategory || s.slug === selectedSubCategory || createSlug(s.name) === selectedSubCategory) || null;
   }, [selectedSubCategory, currentCategoryObj]);
 
-  // Fetch Products from Firestore
+  // Category-Specific Banners for active Category
+  const categoryBanners = useMemo(() => {
+    const catId = currentCategoryObj?.id || selectedCategory;
+    if (!catId) return [];
+    return banners.filter(b => b.categoryId === catId && b.active !== false);
+  }, [currentCategoryObj, selectedCategory, banners]);
+
+  // Fetch Products & Banners from Firestore
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(docs);
       setLoading(false);
@@ -89,7 +104,16 @@ export default function MobileProductListScreen() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
+    const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+      setBanners(docs);
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeBanners();
+    };
   }, []);
 
   // Derive unique brands
@@ -106,6 +130,12 @@ export default function MobileProductListScreen() {
     return products.filter(product => {
       if (product.status === 'inactive') return false;
 
+      // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
+      if (matchedBanner) {
+        const assignedIds = new Set(matchedBanner.productIds || []);
+        if (!assignedIds.has(product.id)) return false;
+      }
+
       // Query Search
       if (querySearch) {
         const q = querySearch.toLowerCase();
@@ -115,19 +145,22 @@ export default function MobileProductListScreen() {
         if (!matchesName && !matchesBrand && !matchesTags) return false;
       }
 
-      // 1. Nested SubCategory Filter (Requirement 6)
-      if (selectedNestedSubCategory) {
-        if (product.nestedSubCategoryId !== selectedNestedSubCategory) return false;
-      }
-      // 2. SubCategory Filter (Requirement 5)
-      else if (selectedSubCategory) {
-        if (product.subCategoryId !== selectedSubCategory) return false;
-      }
-      // 3. Category Filter (Requirement 4)
-      else if (selectedCategory && selectedCategory !== 'all-deals') {
-        const catId = (product.categoryId || '').toLowerCase();
-        const target = selectedCategory.toLowerCase();
-        if (catId !== target && product.categoryId !== currentCategoryObj?.id) return false;
+      // Skip category hierarchy filtering if opening explicit banner
+      if (!matchedBanner) {
+        // 1. Nested SubCategory Filter
+        if (selectedNestedSubCategory) {
+          if (product.nestedSubCategoryId !== selectedNestedSubCategory) return false;
+        }
+        // 2. SubCategory Filter
+        else if (selectedSubCategory) {
+          if (product.subCategoryId !== selectedSubCategory) return false;
+        }
+        // 3. Category Filter
+        else if (selectedCategory && selectedCategory !== 'all-deals') {
+          const catId = (product.categoryId || '').toLowerCase();
+          const target = selectedCategory.toLowerCase();
+          if (catId !== target && product.categoryId !== currentCategoryObj?.id) return false;
+        }
       }
 
       // Brand filter
@@ -263,6 +296,58 @@ export default function MobileProductListScreen() {
           </button>
         </div>
       </div>
+
+      {/* Matched Banner Hero Card */}
+      {matchedBanner && (
+        <div className="bg-gradient-to-r from-gray-900 via-indigo-950 to-gray-900 rounded-2xl p-4 text-white shadow-md border border-indigo-900/50 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5 text-emerald-400" /> Featured Offer Banner
+            </span>
+          </div>
+          <h3 className="text-base font-black tracking-tight text-white leading-tight">
+            {matchedBanner.title}
+          </h3>
+          {matchedBanner.subtitle && (
+            <p className="text-xs text-gray-300 font-medium line-clamp-2">{matchedBanner.subtitle}</p>
+          )}
+          <div className="flex items-center justify-between text-[10px] text-indigo-300 pt-1 font-bold">
+            <span>{matchedBanner.productIds?.length || 0} Products Assigned</span>
+          </div>
+        </div>
+      )}
+
+      {/* Category-Specific Banners Slider */}
+      {categoryBanners.length > 0 && !matchedBanner && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" /> {currentCategoryObj?.name || 'Category'} Banners
+            </span>
+            <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+              {categoryBanners.length} Banners Available
+            </span>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-0.5">
+            {categoryBanners.map(b => (
+              <div
+                key={b.id}
+                onClick={() => {
+                  if (b.link) navigate(b.link);
+                  else navigate(`/offers/${b.slug || b.id}`);
+                }}
+                className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm aspect-[2/1] bg-gray-900 shrink-0 w-64 snap-start cursor-pointer active:scale-95 transition-transform"
+              >
+                <img src={b.image} alt={b.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2.5 flex flex-col justify-end text-white">
+                  <h4 className="text-xs font-black line-clamp-1">{b.title}</h4>
+                  {b.subtitle && <p className="text-[9px] text-gray-300 line-clamp-1">{b.subtitle}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Item Count & Active Filter Pills */}
       <div className="flex items-center justify-between px-1">
@@ -436,23 +521,21 @@ export default function MobileProductListScreen() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-3">
-          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
+          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto text-indigo-600">
             <Layers className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold text-gray-800">
-            No products available in this category yet.
+            {matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.'}
           </h4>
           <p className="text-xs text-gray-500">
-            Check back soon as new inventory is added regularly.
+            {matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.'}
           </p>
-          {activeFilterCount > 0 && (
-            <button
-              onClick={clearAllFilters}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm"
-            >
-              Clear Filters
-            </button>
-          )}
+          <button
+            onClick={() => navigate('/products')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm active:scale-95"
+          >
+            Browse All Products
+          </button>
         </div>
       )}
 

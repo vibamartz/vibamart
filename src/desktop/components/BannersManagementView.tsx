@@ -34,11 +34,15 @@ export default function BannersManagementView() {
     subtitle: '',
     image: '',
     link: '',
+    slug: '',
+    categoryId: '',
+    productIds: [],
     active: true,
     platform: 'all',
     startDate: '',
     endDate: ''
   });
+  const [productSearch, setProductSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Drag and Drop refs
@@ -113,6 +117,7 @@ export default function BannersManagementView() {
 
   // --- Form Handlers ---
   const handleOpenModal = (banner?: Banner) => {
+    setProductSearch('');
     if (banner) {
       setEditingBanner(banner);
       setFormData({
@@ -120,6 +125,9 @@ export default function BannersManagementView() {
         subtitle: banner.subtitle || '',
         image: banner.image || '',
         link: banner.link || '',
+        slug: banner.slug || '',
+        categoryId: banner.categoryId || '',
+        productIds: banner.productIds || [],
         active: banner.active ?? true,
         platform: banner.platform || 'all',
         startDate: banner.startDate || '',
@@ -132,6 +140,9 @@ export default function BannersManagementView() {
         subtitle: '',
         image: '',
         link: '',
+        slug: '',
+        categoryId: '',
+        productIds: [],
         active: true,
         platform: 'all',
         startDate: '',
@@ -237,8 +248,8 @@ export default function BannersManagementView() {
       return dbProducts.some(p => p.brand && createSlug(p.brand) === brandSlug);
     }
 
-    // Check offer routes
-    if (rawLink.startsWith('/offers/') || rawLink.startsWith('/offer/')) {
+    // Check offer / banner routes
+    if (rawLink.startsWith('/offers/') || rawLink.startsWith('/offer/') || rawLink.startsWith('/banner/')) {
       return true;
     }
 
@@ -259,11 +270,20 @@ export default function BannersManagementView() {
 
     setIsSaving(true);
     try {
+      const bannerSlug = (formData.slug || createSlug(formData.title || '') || 'special-offer').trim();
+      const finalLink = (formData.link || '').trim() || `/offers/${bannerSlug}`;
+
+      // Deduplicate product IDs inside the same banner
+      const uniqueProductIds = Array.from(new Set(formData.productIds || []));
+
       const payload: Record<string, any> = {
         title: formData.title || '',
         subtitle: formData.subtitle || '',
         image: formData.image,
-        link: formData.link || '',
+        link: finalLink,
+        slug: bannerSlug,
+        categoryId: formData.categoryId || '',
+        productIds: uniqueProductIds,
         active: formData.active ?? true,
         platform: formData.platform || 'all',
         startDate: formData.startDate || '',
@@ -539,6 +559,23 @@ export default function BannersManagementView() {
                       </select>
                       <p className="text-[11px] text-gray-400">Selecting 'All Devices' syncs this banner automatically to both Mobile & Desktop.</p>
                     </div>
+
+                    {/* Category Selection for Category-Specific Banners */}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-sm font-bold text-gray-700">Category Association</label>
+                      <select
+                        value={formData.categoryId || ''}
+                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium text-sm text-gray-900"
+                      >
+                        <option value="">Global / All Categories (Shows on general banner carousels)</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>Category-Specific: {cat.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-gray-400">Selecting a category makes this banner appear ONLY when customers browse that specific category.</p>
+                    </div>
+
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="text-sm font-bold text-gray-700">Banner Title</label>
                       <input
@@ -559,6 +596,128 @@ export default function BannersManagementView() {
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
                         placeholder="e.g. Get up to 50% off on all electronics"
                       />
+                    </div>
+
+                    {/* Product Assignment (Banner -> Products) */}
+                    <div className="space-y-3 md:col-span-2 bg-indigo-50/40 p-5 rounded-2xl border border-indigo-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-indigo-600" />
+                            Assigned Products (Banner → Products)
+                          </h4>
+                          <p className="text-xs text-gray-500">Select real database products to show when customers click this banner.</p>
+                        </div>
+                        <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
+                          {formData.productIds?.length || 0} Products Assigned
+                        </span>
+                      </div>
+
+                      {/* Search products input */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          placeholder="Search real products by name or SKU to assign..."
+                          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
+                        />
+                      </div>
+
+                      {/* Search Results dropdown/list */}
+                      {productSearch.trim() && (
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
+                          {dbProducts
+                            .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase())))
+                            .slice(0, 8)
+                            .map(prod => {
+                              const isAssigned = formData.productIds?.includes(prod.id);
+                              return (
+                                <div key={prod.id} className="p-2.5 flex items-center justify-between hover:bg-gray-50 text-xs">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <img src={prod.images?.[0] || 'https://via.placeholder.com/40'} alt={prod.name} className="w-8 h-8 object-cover rounded-lg shrink-0" />
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-gray-900 truncate">{prod.name}</p>
+                                      <p className="text-[10px] text-gray-400">SKU: {prod.sku || 'N/A'} • ₹{prod.discountPrice || prod.price}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isAssigned) {
+                                        setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => id !== prod.id) }));
+                                      } else {
+                                        setFormData(prev => ({ ...prev, productIds: Array.from(new Set([...(prev.productIds || []), prod.id])) }));
+                                      }
+                                    }}
+                                    className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-colors shrink-0 ${
+                                      isAssigned ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    }`}
+                                  >
+                                    {isAssigned ? 'Remove' : 'Assign'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+
+                      {/* Assigned Products Chips List */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {(formData.productIds || []).map(pId => {
+                          const prod = dbProducts.find(p => p.id === pId);
+                          if (!prod) return null;
+                          return (
+                            <span key={pId} className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-900 text-xs font-semibold px-2.5 py-1 rounded-xl shadow-xs">
+                              <img src={prod.images?.[0]} alt="" className="w-4 h-4 rounded-md object-cover" />
+                              <span className="max-w-[140px] truncate">{prod.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => id !== pId) }))}
+                                className="text-gray-400 hover:text-rose-600 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                        {(!formData.productIds || formData.productIds.length === 0) && (
+                          <p className="text-xs text-gray-400 italic">No products assigned yet. Search above to add products to this banner.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Live Preview Box */}
+                    <div className="md:col-span-2 bg-gradient-to-r from-gray-900 to-indigo-950 p-5 rounded-2xl text-white space-y-3 shadow-lg">
+                      <div className="flex items-center justify-between text-xs font-bold text-indigo-300">
+                        <span className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-emerald-400" /> Live Banner Preview</span>
+                        <span className="bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider text-[10px]">
+                          {formData.platform === 'desktop' ? 'Desktop Only' : formData.platform === 'mobile' ? 'Mobile Only' : 'Mobile + Desktop'}
+                        </span>
+                      </div>
+                      
+                      <div className="relative rounded-xl overflow-hidden bg-black/40 aspect-[21/9] flex items-center justify-center border border-white/10">
+                        {formData.image ? (
+                          <img src={formData.image} alt="Preview" className="w-full h-full object-cover opacity-90" />
+                        ) : (
+                          <div className="text-gray-400 text-xs flex flex-col items-center gap-1">
+                            <ImageIcon className="w-8 h-8 text-gray-500" /> Upload image to see live preview
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
+                          {formData.categoryId && (
+                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/60 w-fit px-2 py-0.5 rounded border border-emerald-500/30 mb-1">
+                              {categories.find(c => c.id === formData.categoryId)?.name || 'Category'}
+                            </span>
+                          )}
+                          <h4 className="text-base font-black text-white leading-tight">{formData.title || 'Banner Title'}</h4>
+                          {formData.subtitle && <p className="text-xs text-gray-300 line-clamp-1">{formData.subtitle}</p>}
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10 text-[10px] text-gray-300">
+                            <span>Assigned Products: <strong className="text-white">{formData.productIds?.length || 0}</strong></span>
+                            <span className="text-indigo-300 font-mono underline">{formData.link || '/offers/...'}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">

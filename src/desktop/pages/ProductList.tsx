@@ -3,14 +3,14 @@ import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
-import { Product } from '../../shared/types';
+import { Product, Banner } from '../../shared/types';
 import { toast } from 'react-hot-toast';
 import {
-  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart
+  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
-import { getCategorySlug, getSubcategorySlug, createSlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function ProductList() {
@@ -25,6 +25,7 @@ export default function ProductList() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('popularity');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allBanners, setAllBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try {
@@ -43,6 +44,18 @@ export default function ProductList() {
     if (!rawCat) return null;
     return CATEGORIES.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
   }, [rawCat, CATEGORIES]);
+
+  // Match banner object if opening a banner route
+  const matchedBanner = useMemo(() => {
+    if (!rawOffer) return null;
+    return allBanners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
+  }, [rawOffer, allBanners]);
+
+  // Category-Specific Banners for the selected category
+  const categoryBanners = useMemo(() => {
+    if (!matchedCategory) return [];
+    return allBanners.filter(b => b.categoryId === matchedCategory.id && b.active !== false);
+  }, [matchedCategory, allBanners]);
 
   // Backward compatibility redirect: if accessed via numeric category ID like /category/1, redirect replace to /categories/mobiles
   useEffect(() => {
@@ -156,7 +169,7 @@ export default function ProductList() {
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setAllProducts(data);
       setLoading(false);
@@ -164,7 +177,19 @@ export default function ProductList() {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
+    const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+      setAllBanners(data);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'banners', false);
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeBanners();
+    };
   }, []);
 
   // Sync category and brand from URL params or route params
@@ -200,8 +225,14 @@ export default function ProductList() {
 
   const filteredProducts = useMemo(() => {
     let result = allProducts.filter(p => {
-      // Category filter
-      if (selectedCategories.length > 0) {
+      // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
+      if (matchedBanner) {
+        const assignedIds = new Set(matchedBanner.productIds || []);
+        if (!assignedIds.has(p.id)) return false;
+      }
+
+      // Category filter (Skip category filter if viewing explicit banner)
+      if (!matchedBanner && selectedCategories.length > 0) {
         if (selectedCategories.includes('all-deals')) {
           if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
         } else if (!selectedCategories.includes(p.categoryId)) {
@@ -439,7 +470,81 @@ export default function ProductList() {
       {/* Header / Breadcrumbs */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Browse Products</h1>
+          
+          {/* Matched Banner Hero Header */}
+          {matchedBanner && (
+            <div className="mb-6 rounded-3xl overflow-hidden shadow-xl border border-indigo-100 bg-gradient-to-r from-gray-900 via-indigo-950 to-gray-900 text-white p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-3 max-w-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> Featured Offer Banner
+                  </span>
+                  {matchedCategory && (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-900/60 px-3 py-1 rounded-full border border-indigo-400/30">
+                      {matchedCategory.name}
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+                  {matchedBanner.title}
+                </h1>
+                {matchedBanner.subtitle && (
+                  <p className="text-sm text-gray-300 font-medium">{matchedBanner.subtitle}</p>
+                )}
+                <p className="text-xs text-indigo-300 font-bold flex items-center gap-1.5 pt-1">
+                  <Layers className="w-4 h-4 text-indigo-400" />
+                  Showing ONLY the {matchedBanner.productIds?.length || 0} Products assigned to this banner
+                </p>
+              </div>
+              {matchedBanner.image && (
+                <div className="w-full md:w-80 aspect-[21/9] md:aspect-[16/9] rounded-2xl overflow-hidden shadow-lg border border-white/10 shrink-0">
+                  <img src={matchedBanner.image} alt={matchedBanner.title} className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Category-Specific Banners Carousel (When Category is selected) */}
+          {categoryBanners.length > 0 && !matchedBanner && (
+            <div className="mb-6 space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  {matchedCategory?.name} Exclusive Banners
+                </h3>
+                <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  {categoryBanners.length} Banners Assigned
+                </span>
+              </div>
+              <div className="flex gap-4 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
+                {categoryBanners.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => {
+                      if (b.link) navigate(b.link);
+                      else navigate(`/offers/${b.slug || b.id}`);
+                    }}
+                    className="relative group rounded-2xl overflow-hidden border border-gray-200/80 shadow-md hover:shadow-xl transition-all cursor-pointer shrink-0 w-80 sm:w-96 aspect-[21/9] snap-start"
+                  >
+                    <img src={b.image} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/60 w-fit px-2 py-0.5 rounded border border-emerald-500/30 mb-1">
+                        {matchedCategory?.name}
+                      </span>
+                      <h4 className="text-sm font-black text-white leading-tight">{b.title}</h4>
+                      {b.subtitle && <p className="text-[11px] text-gray-200 line-clamp-1">{b.subtitle}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!matchedBanner && (
+            <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
+              {matchedCategory ? matchedCategory.name : 'Browse Products'}
+            </h1>
+          )}
 
           {/* Subcategories Horizontal Bar (Matching Mobile Category Logo Style) */}
           {selectedCategories.length > 0 && (
@@ -596,17 +701,25 @@ export default function ProductList() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-100">
-                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-emerald-600">
-                  <Filter className="w-8 h-8" />
+              <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-200 max-w-lg mx-auto my-8">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Layers className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No products available in this category yet.</h3>
-                <p className="text-gray-500 mb-6">Check back soon as new products are regularly added to our store.</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {matchedBanner
+                    ? 'No products assigned to this banner yet.'
+                    : 'No products available in this category yet.'}
+                </h3>
+                <p className="text-gray-500 mb-6 text-sm">
+                  {matchedBanner
+                    ? 'Check back soon as new products are assigned to this banner offer.'
+                    : 'Check back soon as new products are regularly added to our store.'}
+                </p>
                 <button
-                  onClick={clearFilters}
-                  className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                  onClick={() => navigate('/products')}
+                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
                 >
-                  Clear All Filters
+                  Browse All Products
                 </button>
               </div>
             )}

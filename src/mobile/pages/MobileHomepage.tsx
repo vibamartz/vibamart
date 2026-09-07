@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, Mic, Camera, QrCode, MapPin, ChevronDown,
@@ -16,7 +16,7 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
-import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
+import { getProductSlug, getCategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
@@ -186,20 +186,46 @@ export default function MobileHomepage() {
     return () => clearInterval(timer);
   }, [banners.length]);
 
+  // Category-Specific Banners for Mobile Homepage
+  const activeCategoryBanners = useMemo(() => {
+    if (!selectedCategory || selectedCategory === 'for-you') {
+      return banners;
+    }
+    const catMatch = CATEGORIES.find(c => c.id === selectedCategory || getCategorySlug(c) === selectedCategory);
+    const targetId = catMatch?.id || selectedCategory;
+    const categorySpecific = banners.filter(b => b.categoryId === targetId);
+    return categorySpecific.length > 0 ? categorySpecific : banners;
+  }, [banners, selectedCategory, CATEGORIES]);
+
   const handleLocationSelect = (pincode: string) => {
     toast.success(`Delivery location set to ${pincode}`);
   };
 
-  const navigateBanner = (link?: string) => {
-    if (!link) {
+  const navigateBanner = (banner?: Banner | string) => {
+    if (!banner) {
       navigate('/products');
       return;
     }
-    if (/^https?:\/\//i.test(link) || link.startsWith('www.')) {
-      const url = link.startsWith('www.') ? `https://${link}` : link;
-      window.open(url, '_blank', 'noopener,noreferrer');
+    if (typeof banner === 'string') {
+      if (/^https?:\/\//i.test(banner) || banner.startsWith('www.')) {
+        const url = banner.startsWith('www.') ? `https://${banner}` : banner;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(banner);
+      }
+      return;
+    }
+
+    if (banner.link) {
+      if (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.')) {
+        const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(banner.link);
+      }
     } else {
-      navigate(link);
+      const slug = banner.slug || getBannerSlug(banner);
+      navigate(`/offers/${slug}`);
     }
   };
 
@@ -557,19 +583,19 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (aspect-ratio 2:1, rounded corners 22px)            */}
       {/* ========================================================================= */}
-      {settings.enableBanner && banners.length > 0 && (
+      {settings.enableBanner && activeCategoryBanners.length > 0 && (
         <section className="w-full min-w-0 space-y-2 overflow-hidden">
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
             className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-3 px-0.5 py-0.5 min-w-0 w-full"
           >
-            {banners.map((banner, i) => (
+            {activeCategoryBanners.map((banner, i) => (
               <div
                 key={banner.id || i}
-                onClick={() => navigateBanner(banner.link)}
+                onClick={() => navigateBanner(banner)}
                 className={`relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 aspect-[2/1] bg-gray-900 cursor-pointer group active:scale-[0.99] transition-transform ${
-                  banners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
+                  activeCategoryBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                 }`}
               >
                 <img

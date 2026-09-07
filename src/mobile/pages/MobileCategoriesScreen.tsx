@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
-import { Product, SubCategory } from '../../shared/types';
+import { Product, SubCategory, Banner } from '../../shared/types';
 import { useCategoryStore, useCartStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getProductSlug } from '../../shared/utilities/slug';
-import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check } from 'lucide-react';
+import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
@@ -20,6 +20,7 @@ export default function MobileCategoriesScreen() {
   const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Sync active category fallback when categories load
@@ -29,10 +30,10 @@ export default function MobileCategoriesScreen() {
     }
   }, [categories, activeCategoryId]);
 
-  // Fetch real products from Firestore
+  // Fetch real products & banners from Firestore
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
       setProducts(docs);
       setLoading(false);
@@ -41,12 +42,26 @@ export default function MobileCategoriesScreen() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
+    const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
+      const docs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Banner)).filter(b => b.active !== false);
+      setBanners(docs);
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeBanners();
+    };
   }, []);
 
   const selectedCategory = useMemo(() => {
     return categories.find(c => c.id === activeCategoryId) || categories[0];
   }, [categories, activeCategoryId]);
+
+  const categoryBanners = useMemo(() => {
+    if (!selectedCategory) return [];
+    return banners.filter(b => b.categoryId === selectedCategory.id);
+  }, [selectedCategory, banners]);
 
   const selectedSubCategory = useMemo(() => {
     if (!selectedSubCatId || !selectedCategory?.subcategories) return null;
@@ -223,6 +238,38 @@ export default function MobileCategoriesScreen() {
                     View All <ArrowRight className="w-3 h-3" />
                   </motion.button>
                 </div>
+
+                {/* Category-Specific Banners Section */}
+                {categoryBanners.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-500" /> {selectedCategory.name} Banners
+                      </span>
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                        {categoryBanners.length} Banners
+                      </span>
+                    </div>
+                    <div className="flex gap-2.5 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
+                      {categoryBanners.map(b => (
+                        <div
+                          key={b.id}
+                          onClick={() => {
+                            if (b.link) navigate(b.link);
+                            else navigate(`/offers/${b.slug || b.id}`);
+                          }}
+                          className="relative rounded-2xl overflow-hidden border border-emerald-100 shadow-sm aspect-[2/1] bg-gray-900 shrink-0 w-60 snap-start cursor-pointer active:scale-95 transition-transform"
+                        >
+                          <img src={b.image} alt={b.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-3 flex flex-col justify-end text-white">
+                            <h4 className="text-xs font-black line-clamp-1">{b.title}</h4>
+                            {b.subtitle && <p className="text-[9px] text-gray-300 line-clamp-1">{b.subtitle}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Level 2: Subcategories Grid */}
                 {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (

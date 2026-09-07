@@ -221,6 +221,9 @@ export interface Banner {
   title: string;
   subtitle?: string;
   link?: string;
+  slug?: string;
+  categoryId?: string;
+  productIds?: string[];
   active?: boolean;
   order: number;
   platform?: 'mobile' | 'desktop' | 'all';

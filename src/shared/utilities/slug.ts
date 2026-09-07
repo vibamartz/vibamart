@@ -72,6 +72,16 @@ export const getOfferSlug = (nameOrTitle: string): string => {
 };
 
 /**
+ * Generates banner slug
+ */
+export const getBannerSlug = (banner: { title?: string; slug?: string; id?: string } | string): string => {
+  if (typeof banner === 'string') return createSlug(banner);
+  if (banner.slug) return banner.slug;
+  if (banner.title) return createSlug(banner.title);
+  return banner.id || '';
+};
+
+/**
  * Generates brand slug
  */
 export const getBrandSlug = (brandName: string): string => {
