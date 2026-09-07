@@ -119,6 +119,7 @@ function MainAppRoutes() {
             <Route path="/categories" element={<MobileCategoriesScreen />} />
             <Route path="/categories/:categorySlug" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/:subcategorySlug" element={<MobileProductListScreen />} />
+            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<MobileProductListScreen />} />
             <Route path="/category/:categorySlug" element={<MobileProductListScreen />} />
             <Route path="/brands/:brandSlug" element={<MobileProductListScreen />} />
             <Route path="/search" element={<MobileSearchScreen />} />
@@ -168,6 +169,7 @@ function MainAppRoutes() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/categories/:categorySlug" element={<ProductList />} />
           <Route path="/categories/:categorySlug/:subcategorySlug" element={<ProductList />} />
+          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<ProductList />} />
           <Route path="/category/:categorySlug" element={<ProductList />} />
           <Route path="/brands/:brandSlug" element={<ProductList />} />
           <Route path="/offers" element={<ProductList />} />

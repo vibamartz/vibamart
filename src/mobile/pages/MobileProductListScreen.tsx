@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { 
-  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw 
+  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers 
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -49,6 +50,7 @@ export default function MobileProductListScreen() {
   // Filter States
   const [selectedCategory, setSelectedCategory] = useState<string>(matchedCategory?.id || rawCat);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>(rawSubCat);
+  const [selectedNestedSubCategory, setSelectedNestedSubCategory] = useState<string>('');
   const [selectedBrand, setSelectedBrand] = useState<string>(rawBrand);
   const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [minRating, setMinRating] = useState<number>(0);
@@ -62,6 +64,18 @@ export default function MobileProductListScreen() {
     if (rawSubCat) setSelectedSubCategory(rawSubCat);
     if (rawBrand) setSelectedBrand(rawBrand);
   }, [matchedCategory, rawCat, rawSubCat, rawBrand]);
+
+  // Active Category Object
+  const currentCategoryObj = useMemo(() => {
+    if (!selectedCategory) return null;
+    return categories.find(c => c.id === selectedCategory || c.slug === selectedCategory || createSlug(c.name) === selectedCategory) || null;
+  }, [selectedCategory, categories]);
+
+  // Active SubCategory Object
+  const currentSubCategoryObj = useMemo(() => {
+    if (!selectedSubCategory || !currentCategoryObj?.subcategories) return null;
+    return currentCategoryObj.subcategories.find(s => s.id === selectedSubCategory || s.slug === selectedSubCategory || createSlug(s.name) === selectedSubCategory) || null;
+  }, [selectedSubCategory, currentCategoryObj]);
 
   // Fetch Products from Firestore
   useEffect(() => {
@@ -87,9 +101,11 @@ export default function MobileProductListScreen() {
     return Array.from(brands);
   }, [products]);
 
-  // Filter and Sort products
+  // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
+      if (product.status === 'inactive') return false;
+
       // Query Search
       if (querySearch) {
         const q = querySearch.toLowerCase();
@@ -99,17 +115,19 @@ export default function MobileProductListScreen() {
         if (!matchesName && !matchesBrand && !matchesTags) return false;
       }
 
-      // Category filter
-      if (selectedCategory && selectedCategory !== 'all-deals') {
+      // 1. Nested SubCategory Filter (Requirement 6)
+      if (selectedNestedSubCategory) {
+        if (product.nestedSubCategoryId !== selectedNestedSubCategory) return false;
+      }
+      // 2. SubCategory Filter (Requirement 5)
+      else if (selectedSubCategory) {
+        if (product.subCategoryId !== selectedSubCategory) return false;
+      }
+      // 3. Category Filter (Requirement 4)
+      else if (selectedCategory && selectedCategory !== 'all-deals') {
         const catId = (product.categoryId || '').toLowerCase();
         const target = selectedCategory.toLowerCase();
-        if (!catId.includes(target) && !target.includes(catId)) return false;
-      }
-
-      // SubCategory filter
-      if (selectedSubCategory) {
-        const subId = (product.subCategoryId || '').toLowerCase();
-        if (subId !== selectedSubCategory.toLowerCase()) return false;
+        if (catId !== target && product.categoryId !== currentCategoryObj?.id) return false;
       }
 
       // Brand filter
@@ -142,10 +160,11 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-  }, [products, querySearch, selectedCategory, selectedSubCategory, selectedBrand, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, selectedNestedSubCategory, selectedBrand, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
   const activeFilterCount = (selectedCategory ? 1 : 0) +
     (selectedSubCategory ? 1 : 0) +
+    (selectedNestedSubCategory ? 1 : 0) +
     (selectedBrand ? 1 : 0) +
     (maxPrice < 100000 ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
@@ -155,6 +174,7 @@ export default function MobileProductListScreen() {
   const clearAllFilters = () => {
     setSelectedCategory('');
     setSelectedSubCategory('');
+    setSelectedNestedSubCategory('');
     setSelectedBrand('');
     setMaxPrice(100000);
     setMinRating(0);
@@ -416,13 +436,23 @@ export default function MobileProductListScreen() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-3">
-          <p className="text-sm font-bold text-gray-700">No products match your filters.</p>
-          <button
-            onClick={clearAllFilters}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider"
-          >
-            Clear Filters
-          </button>
+          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
+            <Layers className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-bold text-gray-800">
+            No products available in this category yet.
+          </h4>
+          <p className="text-xs text-gray-500">
+            Check back soon as new inventory is added regularly.
+          </p>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
 

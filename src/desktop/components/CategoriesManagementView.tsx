@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Category, SubCategory } from '../../shared/types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight } from 'lucide-react';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight, Sparkles, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
+import CategoryLogo from '../../shared/components/CategoryLogo';
+import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -106,6 +108,7 @@ export default function CategoriesManagementView() {
   };
 
   // --- Form Handlers ---
+  // --- Form Handlers ---
   const handleOpenAddModal = (type: 'category' | 'subcategory' | 'nested', catId: string | null = null, subId: string | null = null) => {
     setModalType(type);
     setActiveParentCatId(catId);
@@ -114,6 +117,7 @@ export default function CategoriesManagementView() {
     setFormData({
       name: '',
       image: '',
+      icon: '',
       seoSlug: '',
       seoTitle: '',
       seoDescription: '',
@@ -130,6 +134,7 @@ export default function CategoriesManagementView() {
     setFormData({
       name: data.name || '',
       image: data.image || '',
+      icon: data.icon || '',
       seoSlug: data.seoSlug || '',
       seoTitle: data.seoTitle || '',
       seoDescription: data.seoDescription || '',
@@ -153,13 +158,39 @@ export default function CategoriesManagementView() {
     }
   };
 
+  const handleAutoGenerateLogo = (nameToUse?: string) => {
+    const targetName = nameToUse || formData.name;
+    if (!targetName) return;
+    const generated = generateCategoryLogo(targetName, categories);
+    setFormData(prev => ({
+      ...prev,
+      image: generated.image,
+      icon: generated.icon,
+    }));
+  };
+
   const generateId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || Date.now().toString();
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
+    if (!formData.name?.trim()) {
       toast.error('Name is required.');
       return;
+    }
+
+    // Check duplicate category name/slug (Requirement 3)
+    if (modalType === 'category' && isDuplicateCategory(formData.name, categories, editingId || undefined)) {
+      toast.error(`A category named "${formData.name.trim()}" already exists. Duplicate categories are not allowed.`);
+      return;
+    }
+
+    // Ensure category logo is present (Auto-generate if missing)
+    let finalLogo = formData.image;
+    let finalIcon = formData.icon;
+    if (!finalLogo && modalType === 'category') {
+      const generated = generateCategoryLogo(formData.name, categories);
+      finalLogo = generated.image;
+      finalIcon = generated.icon;
     }
 
     setIsSaving(true);
@@ -168,12 +199,19 @@ export default function CategoriesManagementView() {
         const catId = editingId || generateId(formData.name);
         const catRef = doc(db, 'categories', catId);
         
+        const payload = {
+          ...formData,
+          name: formData.name.trim(),
+          image: finalLogo || '',
+          icon: finalIcon || '',
+        };
+
         if (editingId) {
-          await updateDoc(catRef, { ...formData });
+          await updateDoc(catRef, payload);
         } else {
           await setDoc(catRef, {
             id: catId,
-            ...formData,
+            ...payload,
             order: categories.length,
             subcategories: []
           });
@@ -185,10 +223,18 @@ export default function CategoriesManagementView() {
         const subId = editingId || generateId(formData.name);
         let updatedSubs = [...(parentCat.subcategories || [])];
         
+        const subPayload = {
+          id: subId,
+          name: formData.name!.trim(),
+          image: finalLogo || formData.image || '',
+          icon: finalIcon || formData.icon || '',
+          isVisible: formData.isVisible ?? true,
+        };
+
         if (editingId) {
-          updatedSubs = updatedSubs.map(s => s.id === subId ? { ...s, name: formData.name!, image: formData.image || '' } : s);
+          updatedSubs = updatedSubs.map(s => s.id === subId ? { ...s, ...subPayload } : s);
         } else {
-          updatedSubs.push({ id: subId, name: formData.name!, image: formData.image || '', subcategories: [] });
+          updatedSubs.push({ ...subPayload, subcategories: [] });
           setExpandedCats(prev => prev.includes(activeParentCatId) ? prev : [...prev, activeParentCatId]);
         }
         
@@ -201,10 +247,17 @@ export default function CategoriesManagementView() {
         const updatedSubs = (parentCat.subcategories || []).map(sub => {
           if (sub.id === activeSubCatId) {
             let updatedNested = [...(sub.subcategories || [])];
+            const nestedPayload = {
+              id: nestedId,
+              name: formData.name!.trim(),
+              image: finalLogo || formData.image || '',
+              icon: finalIcon || formData.icon || '',
+              isVisible: formData.isVisible ?? true,
+            };
             if (editingId) {
-              updatedNested = updatedNested.map(n => n.id === nestedId ? { ...n, name: formData.name!, image: formData.image || '' } : n);
+              updatedNested = updatedNested.map(n => n.id === nestedId ? { ...n, ...nestedPayload } : n);
             } else {
-              updatedNested.push({ id: nestedId, name: formData.name!, image: formData.image || '' });
+              updatedNested.push(nestedPayload);
               const expandId = `${activeParentCatId}-${activeSubCatId}`;
               setExpandedSubs(prev => prev.includes(expandId) ? prev : [...prev, expandId]);
             }
@@ -269,6 +322,52 @@ export default function CategoriesManagementView() {
     }
   };
 
+  const handleToggleSubVisibility = async (catId: string, subId: string) => {
+    try {
+      const parentCat = categories.find(c => c.id === catId);
+      if (!parentCat) return;
+      let newVis = true;
+      const updatedSubs = (parentCat.subcategories || []).map(s => {
+        if (s.id === subId) {
+          newVis = !(s.isVisible ?? true);
+          return { ...s, isVisible: newVis };
+        }
+        return s;
+      });
+      await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+      toast.success(`Subcategory is now ${newVis ? 'visible' : 'hidden'}`);
+    } catch (error) {
+      console.error('Error toggling subcategory visibility:', error);
+      toast.error('Failed to update subcategory visibility');
+    }
+  };
+
+  const handleToggleNestedVisibility = async (catId: string, subId: string, nestedId: string) => {
+    try {
+      const parentCat = categories.find(c => c.id === catId);
+      if (!parentCat) return;
+      let newVis = true;
+      const updatedSubs = (parentCat.subcategories || []).map(sub => {
+        if (sub.id === subId) {
+          const updatedNested = (sub.subcategories || []).map(n => {
+            if (n.id === nestedId) {
+              newVis = !(n.isVisible ?? true);
+              return { ...n, isVisible: newVis };
+            }
+            return n;
+          });
+          return { ...sub, subcategories: updatedNested };
+        }
+        return sub;
+      });
+      await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+      toast.success(`Nested subcategory is now ${newVis ? 'visible' : 'hidden'}`);
+    } catch (error) {
+      console.error('Error toggling nested subcategory visibility:', error);
+      toast.error('Failed to update nested subcategory visibility');
+    }
+  };
+
   const handleRestoreDefaults = async () => {
     if (!window.confirm("This will restore any missing default categories. Continue?")) return;
     setIsSaving(true);
@@ -299,14 +398,32 @@ export default function CategoriesManagementView() {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
-    if (modalType === 'category' && !editingId && formData.seoSlug === formData.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')) {
-       setFormData(prev => ({
-         ...prev,
-         name: newName,
-         seoSlug: newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
-       }));
+    const slug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    // Auto-generate logo if adding new category and logo not manually chosen
+    let autoImage = formData.image;
+    let autoIcon = formData.icon;
+    if (!editingId && newName.length >= 3) {
+      const autoGen = generateCategoryLogo(newName, categories);
+      autoImage = autoGen.image;
+      autoIcon = autoGen.icon;
+    }
+
+    if (modalType === 'category' && !editingId) {
+      setFormData(prev => ({
+        ...prev,
+        name: newName,
+        seoSlug: slug,
+        image: autoImage,
+        icon: autoIcon,
+      }));
     } else {
-       setFormData(prev => ({ ...prev, name: newName }));
+      setFormData(prev => ({
+        ...prev,
+        name: newName,
+        image: autoImage || prev.image,
+        icon: autoIcon || prev.icon,
+      }));
     }
   };
 
@@ -372,13 +489,7 @@ export default function CategoriesManagementView() {
                       <GripVertical className="w-5 h-5" />
                     </div>
                     <div className="col-span-1 flex items-center">
-                      {category.image ? (
-                        <img src={category.image} alt={category.name} className="w-10 h-10 rounded-lg object-cover border border-gray-200 bg-white" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
-                          <ImageIcon className="w-5 h-5 text-gray-400" />
-                        </div>
-                      )}
+                      <CategoryLogo name={category.name} image={category.image} icon={category.icon} size="sm" />
                     </div>
                     <div className="col-span-4 font-bold text-gray-900 truncate pr-4 flex items-center gap-3">
                       <button onClick={(e) => { e.stopPropagation(); toggleCat(category.id); }} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
@@ -420,11 +531,7 @@ export default function CategoriesManagementView() {
                             <div className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-100/80 transition-colors pl-8 border-b border-gray-100/50 last:border-0">
                               <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-4 h-4" /></div>
                               <div className="col-span-1 flex items-center">
-                                {sub.image ? (
-                                  <img src={sub.image} alt={sub.name} className="w-8 h-8 rounded-md object-cover border border-gray-200 bg-white" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center border border-gray-200"><ImageIcon className="w-4 h-4 text-gray-400" /></div>
-                                )}
+                                <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="sm" />
                               </div>
                               <div className="col-span-6 font-bold text-gray-700 truncate pr-4 flex items-center gap-3">
                                 <button onClick={() => toggleSub(category.id, sub.id)} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
@@ -434,6 +541,13 @@ export default function CategoriesManagementView() {
                                 <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{sub.subcategories?.length || 0} nested</span>
                               </div>
                               <div className="col-span-4 flex items-center justify-end gap-2 pr-2">
+                                <button
+                                  onClick={() => handleToggleSubVisibility(category.id, sub.id)}
+                                  className={`p-1.5 rounded-lg transition-colors ${sub.isVisible ?? true ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-gray-400 bg-gray-100 hover:bg-gray-200'}`}
+                                  title={sub.isVisible ?? true ? 'Visible' : 'Hidden'}
+                                >
+                                  {sub.isVisible ?? true ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                </button>
                                 <button onClick={() => handleOpenAddModal('nested', category.id, sub.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Add Nested Subcategory"><Plus className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => handleOpenEditModal('subcategory', sub, category.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Edit Subcategory"><Edit2 className="w-3.5 h-3.5" /></button>
                                 <button onClick={() => handleDelete('subcategory', sub.name, category.id, sub.id)} className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors" title="Delete Subcategory"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -447,16 +561,19 @@ export default function CategoriesManagementView() {
                                   <div key={nested.id} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-indigo-50/50 transition-colors pl-16 border-b border-gray-100/50 last:border-0">
                                     <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-3 h-3" /></div>
                                     <div className="col-span-1 flex items-center">
-                                      {nested.image ? (
-                                        <img src={nested.image} alt={nested.name} className="w-6 h-6 rounded border border-gray-200 bg-white object-cover" />
-                                      ) : (
-                                        <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center border border-gray-200"><ImageIcon className="w-3 h-3 text-gray-400" /></div>
-                                      )}
+                                      <CategoryLogo name={nested.name} image={nested.image} icon={nested.icon} size="sm" />
                                     </div>
                                     <div className="col-span-6 font-medium text-gray-600 text-sm truncate pr-4">
                                       {nested.name}
                                     </div>
                                     <div className="col-span-4 flex items-center justify-end gap-1.5 pr-2">
+                                      <button
+                                        onClick={() => handleToggleNestedVisibility(category.id, sub.id, nested.id)}
+                                        className={`p-1.5 rounded-lg transition-colors ${nested.isVisible ?? true ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-200'}`}
+                                        title={nested.isVisible ?? true ? 'Visible' : 'Hidden'}
+                                      >
+                                        {nested.isVisible ?? true ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                      </button>
                                       <button onClick={() => handleOpenEditModal('nested', nested, category.id, sub.id)} className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors" title="Edit Nested Subcategory"><Edit2 className="w-3 h-3" /></button>
                                       <button onClick={() => handleDelete('nested', nested.name, category.id, sub.id, nested.id)} className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors" title="Delete Nested Subcategory"><Trash2 className="w-3 h-3" /></button>
                                     </div>
@@ -522,56 +639,81 @@ export default function CategoriesManagementView() {
                       />
                     </div>
                     
-                    {modalType === 'category' && (
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-gray-700">Visibility</label>
-                        <div className="flex items-center h-[46px]">
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={formData.isVisible}
-                              onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                            <span className="ml-3 text-sm font-medium text-gray-700">
-                              {formData.isVisible ? 'Visible on storefront' : 'Hidden'}
-                            </span>
-                          </label>
-                        </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-bold text-gray-700">Visibility</label>
+                      <div className="flex items-center h-[46px]">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.isVisible ?? true}
+                            onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                          <span className="ml-3 text-sm font-medium text-gray-700">
+                            {formData.isVisible ?? true ? 'Visible on storefront' : 'Hidden'}
+                          </span>
+                        </label>
                       </div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Image Upload */}
+                  {/* Image & Logo Upload */}
                   <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-gray-700">Image</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-bold text-gray-700">Category Logo / Image</label>
+                      <button
+                        type="button"
+                        onClick={() => handleAutoGenerateLogo()}
+                        className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all border border-emerald-200"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" /> Auto-Generate Unique Logo
+                      </button>
+                    </div>
                     <div className="flex items-start gap-6">
                       <div className="shrink-0">
                         {formData.image ? (
                           <div className="relative group">
-                            <img src={formData.image} alt="Preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-100 shadow-sm" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center">
-                              <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors">
+                            <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
+                              <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors" title="Upload Custom Logo">
                                 <Edit2 className="w-4 h-4 text-gray-900" />
                                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                               </label>
+                              <button
+                                type="button"
+                                onClick={() => handleAutoGenerateLogo()}
+                                className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600"
+                                title="Auto-Regenerate Unique Logo"
+                              >
+                                <Wand2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         ) : (
-                          <label className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-indigo-300 transition-colors cursor-pointer group">
-                            <ImageIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 mb-2" />
-                            <span className="text-[10px] font-bold text-gray-500">Upload</span>
-                            <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                          </label>
+                          <div className="flex gap-2">
+                            <label className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-indigo-300 transition-colors cursor-pointer group">
+                              <ImageIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 mb-2" />
+                              <span className="text-[10px] font-bold text-gray-500">Upload</span>
+                              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleAutoGenerateLogo()}
+                              className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/50 transition-colors group"
+                            >
+                              <Wand2 className="w-6 h-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+                              <span className="text-[9px] font-black text-emerald-700 uppercase tracking-tighter">Auto-Gen</span>
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1 text-sm text-gray-500 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                        <p className="font-bold text-blue-800 mb-1">Image Guidelines</p>
-                        <ul className="list-disc list-inside space-y-1 text-blue-600/80">
-                          <li>Recommended size: 400x400px (1:1 ratio)</li>
-                          <li>Max file size: 2MB</li>
-                          <li>Supported formats: JPEG, PNG, WebP</li>
+                      <div className="flex-1 text-sm text-gray-500 bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
+                        <p className="font-bold text-emerald-900 mb-1">Logo Guidelines</p>
+                        <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
+                          <li>Auto-generate selects a unique logo tailored to category name.</li>
+                          <li>Guarantees visual consistency across Mobile and Desktop.</li>
+                          <li>You can edit or upload custom image files (Max 2MB).</li>
                         </ul>
                       </div>
                     </div>

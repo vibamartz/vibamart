@@ -14,6 +14,7 @@ import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
 import LocationPickerModal from './LocationPickerModal';
 import { getCategorySlug } from '../../shared/utilities/slug';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
@@ -659,19 +660,12 @@ export default function Navbar() {
                   e.currentTarget.style.borderColor = 'transparent';
                 }}
               >
-                <span className="transition-colors flex items-center justify-center opacity-70 group-hover:opacity-100">
-                  {cat.iconImage ? (
-                    cat.iconImage.startsWith('http') || cat.iconImage.startsWith('data:') ? (
-                      <img src={cat.iconImage} alt="" className="w-4 h-4 object-contain" />
-                    ) : (
-                      <span className="text-sm scale-110">{cat.iconImage}</span>
-                    )
-                  ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
-                    <span className="text-sm">{cat.icon}</span>
-                  ) : (
-                    getCategoryIcon(cat)
-                  )}
-                </span>
+                <CategoryLogo
+                  name={cat.name}
+                  image={(cat as any).image || (cat as any).iconImage}
+                  icon={cat.icon}
+                  size="sm"
+                />
                 <span>{cat.name}</span>
               </Link>
             ))}

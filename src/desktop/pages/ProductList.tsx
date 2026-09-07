@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
 import { getCategorySlug, getSubcategorySlug, createSlug } from '../../shared/utilities/slug';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -440,28 +441,25 @@ export default function ProductList() {
         <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Browse Products</h1>
 
-          {/* Subcategories Horizontal Bar (Flipkart/Myntra Style) */}
+          {/* Subcategories Horizontal Bar (Matching Mobile Category Logo Style) */}
           {selectedCategories.length > 0 && (
-            <div className="flex gap-6 overflow-x-auto no-scrollbar py-8 mb-4">
+            <div className="flex gap-6 overflow-x-auto no-scrollbar py-6 mb-4 border-t border-gray-100/60">
               {selectedCategories.flatMap(catId =>
                 CATEGORIES.find(c => c.id === catId)?.subcategories || []
               ).map(sub => (
                 <button
                   key={sub.id}
                   onClick={() => toggleSubCategory(sub.id)}
-                  className="flex flex-col items-center gap-3 min-w-[70px] group transition-all"
+                  className="flex flex-col items-center gap-2 group transition-all shrink-0"
                 >
-                  <div className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${selectedSubCategories.includes(sub.id)
-                      ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-lg'
-                      : 'border-gray-100 group-hover:border-primary/50 group-hover:scale-105'
-                    }`}>
-                    <img
-                      src={sub.image || 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=200&h=200&fit=crop'}
-                      className="w-full h-full rounded-full object-cover"
-                      alt={sub.name}
-                    />
-                  </div>
-                  <span className={`text-[10px] font-black uppercase tracking-tight text-center whitespace-wrap max-w-[80px] leading-tight transition-colors ${selectedSubCategories.includes(sub.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
+                  <CategoryLogo
+                    name={sub.name}
+                    image={sub.image}
+                    icon={sub.icon}
+                    size="md"
+                    active={selectedSubCategories.includes(sub.id)}
+                  />
+                  <span className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[85px] leading-tight transition-colors ${selectedSubCategories.includes(sub.id) ? 'text-emerald-700 font-extrabold' : 'text-gray-600 group-hover:text-gray-900'
                     }`}>
                     {sub.name}
                   </span>
@@ -470,35 +468,32 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Nested Subcategories Horizontal Bar with Icon/Logo */}
+          {/* Nested Subcategories Horizontal Bar (Placed Directly Below Selected Subcategory - Requirement 5) */}
           {selectedSubCategories.length > 0 && (
-            <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 mb-4 border-t border-gray-100/50">
-              {selectedSubCategories.flatMap(subId => {
-                const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
-                const sub = cat?.subcategories?.find(s => s.id === subId);
-                return sub?.subcategories || [];
-              }).map(nested => (
-                <button
-                  key={nested.id}
-                  onClick={() => toggleNestedSubCategory(nested.id)}
-                  className="flex flex-col items-center gap-2.5 min-w-[60px] group transition-all animate-in fade-in slide-in-from-top-1 duration-200"
-                >
-                  <div className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-all p-0.5 bg-white shadow-sm flex-shrink-0 ${selectedNestedSubCategories.includes(nested.id)
-                      ? 'border-primary ring-4 ring-primary/10 scale-110 shadow-md'
-                      : 'border-gray-100 group-hover:border-primary/50 group-hover:scale-105'
-                    }`}>
-                    <img
-                      src={nested.image || 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=200&h=200&fit=crop'}
-                      className="w-full h-full rounded-full object-cover"
-                      alt={nested.name}
-                    />
-                  </div>
-                  <span className={`text-[9px] font-black uppercase tracking-tight text-center max-w-[70px] leading-tight transition-colors ${selectedNestedSubCategories.includes(nested.id) ? 'text-primary' : 'text-gray-500 group-hover:text-gray-900'
-                    }`}>
-                    {nested.name}
-                  </span>
-                </button>
-              ))}
+            <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80 mb-6 animate-in fade-in slide-in-from-top-1 duration-200">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 block mb-3">
+                Nested Subcategories
+              </span>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar">
+                {selectedSubCategories.flatMap(subId => {
+                  const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
+                  const sub = cat?.subcategories?.find(s => s.id === subId);
+                  return sub?.subcategories || [];
+                }).map(nested => (
+                  <button
+                    key={nested.id}
+                    onClick={() => toggleNestedSubCategory(nested.id)}
+                    className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 border transition-all shrink-0 ${
+                      selectedNestedSubCategories.includes(nested.id)
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <CategoryLogo name={nested.name} image={nested.image} size="sm" active={selectedNestedSubCategories.includes(nested.id)} />
+                    <span>{nested.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -602,14 +597,14 @@ export default function ProductList() {
               </div>
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-100">
-                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Filter className="w-8 h-8 text-gray-300" />
+                <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-emerald-600">
+                  <Filter className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
-                <p className="text-gray-500 mb-6">Try adjusting your filters or search query to find what you're looking for.</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">No products available in this category yet.</h3>
+                <p className="text-gray-500 mb-6">Check back soon as new products are regularly added to our store.</p>
                 <button
                   onClick={clearFilters}
-                  className="bg-primary text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-50 hover:bg-primary-hover transition-all"
+                  className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
                 >
                   Clear All Filters
                 </button>

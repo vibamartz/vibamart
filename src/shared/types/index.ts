@@ -115,6 +115,8 @@ export interface SubCategory {
   slug?: string;
   name: string;
   image?: string;
+  icon?: string;
+  isVisible?: boolean;
   subcategories?: SubCategory[]; // Recursive subcategories
 }
 
