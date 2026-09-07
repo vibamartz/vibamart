@@ -513,15 +513,6 @@ export default function ProductList() {
           {/* Category-Specific Banners Carousel (When Category is selected) */}
           {categoryBanners.length > 0 && !matchedBanner && (
             <div className="mb-6 space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  {matchedCategory?.name} Exclusive Banners
-                </h3>
-                <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
-                  {categoryBanners.length} Banners Assigned
-                </span>
-              </div>
               <div className="flex gap-4 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
                 {categoryBanners.map(b => (
                   <div
@@ -534,9 +525,6 @@ export default function ProductList() {
                   >
                     <img src={b.image} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/60 w-fit px-2 py-0.5 rounded border border-emerald-500/30 mb-1">
-                        {matchedCategory?.name}
-                      </span>
                       <h4 className="text-sm font-black text-white leading-tight">{b.title}</h4>
                       {b.subtitle && <p className="text-[11px] text-gray-200 line-clamp-1">{b.subtitle}</p>}
                     </div>
@@ -579,41 +567,38 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Nested Subcategories Horizontal Bar */}
+          {/* Nested Subcategories Horizontal Bar (Equal logo size md, shown when subcategory selected) */}
           {(() => {
-            const availableNested = selectedSubCategories.length > 0
-              ? selectedSubCategories.flatMap(subId => {
-                  const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
-                  const sub = cat?.subcategories?.find(s => s.id === subId);
-                  return sub?.subcategories || [];
-                })
-              : selectedCategories.flatMap(catId =>
-                  CATEGORIES.find(c => c.id === catId)?.subcategories?.flatMap(s => s.subcategories || []) || []
-                );
+            if (selectedSubCategories.length === 0) return null;
+            const availableNested = selectedSubCategories.flatMap(subId => {
+              const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
+              const sub = cat?.subcategories?.find(s => s.id === subId);
+              return sub?.subcategories || [];
+            });
 
             if (availableNested.length === 0) return null;
 
             return (
-              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100/80 mb-6 animate-in fade-in slide-in-from-top-1 duration-200">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 block mb-3">
-                  Nested Subcategories
-                </span>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar">
-                  {availableNested.map(nested => (
-                    <button
-                      key={nested.id}
-                      onClick={() => toggleNestedSubCategory(nested.id)}
-                      className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 border transition-all shrink-0 ${
-                        selectedNestedSubCategories.includes(nested.id)
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                          : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
-                      }`}
-                    >
-                      <CategoryLogo name={nested.name} image={nested.image} size="sm" active={selectedNestedSubCategories.includes(nested.id)} />
-                      <span>{nested.name}</span>
-                    </button>
-                  ))}
-                </div>
+              <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 mb-6 border-t border-gray-100/60">
+                {availableNested.map(nested => (
+                  <button
+                    key={nested.id}
+                    onClick={() => toggleNestedSubCategory(nested.id)}
+                    className="flex flex-col items-center gap-2 group transition-all shrink-0"
+                  >
+                    <CategoryLogo
+                      name={nested.name}
+                      image={nested.image}
+                      icon={nested.icon}
+                      size="md"
+                      active={selectedNestedSubCategories.includes(nested.id)}
+                    />
+                    <span className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[85px] leading-tight transition-colors ${selectedNestedSubCategories.includes(nested.id) ? 'text-emerald-700 font-extrabold' : 'text-gray-600 group-hover:text-gray-900'
+                      }`}>
+                      {nested.name}
+                    </span>
+                  </button>
+                ))}
               </div>
             );
           })()}

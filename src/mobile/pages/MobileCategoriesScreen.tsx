@@ -231,9 +231,6 @@ export default function MobileCategoriesScreen() {
                       <h3 className="text-sm font-black text-gray-900">
                         {selectedCategory.name}
                       </h3>
-                      <p className="text-[10px] text-gray-500 font-medium">
-                        {selectedCategory.subcategories?.length || 0} Subcategories Available
-                      </p>
                     </div>
                   </div>
 
@@ -249,14 +246,6 @@ export default function MobileCategoriesScreen() {
                 {/* Category-Specific Banners Section */}
                 {categoryBanners.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-amber-500" /> {selectedCategory.name} Banners
-                      </span>
-                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                        {categoryBanners.length} Banners
-                      </span>
-                    </div>
                     <div className="flex gap-2.5 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
                       {categoryBanners.map(b => (
                         <div
@@ -281,20 +270,6 @@ export default function MobileCategoriesScreen() {
                 {/* Level 2: Subcategories Grid */}
                 {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                        Subcategories
-                      </h4>
-                      {selectedSubCatId && (
-                        <button
-                          onClick={() => { setSelectedSubCatId(null); setSelectedNestedSubCatId(null); }}
-                          className="text-[10px] font-extrabold text-emerald-700 hover:underline"
-                        >
-                          Clear Selection
-                        </button>
-                      )}
-                    </div>
-
                     <div className="grid grid-cols-2 gap-2.5">
                       {selectedCategory.subcategories.map((sub) => {
                         const isSubSelected = selectedSubCatId === sub.id;
@@ -326,56 +301,43 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 3: Nested Subcategories */}
-                {availableNestedSubcategories.length > 0 && (
+                {/* Level 3: Nested Subcategories (Equal Icon Size, Shown ONLY when subcategory clicked) */}
+                {selectedSubCatId && availableNestedSubcategories.length > 0 && (
                   <div className="space-y-2 bg-emerald-50/50 p-3 rounded-[22px] border border-emerald-100 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="flex items-center justify-between px-1">
-                      <h5 className="text-[11px] font-black text-emerald-900 uppercase tracking-wider">
-                        {selectedSubCategory ? `${selectedSubCategory.name} → ` : ''}Nested Subcategories
-                      </h5>
-                      {selectedNestedSubCatId && (
-                        <button
-                          onClick={() => setSelectedNestedSubCatId(null)}
-                          className="text-[10px] font-extrabold text-emerald-700 hover:underline"
-                        >
-                          Show All
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {availableNestedSubcategories.map((nested) => {
                         const isNestedSelected = selectedNestedSubCatId === nested.id;
                         return (
-                          <motion.button
+                          <motion.div
                             key={nested.id}
-                            whileTap={{ scale: 0.95 }}
+                            whileTap={{ scale: 0.96 }}
                             onClick={() => handleNestedSubCategorySelect(nested.id)}
-                            className={`px-3 py-2 rounded-xl text-xs font-extrabold shrink-0 flex items-center gap-2 border transition-all ${
+                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                               isNestedSelected
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                                ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                                : 'bg-white border-yellow-100 hover:border-emerald-300'
                             }`}
                           >
-                            <CategoryLogo name={nested.name} image={nested.image} size="sm" active={isNestedSelected} />
-                            <span>{nested.name}</span>
-                          </motion.button>
+                            <CategoryLogo
+                              name={nested.name}
+                              image={nested.image}
+                              icon={nested.icon}
+                              size="md"
+                              active={isNestedSelected}
+                            />
+                            <span className={`text-xs font-bold leading-tight mt-1.5 ${isNestedSelected ? 'text-emerald-900' : 'text-gray-900'}`}>
+                              {nested.name}
+                            </span>
+                          </motion.div>
                         );
                       })}
                     </div>
                   </div>
                 )}
 
-                {/* Category / Subcategory / Nested Subcategory Products Display (Requirement 4, 5, 6) */}
+                {/* Category / Subcategory / Nested Subcategory Products Display */}
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between px-1 border-b border-gray-100 pb-2">
-                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
-                      {selectedNestedSubCatId
-                        ? 'Assigned Products'
-                        : selectedSubCatId
-                        ? `${selectedSubCategory?.name || 'Subcategory'} Products`
-                        : `${selectedCategory.name} Products`}
-                    </h4>
                     <span className="text-[10px] font-bold text-gray-500">
                       {categoryProducts.length} Items Available
                     </span>

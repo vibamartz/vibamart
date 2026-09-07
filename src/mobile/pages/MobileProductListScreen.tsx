@@ -392,95 +392,61 @@ export default function MobileProductListScreen() {
       )}
 
       {/* Subcategories & Nested Subcategories Bars */}
-      {currentCategoryObj && (
+      {currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <div className="flex items-center gap-2">
-              <CategoryLogo name={currentCategoryObj.name} image={currentCategoryObj.image} size="sm" active />
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">
-                {currentCategoryObj.name} Hierarchy
-              </h3>
-            </div>
-            {(selectedSubCategory || selectedNestedSubCategory) && (
-              <button
-                onClick={() => { setSelectedSubCategory(''); setSelectedNestedSubCategory(''); }}
-                className="text-[10px] font-bold text-emerald-700 hover:underline bg-emerald-50 px-2 py-0.5 rounded-full"
-              >
-                Reset
-              </button>
-            )}
+          {/* Subcategories Horizontal Bar */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+            {currentCategoryObj.subcategories.map(sub => {
+              const isSelected = selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => handleSubCategorySelect(sub.id)}
+                  className={`flex flex-col items-center gap-1 p-1.5 rounded-xl border shrink-0 transition-all ${
+                    isSelected
+                      ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
+                  }`}
+                >
+                  <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
+                  <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
+                    isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                  }`}>
+                    {sub.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Subcategories Horizontal Bar */}
-          {currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
-            <div className="space-y-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block px-0.5">
-                Subcategories ({currentCategoryObj.subcategories.length})
-              </span>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {currentCategoryObj.subcategories.map(sub => {
-                  const isSelected = selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory;
-                  return (
-                    <button
-                      key={sub.id}
-                      onClick={() => handleSubCategorySelect(sub.id)}
-                      className={`flex flex-col items-center gap-1 p-1.5 rounded-xl border shrink-0 transition-all ${
-                        isSelected
-                          ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                          : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
-                      }`}
-                    >
-                      <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
-                      <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
-                        isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                      }`}>
-                        {sub.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Nested Subcategories Horizontal Bar */}
+          {/* Nested Subcategories Horizontal Bar (Shown ONLY when a subcategory is selected, equal icon size) */}
           {(() => {
-            const availableNested = currentSubCategoryObj
-              ? currentSubCategoryObj.subcategories || []
-              : currentCategoryObj.subcategories?.flatMap(s => s.subcategories || []) || [];
+            if (!currentSubCategoryObj) return null;
+            const availableNested = currentSubCategoryObj.subcategories || [];
 
             if (availableNested.length === 0) return null;
 
             return (
-              <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/80 space-y-1.5">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-900">
-                    Nested Subcategories {currentSubCategoryObj ? `for ${currentSubCategoryObj.name}` : ''}
-                  </span>
-                  {selectedNestedSubCategory && (
-                    <button
-                      onClick={() => setSelectedNestedSubCategory('')}
-                      className="text-[9px] font-bold text-emerald-700 hover:underline"
-                    >
-                      Show All
-                    </button>
-                  )}
-                </div>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                   {availableNested.map(nested => {
                     const isNestedSelected = selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory;
                     return (
                       <button
                         key={nested.id}
                         onClick={() => handleNestedSubCategorySelect(nested.id)}
-                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border transition-all shrink-0 ${
+                        className={`flex flex-col items-center gap-1 p-1.5 rounded-xl border shrink-0 transition-all ${
                           isNestedSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                            : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                            : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
                         }`}
                       >
-                        <CategoryLogo name={nested.name} image={nested.image} size="sm" active={isNestedSelected} />
-                        <span>{nested.name}</span>
+                        <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
+                        <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
+                          isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                        }`}>
+                          {nested.name}
+                        </span>
                       </button>
                     );
                   })}

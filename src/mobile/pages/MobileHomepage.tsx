@@ -580,168 +580,61 @@ export default function MobileHomepage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. COMPACT CATEGORY / SUBCATEGORY CAROUSEL                               */}
+      {/* 4. COMPACT CATEGORY CAROUSEL (Always visible at top)                     */}
       {/* ========================================================================= */}
       <section className="w-full min-w-0 space-y-2">
-        {activeCategorySlug === 'for-you' ? (
-          <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
-            {navCategoriesList.map((cat) => {
-              const Icon = cat.icon;
-              const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
+        <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
+          {navCategoriesList.map((cat) => {
+            const Icon = cat.icon;
+            const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    if (cat.slug === 'for-you' || cat.id === 'for-you') {
-                      navigate('/for-you');
-                    } else {
-                      navigate(`/category/${cat.slug}`);
-                    }
-                  }}
-                  style={{
-                    width: 'clamp(62px, 16vw, 70px)',
-                    height: 'clamp(60px, 16vw, 66px)'
-                  }}
-                  className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
-                    : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
-                    }`}
-                >
-                  <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                    {cat.image ? (
-                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      <Icon className="w-3.5 h-3.5" />
-                    )}
-                  </div>
-                  <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
-                    {cat.name}
-                  </span>
-
-                  {/* Active indicator bar */}
-                  {isSelected ? (
-                    <motion.div
-                      layoutId="activeCategoryDot"
-                      className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
-                    />
+            return (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                    navigate('/for-you');
+                  } else {
+                    navigate(`/category/${cat.slug}`);
+                  }
+                }}
+                style={{
+                  width: 'clamp(62px, 16vw, 70px)',
+                  height: 'clamp(60px, 16vw, 66px)'
+                }}
+                className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
+                  : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
+                  }`}
+              >
+                <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
+                  {cat.image ? (
+                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
                   ) : (
-                    <div className="h-0.5 shrink-0" />
+                    <Icon className="w-3.5 h-3.5" />
                   )}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-white rounded-[22px] p-3 shadow-sm border border-yellow-100 space-y-3">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <div className="flex items-center gap-2">
-                <CategoryLogo name={activeCategoryObj?.name || activeCategorySlug} image={activeCategoryObj?.image} size="sm" active />
-                <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">
-                  {activeCategoryObj?.name || 'Category'} Hierarchy
-                </h3>
-              </div>
-              {(selectedSubCatId || selectedNestedSubCatId) && (
-                <button
-                  onClick={() => { setSelectedSubCatId(null); setSelectedNestedSubCatId(null); }}
-                  className="text-[10px] font-bold text-emerald-700 hover:underline bg-emerald-50 px-2 py-0.5 rounded-full"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-
-            {/* Subcategories Horizontal Bar */}
-            {activeCategoryObj?.subcategories && activeCategoryObj.subcategories.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block px-0.5">
-                  Subcategories ({activeCategoryObj.subcategories.length})
+                </div>
+                <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                  {cat.name}
                 </span>
-                <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
-                  {activeCategoryObj.subcategories.map(sub => {
-                    const isSelected = selectedSubCatId === sub.id;
-                    return (
-                      <button
-                        key={sub.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSubCatId(null);
-                            setSelectedNestedSubCatId(null);
-                          } else {
-                            setSelectedSubCatId(sub.id);
-                            setSelectedNestedSubCatId(null);
-                          }
-                        }}
-                        className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${
-                          isSelected
-                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                            : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
-                        }`}
-                      >
-                        <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
-                        <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
-                          isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                        }`}>
-                          {sub.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* Nested Subcategories Horizontal Bar */}
-            {(() => {
-              const availableNested = selectedSubCatId
-                ? activeCategoryObj?.subcategories?.find(s => s.id === selectedSubCatId)?.subcategories || []
-                : activeCategoryObj?.subcategories?.flatMap(s => s.subcategories || []) || [];
-
-              if (availableNested.length === 0) return null;
-
-              return (
-                <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100/80 space-y-1.5">
-                  <div className="flex items-center justify-between px-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-900">
-                      Nested Subcategories
-                    </span>
-                    {selectedNestedSubCatId && (
-                      <button
-                        onClick={() => setSelectedNestedSubCatId(null)}
-                        className="text-[9px] font-bold text-emerald-700 hover:underline"
-                      >
-                        Show All
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
-                    {availableNested.map(nested => {
-                      const isNestedSelected = selectedNestedSubCatId === nested.id;
-                      return (
-                        <button
-                          key={nested.id}
-                          onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
-                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 border transition-all shrink-0 ${
-                            isNestedSelected
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
-                          }`}
-                        >
-                          <CategoryLogo name={nested.name} image={nested.image} size="sm" active={isNestedSelected} />
-                          <span>{nested.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
+                {/* Active indicator bar */}
+                {isSelected ? (
+                  <motion.div
+                    layoutId="activeCategoryDot"
+                    className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
+                  />
+                ) : (
+                  <div className="h-0.5 shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. PROMOTIONAL BANNER (aspect-ratio 2:1, rounded corners 22px)            */}
+      {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
         <section className="w-full min-w-0 space-y-2 overflow-hidden">
@@ -761,40 +654,114 @@ export default function MobileHomepage() {
                 <img
                   src={banner.image}
                   alt={banner.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-
-                <div className="absolute bottom-0 inset-x-0 p-[clamp(12px,3.5vw,20px)] text-white">
-                  <span className="inline-block px-2.5 py-0.5 bg-orange-500 text-white text-[clamp(8px,2.2vw,10px)] font-black uppercase tracking-widest rounded-full mb-1">
-                    {banner.subtitle || 'Special Offer'}
-                  </span>
-                  <h2 className="text-[clamp(13px,4vw,18px)] font-black text-white leading-snug line-clamp-1">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 sm:p-4 flex flex-col justify-end">
+                  {banner.subtitle && (
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-amber-300 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-md w-fit mb-1 border border-white/10">
+                      {banner.subtitle}
+                    </span>
+                  )}
+                  <h3 className="text-xs sm:text-base font-black text-white leading-tight line-clamp-1">
                     {banner.title}
-                  </h2>
-                  <div className="mt-2 inline-flex items-center gap-1 bg-white text-gray-900 px-3 py-1 rounded-full text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-wider shadow">
-                    Shop Now <ArrowRight className="w-3 h-3 text-emerald-600" />
-                  </div>
+                  </h3>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Pagination Indicators directly below banner */}
-          {banners.length > 1 && (
+          {activeCategoryBanners.length > 1 && (
             <div className="flex justify-center items-center gap-1.5 pt-1">
-              {banners.map((_, i) => (
+              {activeCategoryBanners.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => scrollToBannerSlide(i)}
                   className={`h-1.5 rounded-full transition-all ${
-                    currentSlide === i ? 'w-5 bg-orange-500' : 'w-1.5 bg-gray-300'
+                    currentSlide === i ? 'w-6 bg-emerald-600' : 'w-1.5 bg-orange-200'
                   }`}
                 />
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. SUBCATEGORIES & NESTED SUBCATEGORIES (Directly below Banners)          */}
+      {/* ========================================================================= */}
+      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
+        <section className="w-full min-w-0 space-y-2">
+          <div className="bg-white rounded-[22px] p-3 shadow-sm border border-yellow-100 space-y-3">
+            {/* Subcategories Horizontal Bar */}
+            <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+              {activeCategoryObj.subcategories.map(sub => {
+                const isSelected = selectedSubCatId === sub.id;
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedSubCatId(null);
+                        setSelectedNestedSubCatId(null);
+                      } else {
+                        setSelectedSubCatId(sub.id);
+                        setSelectedNestedSubCatId(null);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
+                    }`}
+                  >
+                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
+                    <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
+                      isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                    }`}>
+                      {sub.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Nested Subcategories (Shown ONLY when subcategory clicked, with EQUAL size icons) */}
+            {(() => {
+              if (!selectedSubCatId) return null;
+              const selectedSubObj = activeCategoryObj.subcategories.find(s => s.id === selectedSubCatId);
+              const availableNested = selectedSubObj?.subcategories || [];
+
+              if (availableNested.length === 0) return null;
+
+              return (
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+                    {availableNested.map(nested => {
+                      const isNestedSelected = selectedNestedSubCatId === nested.id;
+                      return (
+                        <button
+                          key={nested.id}
+                          onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${
+                            isNestedSelected
+                              ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                              : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
+                          }`}
+                        >
+                          <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
+                          <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${
+                            isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                          }`}>
+                            {nested.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </section>
       )}
 

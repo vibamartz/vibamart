@@ -306,8 +306,84 @@ export default function Home() {
   return (
     <div className="space-y-12 sm:space-y-16 pb-20">
 
-      {/* Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6 overflow-hidden">
+      {/* 1. All Categories Bar (Always at top) */}
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={scrollCategoryLeft}
+              className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+              title="Scroll Left"
+              aria-label="Scroll Left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={scrollCategoryRight}
+              className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+              title="Scroll Right"
+              aria-label="Scroll Right"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
+            View All <ChevronRightIcon className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div
+          ref={categoryScrollRef}
+          className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1.5 min-w-0 w-full snap-x snap-mandatory"
+        >
+          <Link
+            to="/for-you"
+            className={`group p-3 rounded-2xl border shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start ${
+              activeCategorySlug === 'for-you'
+                ? 'bg-primary/5 border-primary text-primary font-black shadow-md'
+                : 'bg-white border-gray-100 text-gray-900 hover:border-primary/20'
+            }`}
+          >
+            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border ${
+              activeCategorySlug === 'for-you' ? 'bg-primary text-white border-primary' : 'bg-amber-50 border-amber-100 text-amber-500'
+            }`}>
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="text-xs font-bold transition-colors line-clamp-1">For You</h3>
+          </Link>
+          {CATEGORIES.map((cat) => {
+            const catSlug = getCategorySlug(cat);
+            const isActive = activeCategorySlug === cat.id || activeCategorySlug === catSlug || activeCategorySlug === cat.slug;
+            return (
+              <Link
+                key={cat.id}
+                to={`/category/${catSlug}`}
+                className={`group p-3 rounded-2xl border shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start ${
+                  isActive
+                    ? 'bg-primary/5 border-primary text-primary font-black shadow-md'
+                    : 'bg-white border-gray-100 text-gray-900 hover:border-primary/20'
+                }`}
+              >
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border ${
+                  isActive ? 'border-primary ring-2 ring-primary/20' : 'bg-gray-50 border-gray-100'
+                }`}>
+                  {cat.image ? (
+                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ShoppingBag className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
+                  )}
+                </div>
+                <h3 className="text-xs font-bold transition-colors line-clamp-1">{cat.name}</h3>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 2. Category Banners Hero Section */}
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}
@@ -403,171 +479,73 @@ export default function Home() {
         )}
       </section>
 
-      {/* Featured Collections / Categories */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {activeCategorySlug === 'for-you' ? (
-          <>
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div>
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Explore Categories</h2>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">Curated catalog of authentic quality items</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
+      {/* 3. Selected Category's Subcategories & Nested Subcategories (Directly below Banners) */}
+      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
+        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+
+            {/* Subcategories */}
+            <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
+              {activeCategoryObj.subcategories.map(sub => {
+                const isSelected = selectedSubCatId === sub.id;
+                return (
                   <button
-                    type="button"
-                    onClick={scrollCategoryLeft}
-                    className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
-                    title="Scroll Left"
-                    aria-label="Scroll Left"
+                    key={sub.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedSubCatId(null);
+                        setSelectedNestedSubCatId(null);
+                      } else {
+                        setSelectedSubCatId(sub.id);
+                        setSelectedNestedSubCatId(null);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                        : 'bg-white border-gray-100 hover:border-emerald-300'
+                    }`}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
+                    <span className={`text-[11px] font-extrabold text-center max-w-[90px] leading-tight ${
+                      isSelected ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-gray-900'
+                    }`}>
+                      {sub.name}
+                    </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={scrollCategoryRight}
-                    className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
-                    title="Scroll Right"
-                    aria-label="Scroll Right"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-                  View All <ChevronRightIcon className="w-4 h-4" />
-                </Link>
-              </div>
+                );
+              })}
             </div>
 
-            <div
-              ref={categoryScrollRef}
-              className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1.5 min-w-0 w-full snap-x snap-mandatory"
-            >
-              <Link
-                to="/for-you"
-                className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start"
-              >
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-amber-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-amber-100 text-amber-500">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <h3 className="text-xs font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">For You</h3>
-              </Link>
-              {CATEGORIES.map((cat) => (
-                <Link
-                  key={cat.id}
-                  to={`/category/${getCategorySlug(cat)}`}
-                  className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-gray-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-gray-100">
-                    {cat.image ? (
-                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <ShoppingBag className="w-5 h-5 text-gray-400" />
-                    )}
-                  </div>
-                  <h3 className="text-xs font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">{cat.name}</h3>
-                </Link>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="space-y-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <CategoryLogo name={activeCategoryObj?.name || activeCategorySlug} image={activeCategoryObj?.image} size="sm" active />
-                  {activeCategoryObj?.name || 'Category'} Hierarchy
-                </h2>
-                <p className="text-xs text-gray-500 font-medium">Explore subcategories and assigned products</p>
-              </div>
-              {(selectedSubCatId || selectedNestedSubCatId) && (
-                <button
-                  onClick={() => { setSelectedSubCatId(null); setSelectedNestedSubCatId(null); }}
-                  className="text-xs font-bold text-emerald-700 hover:underline bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100"
-                >
-                  Reset Filter
-                </button>
-              )}
-            </div>
-
-            {/* Subcategories Horizontal Bar */}
-            {activeCategoryObj?.subcategories && activeCategoryObj.subcategories.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">
-                  Subcategories ({activeCategoryObj.subcategories.length})
-                </span>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-                  {activeCategoryObj.subcategories.map(sub => {
-                    const isSelected = selectedSubCatId === sub.id;
-                    return (
-                      <button
-                        key={sub.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSubCatId(null);
-                            setSelectedNestedSubCatId(null);
-                          } else {
-                            setSelectedSubCatId(sub.id);
-                            setSelectedNestedSubCatId(null);
-                          }
-                        }}
-                        className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-2.5 rounded-2xl border ${
-                          isSelected
-                            ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
-                            : 'bg-white border-gray-100 hover:border-emerald-300'
-                        }`}
-                      >
-                        <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
-                        <span className={`text-[11px] font-extrabold text-center max-w-[90px] leading-tight ${
-                          isSelected ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-gray-900'
-                        }`}>
-                          {sub.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Nested Subcategories Horizontal Bar */}
+            {/* Nested Subcategories (Shown ONLY when a subcategory is clicked, with EQUAL size icons) */}
             {(() => {
-              const availableNested = selectedSubCatId
-                ? activeCategoryObj?.subcategories?.find(s => s.id === selectedSubCatId)?.subcategories || []
-                : activeCategoryObj?.subcategories?.flatMap(s => s.subcategories || []) || [];
+              if (!selectedSubCatId) return null;
+              const selectedSubObj = activeCategoryObj.subcategories.find(s => s.id === selectedSubCatId);
+              const availableNested = selectedSubObj?.subcategories || [];
 
               if (availableNested.length === 0) return null;
 
               return (
-                <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900">
-                      Nested Subcategories {selectedSubCatId ? `for ${activeCategoryObj?.subcategories?.find(s => s.id === selectedSubCatId)?.name}` : ''}
-                    </span>
-                    {selectedNestedSubCatId && (
-                      <button
-                        onClick={() => setSelectedNestedSubCatId(null)}
-                        className="text-[10px] font-bold text-emerald-700 hover:underline"
-                      >
-                        Show All
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
                     {availableNested.map(nested => {
                       const isNestedSelected = selectedNestedSubCatId === nested.id;
                       return (
                         <button
                           key={nested.id}
                           onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 border transition-all shrink-0 ${
+                          className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border ${
                             isNestedSelected
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                              : 'bg-white text-gray-800 border-emerald-200 hover:bg-emerald-50'
+                              ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                              : 'bg-white border-gray-100 hover:border-emerald-300'
                           }`}
                         >
-                          <CategoryLogo name={nested.name} image={nested.image} size="sm" active={isNestedSelected} />
-                          <span>{nested.name}</span>
+                          <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
+                          <span className={`text-[11px] font-extrabold text-center max-w-[90px] leading-tight ${
+                            isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-gray-900'
+                          }`}>
+                            {nested.name}
+                          </span>
                         </button>
                       );
                     })}
@@ -576,8 +554,8 @@ export default function Home() {
               );
             })()}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Trending / Recommended Products Grid */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
