@@ -595,11 +595,9 @@ export default function MobileHomepage() {
                   {cat.id === 'for-you' || cat.slug === 'for-you' ? (
                     <Sparkles className="w-3.5 h-3.5" />
                   ) : cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
-                    <Flame className="w-3.5 h-3.5" />
+                    <Flame className="w-3.5 h-3.5 text-rose-500" />
                   ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
-                    <Lipstick className="w-3.5 h-3.5" />
-                  ) : cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
+                    <Lipstick className="w-3.5 h-3.5 text-amber-500" />
                   ) : (
                     renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5')
                   )}

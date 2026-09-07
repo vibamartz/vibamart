@@ -373,10 +373,8 @@ export default function Home() {
                     <Flame className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-rose-500'}`} />
                   ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
                     <Lipstick className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-amber-500'}`} />
-                  ) : cat.image ? (
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                   ) : (
-                    renderCategoryFallbackIcon(cat.name, cat.icon, `w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-400'}`)
+                    renderCategoryFallbackIcon(cat.name, cat.icon, `w-6 h-6 ${isActive ? 'text-primary' : 'text-emerald-600'}`)
                   )}
                 </div>
                 <h3 className="text-xs font-bold transition-colors line-clamp-1">{cat.name}</h3>
