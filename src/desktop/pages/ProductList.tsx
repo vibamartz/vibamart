@@ -51,18 +51,20 @@ export default function ProductList() {
     return allBanners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
   }, [rawOffer, allBanners]);
 
-  // Category-Specific Banners for the selected category
+  // Category-Specific Banners for the selected category (Strict Isolation)
   const categoryBanners = useMemo(() => {
     if (!matchedCategory) return [];
-    return allBanners.filter(b => b.categoryId === matchedCategory.id && b.active !== false);
+    const catId = matchedCategory.id;
+    const catSlug = getCategorySlug(matchedCategory);
+    return allBanners.filter(b => (b.categoryId === catId || b.categoryId === catSlug) && b.active !== false);
   }, [matchedCategory, allBanners]);
 
-  // Backward compatibility redirect: if accessed via numeric category ID like /category/1, redirect replace to /categories/mobiles
+  // Backward compatibility redirect: if accessed via numeric category ID like /category/1, redirect replace to /category/mobiles
   useEffect(() => {
     if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
       const canonical = getCategorySlug(matchedCategory);
       if (canonical && rawCat !== canonical) {
-        navigate(`/categories/${canonical}`, { replace: true });
+        navigate(`/category/${canonical}`, { replace: true });
       }
     }
   }, [matchedCategory, rawCat, navigate]);

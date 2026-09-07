@@ -12,7 +12,7 @@ import {
   arrayUnion, arrayRemove, limit, documentId 
 } from 'firebase/firestore';
 import ProductCard from '../components/ProductCard';
-import { getProductSlug, createSlug } from '../../shared/utilities/slug';
+import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -216,7 +216,7 @@ export default function ProductDetail() {
          {categoryObj && (
            <>
              <ChevronRight className="w-3 h-3" />
-             <Link to={`/products?category=${categoryObj.id}`} className="hover:text-green-600 transition-colors">{categoryObj.name}</Link>
+             <Link to={`/category/${getCategorySlug(categoryObj)}`} className="hover:text-green-600 transition-colors">{categoryObj.name}</Link>
            </>
          )}
          {subCategoryObj && (

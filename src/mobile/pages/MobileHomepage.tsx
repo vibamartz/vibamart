@@ -7,7 +7,7 @@ import {
   TrendingUp, History, ArrowRight, Truck, ShieldCheck,
   RefreshCcw, Headset, Tag, Award, User, Grid
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import CameraSearchModal from '../../desktop/components/CameraSearchModal';
 import Logo from '../../components/Logo';
@@ -28,7 +28,8 @@ export default function MobileHomepage() {
   const { config: rewardsConfig } = useRewardsStore();
   const { selectedAddress, initLocation } = useLocationStore();
   const navigate = useNavigate();
-
+  const routeParams = useParams<{ categorySlug?: string }>();
+  const location = useLocation();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -38,11 +39,9 @@ export default function MobileHomepage() {
   const bannerScrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingBanner = useRef(false);
 
-  // Modals & Address
+  // Modals & Search state
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-
-  // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -50,8 +49,18 @@ export default function MobileHomepage() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Active Category filter
-  const [selectedCategory, setSelectedCategory] = useState<string>('for-you');
+  // Active Category filter from URL route
+  const activeCategorySlug = useMemo(() => {
+    if (location.pathname === '/' || location.pathname === '/for-you' || location.pathname === '/mobile' || location.pathname === '/mobile-home') {
+      return 'for-you';
+    }
+    return routeParams.categorySlug || 'for-you';
+  }, [location.pathname, routeParams.categorySlug]);
+
+  const activeCategoryObj = useMemo(() => {
+    if (activeCategorySlug === 'for-you') return null;
+    return CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug || c.seoSlug === activeCategorySlug || getCategorySlug(c) === activeCategorySlug) || null;
+  }, [activeCategorySlug, CATEGORIES]);
 
   // Initialize location store on mount/user change
   useEffect(() => {
@@ -70,18 +79,33 @@ export default function MobileHomepage() {
     }
   }, [isSearchFocused]);
 
-  // Categories definition
-  const MOBILE_NAV_CATEGORIES = [
-    { id: 'for-you', name: 'For You', icon: Sparkles },
-    { id: 'fashion', name: 'Fashion', icon: Shirt },
-    { id: 'mobiles', name: 'Mobiles', icon: Smartphone },
-    { id: 'electronics', name: 'Electronics', icon: Laptop },
-    { id: 'beauty', name: 'Beauty', icon: Sparkles },
-    { id: 'home', name: 'Home', icon: HomeIcon },
-    { id: 'toys', name: 'Toys', icon: Gift },
-    { id: 'appliances', name: 'Appliances', icon: Tv },
-    { id: 'food-health', name: 'Food & Health', icon: Heart }
-  ];
+  // Dynamic Nav Categories list
+  const navCategoriesList = useMemo(() => {
+    const defaultNav = [
+      { id: 'for-you', name: 'For You', icon: Sparkles, slug: 'for-you', image: undefined },
+      { id: 'fashion', name: 'Fashion', icon: Shirt, slug: 'fashion', image: undefined },
+      { id: 'mobiles', name: 'Mobiles', icon: Smartphone, slug: 'mobiles', image: undefined },
+      { id: 'electronics', name: 'Electronics', icon: Laptop, slug: 'electronics', image: undefined },
+      { id: 'beauty', name: 'Beauty', icon: Sparkles, slug: 'beauty', image: undefined },
+      { id: 'home', name: 'Home', icon: HomeIcon, slug: 'home', image: undefined },
+      { id: 'toys', name: 'Toys', icon: Gift, slug: 'toys', image: undefined },
+      { id: 'appliances', name: 'Appliances', icon: Tv, slug: 'appliances', image: undefined },
+      { id: 'food-health', name: 'Food & Health', icon: Heart, slug: 'food-health', image: undefined }
+    ];
+
+    const extraCats = CATEGORIES.filter(c => !defaultNav.some(d => d.id === c.id || d.slug === getCategorySlug(c)));
+    
+    return [
+      ...defaultNav,
+      ...extraCats.map(c => ({
+        id: c.id,
+        name: c.name,
+        icon: Sparkles,
+        slug: getCategorySlug(c),
+        image: c.image
+      }))
+    ];
+  }, [CATEGORIES]);
 
   const trendingSearches = [
     "5G Mobiles", "Wireless Earbuds", "Running Shoes", "Smart TVs", "Summer Fashion"
@@ -114,7 +138,7 @@ export default function MobileHomepage() {
     const productsQuery = query(
       collection(db, 'products'),
       orderBy('createdAt', 'desc'),
-      limit(20)
+      limit(50)
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, (snapshot) => {
@@ -186,16 +210,15 @@ export default function MobileHomepage() {
     return () => clearInterval(timer);
   }, [banners.length]);
 
-  // Category-Specific Banners for Mobile Homepage
+  // Category-Specific Banners for Mobile Homepage (Strict Isolation)
   const activeCategoryBanners = useMemo(() => {
-    if (!selectedCategory || selectedCategory === 'for-you') {
-      return banners;
+    if (activeCategorySlug === 'for-you') {
+      return banners.filter(b => b.categoryId === 'for-you' || !b.categoryId);
     }
-    const catMatch = CATEGORIES.find(c => c.id === selectedCategory || getCategorySlug(c) === selectedCategory);
-    const targetId = catMatch?.id || selectedCategory;
-    const categorySpecific = banners.filter(b => b.categoryId === targetId);
-    return categorySpecific.length > 0 ? categorySpecific : banners;
-  }, [banners, selectedCategory, CATEGORIES]);
+    const targetId = activeCategoryObj?.id || activeCategorySlug;
+    const targetSlug = activeCategoryObj ? getCategorySlug(activeCategoryObj) : activeCategorySlug;
+    return banners.filter(b => b.categoryId === targetId || b.categoryId === targetSlug || b.categoryId === activeCategorySlug);
+  }, [banners, activeCategorySlug, activeCategoryObj]);
 
   const handleLocationSelect = (pincode: string) => {
     toast.success(`Delivery location set to ${pincode}`);
@@ -248,32 +271,25 @@ export default function MobileHomepage() {
       return;
     }
     const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
     recognition.lang = 'en-US';
+
     recognition.onstart = () => {
-      setIsListening(true);
-      toast('Listening for voice search...', { icon: '🎤', id: 'voice-search' });
+      toast("Listening... Speak now", { icon: "🎙️" });
     };
+
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
-      toast.success(`Voice query: "${transcript}"`, { id: 'voice-search' });
-      navigate(`/products?q=${transcript}`);
-      setIsListening(false);
-      setIsSearchFocused(false);
+      navigate(`/products?q=${encodeURIComponent(transcript)}`);
     };
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
-        setShowMicPermissionModal(true);
-      }
+
+    recognition.onerror = () => {
+      toast.error("Voice search failed. Please try again.");
     };
-    recognition.onend = () => setIsListening(false);
-    try {
-      recognition.start();
-    } catch (e) {
-      setIsListening(false);
-      setShowMicPermissionModal(true);
-    }
+
+    recognition.start();
   };
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
@@ -284,13 +300,13 @@ export default function MobileHomepage() {
       navigate('/cart');
       return;
     }
-    const result = addItem(product, 1);
-    if (result.success) {
-      toast.success("Product added to cart", { icon: '🛒' });
-    } else if (result.exists) {
+    const res = addItem(product, 1);
+    if (res.success) {
+      toast.success("Added to Cart", { icon: '🛒' });
+    } else if (res.exists) {
       navigate('/cart');
     } else {
-      toast.error('Out of stock');
+      toast.error("Out of stock");
     }
   };
 
@@ -305,13 +321,17 @@ export default function MobileHomepage() {
   };
 
   // Filter products by selected category
-  const filteredProducts = selectedCategory === 'for-you'
-    ? products
-    : products.filter(p => {
+  const filteredProducts = useMemo(() => {
+    if (activeCategorySlug === 'for-you') {
+      return products;
+    }
+    const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
+    const targetSlug = activeCategorySlug.toLowerCase();
+    return products.filter(p => {
       const catId = (p.categoryId || '').toLowerCase();
-      const target = selectedCategory.toLowerCase();
-      return catId.includes(target) || target.includes(catId);
+      return catId === targetId || catId === targetSlug;
     });
+  }, [products, activeCategorySlug, activeCategoryObj]);
 
   // User display name for personalized recommendations
   const userName = user?.displayName
@@ -541,14 +561,20 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       <section className="w-full min-w-0">
         <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
-          {MOBILE_NAV_CATEGORIES.map((cat) => {
+          {navCategoriesList.map((cat) => {
             const Icon = cat.icon;
-            const isSelected = selectedCategory === cat.id;
+            const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
             return (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => {
+                  if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                    navigate('/for-you');
+                  } else {
+                    navigate(`/category/${cat.slug}`);
+                  }
+                }}
                 style={{
                   width: 'clamp(62px, 16vw, 70px)',
                   height: 'clamp(60px, 16vw, 66px)'
@@ -559,7 +585,11 @@ export default function MobileHomepage() {
                   }`}
               >
                 <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                  <Icon className="w-3.5 h-3.5" />
+                  {cat.image ? (
+                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5" />
+                  )}
                 </div>
                 <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
                   {cat.name}

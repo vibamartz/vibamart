@@ -22,10 +22,10 @@ export default function Navbar() {
   const { categories: CATEGORIES } = useCategoryStore();
   const navCategories = [
     {
-      id: 'all-deals',
-      name: 'All Deals',
-      iconImage: '🔥',
-      color: '#ef4444',
+      id: 'for-you',
+      name: 'For You',
+      iconImage: '✨',
+      color: '#f59e0b',
       icon: undefined as string | undefined
     },
     ...CATEGORIES.filter(c => c.id !== 'all-deals')
@@ -649,7 +649,7 @@ export default function Navbar() {
             {navCategories.map(cat => (
               <Link
                 key={cat.id}
-                to={`/categories/${getCategorySlug(cat)}`}
+                to={cat.id === 'for-you' ? '/for-you' : `/category/${getCategorySlug(cat)}`}
                 className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group shrink-0"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = cat.color || '#3b82f6';

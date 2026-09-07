@@ -8,7 +8,7 @@ import { useSettingsStore, useCategoryStore } from '../../backend/store';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
-import { getProductSlug } from '../../shared/utilities/slug';
+import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
@@ -271,7 +271,7 @@ export default function MobileSearchScreen() {
           {categories.slice(0, 6).map((cat) => (
             <button
               key={cat.id}
-              onClick={() => navigate(`/products?category=${cat.id}`)}
+              onClick={() => navigate(`/category/${getCategorySlug(cat)}`)}
               className="p-2.5 bg-gray-50 border border-gray-200/70 rounded-xl flex items-center gap-2 hover:bg-emerald-50 transition-all text-left"
             >
               <img src={cat.image || 'https://via.placeholder.com/40'} alt={cat.name} className="w-7 h-7 rounded-lg object-cover" />

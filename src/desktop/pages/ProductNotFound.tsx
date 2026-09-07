@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ArrowLeft, Search, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useCategoryStore } from '../../backend/store';
+import { getCategorySlug } from '../../shared/utilities/slug';
 
 export default function ProductNotFound() {
   const { categories } = useCategoryStore();
@@ -110,7 +111,7 @@ export default function ProductNotFound() {
               {categories.map((cat) => (
                 <Link
                   key={cat.id}
-                  to={`/products?category=${cat.id}`}
+                  to={`/category/${getCategorySlug(cat)}`}
                   className="group flex flex-col items-center gap-3 p-4 bg-white hover:bg-green-50/20 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all shadow-sm hover:shadow-xl shrink-0 w-32 snap-start"
                 >
                   <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-100 group-hover:border-primary p-0.5 bg-white transition-all shadow-sm">

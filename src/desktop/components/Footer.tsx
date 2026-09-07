@@ -37,9 +37,10 @@ export default function Footer() {
             <h3 className="text-white font-black uppercase tracking-widest text-xs">Shop</h3>
             <ul className="space-y-4 text-sm font-bold uppercase tracking-widest text-[11px]">
               <li><Link to="/products" className="hover:text-white transition-colors">All Products</Link></li>
-              <li><Link to="/products?category=1" className="hover:text-white transition-colors">Mobiles</Link></li>
-              <li><Link to="/products?category=2" className="hover:text-white transition-colors">Fashion</Link></li>
-              <li><Link to="/products?category=3" className="hover:text-white transition-colors">Electronics</Link></li>
+              <li><Link to="/for-you" className="hover:text-white transition-colors">For You</Link></li>
+              <li><Link to="/category/mobiles" className="hover:text-white transition-colors">Mobiles</Link></li>
+              <li><Link to="/category/fashion" className="hover:text-white transition-colors">Fashion</Link></li>
+              <li><Link to="/category/electronics" className="hover:text-white transition-colors">Electronics</Link></li>
             </ul>
           </div>
 

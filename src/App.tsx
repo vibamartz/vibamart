@@ -114,13 +114,14 @@ function MainAppRoutes() {
         <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-36 sm:pb-40">
           <Routes>
             <Route path="/" element={<MobileHomepage />} />
+            <Route path="/for-you" element={<MobileHomepage />} />
             <Route path="/mobile" element={<MobileHomepage />} />
             <Route path="/mobile-home" element={<MobileHomepage />} />
+            <Route path="/category/:categorySlug" element={<MobileHomepage />} />
             <Route path="/categories" element={<MobileCategoriesScreen />} />
             <Route path="/categories/:categorySlug" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/:subcategorySlug" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<MobileProductListScreen />} />
-            <Route path="/category/:categorySlug" element={<MobileProductListScreen />} />
             <Route path="/brands/:brandSlug" element={<MobileProductListScreen />} />
             <Route path="/search" element={<MobileSearchScreen />} />
             <Route path="/products" element={<MobileProductListScreen />} />
@@ -163,16 +164,17 @@ function MainAppRoutes() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/for-you" element={<Home />} />
           <Route path="/mobile" element={<MobileHomepage />} />
           <Route path="/mobile-home" element={<MobileHomepage />} />
           <Route path="/home-mobile" element={<MobileHomepage />} />
+          <Route path="/category/:categorySlug" element={<Home />} />
           <Route path="/products" element={<ProductList />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/categories/:categorySlug" element={<ProductList />} />
           <Route path="/categories/:categorySlug/:subcategorySlug" element={<ProductList />} />
           <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<ProductList />} />
-          <Route path="/category/:categorySlug" element={<ProductList />} />
           <Route path="/brands/:brandSlug" element={<ProductList />} />
           <Route path="/offers" element={<ProductList />} />
           <Route path="/offers/:offerSlug" element={<ProductList />} />

@@ -12,6 +12,7 @@ export default function BannersManagementView() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePlatformTab, setActivePlatformTab] = useState<'all' | 'desktop' | 'mobile'>('all');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   
   // Data for destination picker and validation
   const { categories } = useCategoryStore();
@@ -35,7 +36,7 @@ export default function BannersManagementView() {
     image: '',
     link: '',
     slug: '',
-    categoryId: '',
+    categoryId: 'for-you',
     productIds: [],
     active: true,
     platform: 'all',
@@ -69,8 +70,11 @@ export default function BannersManagementView() {
 
   const filteredBanners = banners.filter(b => {
     const p = b.platform || 'all';
-    if (activePlatformTab === 'all') return true;
-    return p === 'all' || p === activePlatformTab;
+    const platformMatch = activePlatformTab === 'all' || p === 'all' || p === activePlatformTab;
+    if (!platformMatch) return false;
+    if (selectedCategoryFilter === 'all') return true;
+    if (selectedCategoryFilter === 'for-you') return b.categoryId === 'for-you' || !b.categoryId;
+    return b.categoryId === selectedCategoryFilter;
   });
 
   // --- Drag and Drop Logic ---
@@ -126,7 +130,7 @@ export default function BannersManagementView() {
         image: banner.image || '',
         link: banner.link || '',
         slug: banner.slug || '',
-        categoryId: banner.categoryId || '',
+        categoryId: banner.categoryId || 'for-you',
         productIds: banner.productIds || [],
         active: banner.active ?? true,
         platform: banner.platform || 'all',
@@ -141,7 +145,7 @@ export default function BannersManagementView() {
         image: '',
         link: '',
         slug: '',
-        categoryId: '',
+        categoryId: 'for-you',
         productIds: [],
         active: true,
         platform: 'all',
@@ -364,29 +368,46 @@ export default function BannersManagementView() {
         </button>
       </div>
 
-      {/* Platform Tabs */}
-      <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm w-fit">
-        <button
-          onClick={() => setActivePlatformTab('all')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'all' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
-        >
-          <Layers className="w-4 h-4" />
-          All Banners (Mobile + Desktop)
-        </button>
-        <button
-          onClick={() => setActivePlatformTab('desktop')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'desktop' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
-        >
-          <Monitor className="w-4 h-4" />
-          Desktop Banners
-        </button>
-        <button
-          onClick={() => setActivePlatformTab('mobile')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'mobile' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
-        >
-          <Smartphone className="w-4 h-4" />
-          Mobile Banners
-        </button>
+      {/* Platform & Category Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm w-fit">
+          <button
+            onClick={() => setActivePlatformTab('all')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'all' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            <Layers className="w-4 h-4" />
+            All Devices
+          </button>
+          <button
+            onClick={() => setActivePlatformTab('desktop')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'desktop' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            <Monitor className="w-4 h-4" />
+            Desktop
+          </button>
+          <button
+            onClick={() => setActivePlatformTab('mobile')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all ${activePlatformTab === 'mobile' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            <Smartphone className="w-4 h-4" />
+            Mobile
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
+          <span className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Category Filter:</span>
+          <select
+            value={selectedCategoryFilter}
+            onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+            className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-bold text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          >
+            <option value="all">All Categories</option>
+            <option value="for-you">For You Category</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>Category: {cat.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Banner List */}
@@ -436,6 +457,12 @@ export default function BannersManagementView() {
                     {banner.subtitle && <p className="text-sm text-gray-500 mb-2 truncate">{banner.subtitle}</p>}
                     
                     <div className="flex flex-wrap items-center gap-4 mt-2">
+                      <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1 w-fit">
+                        <Layers className="w-3 h-3 text-indigo-500" />
+                        Category: {banner.categoryId === 'for-you' || !banner.categoryId
+                          ? 'For You'
+                          : categories.find(c => c.id === banner.categoryId || c.slug === banner.categoryId)?.name || banner.categoryId}
+                      </span>
                       {banner.link && (
                         <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg w-fit">
                           <LinkIcon className="w-3 h-3" />
@@ -564,13 +591,13 @@ export default function BannersManagementView() {
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="text-sm font-bold text-gray-700">Category Association</label>
                       <select
-                        value={formData.categoryId || ''}
+                        value={formData.categoryId || 'for-you'}
                         onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none font-medium text-sm text-gray-900"
                       >
-                        <option value="">Global / All Categories (Shows on general banner carousels)</option>
+                        <option value="for-you">For You (Main Homepage Banner Section)</option>
                         {categories.map(cat => (
-                          <option key={cat.id} value={cat.id}>Category-Specific: {cat.name}</option>
+                          <option key={cat.id} value={cat.id}>Category-Specific: {cat.name} ({getCategorySlug(cat)})</option>
                         ))}
                       </select>
                       <p className="text-[11px] text-gray-400">Selecting a category makes this banner appear ONLY when customers browse that specific category.</p>

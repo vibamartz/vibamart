@@ -35,7 +35,7 @@ export default function MobileProductListScreen() {
     if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
       const canonical = getCategorySlug(matchedCategory);
       if (canonical && rawCat !== canonical) {
-        navigate(`/categories/${canonical}`, { replace: true });
+        navigate(`/category/${canonical}`, { replace: true });
       }
     }
   }, [matchedCategory, rawCat, navigate]);
@@ -85,11 +85,15 @@ export default function MobileProductListScreen() {
     return currentCategoryObj.subcategories.find(s => s.id === selectedSubCategory || s.slug === selectedSubCategory || createSlug(s.name) === selectedSubCategory) || null;
   }, [selectedSubCategory, currentCategoryObj]);
 
-  // Category-Specific Banners for active Category
+  // Category-Specific Banners for active Category (Strict Isolation)
   const categoryBanners = useMemo(() => {
     const catId = currentCategoryObj?.id || selectedCategory;
+    const catSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj) : selectedCategory;
     if (!catId) return [];
-    return banners.filter(b => b.categoryId === catId && b.active !== false);
+    if (catId === 'for-you' || catSlug === 'for-you') {
+      return banners.filter(b => (b.categoryId === 'for-you' || !b.categoryId) && b.active !== false);
+    }
+    return banners.filter(b => (b.categoryId === catId || b.categoryId === catSlug) && b.active !== false);
   }, [currentCategoryObj, selectedCategory, banners]);
 
   // Fetch Products & Banners from Firestore

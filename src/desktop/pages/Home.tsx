@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ShoppingBag, Star, Zap, ShieldCheck,
@@ -9,7 +9,7 @@ import {
   History, TrendingUp, X, Check, ShoppingCart, Layers, Smartphone,
   Shirt, Laptop, Home as HomeIcon, Tv, Tag, CheckCircle2, UserCheck
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import LocationPickerModal from '../components/LocationPickerModal';
 import CameraSearchModal from '../components/CameraSearchModal';
@@ -17,6 +17,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore } from '../../backend/store';
+import { getCategorySlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 
 export default function Home() {
@@ -25,6 +26,8 @@ export default function Home() {
   const { user, orderedProductIds } = useAuthStore();
   const { addItem, items } = useCartStore();
   const navigate = useNavigate();
+  const routeParams = useParams<{ categorySlug?: string }>();
+  const location = useLocation();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -34,6 +37,40 @@ export default function Home() {
   const bannerScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingBanner = useRef(false);
+
+  // Active Category filter from URL route
+  const activeCategorySlug = useMemo(() => {
+    if (location.pathname === '/' || location.pathname === '/for-you') {
+      return 'for-you';
+    }
+    return routeParams.categorySlug || 'for-you';
+  }, [location.pathname, routeParams.categorySlug]);
+
+  const activeCategoryObj = useMemo(() => {
+    if (activeCategorySlug === 'for-you') return null;
+    return CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug || c.seoSlug === activeCategorySlug || getCategorySlug(c) === activeCategorySlug) || null;
+  }, [activeCategorySlug, CATEGORIES]);
+
+  // Category-Specific Banners for Desktop (Strict Isolation)
+  const activeBanners = useMemo(() => {
+    if (activeCategorySlug === 'for-you') {
+      return banners.filter(b => b.categoryId === 'for-you' || !b.categoryId);
+    }
+    const targetId = activeCategoryObj?.id || activeCategorySlug;
+    const targetSlug = activeCategoryObj ? getCategorySlug(activeCategoryObj) : activeCategorySlug;
+    return banners.filter(b => b.categoryId === targetId || b.categoryId === targetSlug || b.categoryId === activeCategorySlug);
+  }, [banners, activeCategorySlug, activeCategoryObj]);
+
+  // Filter products by active category
+  const filteredProducts = useMemo(() => {
+    if (activeCategorySlug === 'for-you') return products;
+    const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
+    const targetSlug = activeCategorySlug.toLowerCase();
+    return products.filter(p => {
+      const catId = (p.categoryId || '').toLowerCase();
+      return catId === targetId || catId === targetSlug;
+    });
+  }, [products, activeCategorySlug, activeCategoryObj]);
 
   const scrollCategoryLeft = () => {
     if (categoryScrollRef.current) {
@@ -221,24 +258,24 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (activeBanners.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => {
-        const next = (prev + 1) % banners.length;
+        const next = (prev + 1) % activeBanners.length;
         scrollToBannerSlide(next);
         return next;
       });
     }, 6000);
     return () => clearInterval(timer);
-  }, [banners.length]);
+  }, [activeBanners.length]);
 
   const nextSlide = () => {
-    const next = (currentSlide + 1) % banners.length;
+    const next = (currentSlide + 1) % activeBanners.length;
     scrollToBannerSlide(next);
   };
 
   const prevSlide = () => {
-    const prev = (currentSlide - 1 + banners.length) % banners.length;
+    const prev = (currentSlide - 1 + activeBanners.length) % activeBanners.length;
     scrollToBannerSlide(prev);
   };
 
@@ -252,8 +289,8 @@ export default function Home() {
           onScroll={handleBannerScroll}
           className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 sm:gap-6 px-0.5 py-0.5 min-w-0 w-full"
         >
-          {banners.length > 0 ? (
-            banners.map((banner, i) => (
+          {activeBanners.length > 0 ? (
+            activeBanners.map((banner, i) => (
               <div
                 key={banner.id || i}
                 onClick={() => {
@@ -264,7 +301,7 @@ export default function Home() {
                   }
                 }}
                 className={`relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20 ${
-                  banners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
+                  activeBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                 } cursor-pointer`}
               >
                 <img
@@ -311,7 +348,7 @@ export default function Home() {
           )}
         </div>
 
-        {banners.length > 1 && (
+        {activeBanners.length > 1 && (
           <>
             <button
               onClick={(e) => { e.stopPropagation(); prevSlide(); }}
@@ -328,7 +365,7 @@ export default function Home() {
 
             {/* Pagination Indicators directly below banner */}
             <div className="flex justify-center items-center gap-2 pt-3">
-              {banners.map((_, i) => (
+              {activeBanners.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => scrollToBannerSlide(i)}
@@ -380,10 +417,19 @@ export default function Home() {
           ref={categoryScrollRef}
           className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1.5 min-w-0 w-full snap-x snap-mandatory"
         >
+          <Link
+            to="/for-you"
+            className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start"
+          >
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-amber-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-amber-100 text-amber-500">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="text-xs font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">For You</h3>
+          </Link>
           {CATEGORIES.map((cat) => (
             <Link
               key={cat.id}
-              to={`/products?category=${cat.id}`}
+              to={`/category/${getCategorySlug(cat)}`}
               className="group bg-white p-3 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start"
             >
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-gray-50 mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border border-gray-100">
@@ -425,7 +471,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {products.slice(0, 15).map((product) => (
+            {filteredProducts.slice(0, 15).map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
