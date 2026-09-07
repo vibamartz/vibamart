@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import ProductCard from '../components/ProductCard';
 import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
+import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -29,7 +30,7 @@ export default function ProductDetail() {
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(null);
 
-  // Fetch product by Slug or ID & Redirect to Canonical URL if accessed via numeric/ID path
+  // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
     if (!targetSlugOrId) return;
     setLoading(true);
@@ -39,6 +40,7 @@ export default function ProductDetail() {
     const fetchProduct = async () => {
       try {
         let foundProduct: Product | null = null;
+        const cleanTargetCode = cleanProductCode(targetSlugOrId);
 
         // 1. Check if target is a direct Firestore doc ID
         try {
@@ -59,12 +61,26 @@ export default function ProductDetail() {
           }
         }
 
-        // 3. Fallback scan by generated slug match
+        // 3. Query by 'productCode' field
+        if (!foundProduct) {
+          const qCode = query(collection(db, 'products'), where('productCode', '==', formatProductCode(targetSlugOrId)));
+          const snapCode = await getDocs(qCode);
+          if (!snapCode.empty) {
+            const firstDoc = snapCode.docs[0];
+            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+          }
+        }
+
+        // 4. Fallback scan by generated slug match or cleaned Product Code
         if (!foundProduct) {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Product))
-            .find(p => getProductSlug(p) === targetSlugOrId || createSlug(p.name) === targetSlugOrId);
+            .find(p => 
+              getProductSlug(p) === targetSlugOrId || 
+              createSlug(p.name) === targetSlugOrId ||
+              (cleanTargetCode && p.productCode && cleanProductCode(p.productCode) === cleanTargetCode)
+            );
           if (matches) {
             foundProduct = matches;
           }
@@ -74,9 +90,13 @@ export default function ProductDetail() {
           setProduct(foundProduct);
           setSelectedVariant(foundProduct.variants?.[0]?.id);
           
-          // Canonical URL enforcement (Replace numeric/ID paths with clean canonical slug URL)
+          // Canonical URL enforcement (Replace numeric/ID/ProductCode paths with clean canonical slug URL)
           const canonicalSlug = getProductSlug(foundProduct);
-          if (targetSlugOrId !== canonicalSlug && (targetSlugOrId === foundProduct.id || /^\d+$/.test(targetSlugOrId))) {
+          if (targetSlugOrId !== canonicalSlug && (
+            targetSlugOrId === foundProduct.id || 
+            /^\d+$/.test(targetSlugOrId) ||
+            (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
+          )) {
             navigate(`/products/${canonicalSlug}`, { replace: true });
           }
         } else {

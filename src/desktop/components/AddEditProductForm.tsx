@@ -6,12 +6,14 @@ import { logAdminAction, AdminAction } from '../../backend/services/adminLogServ
 import { Product, ProductVariant } from '../../shared/types';
 import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
-import { Upload, X, Check, Search } from 'lucide-react';
+import { Upload, X, Check, Search, Copy, Sparkles, Hash } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 
 import { createSlug } from '../../shared/utilities/slug';
+import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
+import { query, orderBy, getDocs } from 'firebase/firestore';
 
 export default function AddEditProductForm({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
@@ -56,6 +58,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         fullDescription: product.fullDescription || '',
         primaryImage: product.primaryImage || '',
         sku: product.sku || '',
+        productCode: product.productCode ? formatProductCode(product.productCode) : '',
         color: product.color || '',
         size: product.size || '',
         categoryId: product.categoryId || '',
@@ -89,6 +92,31 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
   const [currentTag, setCurrentTag] = useState('');
   const [busy, setBusy] = useState(false);
+  const [existingProducts, setExistingProducts] = useState<Product[]>([]);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Fetch all existing products for uniqueness checks & auto-generate Product Code
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'products'));
+        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        setExistingProducts(prods);
+
+        // Auto-generate Product Code for new product or if existing product lacks code
+        if (!product?.productCode) {
+          const newCode = generateUniqueProductCode(prods);
+          setFormData(prev => ({ ...prev, productCode: prev.productCode || newCode }));
+        }
+      } catch (err) {
+        console.error('Failed to load existing products for product code generation:', err);
+        if (!formData.productCode) {
+          setFormData(prev => ({ ...prev, productCode: generateUniqueProductCode([]) }));
+        }
+      }
+    };
+    loadProducts();
+  }, []);
 
   // Set default categoryId once categories load, if none is set
   useEffect(() => {
@@ -121,6 +149,18 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       return;
     }
 
+    // Validate Product Code
+    const codeToValidate = formData.productCode || generateUniqueProductCode(existingProducts);
+    const valResult = validateProductCode(codeToValidate);
+    if (!valResult.valid) {
+      toast.error(valResult.error || 'Invalid Product Code format');
+      return;
+    }
+    if (!isProductCodeUnique(codeToValidate, existingProducts, product?.id)) {
+      toast.error(`Product Code "${codeToValidate}" is already assigned to another product. Product Codes must be unique.`);
+      return;
+    }
+
     setBusy(true);
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Initializing new product record...');
 
@@ -130,10 +170,12 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
       const generatedSlug = createSlug(formData.name || '') || `product-${pid}`;
+      const finalProductCode = formatProductCode(codeToValidate);
 
       const rawData = {
         ...formData,
         id: pid,
+        productCode: finalProductCode,
         slug: product?.slug || generatedSlug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
@@ -322,6 +364,50 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             </div>
 
             <div className="grid grid-cols-3 gap-8">
+              <div className="col-span-3 bg-emerald-50/60 border border-emerald-100 p-6 rounded-[28px] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                      <Hash className="w-3.5 h-3.5" />
+                    </span>
+                    <div>
+                      <label className="text-[11px] font-black uppercase tracking-widest text-emerald-900">
+                        Auto-Generated Product Code (12 Digits)
+                      </label>
+                      <p className="text-[10px] text-emerald-600 font-semibold">
+                        Format: 8900 0996 XXXX • Permanent unique identifier for product lookup & search
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formData.productCode) {
+                        navigator.clipboard.writeText(formData.productCode);
+                        setCopiedCode(true);
+                        toast.success(`Product Code "${formData.productCode}" copied to clipboard!`);
+                        setTimeout(() => setCopiedCode(false), 2000);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCode ? 'Copied' : 'Copy Code'}
+                  </button>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <input
+                    value={formData.productCode || ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData(p => ({ ...p, productCode: formatProductCode(val) }));
+                    }}
+                    className="w-full bg-white border border-emerald-200 rounded-[20px] px-6 py-4 outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-black text-lg tracking-wider text-emerald-950"
+                    placeholder="8900 0996 XXXX"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Node Identifier (SKU)</label>
                 <input

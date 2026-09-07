@@ -13,7 +13,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
 import LocationPickerModal from './LocationPickerModal';
-import { getCategorySlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getProductSlug } from '../../shared/utilities/slug';
+import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { getDocs } from 'firebase/firestore';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 
@@ -160,17 +162,40 @@ export default function Navbar() {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchQuery.trim();
-    if (query) {
-      logSearch(query, 'text');
+    const queryStr = searchQuery.trim();
+    if (queryStr) {
+      logSearch(queryStr, 'text');
       // Save to recent searches
       const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const updated = [query, ...existing.filter((s: string) => s !== query)].slice(0, 10);
+      const updated = [queryStr, ...existing.filter((s: string) => s !== queryStr)].slice(0, 10);
       localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
 
-      navigate(`/products?q=${query}`);
+      // Check if search query is an exact 12-digit Product Code or Product ID match
+      const cleanQ = cleanProductCode(queryStr);
+      try {
+        const snap = await getDocs(collection(db, 'products'));
+        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        const exactMatch = prods.find(p => 
+          (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
+          (p.productCode && p.productCode.toLowerCase() === queryStr.toLowerCase()) ||
+          p.id === queryStr
+        );
+
+        if (exactMatch) {
+          const slug = getProductSlug(exactMatch);
+          navigate(`/products/${slug}`);
+          setIsSearchFocused(false);
+          searchInputRef.current?.blur();
+          setIsMenuOpen(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error in product code search lookup:", err);
+      }
+
+      navigate(`/products?q=${encodeURIComponent(queryStr)}`);
       setIsSearchFocused(false);
       searchInputRef.current?.blur();
       setIsMenuOpen(false);

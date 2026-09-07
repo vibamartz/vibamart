@@ -65,6 +65,7 @@ export interface Product {
   images: string[]; // Up to 6 images
   primaryImage?: string;
   sku?: string;
+  productCode?: string; // Auto-generated 12-digit numeric product code (Format: 8900 0996 XXXX)
   tags?: string[]; // Keywords / search tags
   stock: number;
   inStock?: boolean;

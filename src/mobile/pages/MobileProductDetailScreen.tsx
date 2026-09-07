@@ -11,6 +11,7 @@ import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/stor
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import { getProductSlug, createSlug } from '../../shared/utilities/slug';
+import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -50,7 +51,7 @@ export default function MobileProductDetailScreen() {
   // Check if item is already in cart
   const isInCart = cartItems.some(i => i.productId === productId && i.variantId === selectedVariantId);
 
-  // Fetch product & reviews with slug or ID resolution and canonical redirect
+  // Fetch product & reviews with slug, ID or Product Code resolution and canonical redirect
   useEffect(() => {
     if (!targetSlugOrId) return;
     setLoading(true);
@@ -58,6 +59,7 @@ export default function MobileProductDetailScreen() {
     const fetchProduct = async () => {
       try {
         let foundProduct: Product | null = null;
+        const cleanTargetCode = cleanProductCode(targetSlugOrId);
 
         // 1. Check direct doc ID
         try {
@@ -78,12 +80,26 @@ export default function MobileProductDetailScreen() {
           }
         }
 
-        // 3. Fallback scan by slug helper
+        // 3. Query by productCode
+        if (!foundProduct) {
+          const qCode = query(collection(db, 'products'), where('productCode', '==', formatProductCode(targetSlugOrId)));
+          const snapCode = await getDocs(qCode);
+          if (!snapCode.empty) {
+            const firstDoc = snapCode.docs[0];
+            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+          }
+        }
+
+        // 4. Fallback scan by slug helper or cleaned Product Code
         if (!foundProduct) {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Product))
-            .find(p => getProductSlug(p) === targetSlugOrId || createSlug(p.name) === targetSlugOrId);
+            .find(p => 
+              getProductSlug(p) === targetSlugOrId || 
+              createSlug(p.name) === targetSlugOrId ||
+              (cleanTargetCode && p.productCode && cleanProductCode(p.productCode) === cleanTargetCode)
+            );
           if (matches) {
             foundProduct = matches;
           }
@@ -97,7 +113,11 @@ export default function MobileProductDetailScreen() {
 
           // Canonical redirect check
           const canonicalSlug = getProductSlug(foundProduct);
-          if (targetSlugOrId !== canonicalSlug && (targetSlugOrId === foundProduct.id || /^\d+$/.test(targetSlugOrId))) {
+          if (targetSlugOrId !== canonicalSlug && (
+            targetSlugOrId === foundProduct.id || 
+            /^\d+$/.test(targetSlugOrId) ||
+            (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
+          )) {
             navigate(`/products/${canonicalSlug}`, { replace: true });
           }
 

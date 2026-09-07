@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
 import { getCategorySlug, getSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
+import { cleanProductCode } from '../../shared/utilities/productCode';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function ProductList() {
@@ -283,6 +284,9 @@ export default function ProductList() {
           const searchableText = [
             p.name,
             p.brand,
+            p.id,
+            p.productCode,
+            p.productCode ? cleanProductCode(p.productCode) : '',
             p.description,
             p.fullDescription,
             catName,
@@ -291,7 +295,7 @@ export default function ProductList() {
             ...(p.tags || [])
           ].filter(Boolean).join(' ').toLowerCase();
 
-          const isMatch = terms.every(term => searchableText.includes(term));
+          const isMatch = terms.every(term => searchableText.includes(term) || (cleanProductCode(term).length > 0 && searchableText.includes(cleanProductCode(term))));
           if (!isMatch) return false;
         }
       }

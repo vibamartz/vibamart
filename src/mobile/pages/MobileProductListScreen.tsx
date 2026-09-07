@@ -8,6 +8,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
+import { cleanProductCode } from '../../shared/utilities/productCode';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -152,10 +153,16 @@ export default function MobileProductListScreen() {
       // Query Search
       if (querySearch) {
         const q = querySearch.toLowerCase();
+        const cleanQ = cleanProductCode(q);
         const matchesName = product.name.toLowerCase().includes(q);
         const matchesBrand = product.brand?.toLowerCase().includes(q);
+        const matchesId = product.id.toLowerCase().includes(q);
+        const matchesCode = product.productCode && (
+          product.productCode.toLowerCase().includes(q) ||
+          (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
+        );
         const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesBrand && !matchesTags) return false;
+        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
       }
 
       // Skip category hierarchy filtering if opening explicit banner

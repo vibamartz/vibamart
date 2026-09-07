@@ -9,6 +9,7 @@ import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
+import { cleanProductCode } from '../../shared/utilities/productCode';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
@@ -54,9 +55,14 @@ export default function MobileSearchScreen() {
       try {
         const snap = await getDocs(query(collection(db, 'products'), limit(30)));
         const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const cleanQ = cleanProductCode(qStr);
+
         const filtered = docs.filter(p => 
           p.name.toLowerCase().includes(qStr) || 
           p.brand?.toLowerCase().includes(qStr) ||
+          p.id.toLowerCase().includes(qStr) ||
+          (p.productCode && p.productCode.toLowerCase().includes(qStr)) ||
+          (cleanQ && p.productCode && cleanProductCode(p.productCode).includes(cleanQ)) ||
           p.tags?.some(t => t.toLowerCase().includes(qStr))
         ).slice(0, 6);
         setLiveSuggestions(filtered);
@@ -69,13 +75,32 @@ export default function MobileSearchScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleSearchSubmit = (e?: React.FormEvent, customTerm?: string) => {
+  const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {
     if (e) e.preventDefault();
     const term = (customTerm || searchQuery).trim();
     if (term) {
       const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
       const updated = [term, ...existing.filter((s: string) => s !== term)].slice(0, 8);
       localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
+
+      const cleanQ = cleanProductCode(term);
+      try {
+        const snap = await getDocs(collection(db, 'products'));
+        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        const exactMatch = prods.find(p => 
+          (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
+          (p.productCode && p.productCode.toLowerCase() === term.toLowerCase()) ||
+          p.id === term
+        );
+
+        if (exactMatch) {
+          navigate(`/products/${getProductSlug(exactMatch)}`);
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking product code on mobile search:", err);
+      }
+
       navigate(`/products?q=${encodeURIComponent(term)}`);
     }
   };

@@ -5,8 +5,9 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, ProductVariant } from '../../shared/types';
 import toast from 'react-hot-toast';
-import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash } from 'lucide-react';
 import { motion } from 'motion/react';
+import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
 
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   onAddProduct?: () => void,
@@ -16,6 +17,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [editingVariant, setEditingVariant] = useState<{ productId: string, variantId: string, name: string, material: string, price: number, stock: number } | null>(null);
   const [addingVariantTo, setAddingVariantTo] = useState<string | null>(null);
   const [newVariant, setNewVariant] = useState({ name: '', material: '', price: 0, stock: 0 });
@@ -187,17 +189,46 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     }
   };
 
+  const filteredProducts = products.filter(p => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const cleanQ = cleanProductCode(q);
+    const nameMatch = p.name.toLowerCase().includes(q);
+    const idMatch = p.id.toLowerCase().includes(q);
+    const codeMatch = p.productCode && (
+      p.productCode.toLowerCase().includes(q) ||
+      (cleanQ.length > 0 && cleanProductCode(p.productCode).includes(cleanQ))
+    );
+    const brandMatch = p.brand?.toLowerCase().includes(q);
+    return nameMatch || idMatch || codeMatch || brandMatch;
+  });
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Inventory & Variants</h2>
-          <p className="text-sm text-gray-500">Manage product stock and variants in detail</p>
+          <p className="text-sm text-gray-500">Manage product stock, 12-digit Product Codes, and variants</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {/* Admin Search Bar: Name, ID, or Product Code */}
+          <div className="relative flex-1 sm:w-72">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by Name, ID or Product Code..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <button
             onClick={onAddProduct}
-            className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
           >
             <Plus className="w-4 h-4" />
             Add New Product
@@ -212,6 +243,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
               <tr>
                 <th className="px-6 py-4 w-10"></th>
                 <th className="px-6 py-4">Product Info</th>
+                <th className="px-6 py-4">Product Code (12-Digit)</th>
                 <th className="px-6 py-4">Total Stock</th>
                 <th className="px-6 py-4">Variants Count</th>
                 <th className="px-6 py-4">GST Tax</th>
@@ -220,10 +252,10 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
-              ) : products.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500">No products found.</td></tr>
-              ) : products.map(product => {
+                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
+              ) : filteredProducts.length === 0 ? (
+                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">No products found matching your search.</td></tr>
+              ) : filteredProducts.map(product => {
                 const isExpanded = expandedProducts.includes(product.id);
                 return (
                   <React.Fragment key={product.id}>
@@ -239,6 +271,43 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        {product.productCode ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200/80">
+                              {formatProductCode(product.productCode)}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const codeStr = formatProductCode(product.productCode);
+                                navigator.clipboard.writeText(codeStr);
+                                toast.success(`Product Code "${codeStr}" copied!`);
+                              }}
+                              title="Copy Product Code"
+                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newCode = generateUniqueProductCode(products);
+                              try {
+                                await updateDoc(doc(db, 'products', product.id), { productCode: newCode });
+                                toast.success(`Product Code "${newCode}" assigned!`);
+                              } catch (err) {
+                                toast.error('Failed to assign code');
+                              }
+                            }}
+                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all"
+                          >
+                            + Generate Code
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm font-medium">
                         <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
@@ -298,7 +367,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
                     {isExpanded && (
                       <tr className="bg-gray-50/30">
-                        <td colSpan={6} className="px-8 py-6">
+                        <td colSpan={7} className="px-8 py-6">
                           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                               <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Variants Table</h4>
