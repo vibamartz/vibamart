@@ -1,5 +1,25 @@
 import React from 'react';
-import { Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag } from 'lucide-react';
+import { Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag, Flame } from 'lucide-react';
+
+export const Lipstick = ({ className = "w-5 h-5", size = 24, color = "currentColor", strokeWidth = 2, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M6 12h12v9a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-9z" />
+    <path d="M8 8h8v4H8z" />
+    <path d="M9 8V4.5L15 2v6" />
+  </svg>
+);
 
 interface CategoryLogoProps {
   name: string;
@@ -15,6 +35,12 @@ interface CategoryLogoProps {
 export function renderCategoryFallbackIcon(name: string = '', iconName: string = '', sizeClass: string = 'w-5 h-5') {
   const lower = name.toLowerCase();
   
+  if (lower.includes('deal') || lower.includes('offer') || iconName === 'flame' || iconName === 'fire') {
+    return <Flame className={`${sizeClass} text-rose-500`} />;
+  }
+  if (lower.includes('beauty') || lower.includes('skin') || lower.includes('makeup') || iconName === 'sparkles' || iconName === 'lipstick') {
+    return <Lipstick className={`${sizeClass} text-amber-500`} />;
+  }
   if (lower.includes('mobile') || lower.includes('phone') || iconName === 'smartphone') {
     return <Smartphone className={`${sizeClass} text-emerald-600`} />;
   }
@@ -29,12 +55,6 @@ export function renderCategoryFallbackIcon(name: string = '', iconName: string =
   }
   if (lower.includes('appliance') || lower.includes('tv') || iconName === 'tv') {
     return <Tv className={`${sizeClass} text-emerald-600`} />;
-  }
-  if (lower.includes('beauty') || lower.includes('skin') || lower.includes('makeup') || iconName === 'sparkles') {
-    return <Sparkles className={`${sizeClass} text-amber-500`} />;
-  }
-  if (lower.includes('deal') || lower.includes('offer')) {
-    return <Tag className={`${sizeClass} text-rose-500`} />;
   }
   if (lower.includes('toy') || lower.includes('kid')) {
     return <Sparkles className={`${sizeClass} text-yellow-500`} />;

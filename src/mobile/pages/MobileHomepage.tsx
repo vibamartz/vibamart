@@ -19,7 +19,7 @@ import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/us
 import { getProductSlug, getCategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -89,32 +89,17 @@ export default function MobileHomepage() {
     }
   }, [isSearchFocused]);
 
-  // Dynamic Nav Categories list
+  // Dynamic Nav Categories list from database
   const navCategoriesList = useMemo(() => {
-    const defaultNav = [
-      { id: 'for-you', name: 'For You', icon: Sparkles, slug: 'for-you', image: undefined },
-      { id: 'fashion', name: 'Fashion', icon: Shirt, slug: 'fashion', image: undefined },
-      { id: 'mobiles', name: 'Mobiles', icon: Smartphone, slug: 'mobiles', image: undefined },
-      { id: 'electronics', name: 'Electronics', icon: Laptop, slug: 'electronics', image: undefined },
-      { id: 'beauty', name: 'Beauty', icon: Sparkles, slug: 'beauty', image: undefined },
-      { id: 'home', name: 'Home', icon: HomeIcon, slug: 'home', image: undefined },
-      { id: 'toys', name: 'Toys', icon: Gift, slug: 'toys', image: undefined },
-      { id: 'appliances', name: 'Appliances', icon: Tv, slug: 'appliances', image: undefined },
-      { id: 'food-health', name: 'Food & Health', icon: Heart, slug: 'food-health', image: undefined }
-    ];
-
-    const extraCats = CATEGORIES.filter(c => !defaultNav.some(d => d.id === c.id || d.slug === getCategorySlug(c)));
-    
-    return [
-      ...defaultNav,
-      ...extraCats.map(c => ({
-        id: c.id,
-        name: c.name,
-        icon: Sparkles,
-        slug: getCategorySlug(c),
-        image: c.image
-      }))
-    ];
+    const forYouTab = { id: 'for-you', name: 'For You', slug: 'for-you' };
+    const dbCats = CATEGORIES.map(c => ({
+      id: c.id,
+      name: c.name,
+      slug: getCategorySlug(c) || c.slug || c.id,
+      image: c.image,
+      icon: c.icon
+    }));
+    return [forYouTab, ...dbCats];
   }, [CATEGORIES]);
 
   const trendingSearches = [
@@ -585,7 +570,6 @@ export default function MobileHomepage() {
       <section className="w-full min-w-0 space-y-2">
         <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
           {navCategoriesList.map((cat) => {
-            const Icon = cat.icon;
             const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
             return (
@@ -608,10 +592,16 @@ export default function MobileHomepage() {
                   }`}
               >
                 <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-emerald-600'}`}>
-                  {cat.image ? (
+                  {cat.id === 'for-you' || cat.slug === 'for-you' ? (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  ) : cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
+                    <Flame className="w-3.5 h-3.5" />
+                  ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
+                    <Lipstick className="w-3.5 h-3.5" />
+                  ) : cat.image ? (
                     <img src={cat.image} alt={cat.name} className="w-full h-full object-cover rounded-full" />
                   ) : (
-                    <Icon className="w-3.5 h-3.5" />
+                    renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5')
                   )}
                 </div>
                 <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>

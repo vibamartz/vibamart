@@ -20,7 +20,7 @@ import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore } from '
 import { getCategorySlug } from '../../shared/utilities/slug';
 import toast from 'react-hot-toast';
 
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -369,10 +369,14 @@ export default function Home() {
                 <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border ${
                   isActive ? 'border-primary ring-2 ring-primary/20' : 'bg-gray-50 border-gray-100'
                 }`}>
-                  {cat.image ? (
+                  {cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
+                    <Flame className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-rose-500'}`} />
+                  ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
+                    <Lipstick className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-amber-500'}`} />
+                  ) : cat.image ? (
                     <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                   ) : (
-                    <ShoppingBag className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
+                    renderCategoryFallbackIcon(cat.name, cat.icon, `w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-400'}`)
                   )}
                 </div>
                 <h3 className="text-xs font-bold transition-colors line-clamp-1">{cat.name}</h3>

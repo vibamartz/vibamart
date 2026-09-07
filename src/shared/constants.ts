@@ -160,7 +160,8 @@ export const CATEGORIES: Category[] = [
     slug: 'all-deals',
     seoSlug: 'all-deals',
     name: 'All Deals',
-    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400&h=400&fit=crop',
+    image: undefined,
+    icon: 'flame',
     iconImage: '🔥',
     color: '#ef4444',
     order: -1,
@@ -226,7 +227,7 @@ export const CATEGORIES: Category[] = [
     seoSlug: 'beauty',
     name: 'Beauty', 
     image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&h=400&fit=crop', 
-    icon: 'sparkles',
+    icon: 'lipstick',
     subcategories: [
       { id: '5-1', slug: 'skincare', name: 'Skincare', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&h=200&fit=crop' },
       { id: '5-2', slug: 'makeup', name: 'Makeup', image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&h=400&fit=crop' },
