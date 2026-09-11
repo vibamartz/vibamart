@@ -624,9 +624,9 @@ export default function OrderTracking() {
                 {/* Help Button inside Order Details */}
                 <button
                   onClick={() => setShowHelpModal(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-95 cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-amber-950 text-xs font-black uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0 z-10 border border-amber-500/20"
                 >
-                  <HelpCircle className="w-4 h-4 text-gray-950" /> Help
+                  <HelpCircle className="w-4 h-4 text-amber-950 shrink-0" /> Help
                 </button>
               </div>
             </div>
@@ -846,10 +846,10 @@ export default function OrderTracking() {
                           </button>
                         )}
                         <button
-                          onClick={() => setShowHelpModal(true)}
-                          className="text-[10px] font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-xs"
+                          onClick={(e) => { e.stopPropagation(); setShowHelpModal(true); }}
+                          className="text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 z-10 border border-amber-500/20"
                         >
-                          <HelpCircle className="w-3.5 h-3.5 text-amber-950" /> Need Help?
+                          <HelpCircle className="w-3.5 h-3.5 text-amber-950 shrink-0" /> Need Help?
                         </button>
                       </div>
                     </div>

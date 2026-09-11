@@ -418,9 +418,9 @@ export default function MobileOrderDetailsScreen() {
             {/* Help Button inside Order Details Header */}
             <button
               onClick={() => setShowHelpModal(true)}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0 z-10 border border-amber-500/20"
             >
-              <HelpCircle className="w-4 h-4 text-gray-950" /> Help
+              <HelpCircle className="w-4 h-4 text-amber-950 shrink-0" /> Help
             </button>
           </div>
         </div>
@@ -611,10 +611,10 @@ export default function MobileOrderDetailsScreen() {
                       </button>
                     )}
                     <button
-                      onClick={() => setShowHelpModal(true)}
-                      className="text-[9px] font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer shrink-0 shadow-xs"
+                      onClick={(e) => { e.stopPropagation(); setShowHelpModal(true); }}
+                      className="text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer shrink-0 shadow-xs active:scale-95 transition-all z-10 border border-amber-500/20"
                     >
-                      <HelpCircle className="w-2.5 h-2.5 text-amber-950" /> Help
+                      <HelpCircle className="w-3.5 h-3.5 text-amber-950 shrink-0" /> Help
                     </button>
                   </div>
                 </div>

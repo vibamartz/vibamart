@@ -253,7 +253,7 @@ export const CATEGORIES: Category[] = [
     seoSlug: 'toys',
     name: 'Toys',
     image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400&h=400&fit=crop',
-    icon: 'sparkles',
+    icon: 'gamepad',
     subcategories: []
   },
   {
@@ -262,7 +262,7 @@ export const CATEGORIES: Category[] = [
     seoSlug: 'food-health',
     name: 'Food & Health',
     image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400&h=400&fit=crop',
-    icon: 'sparkles',
+    icon: 'apple',
     subcategories: []
   },
 ];

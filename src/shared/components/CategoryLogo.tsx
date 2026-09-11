@@ -149,7 +149,11 @@ export default function CategoryLogo({
     <div className="flex flex-col items-center justify-center text-center">
       <div className={`${baseStyle} ${activeStyle} ${className}`}>
         <div className="flex items-center justify-center w-full h-full">
-          {renderCategoryFallbackIcon(name, icon, currentSize.icon, active)}
+          {image && (image.startsWith('http') || image.startsWith('data:') || image.startsWith('/')) ? (
+            <img src={image} alt={name} className="w-full h-full object-cover" />
+          ) : (
+            renderCategoryFallbackIcon(name, icon, currentSize.icon, active)
+          )}
         </div>
       </div>
 

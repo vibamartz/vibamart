@@ -341,7 +341,7 @@ export default function MobileCartScreen() {
                       onClick={() => handleMoveToWishlist(product.id, item.variantId)}
                       className="flex-1 py-1.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-xl border border-rose-100 flex items-center justify-center gap-1 active:scale-95 transition-transform"
                     >
-                      <Heart className="w-3 h-3 text-rose-500" /> Wishlist
+                      <Heart className="w-3 h-3 text-rose-500" /> Move to Wishlist
                     </button>
                     
                     <button

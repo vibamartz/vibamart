@@ -768,11 +768,16 @@ export default function Profile() {
                                    <div className="flex flex-col items-end">
                                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Status</span>
                                      <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                                       ['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status) ? 'bg-red-100 text-red-600' :
+                                       order.status === 'returned' ? 'bg-rose-100 text-rose-700' :
+                                       order.status === 'refunded' ? 'bg-rose-100 text-rose-700' :
                                        order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                                       order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
                                        'bg-blue-100 text-blue-600'
                                      }`}>
-                                       {order.status === 'delivered' ? formatDeliveredDate(order) : order.status}
+                                       {['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status) ? 'Canceled' :
+                                        order.status === 'returned' ? 'Returned' :
+                                        order.status === 'refunded' ? 'Refunded' :
+                                        order.status === 'delivered' ? formatDeliveredDate(order) : order.status}
                                      </span>
                                    </div>
                                  </div>
