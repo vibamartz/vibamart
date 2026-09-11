@@ -839,25 +839,21 @@ export default function Profile() {
                                       Request Return
                                     </button>
                                   )}
-                                  {cancellationRequests[order.id] && (
-                                    <Link
-                                      to={`/track-request/${cancellationRequests[order.id].id}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-2 transition-all"
+                                  {(cancellationRequests[order.id] || cancellationRequests[order.customOrderId]) && (
+                                    <span
+                                      className="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-red-100 flex items-center gap-2"
                                     >
-                                      Cancellation: {cancellationRequests[order.id].status.replace('_', ' ')}
-                                    </Link>
+                                      Cancellation: {(cancellationRequests[order.id] || cancellationRequests[order.customOrderId]).status.replace('_', ' ')}
+                                    </span>
                                   )}
-                                  {returnRequests[order.id] && (
-                                    <Link
-                                      to={`/track-request/${returnRequests[order.id].id}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="px-4 py-2.5 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2 transition-all"
+                                  {(returnRequests[order.id] || returnRequests[order.customOrderId]) && (
+                                    <span
+                                      className="px-4 py-2.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-purple-100 flex items-center gap-2"
                                     >
-                                      Return: {returnRequests[order.id].status.replace('_', ' ')}
-                                    </Link>
+                                      Return: {(returnRequests[order.id] || returnRequests[order.customOrderId]).status.replace('_', ' ')}
+                                    </span>
                                   )}
-                                  {['cancelled', 'returned'].includes(order.status) && !refundRequests[order.id] && order.paymentStatus !== 'refunded' && (
+                                  {['cancelled', 'returned'].includes(order.status) && !(refundRequests[order.id] || refundRequests[order.customOrderId]) && order.paymentStatus !== 'refunded' && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowRefundModal(true); }}
                                       className="px-6 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-100 transition-all border border-pink-100 flex items-center gap-2"
@@ -865,14 +861,12 @@ export default function Profile() {
                                       Request Refund
                                     </button>
                                   )}
-                                  {refundRequests[order.id] && (
-                                    <Link
-                                      to={`/track-request/${refundRequests[order.id].id}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="px-4 py-2.5 bg-pink-50 text-pink-600 hover:bg-pink-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2 transition-all"
+                                  {(refundRequests[order.id] || refundRequests[order.customOrderId]) && (
+                                    <span
+                                      className="px-4 py-2.5 bg-pink-50 text-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2"
                                     >
-                                      Refund: {refundRequests[order.id].status.replace('_', ' ')}
-                                    </Link>
+                                      Refund: {(refundRequests[order.id] || refundRequests[order.customOrderId]).status.replace('_', ' ')}
+                                    </span>
                                   )}
                                   <Link 
                                     to={`/track-order/${order.id}`}

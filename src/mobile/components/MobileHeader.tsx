@@ -65,8 +65,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     if (path === '/order-success') return 'Order Confirmed';
     if (path === '/profile') return 'My Account';
     if (path === '/wishlist') return 'My Wishlist';
-    if (path.startsWith('/track-order') || path === '/orders') return 'My Orders';
-    if (path.startsWith('/returns') || path.startsWith('/track-request')) return 'Requests & Returns';
+    if (path.startsWith('/track-order') || path === '/orders' || path.startsWith('/returns') || path.startsWith('/requests')) return 'My Orders';
     if (path === '/notifications') return 'Notifications';
     if (path.startsWith('/offers')) return 'Deals & Offers';
     if (path.startsWith('/rewards')) return 'ViBa Rewards & Points';

@@ -135,8 +135,8 @@ function MainAppRoutes() {
             <Route path="/orders" element={<MobileOrdersScreen />} />
             <Route path="/track-order" element={<MobileOrdersScreen />} />
             <Route path="/track-order/:orderId" element={<MobileOrderDetailsScreen />} />
-            <Route path="/requests" element={<MobileRequestScreens />} />
-            <Route path="/returns" element={<MobileRequestScreens />} />
+            <Route path="/requests" element={<MobileOrdersScreen />} />
+            <Route path="/returns" element={<MobileOrdersScreen />} />
             <Route path="/addresses" element={<MobileAddressScreen />} />
             <Route path="/notifications" element={<MobileNotificationsScreen />} />
             <Route path="/offers" element={<MobileOffersScreen />} />

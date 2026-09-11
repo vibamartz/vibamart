@@ -52,7 +52,6 @@ export default function MobileProfileScreen() {
     { title: 'My Orders & Tracking', icon: Package, path: '/orders', badge: null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
-    { title: 'Returns & Refund Requests', icon: RefreshCcw, path: '/requests', badge: null, color: 'text-amber-600 bg-amber-50' },
     { title: 'Notifications', icon: Bell, path: '/notifications', badge: null, color: 'text-purple-600 bg-purple-50' },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];

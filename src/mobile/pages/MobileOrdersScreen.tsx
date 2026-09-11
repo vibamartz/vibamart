@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Package, Clock, CheckCircle2, Truck, AlertTriangle, ChevronRight, ArrowRight, ShieldCheck 
+  Package, Clock, CheckCircle2, Truck, AlertTriangle, ChevronRight, ArrowRight, ShieldCheck, RefreshCcw
 } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -16,6 +16,7 @@ export default function MobileOrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
+  const [requestsMap, setRequestsMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (!user) {
@@ -38,7 +39,43 @@ export default function MobileOrdersScreen() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen to user requests to populate request status on order cards
+    const userEmail = (user.email || '').toLowerCase();
+    const cancelQuery = query(collection(db, 'cancellation_requests'), where('contactEmail', '==', userEmail));
+    const returnQuery = query(collection(db, 'return_requests'), where('contactEmail', '==', userEmail));
+    const refundQuery = query(collection(db, 'refund_requests'), where('contactEmail', '==', userEmail));
+
+    let cancels: any[] = [];
+    let returns: any[] = [];
+    let refunds: any[] = [];
+
+    const mergeRequests = () => {
+      const map: Record<string, any> = {};
+      cancels.forEach(r => { map[r.customOrderId || r.orderId] = { ...r, type: 'cancellation' }; });
+      returns.forEach(r => { map[r.customOrderId || r.orderId] = { ...r, type: 'return' }; });
+      refunds.forEach(r => { map[r.customOrderId || r.orderId] = { ...r, type: 'refund' }; });
+      setRequestsMap(map);
+    };
+
+    const unsubCancel = onSnapshot(cancelQuery, (snap) => {
+      cancels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      mergeRequests();
+    });
+    const unsubReturn = onSnapshot(returnQuery, (snap) => {
+      returns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      mergeRequests();
+    });
+    const unsubRefund = onSnapshot(refundQuery, (snap) => {
+      refunds = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      mergeRequests();
+    });
+
+    return () => {
+      unsubscribe();
+      unsubCancel();
+      unsubReturn();
+      unsubRefund();
+    };
   }, [user]);
 
   const filteredOrders = orders.filter(o => {
@@ -48,8 +85,27 @@ export default function MobileOrdersScreen() {
     return true;
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (order: Order) => {
+    const displayId = order.customOrderId || `VBM-${order.id.slice(-6).toUpperCase()}`;
+    const req = requestsMap[displayId] || requestsMap[order.id];
+
+    if (req) {
+      const s = (req.status || '').toLowerCase();
+      const typeLabel = req.type ? req.type.charAt(0).toUpperCase() + req.type.slice(1) : 'Request';
+
+      if (s.includes('approved')) {
+        return <span className="bg-blue-100 text-blue-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Approved</span>;
+      }
+      if (s.includes('completed') || s.includes('processed')) {
+        return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Completed</span>;
+      }
+      if (s.includes('reject')) {
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Rejected</span>;
+      }
+      return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Requested</span>;
+    }
+
+    switch (order.status) {
       case 'delivered':
         return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Delivered</span>;
       case 'shipped':
@@ -62,9 +118,9 @@ export default function MobileOrdersScreen() {
       case 'cancelled':
       case 'returned':
       case 'refunded':
-        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> {status}</span>;
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> {order.status}</span>;
       default:
-        return <span className="bg-gray-100 text-gray-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">{status}</span>;
+        return <span className="bg-gray-100 text-gray-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">{order.status}</span>;
     }
   };
 
@@ -139,7 +195,7 @@ export default function MobileOrdersScreen() {
                       Placed on {new Date(order.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {getStatusBadge(order.status)}
+                  {getStatusBadge(order)}
                 </div>
 
                 {/* Items Summary */}

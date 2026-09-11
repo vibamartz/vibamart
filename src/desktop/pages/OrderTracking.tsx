@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { db } from '../../backend/firebase/firebase';
-import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
-import { Order, OrderStatus, StatusUpdate } from '../../shared/types';
-import { Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle, FileText } from 'lucide-react';
-import { motion } from 'motion/react';
+import { db, auth, storage } from '../../backend/firebase/firebase';
+import { doc, onSnapshot, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { Order, OrderStatus } from '../../shared/types';
+import { useAuthStore, useSettingsStore } from '../../backend/store';
+import { 
+  Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle, FileText, 
+  RefreshCw, RefreshCcw, XCircle, CreditCard, Upload, X, ShieldCheck
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import InvoiceModal from '../components/InvoiceModal';
+import toast from 'react-hot-toast';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
   pending: { icon: Clock, color: 'text-[#22C55E]', label: 'Order Placed' },
@@ -109,12 +115,29 @@ const getDotColorClass = (statusStr: string, messageStr: string = ''): string =>
 
 export default function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
+  const { user } = useAuthStore();
+  const { settings } = useSettingsStore();
+
   const [order, setOrder] = useState<Order | null>(null);
   const [activeRequest, setActiveRequest] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(orderId || '');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const navigate = useNavigate();
+
+  // Action Modals State
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form Inputs
+  const [cancelReason, setCancelReason] = useState('Order Created by Mistake');
+  const [returnReason, setReturnReason] = useState('Wrong Product Received');
+  const [returnComments, setReturnComments] = useState('');
+  const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [selectedReturnProducts, setSelectedReturnProducts] = useState<string[]>([]);
+  const [refundReason, setRefundReason] = useState('Order Cancelled/Returned');
 
   useEffect(() => {
     if (!orderId) {
@@ -128,14 +151,18 @@ export default function OrderTracking() {
 
     const unsubscribe = onSnapshot(orderRef, (docSnap) => {
       if (docSnap.exists()) {
-        setOrder({ id: docSnap.id, ...docSnap.data() } as Order);
+        const ord = { id: docSnap.id, ...docSnap.data() } as Order;
+        setOrder(ord);
+        setSelectedReturnProducts(ord.items?.map(i => i.productId) || []);
         setLoading(false);
       } else {
         const q = query(collection(db, 'orders'), where('customOrderId', '==', orderId));
         getDocs(q).then((querySnap) => {
           if (!querySnap.empty) {
             const matchedDoc = querySnap.docs[0];
-            setOrder({ id: matchedDoc.id, ...matchedDoc.data() } as Order);
+            const ord = { id: matchedDoc.id, ...matchedDoc.data() } as Order;
+            setOrder(ord);
+            setSelectedReturnProducts(ord.items?.map(i => i.productId) || []);
           } else {
             setOrder(null);
           }
@@ -192,6 +219,190 @@ export default function OrderTracking() {
     e.preventDefault();
     if (searchInput.trim()) {
       navigate(`/track-order/${searchInput.trim()}`);
+    }
+  };
+
+  // Proof Image Upload Handler for Desktop
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReturnImages(prev => [...prev, reader.result as string].slice(0, 3));
+      };
+      reader.readAsDataURL(file);
+      toast.success("Image attached!");
+    }
+  };
+
+  const removeReturnImage = (index: number) => {
+    setReturnImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Submit Cancel Action
+  const handleCancelOrder = async () => {
+    if (!order || !cancelReason) return;
+    setIsSubmitting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ customOrderId: order.customOrderId || order.id, contactEmail: user?.email || order.contactEmail, reason: cancelReason })
+      });
+      let data;
+      try {
+        const text = await response.text();
+        data = JSON.parse(text);
+      } catch { data = null; }
+
+      if (response.ok && data?.success) {
+        toast.success(data.message || 'Cancellation request submitted');
+      } else {
+        await addDoc(collection(db, 'cancellation_requests'), {
+          orderId: order.id,
+          customOrderId: order.customOrderId || order.id,
+          userId: user?.uid || '',
+          contactEmail: user?.email || order.contactEmail,
+          reason: cancelReason,
+          status: 'requested',
+          type: 'cancellation',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Cancellation request submitted successfully!");
+      }
+      setShowCancelModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during cancellation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Submit Return Action
+  const handleRequestReturn = async () => {
+    if (!order || !returnReason || returnImages.length === 0 || selectedReturnProducts.length === 0) {
+      toast.error('Please select items, reason, and upload at least one proof image');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
+        if (!storage.app.options.storageBucket) {
+          return imgBase64;
+        }
+        try {
+          const imageRef = ref(storage, `returns/${order.id}_${Date.now()}_${index}`);
+          await uploadString(imageRef, imgBase64, 'data_url');
+          return await getDownloadURL(imageRef);
+        } catch {
+          return imgBase64;
+        }
+      }));
+
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/returns/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          customOrderId: order.customOrderId || order.id, 
+          contactEmail: user?.email || order.contactEmail,
+          productIds: selectedReturnProducts,
+          reason: returnReason,
+          comments: returnComments,
+          images: uploadedImageUrls 
+        })
+      });
+      let data;
+      try {
+        const text = await response.text();
+        data = JSON.parse(text);
+      } catch { data = null; }
+
+      if (response.ok && data?.success) {
+        toast.success(data.message || 'Return request submitted');
+      } else {
+        await addDoc(collection(db, 'return_requests'), {
+          orderId: order.id,
+          customOrderId: order.customOrderId || order.id,
+          userId: user?.uid || '',
+          contactEmail: user?.email || order.contactEmail,
+          type: 'return',
+          productId: selectedReturnProducts[0] || '',
+          productIds: selectedReturnProducts,
+          reason: returnReason,
+          comments: returnComments,
+          images: uploadedImageUrls,
+          status: 'requested',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Return request submitted successfully!");
+      }
+      setShowReturnModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during return request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Submit Refund Action
+  const handleRequestRefund = async () => {
+    if (!order || !refundReason) {
+      toast.error('Please select refund reason');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/refunds/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          customOrderId: order.customOrderId || order.id, 
+          contactEmail: user?.email || order.contactEmail,
+          reason: refundReason
+        })
+      });
+      let data;
+      try {
+        const text = await response.text();
+        data = JSON.parse(text);
+      } catch { data = null; }
+
+      if (response.ok && data?.success) {
+        toast.success(data.message || 'Refund request submitted');
+      } else {
+        await addDoc(collection(db, 'refund_requests'), {
+          orderId: order.id,
+          customOrderId: order.customOrderId || order.id,
+          userId: user?.uid || '',
+          contactEmail: user?.email || order.contactEmail,
+          type: 'refund',
+          reason: refundReason,
+          refundAmount: order.total,
+          status: 'requested',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Refund request submitted successfully!");
+      }
+      setShowRefundModal(false);
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred during refund request');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -329,6 +540,17 @@ export default function OrderTracking() {
 
   const latestUpdate = getLatestStatusUpdate();
 
+  // Return Eligibility Check
+  const windowDays = settings?.returnWindowDays || 7;
+  const deliveryDate = order.deliveryDate ? new Date(order.deliveryDate) : new Date(order.createdAt);
+  const daysDiff = Math.floor((new Date().getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24));
+  const isReturnEligible = order.status === 'delivered' && daysDiff <= windowDays;
+
+  // Eligibility triggers
+  const canCancel = ['pending', 'confirmed', 'packed'].includes(order.status) && !activeRequest;
+  const canReturn = isReturnEligible && !activeRequest;
+  const canRefund = ['cancelled', 'returned'].includes(order.status) && order.paymentStatus !== 'refunded' && !activeRequest;
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -340,7 +562,7 @@ export default function OrderTracking() {
           <div className="p-8 md:p-12 border-b border-gray-100 bg-gray-900 text-white">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Order Tracking</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Order Details</p>
                 <div className="flex items-center gap-4">
                    <h1 className="text-3xl font-black tracking-tight">{order.customOrderId || order.id}</h1>
                    <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
@@ -384,6 +606,100 @@ export default function OrderTracking() {
           />
 
           <div className="p-8 md:p-12">
+            
+            {/* Action Bar (Cancel / Return / Refund Actions) */}
+            {(canCancel || canReturn || canRefund) && (
+              <div className="mb-10 p-6 bg-gray-50 rounded-3xl border border-gray-200/80 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">Eligible Actions for this Order</h4>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">Submit your request directly from this order details section.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {canCancel && (
+                    <button
+                      onClick={() => setShowCancelModal(true)}
+                      className="px-6 py-3 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm"
+                    >
+                      <XCircle className="w-4 h-4" /> Cancel Order
+                    </button>
+                  )}
+
+                  {canReturn && (
+                    <button
+                      onClick={() => setShowReturnModal(true)}
+                      className="px-6 py-3 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm"
+                    >
+                      <RefreshCcw className="w-4 h-4 text-amber-600" /> Request Return
+                    </button>
+                  )}
+
+                  {canRefund && (
+                    <button
+                      onClick={() => setShowRefundModal(true)}
+                      className="px-6 py-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm"
+                    >
+                      <CreditCard className="w-4 h-4 text-indigo-600" /> Request Refund
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Request Status Card (If Active Request Exists) */}
+            {activeRequest && (
+              <div className="mb-12 p-8 bg-amber-50/70 rounded-3xl border border-amber-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-200/60 pb-4">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-amber-600" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Request Record</p>
+                      <h3 className="text-lg font-black text-gray-900">{activeRequest.requestType} Request Details</h3>
+                    </div>
+                  </div>
+                  <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                    activeRequest.status?.includes('approved') ? 'bg-blue-100 text-blue-800' :
+                    activeRequest.status?.includes('completed') ? 'bg-emerald-100 text-emerald-800' :
+                    activeRequest.status?.includes('reject') ? 'bg-red-100 text-red-800' :
+                    'bg-amber-100 text-amber-900'
+                  }`}>
+                    {activeRequest.status ? activeRequest.status.replace(/_/g, ' ').toUpperCase() : 'UNDER REVIEW'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-gray-400 block mb-1">Reason</span>
+                    <p className="font-bold text-gray-900">{activeRequest.reason}</p>
+                    {activeRequest.comments && <p className="text-gray-600 italic mt-1">"{activeRequest.comments}"</p>}
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-gray-400 block mb-1">Submitted On</span>
+                    <p className="font-bold text-gray-900">{new Date(activeRequest.createdAt || activeRequest.updatedAt).toLocaleString()}</p>
+                  </div>
+
+                  {activeRequest.adminNotes && (
+                    <div className="md:col-span-2 bg-white p-4 rounded-2xl border border-amber-200">
+                      <span className="text-[10px] font-black uppercase text-amber-800 block mb-1">Admin Resolution Notes</span>
+                      <p className="text-xs font-semibold text-gray-700">{activeRequest.adminNotes}</p>
+                    </div>
+                  )}
+
+                  {activeRequest.images && activeRequest.images.length > 0 && (
+                    <div className="md:col-span-2">
+                      <span className="text-[10px] font-black uppercase text-gray-400 block mb-2">Uploaded Return Proof Images</span>
+                      <div className="flex gap-3">
+                        {activeRequest.images.map((img: string, idx: number) => (
+                          <img key={idx} src={img} alt="Proof" className="w-16 h-16 rounded-xl object-cover border border-gray-200 shadow-sm" />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Timeline Progress Bar */}
             <div className="relative mb-20 px-4">
                {/* Base neutral connector line */}
@@ -508,6 +824,172 @@ export default function OrderTracking() {
           </div>
         </div>
       </div>
+
+      {/* CANCEL MODAL */}
+      <AnimatePresence>
+        {showCancelModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl w-full max-w-md p-6 space-y-6 shadow-2xl border border-gray-100">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-black text-gray-900">Cancel Order Request</h3>
+                <button onClick={() => setShowCancelModal(false)} className="p-2 rounded-full text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Reason for Cancellation</label>
+                  <select
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 h-12 rounded-2xl px-4 text-xs font-bold text-gray-900 focus:outline-none"
+                  >
+                    <option value="Order Created by Mistake">Order Created by Mistake</option>
+                    <option value="Item Price Changed / High Shipping">Item Price Changed / High Shipping</option>
+                    <option value="Found Better Price Elsewhere">Found Better Price Elsewhere</option>
+                    <option value="Delivery Duration Too Long">Delivery Duration Too Long</option>
+                    <option value="Other Reason">Other Reason</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button onClick={() => setShowCancelModal(false)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-2xl text-xs font-black uppercase">Cancel</button>
+                  <button onClick={handleCancelOrder} disabled={isSubmitting} className="px-6 py-3 bg-red-600 text-white rounded-2xl text-xs font-black uppercase shadow-lg disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Confirm Cancellation'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RETURN MODAL */}
+      <AnimatePresence>
+        {showReturnModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl w-full max-w-lg p-6 space-y-6 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-black text-gray-900">Request {windowDays}-Day Return</h3>
+                <button onClick={() => setShowReturnModal(false)} className="p-2 rounded-full text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Select Item(s) to Return</label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {order.items.map((item) => (
+                      <label key={item.productId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border border-gray-200 text-xs font-bold cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedReturnProducts.includes(item.productId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedReturnProducts(prev => [...prev, item.productId]);
+                            } else {
+                              setSelectedReturnProducts(prev => prev.filter(id => id !== item.productId));
+                            }
+                          }}
+                          className="rounded text-primary focus:ring-primary"
+                        />
+                        <span className="truncate flex-1">{item.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Reason for Return</label>
+                  <select
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 h-12 rounded-2xl px-4 text-xs font-bold text-gray-900 focus:outline-none"
+                  >
+                    <option value="defective_item">Defective or Damaged Product</option>
+                    <option value="wrong_item">Received Wrong Item / Size</option>
+                    <option value="quality_issue">Product Quality Not as Expected</option>
+                    <option value="changed_mind">Order Created by Mistake</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Issue Details / Comments</label>
+                  <textarea
+                    rows={3}
+                    value={returnComments}
+                    onChange={(e) => setReturnComments(e.target.value)}
+                    placeholder="Describe the issue in detail..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 text-xs font-medium focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-500 block mb-2">
+                    Upload Proof Images <span className="text-red-500">*Required</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 border-2 border-dashed border-gray-300 hover:border-primary rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-50">
+                      <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                      <span className="text-xs font-bold text-gray-600">Upload File</span>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+
+                    {returnImages.map((img, idx) => (
+                      <div key={idx} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-gray-200 shrink-0">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => removeReturnImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-1"><X className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button onClick={() => setShowReturnModal(false)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-2xl text-xs font-black uppercase">Cancel</button>
+                  <button onClick={handleRequestReturn} disabled={isSubmitting} className="px-6 py-3 bg-amber-600 text-white rounded-2xl text-xs font-black uppercase shadow-lg disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Submit Return'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REFUND MODAL */}
+      <AnimatePresence>
+        {showRefundModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl w-full max-w-md p-6 space-y-6 shadow-2xl border border-gray-100">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-black text-gray-900">Request Refund</h3>
+                <button onClick={() => setShowRefundModal(false)} className="p-2 rounded-full text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Reason for Refund</label>
+                  <select
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 h-12 rounded-2xl px-4 text-xs font-bold text-gray-900 focus:outline-none"
+                  >
+                    <option value="Order Cancelled/Returned">Order Cancelled / Returned</option>
+                    <option value="Payment Deducted but Order Pending">Payment Deducted but Order Pending</option>
+                    <option value="Duplicate Payment Charged">Duplicate Payment Charged</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button onClick={() => setShowRefundModal(false)} className="px-6 py-3 bg-gray-100 text-gray-700 rounded-2xl text-xs font-black uppercase">Cancel</button>
+                  <button onClick={handleRequestRefund} disabled={isSubmitting} className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase shadow-lg disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Confirm Refund Request'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
