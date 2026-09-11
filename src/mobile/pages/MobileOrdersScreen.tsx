@@ -94,19 +94,17 @@ export default function MobileOrdersScreen() {
     const req = requestsMap[displayId] || requestsMap[order.id];
 
     if (req) {
-      const s = (req.status || '').toLowerCase();
-      const typeLabel = req.type ? req.type.charAt(0).toUpperCase() + req.type.slice(1) : 'Request';
-
-      if (s.includes('approved')) {
-        return <span className="bg-blue-100 text-blue-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Approved</span>;
+      const typeStr = (req.type || req.requestType || '').toLowerCase();
+      if (typeStr.includes('cancel') || ['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status)) {
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Canceled</span>;
       }
-      if (s.includes('completed') || s.includes('processed')) {
-        return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Completed</span>;
+      if (typeStr.includes('return') || order.status === 'returned') {
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Returned</span>;
       }
-      if (s.includes('reject')) {
-        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Rejected</span>;
+      if (typeStr.includes('refund') || order.status === 'refunded') {
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Refunded</span>;
       }
-      return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">{typeLabel} Requested</span>;
+      return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">Under Review</span>;
     }
 
     switch (order.status) {
@@ -120,9 +118,13 @@ export default function MobileOrdersScreen() {
       case 'packed':
         return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><Clock className="w-3 h-3 text-amber-600" /> In Progress</span>;
       case 'cancelled':
+      case 'cancel_requested':
+      case 'cancel_rejected':
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Canceled</span>;
       case 'returned':
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Returned</span>;
       case 'refunded':
-        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> {order.status}</span>;
+        return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-rose-600" /> Refunded</span>;
       default:
         return <span className="bg-gray-100 text-gray-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">{order.status}</span>;
     }

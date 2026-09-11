@@ -107,6 +107,13 @@ export default function MobileProductDetailScreen() {
 
         if (foundProduct) {
           setProduct(foundProduct);
+          try {
+            const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+            const updated = [foundProduct.id, ...existing.filter((pid: string) => pid !== foundProduct.id)].slice(0, 8);
+            localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+          } catch (err) {
+            console.error("Error updating recently viewed:", err);
+          }
           if (foundProduct.variants && foundProduct.variants.length > 0) {
             setSelectedVariantId(foundProduct.variants[0].id);
           }

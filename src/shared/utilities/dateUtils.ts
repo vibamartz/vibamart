@@ -25,3 +25,26 @@ export function formatDeliveredDate(order: Order): string {
   const dd = String(dateObj.getDate()).padStart(2, '0');
   return `Delivered · ${mm}/${dd}`;
 }
+
+export function getFormattedDeliveryDate(product?: any): string {
+  let deliveryDate = new Date();
+  if (product?.expectedDelivery || product?.estimatedDelivery) {
+    const d = new Date(product.expectedDelivery || product.estimatedDelivery);
+    if (!isNaN(d.getTime())) {
+      deliveryDate = d;
+    } else {
+      deliveryDate.setDate(deliveryDate.getDate() + 3);
+    }
+  } else if (product?.deliveryDays && typeof product.deliveryDays === 'number') {
+    deliveryDate.setDate(deliveryDate.getDate() + product.deliveryDays);
+  } else {
+    deliveryDate.setDate(deliveryDate.getDate() + 3);
+  }
+
+  const dayName = deliveryDate.toLocaleDateString('en-IN', { weekday: 'short' });
+  const dayNum = deliveryDate.getDate();
+  const monthName = deliveryDate.toLocaleDateString('en-IN', { month: 'short' });
+
+  return `Delivery by ${dayName}, ${dayNum} ${monthName}`;
+}
+

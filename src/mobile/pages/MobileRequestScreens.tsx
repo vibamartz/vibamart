@@ -146,15 +146,24 @@ export default function MobileRequestScreens() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const s = status.toLowerCase();
+  const getStatusBadge = (status: string, type?: string) => {
+    const s = (status || '').toLowerCase();
+    const t = (type || '').toLowerCase();
+
+    if (t.includes('cancel') || s.includes('cancel')) {
+      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Canceled</span>;
+    }
+    if (t.includes('refund') || s.includes('refund')) {
+      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Refunded</span>;
+    }
+    if (t.includes('return') || s.includes('return')) {
+      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Returned</span>;
+    }
+
     if (s.includes('approved') || s.includes('processed') || s.includes('completed')) {
-      return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Approved</span>;
+      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Completed</span>;
     }
-    if (s.includes('reject')) {
-      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Rejected</span>;
-    }
-    return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Requested / Under Review</span>;
+    return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">Under Review</span>;
   };
 
   return (
@@ -303,7 +312,7 @@ export default function MobileRequestScreens() {
                   <span className="text-xs font-black text-gray-900">
                     Request #{req.id.slice(-6).toUpperCase()} ({req.type?.toUpperCase() || 'RETURN'})
                   </span>
-                  {getStatusBadge(req.status)}
+                  {getStatusBadge(req.status, req.type)}
                 </div>
 
                 <div className="text-xs space-y-1 text-gray-700">

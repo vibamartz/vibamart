@@ -713,9 +713,20 @@ export default function CategoriesManagementView() {
                         <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
                           <li>Auto-generate selects a unique logo tailored to category name.</li>
                           <li>Guarantees visual consistency across Mobile and Desktop.</li>
-                          <li>You can edit or upload custom image files (Max 2MB).</li>
+                          <li>You can edit, upload custom image files, or provide an image link below.</li>
                         </ul>
                       </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="text-xs font-bold text-gray-700 block mb-1">Icon Image URL / Icon Link</label>
+                      <input
+                        type="text"
+                        value={formData.image || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                        placeholder="https://example.com/icon.png or image link"
+                        className="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-mono"
+                      />
                     </div>
                   </div>
 

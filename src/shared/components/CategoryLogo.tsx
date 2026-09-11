@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag, Flame,
-  Headphones, Camera, Gamepad2, BookOpen, Dumbbell, Car, Watch, ShoppingBag, Apple,
+  Headphones, Camera, Gamepad, Gamepad2, BookOpen, Dumbbell, Car, Watch, ShoppingBag, Apple,
   Gift, Percent, Package
 } from 'lucide-react';
 
@@ -71,10 +71,10 @@ export function renderCategoryFallbackIcon(
   if (lowerName.includes('appliance') || lowerName.includes('tv') || lowerName.includes('televis') || lowerName.includes('refrig') || lowerIcon === 'tv') {
     return <Tv className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby')) {
-    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
+  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby') || lowerIcon === 'gamepad') {
+    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit')) {
+  if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit') || lowerIcon === 'apple') {
     return <Apple className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('audio') || lowerName.includes('headphone') || lowerName.includes('sound')) {
@@ -84,7 +84,7 @@ export function renderCategoryFallbackIcon(
     return <Camera className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('game') || lowerName.includes('gaming')) {
-    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
+    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('book') || lowerName.includes('stationery')) {
     return <BookOpen className={`${sizeClass} ${colorClass}`} />;

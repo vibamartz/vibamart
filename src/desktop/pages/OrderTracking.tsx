@@ -833,17 +833,25 @@ export default function OrderTracking() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                       <p className="text-xs font-semibold text-gray-500 mt-1">Quantity: {item.quantity}</p>
-                      {order.status === 'delivered' && (
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {order.status === 'delivered' && (
+                          <button
+                            onClick={() => {
+                              setSelectedReviewProductId(item.productId);
+                              setShowReviewModal(true);
+                            }}
+                            className="text-[10px] font-black uppercase tracking-wider text-amber-700 hover:text-amber-800 bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Star className="w-3 h-3 fill-amber-600 text-amber-600" /> Rate your Experience
+                          </button>
+                        )}
                         <button
-                          onClick={() => {
-                            setSelectedReviewProductId(item.productId);
-                            setShowReviewModal(true);
-                          }}
-                          className="mt-2 text-[10px] font-black uppercase tracking-wider text-amber-700 hover:text-amber-800 bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          onClick={() => setShowHelpModal(true)}
+                          className="text-[10px] font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer shrink-0 shadow-xs"
                         >
-                          <Star className="w-3 h-3 fill-amber-600 text-amber-600" /> Rate your Experience
+                          <HelpCircle className="w-3.5 h-3.5 text-amber-950" /> Need Help?
                         </button>
-                      )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-black text-gray-900">₹{(item.price * item.quantity).toLocaleString()}</p>

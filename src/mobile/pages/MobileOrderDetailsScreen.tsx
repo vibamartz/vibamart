@@ -598,17 +598,25 @@ export default function MobileOrderDetailsScreen() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
                   <span className="text-[10px] text-gray-500 font-semibold block">Qty: {item.quantity}</span>
-                  {order.status === 'delivered' && (
+                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                    {order.status === 'delivered' && (
+                      <button
+                        onClick={() => {
+                          setSelectedReviewProductId(item.productId);
+                          setShowReviewModal(true);
+                        }}
+                        className="text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <Star className="w-2.5 h-2.5 fill-amber-600 text-amber-600" /> Rate
+                      </button>
+                    )}
                     <button
-                      onClick={() => {
-                        setSelectedReviewProductId(item.productId);
-                        setShowReviewModal(true);
-                      }}
-                      className="mt-1 text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                      onClick={() => setShowHelpModal(true)}
+                      className="text-[9px] font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer shrink-0 shadow-xs"
                     >
-                      <Star className="w-2.5 h-2.5 fill-amber-600 text-amber-600" /> Rate
+                      <HelpCircle className="w-2.5 h-2.5 text-amber-950" /> Help
                     </button>
-                  )}
+                  </div>
                 </div>
                 <span className="text-xs font-black text-gray-900">
                   ₹{(item.price * item.quantity).toLocaleString()}

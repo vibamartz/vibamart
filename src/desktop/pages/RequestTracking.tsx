@@ -11,29 +11,29 @@ import { motion } from 'motion/react';
 // Status styling and labelling maps
 const CANCELLATION_STEPS = [
   { status: 'requested', label: 'Pending Review', icon: Clock, color: 'text-amber-500', desc: 'Admin is reviewing your cancellation request.' },
-  { status: 'approved', label: 'Approved', icon: ShieldCheck, color: 'text-blue-500', desc: 'Cancellation request approved.' },
-  { status: 'cancelled', label: 'Order Cancelled', icon: CheckCircle2, color: 'text-gray-600', desc: 'The order has been cancelled successfully.' },
+  { status: 'approved', label: 'Canceled', icon: ShieldCheck, color: 'text-rose-500', desc: 'Cancellation confirmed.' },
+  { status: 'cancelled', label: 'Canceled', icon: CheckCircle2, color: 'text-gray-600', desc: 'The order has been cancelled successfully.' },
   { status: 'refund_initiated', label: 'Refund Initiated', icon: RefreshCw, color: 'text-indigo-500', desc: 'Refund has been initiated by the bank.' },
-  { status: 'refund_completed', label: 'Refund Completed', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund successfully completed!' }
+  { status: 'refund_completed', label: 'Refunded', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund successfully completed!' }
 ];
 
 const RETURN_STEPS = [
   { status: 'requested', label: 'Return Requested', icon: FileText, color: 'text-yellow-500', desc: 'We have received your return request.' },
-  { status: 'approved', label: 'Approved', icon: ShieldCheck, color: 'text-blue-500', desc: 'Return request approved.' },
+  { status: 'approved', label: 'Returned', icon: ShieldCheck, color: 'text-rose-500', desc: 'Return confirmed.' },
   { status: 'pickup_scheduled', label: 'Pickup Scheduled', icon: Truck, color: 'text-purple-500', desc: 'Return package pickup is scheduled.' },
   { status: 'product_received', label: 'Product Received', icon: CheckCircle2, color: 'text-indigo-500', desc: 'Product returned to warehouse.' },
   { status: 'quality_check', label: 'Quality Check', icon: RefreshCw, color: 'text-yellow-600', desc: 'Performing quality inspection.' },
   { status: 'refund_initiated', label: 'Refund Initiated', icon: Clock, color: 'text-blue-600', desc: 'Refund has been initiated.' },
-  { status: 'refund_completed', label: 'Refund Completed', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund processed to original payment method.' }
+  { status: 'refund_completed', label: 'Refunded', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund processed to original payment method.' }
 ];
 
 const REFUND_STEPS = [
   { status: 'requested', label: 'Refund Requested', icon: FileText, color: 'text-pink-500', desc: 'We have received your refund request.' },
   { status: 'under_review', label: 'Under Review', icon: Clock, color: 'text-amber-500', desc: 'Refund request is under review.' },
-  { status: 'approved', label: 'Approved', icon: ShieldCheck, color: 'text-blue-500', desc: 'Refund request approved.' },
+  { status: 'approved', label: 'Refunded', icon: ShieldCheck, color: 'text-rose-500', desc: 'Refund confirmed.' },
   { status: 'processing', label: 'Processing', icon: RefreshCw, color: 'text-indigo-500', desc: 'Refund is being processed by payment gateway.' },
   { status: 'refund_sent', label: 'Refund Sent', icon: Clock, color: 'text-blue-600', desc: 'Refund sent to your bank.' },
-  { status: 'refund_completed', label: 'Refund Completed', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund completed successfully.' }
+  { status: 'refund_completed', label: 'Refunded', icon: CreditCard, color: 'text-emerald-500', desc: 'Refund completed successfully.' }
 ];
 
 export default function RequestTracking() {

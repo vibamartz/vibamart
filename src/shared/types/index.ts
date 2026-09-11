@@ -79,6 +79,9 @@ export interface Product {
   specifications?: { key: string; value: string }[];
   taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
+  deliveryDays?: number;
+  expectedDelivery?: string;
+  estimatedDelivery?: string;
   createdAt: string;
 }
 
