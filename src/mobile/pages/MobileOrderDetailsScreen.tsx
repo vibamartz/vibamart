@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  CheckCircle2, Clock, Truck, ShieldCheck, FileText, Download, 
-  ArrowLeft, MapPin, AlertCircle, RefreshCcw, XCircle, Upload, X, HelpCircle, CreditCard
+  Package, Clock, Truck, ShieldCheck, FileText, Download, 
+  ArrowLeft, MapPin, AlertCircle, RefreshCcw, XCircle, Upload, X, HelpCircle, CreditCard, Sparkles
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, limit } from 'firebase/firestore';
 import { db, auth, storage } from '../../backend/firebase/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { Order, OrderStatus } from '../../shared/types';
+import { Order, OrderStatus, Product } from '../../shared/types';
 import { useAuthStore, useSettingsStore } from '../../backend/store';
 import InvoiceModal from '../../desktop/components/InvoiceModal';
 import toast from 'react-hot-toast';
@@ -22,6 +22,8 @@ export default function MobileOrderDetailsScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
 
   // Active Request State
   const [activeRequest, setActiveRequest] = useState<any | null>(null);
@@ -43,7 +45,7 @@ export default function MobileOrderDetailsScreen() {
 
   const [refundReason, setRefundReason] = useState('Order Cancelled/Returned');
 
-  // Fetch Order and Request Updates
+  // Fetch Order
   useEffect(() => {
     if (!orderId) return;
 
@@ -103,7 +105,21 @@ export default function MobileOrderDetailsScreen() {
     };
   }, [order]);
 
-  // Proof Image Upload Handler
+  // Fetch Recommended Products
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        const q = query(collection(db, 'products'), limit(4));
+        const snap = await getDocs(q);
+        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        setRecommendedProducts(prods);
+      } catch (err) {
+        console.error("Error fetching recommended products:", err);
+      }
+    };
+    fetchRecommended();
+  }, []);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -124,7 +140,6 @@ export default function MobileOrderDetailsScreen() {
     setReturnImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Submit Cancellation Request
   const handleSubmitCancel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!order || !user) return;
@@ -156,7 +171,6 @@ export default function MobileOrderDetailsScreen() {
       if (response.ok && data?.success) {
         toast.success(data.message || "Cancellation request submitted!");
       } else {
-        // Firestore direct fallback
         await addDoc(collection(db, 'cancellation_requests'), {
           orderId: order.id,
           customOrderId: order.customOrderId || order.id,
@@ -179,7 +193,6 @@ export default function MobileOrderDetailsScreen() {
     }
   };
 
-  // Submit Return Request
   const handleSubmitReturn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!order || !user) return;
@@ -196,7 +209,6 @@ export default function MobileOrderDetailsScreen() {
     setIsSubmitting(true);
 
     try {
-      // Storage upload if available
       const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
         if (!storage.app.options.storageBucket) {
           return imgBase64;
@@ -206,7 +218,6 @@ export default function MobileOrderDetailsScreen() {
           await uploadString(imageRef, imgBase64, 'data_url');
           return await getDownloadURL(imageRef);
         } catch (error) {
-          console.warn("Storage upload failed, keeping base64 format:", error);
           return imgBase64;
         }
       }));
@@ -239,7 +250,6 @@ export default function MobileOrderDetailsScreen() {
       if (response.ok && data?.success) {
         toast.success(data.message || "Return request submitted!");
       } else {
-        // Firestore direct fallback
         await addDoc(collection(db, 'return_requests'), {
           orderId: order.id,
           customOrderId: order.customOrderId || order.id,
@@ -266,7 +276,6 @@ export default function MobileOrderDetailsScreen() {
     }
   };
 
-  // Submit Refund Request
   const handleSubmitRefund = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!order || !user) return;
@@ -298,7 +307,6 @@ export default function MobileOrderDetailsScreen() {
       if (response.ok && data?.success) {
         toast.success(data.message || "Refund request submitted!");
       } else {
-        // Firestore direct fallback
         await addDoc(collection(db, 'refund_requests'), {
           orderId: order.id,
           customOrderId: order.customOrderId || order.id,
@@ -348,57 +356,68 @@ export default function MobileOrderDetailsScreen() {
   };
 
   const currentStageIndex = getStageIndex(order.status);
-  const isCancelled = ['cancelled', 'cancel_requested', 'returned', 'refunded'].includes(order.status);
+  const isCancelled = ['cancelled', 'cancel_requested', 'cancel_rejected', 'returned', 'refunded'].includes(order.status);
   const displayId = order.customOrderId || `VBM-${order.id.slice(-6).toUpperCase()}`;
 
-  // Check 7-day return policy eligibility
   const windowDays = settings?.returnWindowDays || 7;
   const deliveryDate = order.deliveryDate ? new Date(order.deliveryDate) : new Date(order.createdAt);
   const daysDiff = Math.floor((new Date().getTime() - deliveryDate.getTime()) / (1000 * 3600 * 24));
   const isReturnEligible = order.status === 'delivered' && daysDiff <= windowDays;
 
-  // Eligibility triggers
   const canCancel = ['pending', 'confirmed', 'packed'].includes(order.status) && !activeRequest;
   const canReturn = isReturnEligible && !activeRequest;
   const canRefund = ['cancelled', 'returned'].includes(order.status) && order.paymentStatus !== 'refunded' && !activeRequest;
 
-  // Helper for Request Status Label
-  const getRequestStatusBadge = (req: any) => {
-    const s = (req.status || '').toLowerCase();
-    const typeLabel = (req.requestType || req.type || 'request').toUpperCase();
-
-    if (s.includes('approved')) {
-      return <span className="bg-blue-100 text-blue-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full">{typeLabel}: Approved</span>;
+  const getCustomerStatusWord = (req: any, orderStatus: OrderStatus): string => {
+    if (req) {
+      const typeStr = (req.requestType || req.type || '').toLowerCase();
+      if (typeStr.includes('cancel')) return 'Canceled';
+      if (typeStr.includes('return')) return 'Returned';
+      if (typeStr.includes('refund')) return 'Refunded';
     }
-    if (s.includes('completed') || s.includes('processed')) {
-      return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full">{typeLabel}: Completed</span>;
-    }
-    if (s.includes('reject')) {
-      return <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full">{typeLabel}: Rejected</span>;
-    }
-    return <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full">{typeLabel}: Under Review</span>;
+    if (['cancelled', 'cancel_requested', 'cancel_rejected'].includes(orderStatus)) return 'Canceled';
+    if (orderStatus === 'returned') return 'Returned';
+    if (orderStatus === 'refunded') return 'Refunded';
+    return orderStatus;
   };
+
+  const statusDisplayWord = getCustomerStatusWord(activeRequest, order.status);
 
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
       
       {/* Header Info */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400">Order Reference</span>
-            <h2 className="text-base font-black text-gray-900">{displayId}</h2>
+            <div className="flex items-center gap-2 mt-0.5">
+              <h2 className="text-base font-black text-gray-900">{displayId}</h2>
+              {isCancelled && (
+                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-black uppercase rounded-full">
+                  {statusDisplayWord}
+                </span>
+              )}
+            </div>
           </div>
-          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-            {new Date(order.createdAt).toLocaleDateString()}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+              {new Date(order.createdAt).toLocaleDateString()}
+            </span>
+            {/* Help Button inside Order Details Header */}
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="px-3 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-amber-400" /> Help
+            </button>
+          </div>
         </div>
 
-        {/* Invoice View / Download */}
-        {order.status === 'delivered' ? (
+        {order.status === 'delivered' && (
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-              <FileText className="w-4 h-4 text-emerald-600" /> Official Tax Invoice Available
+              <FileText className="w-4 h-4 text-emerald-600" /> Tax Invoice Available
             </span>
             <button
               onClick={() => setShowInvoiceModal(true)}
@@ -407,43 +426,31 @@ export default function MobileOrderDetailsScreen() {
               <Download className="w-3.5 h-3.5" /> View Invoice
             </button>
           </div>
-        ) : (
-          <p className="text-[10px] font-medium text-gray-400 pt-1">
-            Tax invoice will be generated and downloadable upon successful delivery.
-          </p>
         )}
       </div>
 
-      {/* LIVE REQUEST STATUS CARD (Rendered directly inside Order Details) */}
+      {/* LIVE REQUEST STATUS CARD */}
       {activeRequest && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-amber-200 space-y-2">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-rose-200 space-y-2">
           <div className="flex items-center justify-between border-b border-gray-100 pb-2">
             <div className="flex items-center gap-2">
-              <RefreshCcw className="w-4 h-4 text-amber-600 animate-spin" />
+              <RefreshCcw className="w-4 h-4 text-rose-600" />
               <h3 className="text-xs font-black text-gray-900 uppercase">
-                {activeRequest.requestType || activeRequest.type} Request Status
+                Request Record
               </h3>
             </div>
-            {getRequestStatusBadge(activeRequest)}
+            <span className="bg-rose-100 text-rose-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full">
+              {statusDisplayWord}
+            </span>
           </div>
 
           <div className="space-y-1 text-xs text-gray-700 pt-1">
             <p><strong>Reason:</strong> {activeRequest.reason}</p>
             {activeRequest.comments && <p className="text-gray-500 italic">"{activeRequest.comments}"</p>}
             
-            {activeRequest.status === 'rejected' && (
-              <div className="bg-rose-50 border border-rose-200 p-2.5 rounded-xl text-rose-800 text-xs mt-2">
-                <strong>Admin Notes:</strong> {activeRequest.adminNotes || "Request did not meet policy conditions."}
-              </div>
-            )}
-
-            {activeRequest.refundAmount && (
-              <p className="text-emerald-700 font-bold"><strong>Refund Amount:</strong> ₹{activeRequest.refundAmount.toLocaleString()}</p>
-            )}
-
             {activeRequest.images && activeRequest.images.length > 0 && (
               <div className="pt-2">
-                <span className="text-[10px] font-bold text-gray-400 block mb-1">Uploaded Proof Images:</span>
+                <span className="text-[10px] font-bold text-gray-400 block mb-1">Proof Images:</span>
                 <div className="flex gap-2">
                   {activeRequest.images.map((img: string, idx: number) => (
                     <img key={idx} src={img} alt="Proof" className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
@@ -451,10 +458,6 @@ export default function MobileOrderDetailsScreen() {
                 </div>
               </div>
             )}
-
-            <p className="text-[10px] text-gray-400 pt-1">
-              Updated: {new Date(activeRequest.updatedAt || activeRequest.createdAt).toLocaleString()}
-            </p>
           </div>
         </div>
       )}
@@ -478,7 +481,7 @@ export default function MobileOrderDetailsScreen() {
               onClick={() => setShowReturnModal(true)}
               className="w-full py-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
             >
-              <RefreshCcw className="w-4 h-4 text-amber-600" /> Request {windowDays}-Day Return / Replacement
+              <RefreshCcw className="w-4 h-4 text-amber-600" /> Request {windowDays}-Day Return
             </button>
           )}
 
@@ -493,7 +496,7 @@ export default function MobileOrderDetailsScreen() {
         </div>
       )}
 
-      {/* Live Order Status Pipeline Tracker */}
+      {/* Shipment Tracking Pipeline */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Shipment Tracking Pipeline
@@ -535,48 +538,180 @@ export default function MobileOrderDetailsScreen() {
         ) : (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
             <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>This order has been {order.status.replace('_', ' ')}.</span>
+            <span>This order status is {statusDisplayWord}.</span>
           </div>
         )}
       </div>
 
-      {/* Ordered Items Breakdown */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-          Items Ordered ({order.items.length})
-        </h3>
-        <div className="divide-y divide-gray-100">
-          {order.items.map((item, idx) => (
-            <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
-              <img
-                src={item.image || 'https://via.placeholder.com/50'}
-                alt=""
-                className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
-                <span className="text-[10px] text-gray-500 font-semibold">Qty: {item.quantity}</span>
+      {/* STRICT SECTION ORDER (1. PRODUCTS -> 2. DELIVERY DETAILS -> 3. PRICE DETAILS -> 4. PRODUCTS FOR YOU) */}
+      <div className="space-y-3">
+
+        {/* 1. PRODUCTS */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+            <Package className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+              1. Products ({order.items.length})
+            </h3>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {order.items.map((item, idx) => (
+              <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
+                <img
+                  src={item.image || 'https://via.placeholder.com/50'}
+                  alt=""
+                  className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
+                  <span className="text-[10px] text-gray-500 font-semibold">Qty: {item.quantity}</span>
+                </div>
+                <span className="text-xs font-black text-gray-900">
+                  ₹{(item.price * item.quantity).toLocaleString()}
+                </span>
               </div>
-              <span className="text-xs font-black text-gray-900">
-                ₹{(item.price * item.quantity).toLocaleString()}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {/* 2. DELIVERY DETAILS */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+              2. Delivery Details
+            </h3>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-1">
+            <span className="text-[9px] font-black uppercase text-gray-400 block">Customer Name</span>
+            <p className="font-extrabold text-gray-900">{order.contactName || order.address.fullName}</p>
+            <span className="text-[9px] font-black uppercase text-gray-400 block pt-1">Delivery Address</span>
+            <p className="text-gray-700 font-medium">{order.address.house ? `${order.address.house}, ` : ''}{order.address.street}</p>
+            <p className="text-gray-600 font-medium">{order.address.city}, {order.address.state} - {order.address.zip}</p>
+            <span className="text-[9px] font-black uppercase text-gray-400 block pt-1">Contact Information</span>
+            <p className="text-emerald-700 font-bold">Phone: {order.contactPhone || order.address.phone}</p>
+            <p className="text-gray-600 font-medium">Email: {order.contactEmail || user?.email || 'N/A'}</p>
+          </div>
+        </div>
+
+        {/* 3. PRICE DETAILS */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+              3. Price Details
+            </h3>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-2">
+            <div className="flex justify-between text-gray-600 font-medium">
+              <span>Items Subtotal</span>
+              <span>₹{(order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0)).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-gray-600 font-medium">
+              <span>Delivery Charges</span>
+              <span className="text-emerald-600 font-bold">FREE</span>
+            </div>
+            <div className="pt-2 border-t border-gray-200 flex justify-between items-center text-sm font-black text-gray-900">
+              <span>Total Paid</span>
+              <span className="text-base text-emerald-700">₹{order.total.toLocaleString()}</span>
+            </div>
+            <div className="pt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex justify-between">
+              <span>Payment Method: {order.paymentMethod || 'Online'}</span>
+              <span className="text-emerald-600">Status: Paid</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. PRODUCTS FOR YOU */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+              4. Products For You
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {recommendedProducts.map((p) => (
+              <Link key={p.id} to={`/products/${p.slug || p.id}`} className="bg-gray-50 p-2.5 rounded-xl border border-gray-200/80 flex flex-col justify-between">
+                <div className="aspect-square bg-white rounded-lg overflow-hidden mb-2 border border-gray-100">
+                  <img src={p.image || p.images?.[0]} alt={p.name} className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-900 truncate">{p.name}</p>
+                  <p className="text-xs font-black text-emerald-700 mt-0.5">₹{p.price.toLocaleString()}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      {/* Shipping Address & Customer Contact */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
-        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-          <MapPin className="w-4 h-4 text-emerald-600" /> Delivery Address
-        </h3>
-        <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-1">
-          <p className="font-extrabold text-gray-900">{order.contactName || order.address.fullName}</p>
-          <p className="text-gray-700 font-medium">{order.address.house}, {order.address.street}</p>
-          <p className="text-gray-600 font-medium">{order.address.city}, {order.address.state} - {order.address.zip}</p>
-          <p className="text-emerald-700 font-bold">Phone: {order.contactPhone || order.address.phone}</p>
-        </div>
-      </div>
+      {/* HELP MODAL */}
+      <AnimatePresence>
+        {showHelpModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-sm font-black text-gray-900">Order Help & Support</h3>
+                </div>
+                <button onClick={() => setShowHelpModal(false)} className="p-1 rounded-full text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              {activeRequest ? (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-900 uppercase">Existing Request Info</span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-100 text-rose-800">
+                      {statusDisplayWord}
+                    </span>
+                  </div>
+                  <p className="font-medium text-gray-800">Reason: {activeRequest.reason}</p>
+                  {activeRequest.comments && <p className="text-gray-500 italic">"{activeRequest.comments}"</p>}
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <p className="text-xs font-bold text-gray-600">Need assistance with order {displayId}? Choose an option below:</p>
+                  
+                  {canCancel && (
+                    <button
+                      onClick={() => { setShowHelpModal(false); setShowCancelModal(true); }}
+                      className="w-full py-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4 text-rose-600" /> Cancel Order
+                    </button>
+                  )}
+
+                  {canReturn && (
+                    <button
+                      onClick={() => { setShowHelpModal(false); setShowReturnModal(true); }}
+                      className="w-full py-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <RefreshCcw className="w-4 h-4 text-amber-600" /> Request Return
+                    </button>
+                  )}
+
+                  {canRefund && (
+                    <button
+                      onClick={() => { setShowHelpModal(false); setShowRefundModal(true); }}
+                      className="w-full py-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+                    >
+                      <CreditCard className="w-4 h-4 text-indigo-600" /> Request Refund
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-gray-100 text-xs text-gray-500 space-y-1">
+                <p className="font-bold text-gray-800">Need further support?</p>
+                <p>Contact customer care at <span className="text-emerald-700 font-bold">viba.mart@hotmail.com</span></p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Invoice Modal */}
       {showInvoiceModal && (
@@ -648,7 +783,6 @@ export default function MobileOrderDetailsScreen() {
               </div>
 
               <form onSubmit={handleSubmitReturn} className="space-y-3">
-                {/* Select Items to Return */}
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Select Item(s) to Return</label>
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
@@ -672,7 +806,6 @@ export default function MobileOrderDetailsScreen() {
                   </div>
                 </div>
 
-                {/* Reason Selection */}
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Reason for Return</label>
                   <select
@@ -698,7 +831,6 @@ export default function MobileOrderDetailsScreen() {
                   />
                 </div>
 
-                {/* Proof Image Upload */}
                 <div className="space-y-1.5 pt-1">
                   <label className="text-[10px] font-black uppercase text-gray-500 block">
                     Upload Proof Images <span className="text-rose-500">*Required</span>
