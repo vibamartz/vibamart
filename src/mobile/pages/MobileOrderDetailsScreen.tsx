@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Package, Clock, Truck, ShieldCheck, FileText, Download, 
-  ArrowLeft, MapPin, AlertCircle, RefreshCcw, XCircle, Upload, X, HelpCircle, CreditCard, Sparkles
+  ArrowLeft, MapPin, AlertCircle, RefreshCcw, XCircle, Upload, X, HelpCircle, CreditCard, Sparkles, Star
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, limit } from 'firebase/firestore';
 import { db, auth, storage } from '../../backend/firebase/firebase';
@@ -10,6 +10,8 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { Order, OrderStatus, Product } from '../../shared/types';
 import { useAuthStore, useSettingsStore } from '../../backend/store';
 import InvoiceModal from '../../desktop/components/InvoiceModal';
+import ReviewModal from '../../shared/components/ReviewModal';
+import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,6 +34,8 @@ export default function MobileOrderDetailsScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewProductId, setSelectedReviewProductId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Inputs
@@ -378,6 +382,7 @@ export default function MobileOrderDetailsScreen() {
     if (['cancelled', 'cancel_requested', 'cancel_rejected'].includes(orderStatus)) return 'Canceled';
     if (orderStatus === 'returned') return 'Returned';
     if (orderStatus === 'refunded') return 'Refunded';
+    if (orderStatus === 'delivered' && order) return formatDeliveredDate(order);
     return orderStatus;
   };
 
@@ -393,11 +398,15 @@ export default function MobileOrderDetailsScreen() {
             <span className="text-[10px] font-black uppercase text-gray-400">Order Reference</span>
             <div className="flex items-center gap-2 mt-0.5">
               <h2 className="text-base font-black text-gray-900">{displayId}</h2>
-              {isCancelled && (
+              {order.status === 'delivered' ? (
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full">
+                  {formatDeliveredDate(order)}
+                </span>
+              ) : isCancelled ? (
                 <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-black uppercase rounded-full">
                   {statusDisplayWord}
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -415,16 +424,38 @@ export default function MobileOrderDetailsScreen() {
         </div>
 
         {order.status === 'delivered' && (
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-              <FileText className="w-4 h-4 text-emerald-600" /> Tax Invoice Available
-            </span>
-            <button
-              onClick={() => setShowInvoiceModal(true)}
-              className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5" /> View Invoice
-            </button>
+          <div className="pt-2 border-t border-gray-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                <FileText className="w-4 h-4 text-emerald-600" /> Tax Invoice Available
+              </span>
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" /> View Invoice
+              </button>
+            </div>
+
+            {/* Rate your Experience Section */}
+            <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                <div>
+                  <span className="text-xs font-black text-gray-900 block">Rate your Experience</span>
+                  <span className="text-[10px] text-gray-500 font-bold">Share product review</span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedReviewProductId(order.items?.[0]?.productId);
+                  setShowReviewModal(true);
+                }}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                <Star className="w-3.5 h-3.5 fill-gray-950" /> Rate
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -564,7 +595,18 @@ export default function MobileOrderDetailsScreen() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
-                  <span className="text-[10px] text-gray-500 font-semibold">Qty: {item.quantity}</span>
+                  <span className="text-[10px] text-gray-500 font-semibold block">Qty: {item.quantity}</span>
+                  {order.status === 'delivered' && (
+                    <button
+                      onClick={() => {
+                        setSelectedReviewProductId(item.productId);
+                        setShowReviewModal(true);
+                      }}
+                      className="mt-1 text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Star className="w-2.5 h-2.5 fill-amber-600 text-amber-600" /> Rate
+                    </button>
+                  )}
                 </div>
                 <span className="text-xs font-black text-gray-900">
                   ₹{(item.price * item.quantity).toLocaleString()}
@@ -900,6 +942,16 @@ export default function MobileOrderDetailsScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {order && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          order={order}
+          user={user}
+          initialProductId={selectedReviewProductId}
+        />
+      )}
 
     </div>
   );

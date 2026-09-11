@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Package, Clock, CheckCircle2, Truck, AlertTriangle, ChevronRight, ArrowRight, ShieldCheck, RefreshCcw
+  Package, Clock, CheckCircle2, Truck, AlertTriangle, ChevronRight, ArrowRight, ShieldCheck, RefreshCcw, Star
 } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Order } from '../../shared/types';
 import { useAuthStore } from '../../backend/store';
 import { motion } from 'motion/react';
+import ReviewModal from '../../shared/components/ReviewModal';
+import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 
 export default function MobileOrdersScreen() {
   const { user } = useAuthStore();
@@ -17,6 +19,8 @@ export default function MobileOrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
   const [requestsMap, setRequestsMap] = useState<Record<string, any>>({});
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewOrder, setSelectedReviewOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -107,7 +111,7 @@ export default function MobileOrdersScreen() {
 
     switch (order.status) {
       case 'delivered':
-        return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Delivered</span>;
+        return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> {formatDeliveredDate(order)}</span>;
       case 'shipped':
       case 'out_for_delivery':
         return <span className="bg-blue-100 text-blue-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1"><Truck className="w-3 h-3 text-blue-600" /> Out for Delivery</span>;
@@ -198,6 +202,25 @@ export default function MobileOrdersScreen() {
                   {getStatusBadge(order)}
                 </div>
 
+                {order.status === 'delivered' && (
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span className="text-xs font-black text-gray-900">Rate your Experience</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedReviewOrder(order);
+                        setShowReviewModal(true);
+                      }}
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                    >
+                      <Star className="w-3 h-3 fill-gray-950" /> Rate
+                    </button>
+                  </div>
+                )}
+
                 {/* Items Summary */}
                 <div className="flex items-center gap-3">
                   <img
@@ -235,6 +258,18 @@ export default function MobileOrdersScreen() {
             Start Shopping
           </button>
         </div>
+      )}
+
+      {selectedReviewOrder && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedReviewOrder(null);
+          }}
+          order={selectedReviewOrder}
+          user={user}
+        />
       )}
     </div>
   );

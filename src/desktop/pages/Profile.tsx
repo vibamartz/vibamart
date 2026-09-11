@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Package, MapPin, Settings, Heart, Bell, 
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star
 } from 'lucide-react';
 import InvoiceModal from '../components/InvoiceModal';
+import ReviewModal from '../../shared/components/ReviewModal';
+import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import { useAuthStore, useSettingsStore } from '../../backend/store';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -75,6 +77,8 @@ export default function Profile() {
   const [selectedReturnProducts, setSelectedReturnProducts] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<Order | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewOrder, setSelectedReviewOrder] = useState<Order | null>(null);
 
   const handlePasswordReset = async () => {
     if (!user?.email) return;
@@ -761,17 +765,41 @@ export default function Profile() {
                                    <span className="text-xs font-bold text-gray-600">{new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                  </div>
                                  <div className="flex flex-col items-end">
-                                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Status</span>
-                                   <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
-                                     order.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' :
-                                     order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
-                                     'bg-blue-100 text-blue-600'
-                                   }`}>
-                                     {order.status}
-                                   </span>
+                                   <div className="flex flex-col items-end">
+                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Status</span>
+                                     <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                                       order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                                       order.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                                       'bg-blue-100 text-blue-600'
+                                     }`}>
+                                       {order.status === 'delivered' ? formatDeliveredDate(order) : order.status}
+                                     </span>
+                                   </div>
                                  </div>
                                </div>
                              </div>
+
+                              {order.status === 'delivered' && (
+                                <div className="mb-4 pt-3 border-t border-emerald-100/60 bg-emerald-50/50 rounded-2xl p-3 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                                    <div>
+                                      <span className="text-xs font-black text-gray-900 uppercase tracking-wider block">Rate your Experience</span>
+                                      <span className="text-[10px] text-gray-500 font-medium">Delivered · Share feedback on your products</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedReviewOrder(order);
+                                      setShowReviewModal(true);
+                                    }}
+                                    className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-gray-950" /> Rate
+                                  </button>
+                                </div>
+                              )}
 
                              <div className="flex items-center gap-4 overflow-x-auto pb-4 hide-scrollbar">
                                {order.items.map((item, idx) => (
@@ -885,12 +913,24 @@ export default function Profile() {
                                     </Link>
                                   )}
                                   {order.status === 'delivered' && (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); setInvoiceModalOrder(order); }}
-                                      className="px-6 py-2.5 bg-[#22C55E] text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
-                                    >
-                                      <FileText className="w-4 h-4" /> Download Invoice
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedReviewOrder(order);
+                                          setShowReviewModal(true);
+                                        }}
+                                        className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <Star className="w-4 h-4 fill-gray-950" /> Rate your Experience
+                                      </button>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); setInvoiceModalOrder(order); }}
+                                        className="px-6 py-2.5 bg-[#22C55E] text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <FileText className="w-4 h-4" /> Download Invoice
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                              </div>
@@ -1477,6 +1517,18 @@ export default function Profile() {
           order={invoiceModalOrder}
           isOpen={!!invoiceModalOrder}
           onClose={() => setInvoiceModalOrder(null)}
+        />
+      )}
+
+      {selectedReviewOrder && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedReviewOrder(null);
+          }}
+          order={selectedReviewOrder}
+          user={user}
         />
       )}
     </div>

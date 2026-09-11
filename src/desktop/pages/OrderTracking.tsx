@@ -7,10 +7,12 @@ import { Order, OrderStatus, Product } from '../../shared/types';
 import { useAuthStore, useSettingsStore } from '../../backend/store';
 import { 
   Package, Truck, CheckCircle, Clock, MapPin, ArrowLeft, Loader2, AlertCircle, FileText, 
-  RefreshCcw, XCircle, CreditCard, Upload, X, ShieldCheck, HelpCircle, Sparkles
+  RefreshCcw, XCircle, CreditCard, Upload, X, ShieldCheck, HelpCircle, Sparkles, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import InvoiceModal from '../components/InvoiceModal';
+import ReviewModal from '../../shared/components/ReviewModal';
+import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
@@ -126,6 +128,8 @@ export default function OrderTracking() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewProductId, setSelectedReviewProductId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Inputs
@@ -500,6 +504,7 @@ export default function OrderTracking() {
     if (['cancelled', 'cancel_requested', 'cancel_rejected'].includes(orderStatus)) return 'Canceled';
     if (orderStatus === 'returned') return 'Returned';
     if (orderStatus === 'refunded') return 'Refunded';
+    if (orderStatus === 'delivered' && order) return formatDeliveredDate(order);
     return STATUS_CONFIG[orderStatus]?.label || orderStatus;
   };
 
@@ -627,6 +632,30 @@ export default function OrderTracking() {
                   </button>
                 </div>
               </div>
+
+              {/* Rate your Experience Section for Delivered Orders */}
+              {order.status === 'delivered' && (
+                <div className="mt-6 pt-5 border-t border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-400/20 rounded-2xl border border-amber-400/30">
+                      <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">Rate your Experience</h4>
+                      <p className="text-xs text-gray-400 font-medium">Delivered · Tell us about your order & products</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedReviewProductId(order.items?.[0]?.productId);
+                      setShowReviewModal(true);
+                    }}
+                    className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-amber-500/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Star className="w-4 h-4 fill-gray-950" /> Rate your Experience
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -806,6 +835,17 @@ export default function OrderTracking() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                         <p className="text-xs font-semibold text-gray-500 mt-1">Quantity: {item.quantity}</p>
+                        {order.status === 'delivered' && (
+                          <button
+                            onClick={() => {
+                              setSelectedReviewProductId(item.productId);
+                              setShowReviewModal(true);
+                            }}
+                            className="mt-2 text-[10px] font-black uppercase tracking-wider text-amber-700 hover:text-amber-800 bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Star className="w-3 h-3 fill-amber-600 text-amber-600" /> Rate your Experience
+                          </button>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black text-gray-900">₹{(item.price * item.quantity).toLocaleString()}</p>
@@ -1141,6 +1181,16 @@ export default function OrderTracking() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {order && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          order={order}
+          user={user}
+          initialProductId={selectedReviewProductId}
+        />
+      )}
 
     </div>
   );
