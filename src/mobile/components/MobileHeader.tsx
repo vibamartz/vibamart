@@ -48,9 +48,8 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
     return () => unsubscribe();
   }, [user]);
 
-  if (isHomePage) {
-    return null;
-  }
+  // Inner page header removed per requirements
+  return null;
 
   const handleLocationSelect = () => {
     setIsLocationModalOpen(false);

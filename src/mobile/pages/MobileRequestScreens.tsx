@@ -158,28 +158,27 @@ export default function MobileRequestScreens() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
-      {/* Header & Tabs */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-gray-900">Returns & Cancellations</h2>
-          <ShieldCheck className="w-5 h-5 text-emerald-600" />
-        </div>
-
-        {/* Action Toggle Tabs */}
-        <div className="flex bg-gray-100 p-1 rounded-xl">
+    <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none px-4 py-4 space-y-5">
+      {/* Page Header & Navigation Tabs */}
+      <div className="pb-3 border-b border-gray-100 flex items-center justify-between">
+        <h2 className="text-base font-black text-gray-900">Return & Refund Requests</h2>
+        <div className="flex gap-1.5">
           <button
             onClick={() => setActiveTab('create')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
-              activeTab === 'create' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              activeTab === 'create'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Submit Request
+            New Request
           </button>
           <button
             onClick={() => setActiveTab('list')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
-              activeTab === 'list' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              activeTab === 'list'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             My Requests ({myRequests.length})
@@ -188,14 +187,15 @@ export default function MobileRequestScreens() {
       </div>
 
       {activeTab === 'create' ? (
-        <form onSubmit={handleSubmitRequest} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-          {/* Request Type Selector */}
+        /* Create Request Form */
+        <form onSubmit={handleSubmitRequest} className="space-y-4">
+          {/* Request Type Switcher */}
           <div>
-            <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Request Type</label>
+            <label className="text-[10px] font-black uppercase text-gray-400 block mb-1">Select Action Type</label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { type: 'return', label: 'Return' },
-                { type: 'cancellation', label: 'Cancel Order' },
+                { type: 'cancellation', label: 'Cancel' },
                 { type: 'refund', label: 'Refund' },
               ].map((t) => (
                 <button
@@ -295,11 +295,11 @@ export default function MobileRequestScreens() {
         </form>
       ) : (
         /* Requests History List */
-        <div className="space-y-3">
+        <div className="divide-y divide-gray-100">
           {myRequests.length > 0 ? (
             myRequests.map((req) => (
-              <div key={req.id} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div key={req.id} className="py-4 space-y-2">
+                <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-gray-900">
                     Request #{req.id.slice(-6).toUpperCase()} ({req.type?.toUpperCase() || 'RETURN'})
                   </span>
@@ -309,13 +309,13 @@ export default function MobileRequestScreens() {
                 <div className="text-xs space-y-1 text-gray-700">
                   <p><strong>Order Ref:</strong> {req.customOrderId || req.orderId}</p>
                   <p><strong>Reason:</strong> {req.reason}</p>
-                  {req.comments && <p className="text-gray-500">"{req.comments}"</p>}
+                  {req.comments && <p className="text-gray-500 italic">"{req.comments}"</p>}
                   <p className="text-[10px] text-gray-400">Submitted: {new Date(req.createdAt).toLocaleString()}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100">
+            <div className="py-12 text-center">
               <p className="text-xs font-bold text-gray-500">No requests submitted yet.</p>
             </div>
           )}

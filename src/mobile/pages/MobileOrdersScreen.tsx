@@ -140,16 +140,16 @@ export default function MobileOrdersScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none px-4 py-4 space-y-5">
       {/* Title & Filter Tabs */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
+      <div className="pb-3 border-b border-gray-100 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-gray-900">My Orders ({orders.length})</h2>
+          <h2 className="text-base font-black text-gray-900">My Orders ({orders.length})</h2>
           <ShieldCheck className="w-5 h-5 text-emerald-600" />
         </div>
 
         {/* Filter Pills */}
-        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1">
           {[
             { id: 'all', label: 'All Orders' },
             { id: 'active', label: 'In Progress' },
@@ -173,26 +173,28 @@ export default function MobileOrdersScreen() {
 
       {/* Orders List */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="divide-y divide-gray-100">
           {Array(3).fill(0).map((_, i) => (
-            <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-yellow-100" />
+            <div key={i} className="py-4 animate-pulse space-y-2">
+              <div className="h-4 bg-gray-100 rounded w-1/3" />
+              <div className="h-12 bg-gray-50 rounded" />
+            </div>
           ))}
         </div>
       ) : filteredOrders.length > 0 ? (
-        <div className="space-y-3">
+        <div className="divide-y divide-gray-100">
           {filteredOrders.map((order) => {
             const displayId = order.customOrderId || `VBM-${order.id.slice(-6).toUpperCase()}`;
             const firstItem = order.items?.[0];
 
             return (
-              <motion.div
+              <div
                 key={order.id}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(`/track-order/${order.id}`)}
-                className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3 cursor-pointer hover:shadow-md transition-all"
+                className="py-4 space-y-3 cursor-pointer hover:bg-gray-50/50 transition-colors"
               >
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black text-gray-900">{displayId}</span>
                     <span className="text-[10px] text-gray-400 font-medium block">
@@ -203,7 +205,7 @@ export default function MobileOrdersScreen() {
                 </div>
 
                 {order.status === 'delivered' && (
-                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                  <div className="pt-1 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       <span className="text-xs font-black text-gray-900">Rate your Experience</span>
@@ -243,12 +245,12 @@ export default function MobileOrdersScreen() {
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-2">
+        <div className="py-12 text-center space-y-3">
           <Package className="w-10 h-10 text-gray-300 mx-auto" />
           <p className="text-xs font-bold text-gray-600">No orders found in this section.</p>
           <button

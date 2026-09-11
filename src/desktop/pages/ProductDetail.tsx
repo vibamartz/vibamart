@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Product, WaitlistItem } from '../../shared/types';
-import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore } from '../../backend/store';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
@@ -468,6 +468,20 @@ export default function ProductDetail() {
                <ServiceIcon icon={ShieldCheck} title="Warranty" desc="1 Year Brand Warranty" />
                <ServiceIcon icon={RefreshCcw} title="Replacement" desc="7 Days Policy" />
                <ServiceIcon icon={Truck} title="Delivery" desc="Free Home Delivery" />
+            </div>
+
+            {/* Help & Support Assistance */}
+            <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Have Questions about this product?</h4>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">Get instant assistance from our support team or browse FAQs.</p>
+              </div>
+              <button
+                onClick={() => navigate('/faq')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-black uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <HelpCircle className="w-4 h-4 text-gray-950" /> Help
+              </button>
             </div>
 
             {/* Description */}

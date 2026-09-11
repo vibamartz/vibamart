@@ -735,8 +735,8 @@ export default function Profile() {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Purchase History</h2>
+                  <div className="space-y-6">
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight pb-4 border-b border-gray-100">Purchase History</h2>
                     
                     {orders.length === 0 ? (
                       <div className="py-20 text-center space-y-4">
@@ -747,14 +747,14 @@ export default function Profile() {
                         <Link to="/products" className="text-primary font-black uppercase tracking-widest text-xs hover:underline">Start Shopping</Link>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="divide-y divide-gray-100">
                         {orders.map(order => (
                           <div 
                             key={order.id} 
                             onClick={() => navigate(`/track-order/${order.id}`)}
-                            className="group block bg-gray-50/50 hover:bg-white rounded-3xl p-6 border border-transparent hover:border-primary/10 transition-all shadow-sm hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99] cursor-pointer"
+                            className="py-6 space-y-4 hover:bg-gray-50/40 transition-colors cursor-pointer"
                           >
-                             <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
+                             <div className="flex flex-wrap justify-between items-start gap-4">
                                <div className="flex flex-col">
                                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Order ID</span>
                                  <span className="text-sm font-black text-gray-900 italic">#{order.id.startsWith('VBM') ? order.id : order.id.slice(-8).toUpperCase()}</span>
@@ -780,7 +780,7 @@ export default function Profile() {
                              </div>
 
                               {order.status === 'delivered' && (
-                                <div className="mb-4 pt-3 border-t border-emerald-100/60 bg-emerald-50/50 rounded-2xl p-3 flex items-center justify-between">
+                                <div className="pt-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center gap-2">
                                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                                     <div>
@@ -801,9 +801,9 @@ export default function Profile() {
                                 </div>
                               )}
 
-                             <div className="flex items-center gap-4 overflow-x-auto pb-4 hide-scrollbar">
+                             <div className="flex items-center gap-4 overflow-x-auto py-2 hide-scrollbar">
                                {order.items.map((item, idx) => (
-                                 <div key={idx} className="flex-shrink-0 w-16 h-16 rounded-2xl border border-gray-100 overflow-hidden relative bg-white group-hover:border-primary/20 transition-colors">
+                                 <div key={idx} className="flex-shrink-0 w-16 h-16 rounded-xl border border-gray-100 overflow-hidden relative bg-white">
                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                                     {item.quantity > 1 && (
                                       <span className="absolute bottom-1 right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg">
@@ -815,26 +815,18 @@ export default function Profile() {
                              </div>
 
                              {order.trackingId && (
-                               <div className="mb-6 p-4 bg-purple-50 rounded-2xl border border-purple-100 flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                     <div className="p-2 bg-white rounded-xl shadow-sm">
-                                        <Truck className="w-4 h-4 text-purple-600" />
-                                     </div>
-                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-purple-400">Tracking Information</p>
-                                        <p className="text-xs font-black text-purple-700">{order.carrier}: {order.trackingId}</p>
-                                     </div>
+                               <div className="py-2 text-xs flex items-center justify-between text-purple-700 font-bold">
+                                  <div className="flex items-center gap-2">
+                                    <Truck className="w-4 h-4 text-purple-600" />
+                                    <span>Tracking: {order.carrier} ({order.trackingId})</span>
                                   </div>
                                   {order.estimatedDelivery && (
-                                    <div className="text-right">
-                                       <p className="text-[10px] font-black uppercase tracking-widest text-purple-400">Est. Delivery</p>
-                                       <p className="text-xs font-black text-purple-700">{new Date(order.estimatedDelivery).toLocaleDateString()}</p>
-                                    </div>
+                                    <span>Est. Delivery: {new Date(order.estimatedDelivery).toLocaleDateString()}</span>
                                   )}
                                </div>
                              )}
 
-                             <div className="pt-6 border-t border-gray-100 flex justify-between items-center mt-2">
+                             <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                                <div className="flex gap-8">
                                  <div className="flex flex-col">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Price</span>

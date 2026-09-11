@@ -152,14 +152,6 @@ export default function MobileSearchScreen() {
     <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-4">
       {/* Search Header Bar */}
       <div className="flex items-center gap-2">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => navigate(-1)}
-          className="p-2.5 bg-white text-gray-700 rounded-full border border-yellow-100 shadow-sm shrink-0"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </motion.button>
-
         <form onSubmit={handleSearchSubmit} className="flex-1 relative flex items-center">
           <input
             ref={searchInputRef}

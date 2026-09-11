@@ -202,174 +202,168 @@ export default function RequestTracking() {
   const isRejected = status === 'rejected';
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <Link to="/profile?tab=requests" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary font-black uppercase tracking-widest text-[10px] mb-8 transition-colors group">
-          <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Back to My Requests
-        </Link>
-
-        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
-          
-          {/* Header Card */}
-          <div className="p-8 md:p-12 border-b border-gray-100 bg-gray-900 text-white">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Request Status Tracker</p>
-                <div className="flex flex-wrap items-center gap-4">
-                  <h1 className="text-3xl font-black tracking-tight select-all">#{request.requestId || request.id}</h1>
-                  <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                    isRejected ? 'bg-red-100 text-red-600' : 'bg-primary/20 text-blue-400'
-                  }`}>
-                    {isRejected ? 'Rejected' : steps[currentStepIndex]?.label || status.replace('_', ' ')}
-                  </span>
-                </div>
+    <div className="min-h-screen bg-white py-8 px-4 md:px-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* Header Card */}
+        <div className="p-8 md:p-10 rounded-3xl bg-gray-900 text-white">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Request Status Tracker</p>
+              <div className="flex flex-wrap items-center gap-4">
+                <h1 className="text-3xl font-black tracking-tight select-all">#{request.requestId || request.id}</h1>
+                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                  isRejected ? 'bg-red-100 text-red-600' : 'bg-primary/20 text-blue-400'
+                }`}>
+                  {isRejected ? 'Rejected' : steps[currentStepIndex]?.label || status.replace('_', ' ')}
+                </span>
               </div>
-              <div className="text-left md:text-right">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Request Type</p>
-                <p className="text-lg font-black uppercase tracking-wider text-blue-400 mb-4">{type}</p>
-                
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Submitted Date</p>
-                <p className="text-xs font-bold text-gray-300">
-                  {new Date(request.createdDate || request.createdAt).toLocaleDateString(undefined, { 
-                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
-                  })}
+            </div>
+            <div className="text-left md:text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Request Type</p>
+              <p className="text-lg font-black uppercase tracking-wider text-blue-400 mb-4">{type}</p>
+              
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Submitted Date</p>
+              <p className="text-xs font-bold text-gray-300">
+                {new Date(request.createdDate || request.createdAt).toLocaleDateString(undefined, { 
+                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-10">
+          
+          {/* Visual Timeline and Progress Bar */}
+          {!isRejected ? (
+            <div className="relative mb-28 mt-8 px-4">
+              {/* Horizontal Progress Bar Background */}
+              <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-100 -translate-y-1/2 rounded-full" />
+              {/* Filled Progress Bar */}
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                className="absolute top-1/2 left-0 h-1.5 bg-primary -translate-y-1/2 rounded-full z-10"
+              />
+              
+              <div className="relative flex justify-between z-20">
+                {steps.map((stepConfig, index) => {
+                  const Icon = stepConfig.icon;
+                  const isCompleted = index <= currentStepIndex;
+
+                  return (
+                    <div key={stepConfig.status} className="flex flex-col items-center">
+                      <div 
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${
+                          isCompleted 
+                            ? 'bg-primary text-white shadow-primary/30 scale-105 z-20' 
+                            : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
+                        }`}
+                      >
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className="absolute top-16 text-center whitespace-nowrap">
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
+                          {stepConfig.label}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mb-12 p-6 bg-red-50 border border-red-200 rounded-3xl flex items-center gap-4">
+              <AlertCircle className="w-8 h-8 text-red-500 shrink-0" />
+              <div>
+                <h3 className="text-base font-bold text-red-900">Request Rejected</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  Your request was reviewed and rejected. Admin Notes: {request.adminNotes || "No notes provided."}
                 </p>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="p-8 md:p-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8 border-t border-gray-100">
             
-            {/* Visual Timeline and Progress Bar */}
-            {!isRejected ? (
-              <div className="relative mb-28 mt-8 px-4">
-                {/* Horizontal Progress Bar Background */}
-                <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-100 -translate-y-1/2 rounded-full" />
-                {/* Filled Progress Bar */}
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                  className="absolute top-1/2 left-0 h-1.5 bg-primary -translate-y-1/2 rounded-full z-10"
-                />
-                
-                {/* Steps Nodes */}
-                <div className="relative flex justify-between z-20">
+            {/* Timeline details */}
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Request Timeline</h3>
+                <div className="space-y-6">
                   {steps.map((step, index) => {
-                    const Icon = step.icon;
-                    const isCompleted = index <= currentStepIndex;
-                    const isCurrent = index === currentStepIndex;
+                    const isCompleted = index <= currentStepIndex && !isRejected;
 
                     return (
-                      <div key={step.status} className="flex flex-col items-center">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${
-                          isCompleted ? 'bg-primary text-white rotate-0' : 'bg-white text-gray-300 border border-gray-100 rotate-12'
-                        } ${isCurrent ? 'scale-125 z-30 ring-4 ring-primary/20 shadow-lg' : 'scale-100'}`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div className="absolute top-16 text-center whitespace-nowrap">
-                          <p className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-330'}`}>
-                            {step.label}
-                          </p>
+                      <div key={step.status} className="flex gap-4 relative">
+                        {index !== steps.length - 1 && (
+                          <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-100 -translate-x-1/2" />
+                        )}
+                        <div className={`w-4 h-4 rounded-full mt-1.5 z-10 transition-colors duration-550 ${
+                          isCompleted ? 'bg-primary' : 'bg-gray-200'
+                        }`} />
+                        <div className="flex-1">
+                          <p className={`text-sm font-black ${isCompleted ? 'text-gray-900' : 'text-gray-350'}`}>{step.label}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{step.desc}</p>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            ) : (
-              /* Rejected Callout */
-              <div className="bg-red-50 border border-red-100 p-6 rounded-3xl mb-12 flex gap-4 items-start">
-                <AlertCircle className="w-8 h-8 text-red-500 shrink-0" />
-                <div>
-                  <h3 className="text-base font-bold text-red-900">Request Rejected</h3>
-                  <p className="text-sm text-red-700 mt-1">
-                    Your request was reviewed and rejected. Admin Notes: {request.adminNotes || "No notes provided."}
-                  </p>
-                </div>
-              </div>
-            )}
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8 border-t border-gray-100">
-              
-              {/* Timeline details */}
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Request Timeline</h3>
-                  <div className="space-y-6">
-                    {steps.map((step, index) => {
-                      const isCompleted = index <= currentStepIndex && !isRejected;
-
-                      return (
-                        <div key={step.status} className="flex gap-4 relative">
-                          {index !== steps.length - 1 && (
-                            <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-100 -translate-x-1/2" />
-                          )}
-                          <div className={`w-4 h-4 rounded-full mt-1.5 z-10 transition-colors duration-550 ${
-                            isCompleted ? 'bg-primary' : 'bg-gray-200'
-                          }`} />
-                          <div className="flex-1">
-                            <p className={`text-sm font-black ${isCompleted ? 'text-gray-900' : 'text-gray-350'}`}>{step.label}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{step.desc}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Refund Tracking Details Card */}
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-8 rounded-3xl border border-gray-100 space-y-6">
-                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-primary" /> Request Details
-                  </h3>
-                  
-                  <div className="space-y-4 text-sm font-medium">
-                    <div className="flex justify-between border-b border-gray-200/50 pb-3">
-                      <span className="text-gray-500">Order ID</span>
-                      <Link to={`/track-order/${request.customOrderId || request.orderId}`} className="font-bold text-primary hover:underline">
-                        #{request.customOrderId || request.orderId}
-                      </Link>
-                    </div>
-
-                    <div className="flex justify-between border-b border-gray-200/50 pb-3">
-                      <span className="text-gray-500">Refund Amount</span>
-                      <span className="font-black text-gray-900">₹{(request.refundAmount || 0).toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex justify-between border-b border-gray-200/50 pb-3">
-                      <span className="text-gray-500">Refund Method</span>
-                      <span className="font-bold text-gray-800 uppercase tracking-wider">{request.refundMethod || 'Original Payment Method'}</span>
-                    </div>
-
-                    <div className="flex justify-between border-b border-gray-200/50 pb-3">
-                      <span className="text-gray-500">Transaction ID</span>
-                      <span className="font-bold text-gray-700 italic select-all">{request.refundTransactionId || 'Awaiting Initiation'}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Est. Completion</span>
-                      <span className="font-black text-gray-900 flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        {request.estimatedCompletionDate ? (
-                          new Date(request.estimatedCompletionDate).toLocaleDateString(undefined, {
-                            day: '2-digit', month: 'short', year: 'numeric'
-                          })
-                        ) : 'Calculating...'}
-                      </span>
-                    </div>
+            {/* Refund Tracking Details Card */}
+            <div className="space-y-6">
+              <div className="pb-6 border-b border-gray-100 space-y-6">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-primary" /> Request Details
+                </h3>
+                
+                <div className="space-y-4 text-sm font-medium">
+                  <div className="flex justify-between border-b border-gray-100 pb-3">
+                    <span className="text-gray-500">Order ID</span>
+                    <Link to={`/track-order/${request.customOrderId || request.orderId}`} className="font-bold text-primary hover:underline">
+                      #{request.customOrderId || request.orderId}
+                    </Link>
                   </div>
 
-                  {request.adminNotes && (
-                    <div className="pt-4 border-t border-gray-200 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Admin Notes</p>
-                      <p className="text-xs text-gray-600 font-semibold italic">"{request.adminNotes}"</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  <div className="flex justify-between border-b border-gray-100 pb-3">
+                    <span className="text-gray-500">Refund Amount</span>
+                    <span className="font-black text-gray-900">₹{(request.refundAmount || 0).toLocaleString()}</span>
+                  </div>
 
+                  <div className="flex justify-between border-b border-gray-100 pb-3">
+                    <span className="text-gray-500">Refund Method</span>
+                    <span className="font-bold text-gray-800 uppercase tracking-wider">{request.refundMethod || 'Original Payment Method'}</span>
+                  </div>
+
+                  <div className="flex justify-between border-b border-gray-100 pb-3">
+                    <span className="text-gray-500">Transaction ID</span>
+                    <span className="font-bold text-gray-700 italic select-all">{request.refundTransactionId || 'Awaiting Initiation'}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Est. Completion</span>
+                    <span className="font-black text-gray-900 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      {request.estimatedCompletionDate ? (
+                        new Date(request.estimatedCompletionDate).toLocaleDateString(undefined, {
+                          day: '2-digit', month: 'short', year: 'numeric'
+                        })
+                      ) : 'Calculating...'}
+                    </span>
+                  </div>
+                </div>
+
+                {request.adminNotes && (
+                  <div className="pt-4 border-t border-gray-100">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Admin Notes</p>
+                    <p className="text-xs text-gray-600 font-semibold italic">"{request.adminNotes}"</p>
+                  </div>
+                )}
+              </div>
             </div>
 
           </div>

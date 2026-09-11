@@ -391,10 +391,10 @@ export default function MobileOrderDetailsScreen() {
   const statusDisplayWord = getCustomerStatusWord(activeRequest, order.status);
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none px-4 py-4 space-y-6">
       
       {/* Header Info */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+      <div className="pb-4 border-b border-gray-100 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400">Order Reference</span>
@@ -418,9 +418,9 @@ export default function MobileOrderDetailsScreen() {
             {/* Help Button inside Order Details Header */}
             <button
               onClick={() => setShowHelpModal(true)}
-              className="px-3 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shrink-0"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-amber-400" /> Help
+              <HelpCircle className="w-4 h-4 text-gray-950" /> Help
             </button>
           </div>
         </div>
@@ -462,10 +462,10 @@ export default function MobileOrderDetailsScreen() {
         )}
       </div>
 
-      {/* LIVE REQUEST STATUS CARD */}
+      {/* LIVE REQUEST STATUS */}
       {activeRequest && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-rose-200 space-y-2">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+        <div className="pb-4 border-b border-gray-100 space-y-2">
+          <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <RefreshCcw className="w-4 h-4 text-rose-600" />
               <h3 className="text-xs font-black text-gray-900 uppercase">
@@ -497,7 +497,7 @@ export default function MobileOrderDetailsScreen() {
 
       {/* Action Triggers: Cancel / Return / Refund Requests inside Order Details */}
       {(canCancel || canReturn || canRefund) && (
-        <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-2">
+        <div className="pb-4 border-b border-gray-100 space-y-2">
           <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">Available Order Actions</h3>
           
           {canCancel && (
@@ -530,7 +530,7 @@ export default function MobileOrderDetailsScreen() {
       )}
 
       {/* Shipment Tracking Pipeline */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+      <div className="pb-4 border-b border-gray-100 space-y-3">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Shipment Tracking Pipeline
         </h3>
@@ -577,10 +577,10 @@ export default function MobileOrderDetailsScreen() {
       </div>
 
       {/* STRICT SECTION ORDER (1. PRODUCTS -> 2. DELIVERY DETAILS -> 3. PRICE DETAILS -> 4. PRODUCTS FOR YOU) */}
-      <div className="space-y-3">
+      <div className="space-y-6">
 
         {/* 1. PRODUCTS */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+        <div className="pb-4 border-b border-gray-100 space-y-3">
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <Package className="w-4 h-4 text-emerald-600" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
@@ -619,14 +619,14 @@ export default function MobileOrderDetailsScreen() {
         </div>
 
         {/* 2. DELIVERY DETAILS */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
+        <div className="pb-4 border-b border-gray-100 space-y-2 text-xs">
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               2. Delivery Details
             </h3>
           </div>
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-1">
+          <div className="py-2 space-y-1.5">
             <span className="text-[9px] font-black uppercase text-gray-400 block">Customer Name</span>
             <p className="font-extrabold text-gray-900">{order.contactName || order.address.fullName}</p>
             <span className="text-[9px] font-black uppercase text-gray-400 block pt-1">Delivery Address</span>
@@ -639,14 +639,14 @@ export default function MobileOrderDetailsScreen() {
         </div>
 
         {/* 3. PRICE DETAILS */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
+        <div className="pb-4 border-b border-gray-100 space-y-2 text-xs">
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <CreditCard className="w-4 h-4 text-emerald-600" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               3. Price Details
             </h3>
           </div>
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80 space-y-2">
+          <div className="py-2 space-y-2">
             <div className="flex justify-between text-gray-600 font-medium">
               <span>Items Subtotal</span>
               <span>₹{(order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0)).toLocaleString()}</span>
@@ -667,7 +667,7 @@ export default function MobileOrderDetailsScreen() {
         </div>
 
         {/* 4. PRODUCTS FOR YOU */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
+        <div className="pb-4 space-y-3">
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
@@ -676,8 +676,8 @@ export default function MobileOrderDetailsScreen() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {recommendedProducts.map((p) => (
-              <Link key={p.id} to={`/products/${p.slug || p.id}`} className="bg-gray-50 p-2.5 rounded-xl border border-gray-200/80 flex flex-col justify-between">
-                <div className="aspect-square bg-white rounded-lg overflow-hidden mb-2 border border-gray-100">
+              <Link key={p.id} to={`/products/${p.slug || p.id}`} className="py-2 flex flex-col justify-between group">
+                <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden mb-2 border border-gray-100 group-hover:opacity-90 transition-opacity">
                   <img src={p.image || p.images?.[0]} alt={p.name} className="w-full h-full object-cover" />
                 </div>
                 <div>

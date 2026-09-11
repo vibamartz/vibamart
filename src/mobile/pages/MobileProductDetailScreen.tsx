@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw, 
-  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft 
+  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle 
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -431,6 +431,15 @@ export default function MobileProductDetailScreen() {
           <p className="text-[11px] font-medium text-gray-600 mt-0.5 leading-relaxed">
             Eligible for return or replacement within 7 days of delivery for defective, wrong, or damaged products with valid image proof.
           </p>
+          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
+            <button
+              onClick={() => navigate('/faq')}
+              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
+            </button>
+          </div>
         </div>
       </div>
 
