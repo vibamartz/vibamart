@@ -9,6 +9,7 @@ import { Product, Banner } from '../../shared/types';
 import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -109,9 +110,10 @@ export default function MobileProductListScreen() {
   // Fetch Products & Banners from Firestore
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const unsubscribeProducts = onSnapshot(q, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setProducts(docs);
+      const rewardIds = await getRewardProductIds();
+      setProducts(filterOutRewardProducts(docs, rewardIds));
       setLoading(false);
     }, (error) => {
       console.error('Failed to fetch products:', error);

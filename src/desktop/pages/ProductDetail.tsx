@@ -14,6 +14,7 @@ import {
 import ProductCard from '../components/ProductCard';
 import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -544,10 +545,13 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
           limit(10)
         );
         const snapshot = await getDocs(q);
-        const fetchedProducts = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-          .filter(p => p.id !== currentProductId)
-          .slice(0, 4);
+        const rewardIds = await getRewardProductIds();
+        const fetchedProducts = filterOutRewardProducts(
+          snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+            .filter(p => p.id !== currentProductId),
+          rewardIds
+        ).slice(0, 4);
         setProducts(fetchedProducts);
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -610,7 +614,8 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
           where(documentId(), 'in', targetIds)
         );
         const snapshot = await getDocs(q);
-        const fetchedProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const fetchedProducts = filterOutRewardProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
         fetchedProducts.sort((a, b) => targetIds.indexOf(a.id) - targetIds.indexOf(b.id));
         setProducts(fetchedProducts);
       } catch (err) {

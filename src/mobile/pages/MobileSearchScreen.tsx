@@ -10,6 +10,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
@@ -54,8 +55,9 @@ export default function MobileSearchScreen() {
 
     const fetchSuggestions = async () => {
       try {
-        const snap = await getDocs(query(collection(db, 'products'), limit(30)));
-        const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const snap = await getDocs(query(collection(db, 'products'), limit(40)));
+        const rewardIds = await getRewardProductIds();
+        const docs = filterOutRewardProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
         const cleanQ = cleanProductCode(qStr);
 
         const filtered = docs.filter(p => 
@@ -87,7 +89,8 @@ export default function MobileSearchScreen() {
       const cleanQ = cleanProductCode(term);
       try {
         const snap = await getDocs(collection(db, 'products'));
-        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)), rewardIds);
         const exactMatch = prods.find(p => 
           (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
           (p.productCode && p.productCode.toLowerCase() === term.toLowerCase()) ||

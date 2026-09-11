@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
 import { getCategorySlug, getSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 
 export default function ProductList() {
@@ -172,9 +173,10 @@ export default function ProductList() {
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
-    const unsubscribeProducts = onSnapshot(q, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setAllProducts(data);
+      const rewardIds = await getRewardProductIds();
+      setAllProducts(filterOutRewardProducts(data, rewardIds));
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);

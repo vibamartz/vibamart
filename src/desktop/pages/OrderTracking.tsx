@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
@@ -220,9 +221,10 @@ export default function OrderTracking() {
   useEffect(() => {
     const fetchRecommended = async () => {
       try {
-        const q = query(collection(db, 'products'), limit(4));
+        const q = query(collection(db, 'products'), limit(15));
         const snap = await getDocs(q);
-        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)), rewardIds).slice(0, 4);
         setRecommendedProducts(prods);
       } catch (err) {
         console.error("Error fetching recommended products:", err);

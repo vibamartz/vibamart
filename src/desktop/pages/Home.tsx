@@ -18,6 +18,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore } from '../../backend/store';
 import { getCategorySlug } from '../../shared/utilities/slug';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
@@ -211,11 +212,12 @@ export default function Home() {
     const q = query(
       collection(db, 'products'),
       where('status', '==', 'active'),
-      limit(24)
+      limit(40)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      setProducts(data);
+      const rewardIds = await getRewardProductIds();
+      setProducts(filterOutRewardProducts(data, rewardIds));
       setLoading(false);
     });
     return () => unsubscribe();

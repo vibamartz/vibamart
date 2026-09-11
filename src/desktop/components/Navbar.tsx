@@ -15,6 +15,7 @@ import CameraSearchModal from './CameraSearchModal';
 import LocationPickerModal from './LocationPickerModal';
 import { getCategorySlug, getProductSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getDocs } from 'firebase/firestore';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
@@ -166,7 +167,8 @@ export default function Navbar() {
       const cleanQ = cleanProductCode(queryStr);
       try {
         const snap = await getDocs(collection(db, 'products'));
-        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        const rewardIds = await getRewardProductIds();
+        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)), rewardIds);
         const exactMatch = prods.find(p => 
           (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
           (p.productCode && p.productCode.toLowerCase() === queryStr.toLowerCase()) ||
