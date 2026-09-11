@@ -47,8 +47,8 @@ export function renderCategoryFallbackIcon(
   const lowerIcon = iconName.toLowerCase();
   const colorClass = active ? 'text-white' : (customColor || 'text-emerald-600');
 
-  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby') || lowerIcon === 'gamepad') {
-    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
+  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby') || lowerIcon === 'gamepad2') {
+    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit') || lowerIcon === 'apple') {
     return <Apple className={`${sizeClass} ${colorClass}`} />;
@@ -78,7 +78,7 @@ export function renderCategoryFallbackIcon(
     return <Tv className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby') || lowerIcon === 'gamepad') {
-    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
+    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit') || lowerIcon === 'apple') {
     return <Apple className={`${sizeClass} ${colorClass}`} />;
@@ -90,7 +90,7 @@ export function renderCategoryFallbackIcon(
     return <Camera className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('game') || lowerName.includes('gaming')) {
-    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
+    return <Gamepad2 className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('book') || lowerName.includes('stationery')) {
     return <BookOpen className={`${sizeClass} ${colorClass}`} />;
