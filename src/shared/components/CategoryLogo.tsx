@@ -47,6 +47,12 @@ export function renderCategoryFallbackIcon(
   const lowerIcon = iconName.toLowerCase();
   const colorClass = active ? 'text-white' : (customColor || 'text-emerald-600');
 
+  if (lowerName.includes('toy') || lowerName.includes('kid') || lowerName.includes('baby') || lowerIcon === 'gamepad') {
+    return <Gamepad className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('food') || lowerName.includes('health') || lowerName.includes('grocer') || lowerName.includes('fruit') || lowerIcon === 'apple') {
+    return <Apple className={`${sizeClass} ${colorClass}`} />;
+  }
   if (lowerName.includes('for you') || lowerName.includes('recommend') || lowerIcon === 'sparkles') {
     return <Sparkles className={`${sizeClass} ${colorClass}`} />;
   }

@@ -41,8 +41,6 @@ function RecentlyViewedCartSection() {
     fetchRecent();
   }, []);
 
-  if (!loading && products.length === 0) return null;
-
   return (
     <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 mt-8">
       <div className="flex items-center gap-3 mb-6">
@@ -58,6 +56,8 @@ function RecentlyViewedCartSection() {
         <div className="py-8 text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
+      ) : products.length === 0 ? (
+        <p className="text-xs text-gray-400 font-medium py-4 text-center">No recently viewed items yet.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {products.map(product => (
@@ -101,8 +101,6 @@ function WishlistCartSection() {
     }
   }, [user]);
 
-  if (!loading && products.length === 0) return null;
-
   return (
     <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 mt-8">
       <div className="flex items-center gap-3 mb-6">
@@ -118,6 +116,8 @@ function WishlistCartSection() {
         <div className="py-8 text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
+      ) : products.length === 0 ? (
+        <p className="text-xs text-gray-400 font-medium py-4 text-center">No wishlist products saved yet.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {products.map(product => (

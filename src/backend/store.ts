@@ -272,7 +272,16 @@ export const useCategoryStore = create<CategoryState>((set) => ({
     const q = collection(db, 'categories');
     onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        const fetchedCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        const fetchedCategories = snapshot.docs.map(doc => {
+          const catData = { id: doc.id, ...doc.data() } as Category;
+          if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
+            catData.icon = 'gamepad';
+          }
+          if (catData.name === 'Food & Health' || catData.id === '8' || catData.slug === 'food-health') {
+            catData.icon = 'apple';
+          }
+          return catData;
+        });
 
         // Auto-seed missing initial categories to Firestore (admins only)
         const currentUser = useAuthStore.getState().user;

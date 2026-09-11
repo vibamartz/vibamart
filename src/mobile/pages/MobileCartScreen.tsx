@@ -44,8 +44,6 @@ function MobileRecentlyViewedSection() {
     fetchRecent();
   }, []);
 
-  if (!loading && products.length === 0) return null;
-
   return (
     <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
       <div className="flex items-center gap-2">
@@ -56,6 +54,8 @@ function MobileRecentlyViewedSection() {
         <div className="py-4 text-center">
           <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
+      ) : products.length === 0 ? (
+        <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No recently viewed items yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
           {products.map((product) => (
@@ -110,8 +110,6 @@ function MobileWishlistSection() {
     }
   }, [user]);
 
-  if (!loading && products.length === 0) return null;
-
   return (
     <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
       <div className="flex items-center gap-2">
@@ -122,6 +120,8 @@ function MobileWishlistSection() {
         <div className="py-4 text-center">
           <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
+      ) : products.length === 0 ? (
+        <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No wishlist products saved yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
           {products.map((product) => (
