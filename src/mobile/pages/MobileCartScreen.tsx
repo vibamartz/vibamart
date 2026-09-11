@@ -15,6 +15,7 @@ import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 
 function MobileRecentlyViewedSection() {
+  const { addItem, items: cartItems } = useCartStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -58,19 +59,41 @@ function MobileRecentlyViewedSection() {
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No recently viewed items yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-              className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5"
-            >
-              <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
-                <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+          {products.map((product) => {
+            const isInCart = cartItems.some(i => i.productId === product.id);
+            return (
+              <div
+                key={product.id}
+                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
+                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
+                  <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isInCart) {
+                      toast.success("Item is in cart");
+                    } else {
+                      const res = addItem(product, 1);
+                      if (res.success) toast.success("Added to Cart", { icon: '🛒' });
+                      else toast.error("Could not add to cart");
+                    }
+                  }}
+                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                    isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
+                  }`}
+                >
+                  {isInCart ? 'In Cart' : 'Add to Cart'}
+                </button>
               </div>
-              <p className="text-[11px] font-bold text-gray-900 line-clamp-1">{product.name}</p>
-              <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -79,6 +102,7 @@ function MobileRecentlyViewedSection() {
 
 function MobileWishlistSection() {
   const { user } = useAuthStore();
+  const { addItem, items: cartItems } = useCartStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -124,19 +148,41 @@ function MobileWishlistSection() {
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No wishlist products saved yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-2.5">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-              className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5"
-            >
-              <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
-                <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+          {products.map((product) => {
+            const isInCart = cartItems.some(i => i.productId === product.id);
+            return (
+              <div
+                key={product.id}
+                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
+                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
+                  <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isInCart) {
+                      toast.success("Item is in cart");
+                    } else {
+                      const res = addItem(product, 1);
+                      if (res.success) toast.success("Added to Cart", { icon: '🛒' });
+                      else toast.error("Could not add to cart");
+                    }
+                  }}
+                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+                    isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
+                  }`}
+                >
+                  {isInCart ? 'In Cart' : 'Add to Cart'}
+                </button>
               </div>
-              <p className="text-[11px] font-bold text-gray-900 line-clamp-1">{product.name}</p>
-              <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
