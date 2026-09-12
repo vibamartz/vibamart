@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Gift, Sparkles, Award, Tag, Trophy, Plus, Edit3, Trash2,
   Check, Eye, Save, RefreshCw, Smartphone, Monitor, ShieldCheck,
   AlertCircle, ChevronRight, Lock, Image as ImageIcon, Link as LinkIcon,
   CheckCircle2, XCircle, ArrowUp, ArrowDown, Info, ExternalLink,
-  Calendar, Clock, DollarSign, Layers, ShoppingBag, Search, Filter, AlertTriangle, X, CheckSquare, Square
+  Calendar, Clock, DollarSign, Layers, ShoppingBag, Search, Filter, AlertTriangle, X, CheckSquare, Square,
+  Upload, ArrowLeft, ArrowRight, FileUp
 } from 'lucide-react';
 import { useRewardsStore } from '../../backend/store';
 import { BrandCoupon, RewardsSectionConfig, RewardOrder, Product } from '../../shared/types';
@@ -16,6 +17,534 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from '
 import toast from 'react-hot-toast';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
+
+// Helper for compressing uploaded images into lightweight base64 data URLs
+const compressImage = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => {
+        resolve(e.target?.result as string);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
+// Sub-component for Brand Logo input (supporting URL + File Upload + Live Preview)
+interface BrandLogoInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  brandName?: string;
+  label?: string;
+}
+
+function BrandLogoInput({ value, onChange, brandName, label = "Brand Logo Image URL" }: BrandLogoInputProps) {
+  const [urlInput, setUrlInput] = useState(value && !value.startsWith('data:') ? value : '');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (value && !value.startsWith('data:')) {
+      setUrlInput(value);
+    } else if (!value) {
+      setUrlInput('');
+    }
+  }, [value]);
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setUrlInput(val);
+    onChange(val);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo file size must be less than 5MB');
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const base64 = await compressImage(file, 400, 400, 0.85);
+      onChange(base64);
+      setUrlInput('');
+      toast.success('Brand logo uploaded successfully!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to read logo image');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClear = () => {
+    onChange('');
+    setUrlInput('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <label className="text-xs font-bold text-gray-700 block">{label}</label>
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+          >
+            <X className="w-3 h-3" /> Clear Logo
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        {/* URL Input */}
+        <div className="relative flex-1">
+          <LinkIcon className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={value?.startsWith('data:') ? 'Uploaded Image File' : urlInput}
+            readOnly={value?.startsWith('data:')}
+            onChange={handleUrlChange}
+            placeholder="Enter brand logo URL or upload image file..."
+            className={`w-full pl-8 pr-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 transition-all ${
+              value?.startsWith('data:') ? 'bg-amber-50/60 border-amber-300 font-bold text-amber-900 cursor-default' : 'border-gray-200 bg-white'
+            }`}
+          />
+        </div>
+
+        {/* Upload Button */}
+        <div className="shrink-0 flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+            id="brand-logo-file-input"
+          />
+          <button
+            type="button"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full sm:w-auto px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs"
+          >
+            <Upload className="w-3.5 h-3.5 text-amber-700" />
+            {isUploading ? 'Uploading...' : 'Upload File'}
+          </button>
+        </div>
+      </div>
+
+      {/* Logo Preview Box */}
+      <div className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 shadow-xs flex items-center justify-center overflow-hidden shrink-0">
+          {value ? (
+            <img
+              src={value}
+              alt={brandName || "Brand Logo Preview"}
+              className="w-full h-full object-contain p-1"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/60?text=Logo';
+              }}
+            />
+          ) : (
+            <ImageIcon className="w-5 h-5 text-gray-300" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-[11px] font-bold text-gray-700 block">
+            {value ? (value.startsWith('data:') ? 'Custom Uploaded Logo File' : 'External Web Image Link') : 'No Logo Provided'}
+          </span>
+          <span className="text-[10px] text-gray-500 truncate block">
+            {value ? (value.startsWith('data:') ? 'Base64 image data stored' : value) : 'Enter URL above or click Upload File to select logo'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sub-component for Coupon Card Product Images (Max 6 images, File Upload + URL, Replace, Remove, Order Preservation)
+interface CouponCardProductImagesManagerProps {
+  images: string[];
+  onChange: (images: string[]) => void;
+  accentColor?: 'emerald' | 'amber';
+}
+
+function CouponCardProductImagesManager({ images = [], onChange, accentColor = 'emerald' }: CouponCardProductImagesManagerProps) {
+  const [urlInput, setUrlInput] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editUrlInput, setEditUrlInput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
+  const [replaceTargetIndex, setReplaceTargetIndex] = useState<number | null>(null);
+
+  const MAX_IMAGES = 6;
+  const currentCount = images.length;
+  const isMaxReached = currentCount >= MAX_IMAGES;
+
+  const handleAddUrl = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) {
+      toast.error('Please enter a valid image URL');
+      return;
+    }
+    if (images.length >= MAX_IMAGES) {
+      toast.error(`Maximum limit of ${MAX_IMAGES} images reached!`);
+      return;
+    }
+    onChange([...images, trimmed]);
+    setUrlInput('');
+    toast.success('Image link added!');
+  };
+
+  const handleMultiFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = e.target.files;
+    if (!rawFiles || rawFiles.length === 0) return;
+    const files: File[] = Array.from(rawFiles);
+
+    const availableSlots = MAX_IMAGES - images.length;
+    if (availableSlots <= 0) {
+      toast.error(`Maximum of ${MAX_IMAGES} images already reached!`);
+      return;
+    }
+
+    const filesToProcess = files.slice(0, availableSlots);
+    if (files.length > availableSlots) {
+      toast.error(`Only ${availableSlots} image slot(s) remaining. Processed first ${availableSlots} file(s).`);
+    }
+
+    setIsProcessing(true);
+    try {
+      const processedBase64List: string[] = [];
+      for (const file of filesToProcess) {
+        if (file.size > 8 * 1024 * 1024) {
+          toast.error(`File "${file.name}" exceeds 8MB limit. Skipped.`);
+          continue;
+        }
+        const base64 = await compressImage(file, 800, 800, 0.8);
+        processedBase64List.push(base64);
+      }
+
+      if (processedBase64List.length > 0) {
+        onChange([...images, ...processedBase64List]);
+        toast.success(`Added ${processedBase64List.length} image(s)!`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to upload image file(s)');
+    } finally {
+      setIsProcessing(false);
+      if (multiFileInputRef.current) multiFileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const updated = [...images];
+    updated.splice(index, 1);
+    onChange(updated);
+    toast.success('Image removed');
+  };
+
+  const handleMoveImage = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= images.length) return;
+    const updated = [...images];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    onChange(updated);
+  };
+
+  const startReplaceWithFile = (index: number) => {
+    setReplaceTargetIndex(index);
+    replaceFileInputRef.current?.click();
+  };
+
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || replaceTargetIndex === null) return;
+    setIsProcessing(true);
+    try {
+      const base64 = await compressImage(file, 800, 800, 0.8);
+      const updated = [...images];
+      updated[replaceTargetIndex] = base64;
+      onChange(updated);
+      toast.success(`Replaced image #${replaceTargetIndex + 1}!`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to replace image');
+    } finally {
+      setIsProcessing(false);
+      setReplaceTargetIndex(null);
+      if (replaceFileInputRef.current) replaceFileInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveReplaceUrl = (index: number) => {
+    const trimmed = editUrlInput.trim();
+    if (!trimmed) {
+      toast.error('Please enter a valid URL');
+      return;
+    }
+    const updated = [...images];
+    updated[index] = trimmed;
+    onChange(updated);
+    setEditingIndex(null);
+    setEditUrlInput('');
+    toast.success(`Updated URL for image #${index + 1}!`);
+  };
+
+  const isEmerald = accentColor === 'emerald';
+
+  return (
+    <div className="space-y-3 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-200">
+      {/* Hidden file input for replacing an individual image */}
+      <input
+        ref={replaceFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleReplaceFile}
+        className="hidden"
+      />
+
+      {/* Header with image count */}
+      <div className="flex justify-between items-center">
+        <div>
+          <label className="text-xs font-bold text-gray-800 block">Product Images (Maximum 6)</label>
+          <span className="text-[10px] text-gray-500">Upload image files or enter image URLs in any combination.</span>
+        </div>
+        <div className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+          isMaxReached ? 'bg-amber-100 text-amber-800 border border-amber-300' : isEmerald ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+        }`}>
+          {currentCount} / {MAX_IMAGES} Images
+        </div>
+      </div>
+
+      {/* Input controls to add new images */}
+      {!isMaxReached ? (
+        <div className="space-y-2 bg-white p-3 rounded-xl border border-gray-200">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1">
+              <LinkIcon className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddUrl();
+                  }
+                }}
+                placeholder="Enter image URL..."
+                className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50 focus:bg-white"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddUrl}
+              className={`px-3 py-1.5 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-colors shrink-0 ${
+                isEmerald ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" /> Add URL
+            </button>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <input
+                ref={multiFileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleMultiFileUpload}
+                className="hidden"
+                id="product-multi-image-upload"
+              />
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => multiFileInputRef.current?.click()}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border shadow-xs ${
+                  isEmerald
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {isProcessing ? 'Processing...' : 'Upload Image File(s)'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl flex items-center gap-2 text-amber-800 text-xs font-bold">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Maximum total of 6 images reached for this product. Remove or replace an image below to add different ones.</span>
+        </div>
+      )}
+
+      {/* Grid of images */}
+      {images.length === 0 ? (
+        <div className="p-4 bg-white rounded-xl border border-dashed border-gray-300 text-center text-gray-400 space-y-1">
+          <ImageIcon className="w-6 h-6 mx-auto opacity-40" />
+          <p className="text-xs font-bold text-gray-500">No product images added yet.</p>
+          <p className="text-[10px] text-gray-400">Add up to 6 images via upload file or web link.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {images.map((imgSrc, idx) => {
+            const isBase64 = imgSrc.startsWith('data:');
+            const isEditingThisUrl = editingIndex === idx;
+
+            return (
+              <div
+                key={idx}
+                className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs group flex flex-col justify-between"
+              >
+                {/* Top Badge & Controls */}
+                <div className="p-1.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[10px]">
+                  <span className="font-black text-gray-700 bg-white px-1.5 py-0.5 rounded border border-gray-200 shadow-2xs">
+                    #{idx + 1} {idx === 0 && '⭐ Main'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => handleMoveImage(idx, 'left')}
+                      className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-20"
+                      title="Move Previous"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === images.length - 1}
+                      onClick={() => handleMoveImage(idx, 'right')}
+                      className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-20"
+                      title="Move Next"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded"
+                      title="Remove Image"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Image Preview */}
+                <div className="h-28 bg-gray-100 relative flex items-center justify-center overflow-hidden">
+                  <img
+                    src={imgSrc}
+                    alt={`Product Image ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image';
+                    }}
+                  />
+                  <span className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold rounded">
+                    {isBase64 ? 'Uploaded File' : 'Image URL'}
+                  </span>
+                </div>
+
+                {/* Edit / Replace Options */}
+                <div className="p-1.5 bg-gray-50 border-t border-gray-100 space-y-1">
+                  {isEditingThisUrl ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={editUrlInput}
+                        onChange={(e) => setEditUrlInput(e.target.value)}
+                        placeholder="New URL..."
+                        className="w-full px-1.5 py-0.5 border border-gray-300 rounded text-[10px] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveReplaceUrl(idx)}
+                        className="p-1 bg-emerald-600 text-white rounded text-[10px] font-bold"
+                        title="Save URL"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingIndex(null)}
+                        className="p-1 bg-gray-200 text-gray-700 rounded text-[10px]"
+                        title="Cancel"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startReplaceWithFile(idx)}
+                        className="flex-1 py-1 px-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded text-[10px] font-bold text-gray-700 flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <Upload className="w-2.5 h-2.5 text-gray-500" /> Replace File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingIndex(idx);
+                          setEditUrlInput(isBase64 ? '' : imgSrc);
+                        }}
+                        className="py-1 px-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded text-[10px] font-bold text-gray-700 flex items-center justify-center gap-1 transition-colors"
+                        title="Edit URL"
+                      >
+                        <LinkIcon className="w-2.5 h-2.5 text-gray-500" /> URL
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminRewardsManagementView() {
   const {
@@ -155,6 +684,9 @@ export default function AdminRewardsManagementView() {
     }
 
     try {
+      const sanitizedImages = (newProductForm.images || []).filter(img => img && img.trim().length > 0).slice(0, 6);
+      const finalImages = sanitizedImages.length > 0 ? sanitizedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
+
       const newProd: Partial<Product> = {
         name: newProductForm.name,
         brand: newProductForm.brand || managingProductsCoupon.brandName,
@@ -163,7 +695,7 @@ export default function AdminRewardsManagementView() {
         discountPrice: Number(newProductForm.discountPrice || newProductForm.price),
         stock: Number(newProductForm.stock || 50),
         inStock: Number(newProductForm.stock) > 0,
-        images: newProductForm.images,
+        images: finalImages,
         categoryId: newProductForm.categoryId || 'fashion',
         vendorId: 'admin',
         status: newProductForm.status,
@@ -179,7 +711,7 @@ export default function AdminRewardsManagementView() {
       const updatedList = [...currentList, newId];
       await updateRewardOffer(managingProductsCoupon.id, { productIds: updatedList });
 
-      toast.success(`Created "${newProductForm.name}" and assigned to Reward Card!`);
+      toast.success(`Created "${newProductForm.name}" with ${finalImages.length} image(s) and assigned to Reward Card!`);
       setIsCreatingNewProduct(false);
       setNewProductForm({
         name: '', brand: '', description: '', price: 999, discountPrice: 699, stock: 50,
@@ -197,6 +729,9 @@ export default function AdminRewardsManagementView() {
     e.preventDefault();
     if (!editingProductModal) return;
     try {
+      const sanitizedImages = (editingProductModal.images || []).filter(img => img && img.trim().length > 0).slice(0, 6);
+      const finalImages = sanitizedImages.length > 0 ? sanitizedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
+
       const prodRef = doc(db, 'products', editingProductModal.id);
       await updateDoc(prodRef, {
         name: editingProductModal.name,
@@ -206,9 +741,9 @@ export default function AdminRewardsManagementView() {
         stock: Number(editingProductModal.stock),
         inStock: Number(editingProductModal.stock) > 0,
         status: editingProductModal.stock > 0 ? 'active' : 'out_of_stock',
-        images: editingProductModal.images
+        images: finalImages
       });
-      toast.success(`Updated "${editingProductModal.name}" in store database.`);
+      toast.success(`Updated "${editingProductModal.name}" (${finalImages.length} image(s)) in store database.`);
       setEditingProductModal(null);
     } catch (err) {
       toast.error('Failed to update product details');
@@ -1185,25 +1720,23 @@ export default function AdminRewardsManagementView() {
                         </div>
                       </div>
 
-                      {/* Brand Logo URL */}
-                      <div>
-                        <label className="text-xs font-bold text-gray-700 block mb-1">Brand Logo Image URL</label>
-                        <input
-                          type="text"
-                          value={couponForm.brandLogo}
-                          onChange={(e) => setCouponForm({ ...couponForm, brandLogo: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      {/* Brand Logo URL & Upload */}
+                      <div className="col-span-2 sm:col-span-1">
+                        <BrandLogoInput
+                          value={couponForm.brandLogo || ''}
+                          onChange={(val) => setCouponForm({ ...couponForm, brandLogo: val })}
+                          brandName={couponForm.brandName}
+                          label="Brand Logo Image URL"
                         />
                       </div>
 
                       {/* Main Product Image URL */}
-                      <div>
-                        <label className="text-xs font-bold text-gray-700 block mb-1">Main Product Image URL</label>
-                        <input
-                          type="text"
-                          value={couponForm.productImage}
-                          onChange={(e) => setCouponForm({ ...couponForm, productImage: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                      <div className="col-span-2 sm:col-span-1">
+                        <BrandLogoInput
+                          value={couponForm.productImage || ''}
+                          onChange={(val) => setCouponForm({ ...couponForm, productImage: val })}
+                          brandName={couponForm.title || "Coupon Card"}
+                          label="Main Product Image URL"
                         />
                       </div>
 
@@ -1462,7 +1995,10 @@ export default function AdminRewardsManagementView() {
                               </button>
 
                               <button
-                                onClick={() => setEditingProductModal(prod)}
+                                onClick={() => setEditingProductModal({
+                                  ...prod,
+                                  images: Array.isArray(prod.images) && prod.images.length > 0 ? prod.images : prod.image ? [prod.image] : []
+                                })}
                                 className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
                                 title="Edit Product Details"
                               >
@@ -1558,16 +2094,19 @@ export default function AdminRewardsManagementView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-8 font-sans"
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8 font-sans max-h-[90vh] flex flex-col"
             >
-              <div className="p-5 bg-emerald-600 text-white flex justify-between items-center">
-                <h4 className="font-bold text-sm">Create New Product & Assign to Reward Card</h4>
+              <div className="p-5 bg-emerald-600 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h4 className="font-bold text-sm">Create New Product & Assign to Reward Card</h4>
+                  <p className="text-[11px] text-emerald-100">Add up to 6 product images (via file upload or URL) and details.</p>
+                </div>
                 <button onClick={() => setIsCreatingNewProduct(false)} className="p-1 hover:bg-emerald-700 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateAndAssignProduct} className="p-5 space-y-3">
+              <form onSubmit={handleCreateAndAssignProduct} className="p-5 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Product Name *</label>
                   <input
@@ -1575,7 +2114,7 @@ export default function AdminRewardsManagementView() {
                     required
                     value={newProductForm.name}
                     onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
                     placeholder="e.g. Nike Air Max Running Shoes"
                   />
                 </div>
@@ -1624,15 +2163,12 @@ export default function AdminRewardsManagementView() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Product Image URL</label>
-                  <input
-                    type="text"
-                    value={newProductForm.images[0]}
-                    onChange={(e) => setNewProductForm({ ...newProductForm, images: [e.target.value] })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
+                {/* Up to 6 Images Management */}
+                <CouponCardProductImagesManager
+                  images={newProductForm.images || []}
+                  onChange={(imgs) => setNewProductForm({ ...newProductForm, images: imgs })}
+                  accentColor="emerald"
+                />
 
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Description</label>
@@ -1649,7 +2185,7 @@ export default function AdminRewardsManagementView() {
                   <button
                     type="button"
                     onClick={() => setIsCreatingNewProduct(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold"
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200"
                   >
                     Cancel
                   </button>
@@ -1672,16 +2208,19 @@ export default function AdminRewardsManagementView() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden my-8 font-sans"
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8 font-sans max-h-[90vh] flex flex-col"
             >
-              <div className="p-5 bg-amber-500 text-white flex justify-between items-center">
-                <h4 className="font-bold text-sm">Edit Product in Store Database</h4>
+              <div className="p-5 bg-amber-500 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h4 className="font-bold text-sm">Edit Product in Store Database</h4>
+                  <p className="text-[11px] text-amber-100">Manage up to 6 images (file uploads and URLs) and product details.</p>
+                </div>
                 <button onClick={() => setEditingProductModal(null)} className="p-1 hover:bg-amber-600 rounded-lg">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveEditedStoreProduct} className="p-5 space-y-3">
+              <form onSubmit={handleSaveEditedStoreProduct} className="p-5 space-y-4 overflow-y-auto flex-1">
                 <div>
                   <label className="text-xs font-bold text-gray-700 block mb-1">Product Title</label>
                   <input
@@ -1689,7 +2228,7 @@ export default function AdminRewardsManagementView() {
                     required
                     value={editingProductModal.name}
                     onChange={(e) => setEditingProductModal({ ...editingProductModal, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
                   />
                 </div>
 
@@ -1735,21 +2274,18 @@ export default function AdminRewardsManagementView() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-gray-700 block mb-1">Image URL</label>
-                  <input
-                    type="text"
-                    value={editingProductModal.images?.[0] || ''}
-                    onChange={(e) => setEditingProductModal({ ...editingProductModal, images: [e.target.value] })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                  />
-                </div>
+                {/* Up to 6 Images Management */}
+                <CouponCardProductImagesManager
+                  images={editingProductModal.images || []}
+                  onChange={(imgs) => setEditingProductModal({ ...editingProductModal, images: imgs })}
+                  accentColor="amber"
+                />
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => setEditingProductModal(null)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold"
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200"
                   >
                     Cancel
                   </button>
