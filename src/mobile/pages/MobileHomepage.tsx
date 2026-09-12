@@ -871,28 +871,6 @@ export default function MobileHomepage() {
         </div>
       </section>
 
-      {/* ========================================================================= */}
-      {/* 10. TRUST & GUARANTEE GRID FOR MOBILE                                     */}
-      {/* ========================================================================= */}
-      <section className="w-full min-w-0 bg-white rounded-[22px] p-3.5 sm:p-4 shadow-sm border border-orange-100/80 grid grid-cols-2 gap-2.5 sm:gap-3">
-        {[
-          { icon: Truck, title: 'Free Shipping', sub: 'On orders > ₹599', color: 'text-emerald-600 bg-emerald-50' },
-          { icon: ShieldCheck, title: '100% Protected', sub: 'Secure Checkout', color: 'text-blue-600 bg-blue-50' },
-          { icon: RefreshCcw, title: '7 Days Return', sub: 'Easy Replacement', color: 'text-amber-600 bg-amber-50' },
-          { icon: Headset, title: '24/7 Support', sub: 'Instant Assistance', color: 'text-purple-600 bg-purple-50' }
-        ].map((f, idx) => (
-          <div key={idx} className="flex items-center gap-2 p-2 sm:p-2.5 rounded-xl bg-gray-50/70 border border-gray-100 min-w-0">
-            <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${f.color}`}>
-              <f.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] font-black text-gray-900 leading-tight truncate">{f.title}</p>
-              <p className="text-[8px] sm:text-[9px] font-medium text-gray-400 truncate">{f.sub}</p>
-            </div>
-          </div>
-        ))}
-      </section>
-
       {/* Modals */}
       <LocationPickerModal
         isOpen={isLocationModalOpen}

@@ -208,14 +208,16 @@ export default function Checkout() {
   if (items.length === 0) return <Navigate to="/cart" />;
 
   const subtotal = total();
-  const tax = items.reduce((sum, item) => {
-    const isEnabled = item.product?.enableGst !== false && (item.product?.gst || 0) > 0;
-    if (!isEnabled) return sum;
-    const rate = item.product?.gst || 18;
-    return sum + (item.product.price * item.quantity * (rate / 100));
+  const totalMRP = items.reduce((acc, item) => {
+    const origPrice = item.product.price || item.product.discountPrice || 0;
+    const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
+    const extra = variant?.extraPrice || 0;
+    return acc + (origPrice + extra) * item.quantity;
   }, 0);
-  const shipping = subtotal > 599 ? 0 : 50;
-  const grandTotal = subtotal + tax + shipping;
+  const discount = Math.max(0, totalMRP - subtotal);
+  const shipping = subtotal < 600 && items.length > 0 ? 49 : 0;
+  const codFee = paymentMethod === 'cod' ? 9 : 0;
+  const grandTotal = subtotal + shipping + codFee;
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -861,23 +863,29 @@ export default function Checkout() {
         {/* Price Details */}
         <div className="w-full lg:w-80 space-y-6">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-50 pb-4">Order Summary</h3>
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-50 pb-4">Price Details</h3>
             <div className="space-y-4 mb-6 border-b border-gray-100 pb-6">
               <div className="flex justify-between text-sm font-bold text-gray-500">
-                <span>Price ({items.length} items)</span>
-                <span className="text-gray-900">₹{subtotal.toLocaleString()}</span>
+                <span>Total MRP ({items.length} items)</span>
+                <span className="text-gray-900">₹{totalMRP.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-emerald-600">
+                <span>Discount</span>
+                <span>{discount > 0 ? `- ₹${discount.toLocaleString()}` : '₹0'}</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-500">
-                <span>Tax (GST)</span>
-                <span className="text-gray-900">+₹{tax.toLocaleString()}</span>
+                <span>Delivery Charges</span>
+                <span className={shipping === 0 ? 'text-emerald-600' : 'text-gray-900'}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
               </div>
-              <div className="flex justify-between text-sm font-bold text-gray-500">
-                <span>Shipping</span>
-                <span className="text-primary">{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
-              </div>
+              {paymentMethod === 'cod' && (
+                <div className="flex justify-between text-sm font-bold text-gray-500">
+                  <span>COD Fee</span>
+                  <span className="text-gray-900">₹{codFee}</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between text-lg font-black text-gray-900 mb-6">
-              <span>Payable</span>
+              <span>Total Price</span>
               <span>₹{grandTotal.toLocaleString()}</span>
             </div>
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex items-center gap-3">

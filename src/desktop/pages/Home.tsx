@@ -594,48 +594,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* Trust Badges */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="bg-gray-900 text-white rounded-3xl p-8 sm:p-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-2xl text-primary">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black uppercase tracking-wider">Fast Nationwide Delivery</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Reliable tracking across all pin codes</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-2xl text-primary">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black uppercase tracking-wider">100% Authentic Products</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Directly sourced verified items</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-2xl text-primary">
-              <RefreshCcw className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black uppercase tracking-wider">Hassle-Free Returns</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Easy returns and quick refunds</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-2xl text-primary">
-              <Headset className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-black uppercase tracking-wider">24/7 Dedicated Support</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Instant assistance anytime</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Modals */}
       <LocationPickerModal
         isOpen={isLocationModalOpen}

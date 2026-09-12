@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Layers, Sparkles, Smartphone, Shirt, Laptop, Home as HomeIcon, Tv, Tag, Flame,
   Headphones, Camera, Gamepad, Gamepad2, BookOpen, Dumbbell, Car, Watch, ShoppingBag, Apple,
-  Gift, Percent, Package
+  Gift, Percent, Package, Armchair
 } from 'lucide-react';
 
 export const Lipstick = ({ className = "w-5 h-5", size = 24, color = "currentColor", strokeWidth = 2, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
@@ -71,7 +71,10 @@ export function renderCategoryFallbackIcon(
   if (lowerName.includes('electron') || lowerName.includes('laptop') || lowerName.includes('computer') || lowerIcon === 'laptop') {
     return <Laptop className={`${sizeClass} ${colorClass}`} />;
   }
-  if (lowerName.includes('home') || lowerName.includes('decor') || lowerName.includes('furnit') || lowerIcon === 'home') {
+  if (lowerName.includes('furniture') || lowerName.includes('sofa') || lowerName.includes('chair') || lowerIcon === 'armchair' || lowerIcon === 'sofa') {
+    return <Armchair className={`${sizeClass} ${colorClass}`} />;
+  }
+  if (lowerName.includes('home') || lowerName.includes('decor') || lowerIcon === 'home') {
     return <HomeIcon className={`${sizeClass} ${colorClass}`} />;
   }
   if (lowerName.includes('appliance') || lowerName.includes('tv') || lowerName.includes('televis') || lowerName.includes('refrig') || lowerIcon === 'tv') {

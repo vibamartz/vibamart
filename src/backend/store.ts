@@ -280,6 +280,9 @@ export const useCategoryStore = create<CategoryState>((set) => ({
           if (catData.name === 'Food & Health' || catData.id === '8' || catData.slug === 'food-health') {
             catData.icon = 'apple';
           }
+          if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
+            catData.icon = 'armchair';
+          }
           return catData;
         });
 

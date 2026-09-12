@@ -39,8 +39,16 @@ export default function MobileCheckoutScreen() {
   const [newZip, setNewZip] = useState('');
 
   const cartTotal = total();
-  const deliveryCharge = cartTotal > 599 || items.length === 0 ? 0 : 40;
-  const grandTotal = cartTotal + deliveryCharge;
+  const totalMRP = items.reduce((acc, item) => {
+    const origPrice = item.product.price || item.product.discountPrice || 0;
+    const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
+    const extra = variant?.extraPrice || 0;
+    return acc + (origPrice + extra) * item.quantity;
+  }, 0);
+  const discount = Math.max(0, totalMRP - cartTotal);
+  const deliveryCharge = cartTotal < 600 && items.length > 0 ? 49 : 0;
+  const codFee = paymentMethod === 'cod' ? 9 : 0;
+  const grandTotal = cartTotal + deliveryCharge + codFee;
 
   useEffect(() => {
     if (savedAddresses.length > 0) {
@@ -355,22 +363,32 @@ export default function MobileCheckoutScreen() {
       {/* Step 4: Final Price Breakdown */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-1.5">
-          Payment Breakdown
+          Price Details
         </h3>
         <div className="flex justify-between text-gray-600">
-          <span>Items Total</span>
-          <span className="font-bold text-gray-900">₹{cartTotal.toLocaleString()}</span>
+          <span>Total MRP ({items.length} items)</span>
+          <span className="font-bold text-gray-900">₹{totalMRP.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between text-emerald-700">
+          <span>Discount</span>
+          <span className="font-bold">{discount > 0 ? `-₹${discount.toLocaleString()}` : '₹0'}</span>
         </div>
         <div className="flex justify-between text-gray-600">
-          <span>Delivery Charge</span>
+          <span>Delivery Charges</span>
           {deliveryCharge === 0 ? (
             <span className="font-black text-emerald-600 uppercase">FREE</span>
           ) : (
             <span className="font-bold text-gray-900">₹{deliveryCharge}</span>
           )}
         </div>
+        {paymentMethod === 'cod' && (
+          <div className="flex justify-between text-gray-600">
+            <span>COD Fee</span>
+            <span className="font-bold text-gray-900">₹{codFee}</span>
+          </div>
+        )}
         <div className="pt-2 border-t border-gray-100 flex justify-between items-baseline text-sm font-black">
-          <span className="text-gray-900">Total Amount Payable</span>
+          <span className="text-gray-900">Total Price</span>
           <span className="text-emerald-700">₹{grandTotal.toLocaleString()}</span>
         </div>
       </div>

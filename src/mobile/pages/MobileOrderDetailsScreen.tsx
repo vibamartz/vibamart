@@ -395,26 +395,23 @@ export default function MobileOrderDetailsScreen() {
       
       {/* Header Info */}
       <div className="pb-4 border-b border-gray-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <span className="text-[10px] font-black uppercase text-gray-400">Order Reference</span>
-            <div className="flex items-center gap-2 mt-0.5">
-              <h2 className="text-base font-black text-gray-900">{displayId}</h2>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <h2 className="text-base font-black text-gray-900 break-all">{displayId}</h2>
               {order.status === 'delivered' ? (
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full">
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full shrink-0">
                   {formatDeliveredDate(order)}
                 </span>
               ) : isCancelled ? (
-                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-black uppercase rounded-full">
+                <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-black uppercase rounded-full shrink-0">
                   {statusDisplayWord}
                 </span>
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-              {new Date(order.createdAt).toLocaleDateString()}
-            </span>
+          <div className="flex items-center gap-2 shrink-0">
             {/* Help Button inside Order Details Header */}
             <button
               onClick={() => setShowHelpModal(true)}
@@ -478,8 +475,30 @@ export default function MobileOrderDetailsScreen() {
           </div>
 
           <div className="space-y-1 text-xs text-gray-700 pt-1">
-            <p><strong>Reason:</strong> {activeRequest.reason}</p>
-            {activeRequest.comments && <p className="text-gray-500 italic">"{activeRequest.comments}"</p>}
+            <div className="flex justify-between">
+              <span className="text-gray-500 font-semibold">Request Type:</span>
+              <span className="font-bold uppercase text-gray-800">{activeRequest.type || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 font-semibold">Reason:</span>
+              <span className="font-bold text-gray-800">{activeRequest.reason}</span>
+            </div>
+            {activeRequest.comments && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-semibold">Customer Comments:</span>
+                <span className="font-medium text-gray-700">{activeRequest.comments}</span>
+              </div>
+            )}
+            {activeRequest.adminNotes && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-semibold">Store Remarks:</span>
+                <span className="font-medium text-emerald-800">{activeRequest.adminNotes}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-500 font-semibold">Logged On:</span>
+              <span className="font-medium text-gray-600">{new Date(activeRequest.createdAt).toLocaleString()}</span>
+            </div>
             
             {activeRequest.images && activeRequest.images.length > 0 && (
               <div className="pt-2">
@@ -514,7 +533,7 @@ export default function MobileOrderDetailsScreen() {
               onClick={() => setShowReturnModal(true)}
               className="w-full py-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
             >
-              <RefreshCcw className="w-4 h-4 text-amber-600" /> Request {windowDays}-Day Return
+              <RefreshCcw className="w-4 h-4 text-amber-700" /> Return / Exchange Items
             </button>
           )}
 
@@ -581,11 +600,16 @@ export default function MobileOrderDetailsScreen() {
 
         {/* 1. PRODUCTS */}
         <div className="pb-4 border-b border-gray-100 space-y-3">
-          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-            <Package className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-              1. Products ({order.items.length})
-            </h3>
+          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                1. Products ({order.items.length})
+              </h3>
+            </div>
+            <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">
+              {new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
           </div>
           <div className="divide-y divide-gray-100">
             {order.items.map((item, idx) => (
@@ -598,8 +622,8 @@ export default function MobileOrderDetailsScreen() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
                   <span className="text-[10px] text-gray-500 font-semibold block">Qty: {item.quantity}</span>
-                  <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                    {order.status === 'delivered' && (
+                  {order.status === 'delivered' && (
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                       <button
                         onClick={() => {
                           setSelectedReviewProductId(item.productId);
@@ -609,14 +633,8 @@ export default function MobileOrderDetailsScreen() {
                       >
                         <Star className="w-2.5 h-2.5 fill-amber-600 text-amber-600" /> Rate
                       </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowHelpModal(true); }}
-                      className="text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer shrink-0 shadow-xs active:scale-95 transition-all z-10 border border-amber-500/20"
-                    >
-                      <HelpCircle className="w-3.5 h-3.5 text-amber-950 shrink-0" /> Help
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs font-black text-gray-900">
                   ₹{(item.price * item.quantity).toLocaleString()}
@@ -647,32 +665,55 @@ export default function MobileOrderDetailsScreen() {
         </div>
 
         {/* 3. PRICE DETAILS */}
-        <div className="pb-4 border-b border-gray-100 space-y-2 text-xs">
-          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-            <CreditCard className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-              3. Price Details
-            </h3>
-          </div>
-          <div className="py-2 space-y-2">
-            <div className="flex justify-between text-gray-600 font-medium">
-              <span>Items Subtotal</span>
-              <span>₹{(order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0)).toLocaleString()}</span>
+        {(() => {
+          const itemsTotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+          const isCod = order.paymentMethod === 'cod';
+          const codFee = isCod ? 9 : 0;
+          const deliveryFee = itemsTotal < 600 ? 49 : 0;
+
+          return (
+            <div className="pb-4 border-b border-gray-100 space-y-2 text-xs">
+              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                  3. Price Details
+                </h3>
+              </div>
+              <div className="py-2 space-y-2">
+                <div className="flex justify-between text-gray-600 font-medium">
+                  <span>Total MRP</span>
+                  <span className="font-bold text-gray-900">₹{itemsTotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-emerald-700 font-medium">
+                  <span>Discount</span>
+                  <span className="font-bold">₹0</span>
+                </div>
+                <div className="flex justify-between text-gray-600 font-medium">
+                  <span>Delivery Charges</span>
+                  {deliveryFee === 0 ? (
+                    <span className="text-emerald-600 font-bold">FREE</span>
+                  ) : (
+                    <span className="font-bold text-gray-900">₹{deliveryFee}</span>
+                  )}
+                </div>
+                {isCod && (
+                  <div className="flex justify-between text-gray-600 font-medium">
+                    <span>COD Fee</span>
+                    <span className="font-bold text-gray-900">₹{codFee}</span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-gray-200 flex justify-between items-center text-sm font-black text-gray-900">
+                  <span>Total Price</span>
+                  <span className="text-base text-emerald-700">₹{order.total.toLocaleString()}</span>
+                </div>
+                <div className="pt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex justify-between">
+                  <span>Payment Method: {order.paymentMethod ? order.paymentMethod.toUpperCase() : 'ONLINE'}</span>
+                  <span className="text-emerald-600">Status: {order.paymentStatus ? order.paymentStatus.toUpperCase() : 'PAID'}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between text-gray-600 font-medium">
-              <span>Delivery Charges</span>
-              <span className="text-emerald-600 font-bold">FREE</span>
-            </div>
-            <div className="pt-2 border-t border-gray-200 flex justify-between items-center text-sm font-black text-gray-900">
-              <span>Total Paid</span>
-              <span className="text-base text-emerald-700">₹{order.total.toLocaleString()}</span>
-            </div>
-            <div className="pt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex justify-between">
-              <span>Payment Method: {order.paymentMethod || 'Online'}</span>
-              <span className="text-emerald-600">Status: Paid</span>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* 4. PRODUCTS FOR YOU */}
         <div className="pb-4 space-y-3">

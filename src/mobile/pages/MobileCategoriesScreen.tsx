@@ -194,7 +194,6 @@ export default function MobileCategoriesScreen() {
 
                 <CategoryLogo
                   name={cat.name}
-                  image={cat.image}
                   icon={cat.icon}
                   size="md"
                   active={isActive}
@@ -224,7 +223,6 @@ export default function MobileCategoriesScreen() {
                   <div className="flex items-center gap-3">
                     <CategoryLogo
                       name={selectedCategory.name}
-                      image={selectedCategory.image}
                       icon={selectedCategory.icon}
                       size="md"
                       active={true}

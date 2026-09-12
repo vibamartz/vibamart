@@ -265,6 +265,15 @@ export const CATEGORIES: Category[] = [
     icon: 'apple',
     subcategories: []
   },
+  {
+    id: '9',
+    slug: 'furniture',
+    seoSlug: 'furniture',
+    name: 'Furniture',
+    image: undefined,
+    icon: 'armchair',
+    subcategories: []
+  },
 ];
 
 export const AVAILABLE_PERMISSIONS = [

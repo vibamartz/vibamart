@@ -195,13 +195,15 @@ export default function MobileCartScreen() {
   const navigate = useNavigate();
 
   const cartTotal = total();
-  const totalSavings = items.reduce((acc, item) => {
-    const origPrice = item.product.price || 0;
-    const actualPrice = item.product.discountPrice || origPrice;
-    return acc + (origPrice - actualPrice) * item.quantity;
+  const totalMRP = items.reduce((acc, item) => {
+    const origPrice = item.product.price || item.product.discountPrice || 0;
+    const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
+    const extra = variant?.extraPrice || 0;
+    return acc + (origPrice + extra) * item.quantity;
   }, 0);
+  const discount = Math.max(0, totalMRP - cartTotal);
 
-  const deliveryCharge = cartTotal > 599 || items.length === 0 ? 0 : 40;
+  const deliveryCharge = cartTotal < 600 && items.length > 0 ? 49 : 0;
   const grandTotal = cartTotal + deliveryCharge;
 
   const handleDecreaseQuantity = (productId: string, currentQty: number, variantId?: string) => {
@@ -290,7 +292,7 @@ export default function MobileCartScreen() {
             </div>
           ) : (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs font-bold text-amber-800">
-              Add ₹{(599 - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
+              Add ₹{(600 - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
             </div>
           )}
 
@@ -412,21 +414,19 @@ export default function MobileCartScreen() {
           {/* Bill Details Summary Card */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2.5">
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-              Price Details & Bill Breakdown
+              Price Details
             </h3>
 
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-gray-600 font-medium">
-                <span>Item Subtotal ({items.length} items)</span>
-                <span className="font-bold text-gray-900">₹{cartTotal.toLocaleString()}</span>
+                <span>Total MRP ({items.length} items)</span>
+                <span className="font-bold text-gray-900">₹{totalMRP.toLocaleString()}</span>
               </div>
 
-              {totalSavings > 0 && (
-                <div className="flex justify-between text-emerald-700 font-bold">
-                  <span>Total Product Savings</span>
-                  <span>-₹{totalSavings.toLocaleString()}</span>
-                </div>
-              )}
+              <div className="flex justify-between text-emerald-700 font-bold">
+                <span>Discount</span>
+                <span>{discount > 0 ? `-₹${discount.toLocaleString()}` : '₹0'}</span>
+              </div>
 
               <div className="flex justify-between text-gray-600 font-medium">
                 <span>Delivery Charges</span>
@@ -437,13 +437,8 @@ export default function MobileCartScreen() {
                 )}
               </div>
 
-              <div className="flex justify-between text-gray-600 font-medium">
-                <span>Estimated Taxes & GST</span>
-                <span className="font-bold text-gray-900">Included</span>
-              </div>
-
               <div className="pt-2 border-t border-gray-100 flex justify-between items-baseline text-sm">
-                <span className="font-black text-gray-900">Total Payable Amount</span>
+                <span className="font-black text-gray-900">Total Price</span>
                 <span className="text-base font-black text-emerald-700">₹{grandTotal.toLocaleString()}</span>
               </div>
             </div>

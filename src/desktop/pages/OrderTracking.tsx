@@ -585,24 +585,28 @@ export default function OrderTracking() {
         {/* HEADER BAR */}
         <div className="p-8 md:p-10 rounded-3xl bg-gray-900 text-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Order Details</p>
-              <div className="flex items-center gap-4">
-                 <h1 className="text-3xl font-black tracking-tight">{order.customOrderId || order.id}</h1>
-                 <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+              <div className="flex items-center gap-3 flex-wrap">
+                 <h1 className="text-2xl md:text-3xl font-black tracking-tight break-all">{order.customOrderId || order.id}</h1>
+                 <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
                    ['cancelled', 'cancel_requested', 'cancel_rejected', 'refunded', 'returned'].includes(order.status) || activeRequest
                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                      : 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30'
                  }`}>
                    {statusDisplayWord}
                  </span>
+                 {/* Help Button beside Order ID area */}
+                 <button
+                   onClick={() => setShowHelpModal(true)}
+                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-400 hover:bg-amber-500 text-amber-950 text-xs font-black uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0 z-10 border border-amber-500/20"
+                 >
+                   <HelpCircle className="w-4 h-4 text-amber-950 shrink-0" /> Help
+                 </button>
               </div>
             </div>
-            <div className="text-right flex flex-col md:items-end gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">Order Date</p>
-              <p className="text-lg font-black">{new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-              
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5 mt-2">Expected Delivery</p>
+            <div className="text-right flex flex-col md:items-end gap-2 shrink-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-0.5">Expected Delivery</p>
               <p className="text-xl font-black">
                 {order.estimatedDelivery ? (
                   /^\d{4}-\d{2}-\d{2}$/.test(order.estimatedDelivery) 
@@ -620,14 +624,6 @@ export default function OrderTracking() {
                     <FileText className="w-4 h-4" /> Download Invoice
                   </button>
                 )}
-
-                {/* Help Button inside Order Details */}
-                <button
-                  onClick={() => setShowHelpModal(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-500 text-amber-950 text-xs font-black uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0 z-10 border border-amber-500/20"
-                >
-                  <HelpCircle className="w-4 h-4 text-amber-950 shrink-0" /> Help
-                </button>
               </div>
             </div>
 
@@ -816,13 +812,18 @@ export default function OrderTracking() {
 
             {/* 1. PRODUCTS */}
             <div className="pb-8 border-b border-gray-100">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-                <div className="bg-blue-100 p-2.5 rounded-2xl">
-                  <Package className="w-6 h-6 text-primary" />
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 p-2.5 rounded-2xl">
+                    <Package className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 1</span>
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Products ({order.items.length})</h3>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 1</span>
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Products</h3>
+                <div className="bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold text-gray-700 shadow-2xs">
+                  Order Date: <span className="font-extrabold text-gray-900">{new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 </div>
               </div>
 
@@ -833,8 +834,8 @@ export default function OrderTracking() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                       <p className="text-xs font-semibold text-gray-500 mt-1">Quantity: {item.quantity}</p>
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        {order.status === 'delivered' && (
+                      {order.status === 'delivered' && (
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => {
                               setSelectedReviewProductId(item.productId);
@@ -844,14 +845,8 @@ export default function OrderTracking() {
                           >
                             <Star className="w-3 h-3 fill-amber-600 text-amber-600" /> Rate your Experience
                           </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowHelpModal(true); }}
-                          className="text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-400 hover:bg-amber-500 px-3 py-1.5 rounded-xl inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-xs active:scale-95 z-10 border border-amber-500/20"
-                        >
-                          <HelpCircle className="w-3.5 h-3.5 text-amber-950 shrink-0" /> Need Help?
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-black text-gray-900">₹{(item.price * item.quantity).toLocaleString()}</p>
@@ -895,36 +890,59 @@ export default function OrderTracking() {
             </div>
 
             {/* 3. PRICE DETAILS */}
-            <div className="pb-8 border-b border-gray-100">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-                <div className="bg-indigo-100 p-2.5 rounded-2xl">
-                  <CreditCard className="w-6 h-6 text-indigo-600" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 3</span>
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Price Details</h3>
-                </div>
-              </div>
+            {(() => {
+              const itemsTotal = order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+              const isCod = order.paymentMethod === 'cod';
+              const codFee = isCod ? 9 : 0;
+              const deliveryFee = itemsTotal < 600 ? 49 : 0;
 
-              <div className="max-w-xl space-y-3 text-sm py-2">
-                <div className="flex justify-between text-gray-600 font-medium">
-                  <span>Items Subtotal</span>
-                  <span>₹{(order.items.reduce((acc, item) => acc + (item.price * item.quantity), 0)).toLocaleString()}</span>
+              return (
+                <div className="pb-8 border-b border-gray-100">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                    <div className="bg-indigo-100 p-2.5 rounded-2xl">
+                      <CreditCard className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 3</span>
+                      <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Price Details</h3>
+                    </div>
+                  </div>
+
+                  <div className="max-w-xl space-y-3 text-sm py-2">
+                    <div className="flex justify-between text-gray-600 font-medium">
+                      <span>Total MRP</span>
+                      <span className="font-bold text-gray-900">₹{itemsTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-600 font-medium">
+                      <span>Discount</span>
+                      <span className="font-bold">₹0</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600 font-medium">
+                      <span>Delivery Charges</span>
+                      {deliveryFee === 0 ? (
+                        <span className="text-emerald-600 font-bold">FREE</span>
+                      ) : (
+                        <span className="font-bold text-gray-900">₹{deliveryFee}</span>
+                      )}
+                    </div>
+                    {isCod && (
+                      <div className="flex justify-between text-gray-600 font-medium">
+                        <span>COD Fee</span>
+                        <span className="font-bold text-gray-900">₹{codFee}</span>
+                      </div>
+                    )}
+                    <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-lg font-black text-gray-900">
+                      <span>Total Price</span>
+                      <span className="text-2xl text-primary">₹{order.total.toLocaleString()}</span>
+                    </div>
+                    <div className="pt-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex justify-between">
+                      <span>Payment Method: {order.paymentMethod ? order.paymentMethod.toUpperCase() : 'ONLINE PAYMENT'}</span>
+                      <span className="text-emerald-600">Status: {order.paymentStatus ? order.paymentStatus.toUpperCase() : 'PAID'}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-gray-600 font-medium">
-                  <span>Delivery Fee</span>
-                  <span className="text-emerald-600 font-bold">FREE</span>
-                </div>
-                <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-lg font-black text-gray-900">
-                  <span>Total Paid</span>
-                  <span className="text-2xl text-primary">₹{order.total.toLocaleString()}</span>
-                </div>
-                <div className="pt-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex justify-between">
-                  <span>Payment Method: {order.paymentMethod || 'Online Payment'}</span>
-                  <span className="text-emerald-600">Status: Paid</span>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* 4. PRODUCTS FOR YOU */}
             <div className="pb-4">

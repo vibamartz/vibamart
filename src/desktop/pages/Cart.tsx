@@ -156,14 +156,15 @@ export default function Cart() {
   };
 
   const subtotal = total();
-  const tax = items.reduce((sum, item) => {
-    const isEnabled = item.product?.enableGst !== false && (item.product?.gst || 0) > 0;
-    if (!isEnabled) return sum;
-    const rate = item.product?.gst || 18;
-    return sum + (item.product.price * item.quantity * (rate / 100));
+  const totalMRP = items.reduce((acc, item) => {
+    const origPrice = item.product.price || item.product.discountPrice || 0;
+    const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
+    const extra = variant?.extraPrice || 0;
+    return acc + (origPrice + extra) * item.quantity;
   }, 0);
-  const shipping = subtotal > 599 || items.length === 0 ? 0 : 50;
-  const grandTotal = subtotal + tax + shipping;
+  const discount = Math.max(0, totalMRP - subtotal);
+  const shipping = subtotal < 600 && items.length > 0 ? 49 : 0;
+  const grandTotal = subtotal + shipping;
 
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
@@ -301,22 +302,22 @@ export default function Cart() {
                 <h3 className="text-xl font-black text-gray-900 mb-6">Price Details</h3>
                 <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6 mb-6">
                   <div className="flex justify-between text-gray-600">
-                    <span>Price ({items.length} items)</span>
-                    <span>₹{subtotal.toLocaleString()}</span>
+                    <span>Total MRP ({items.length} items)</span>
+                    <span className="text-gray-900 font-bold">₹{totalMRP.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>GST (18%)</span>
-                    <span>+ ₹{tax.toLocaleString()}</span>
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Discount</span>
+                    <span className="font-bold">{discount > 0 ? `- ₹${discount.toLocaleString()}` : '₹0'}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Delivery Charges</span>
-                    <span className={shipping === 0 ? 'text-blue-600' : 'text-gray-900'}>
+                    <span className={shipping === 0 ? 'text-emerald-600 font-bold' : 'text-gray-900 font-bold'}>
                       {shipping === 0 ? 'FREE' : `₹${shipping}`}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between text-xl font-black text-gray-900 mb-8 px-1">
-                  <span>Total Amount</span>
+                  <span>Total Price</span>
                   <span>₹{grandTotal.toLocaleString()}</span>
                 </div>
                 <Link to="/checkout" className="w-full touch-target min-h-[44px] bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
