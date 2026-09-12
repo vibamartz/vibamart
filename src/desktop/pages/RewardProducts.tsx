@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   Tag, Gift, ArrowLeft, ShoppingCart, Star, Clock, ExternalLink,
-  ShieldCheck, AlertCircle, CheckCircle2, ChevronRight, ShoppingBag, Eye, Lock
+  ShieldCheck, AlertCircle, CheckCircle2, ChevronRight, ShoppingBag, Eye, Lock, Share2
 } from 'lucide-react';
 import { useRewardsStore, useCartStore, useAuthStore } from '../../backend/store';
 import { BrandCoupon, Product } from '../../shared/types';
@@ -11,6 +11,7 @@ import { db } from '../../backend/firebase/firebase';
 import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { getRewardSlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
+import { shareReward, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import toast from 'react-hot-toast';
 
 function ExpiryCountdown({ expiryDate }: { expiryDate: string }) {
@@ -98,6 +99,15 @@ export default function RewardProducts() {
       if (matched) {
         setRewardCard(matched);
         const canonicalSlug = getRewardSlug(matched);
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const img = matched.productImage || matched.brandLogo;
+        const discountText = matched.discountType === 'percent' ? `${matched.discountValue}% OFF` : `₹${matched.discountValue} OFF`;
+        updateOpenGraphTags(
+          `${matched.title} - ${matched.brandName} | ViBa Mart`,
+          `Claim ${matched.title} (${discountText}) by ${matched.brandName} on ViBa Mart!`,
+          img,
+          `${origin}/rewards/${canonicalSlug}`
+        );
         if (targetRewardSlugOrId !== canonicalSlug && (targetRewardSlugOrId === matched.id || /^\d+$/.test(targetRewardSlugOrId))) {
           navigate(`/rewards/${canonicalSlug}`, { replace: true });
         }
@@ -258,16 +268,25 @@ export default function RewardProducts() {
 
           <div className="flex flex-col items-end gap-3 shrink-0">
             <ExpiryCountdown expiryDate={rewardCard.expiryDate} />
-            {getValidBrandUrl(rewardCard.brandWebsiteUrl) && (
-              <a
-                href={getValidBrandUrl(rewardCard.brandWebsiteUrl)!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-amber-300 border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => rewardCard && shareReward(rewardCard)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-amber-300 border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Share this reward"
               >
-                Visit Official Brand <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
+                <Share2 className="w-3.5 h-3.5" /> Share Reward
+              </button>
+              {getValidBrandUrl(rewardCard.brandWebsiteUrl) && (
+                <a
+                  href={getValidBrandUrl(rewardCard.brandWebsiteUrl)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-amber-300 border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  Visit Official Brand <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>

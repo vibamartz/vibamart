@@ -4,7 +4,7 @@ import {
   Gift, Award, Sparkles, Tag, Clock, ArrowUpRight,
   ShieldCheck, Check, Copy, Lock, Trophy, Star, ChevronRight,
   Info, ExternalLink, AlertTriangle, Search, Filter, RefreshCw,
-  ShoppingBag, CheckCircle2, XCircle, AlertCircle, Eye, ChevronLeft, ChevronRight as ChevronRightIcon
+  ShoppingBag, CheckCircle2, XCircle, AlertCircle, Eye, ChevronLeft, ChevronRight as ChevronRightIcon, Share2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRewardsStore, useFeatureStore, useAuthStore } from '../../backend/store';
@@ -12,6 +12,7 @@ import { BrandCoupon, RewardOrder } from '../../shared/types';
 import { getRewardSlug } from '../../shared/utilities/slug';
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { processPayment } from '../../shared/utils/razorpay';
+import { shareReward } from '../../shared/utilities/shareUtils';
 import toast from 'react-hot-toast';
 
 // Countdown Timer Component
@@ -569,6 +570,14 @@ export default function Rewards() {
                           Visit Official Brand <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                         </a>
                       )}
+
+                      <button
+                        onClick={(e) => { e.stopPropagation(); shareReward(coupon); }}
+                        className="p-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                        title="Share coupon"
+                      >
+                        <Share2 className="w-4 h-4 text-gray-600" />
+                      </button>
                     </div>
                   </motion.div>
                 );

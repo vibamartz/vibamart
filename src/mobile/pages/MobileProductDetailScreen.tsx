@@ -12,6 +12,7 @@ import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import { getProductSlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -107,6 +108,16 @@ export default function MobileProductDetailScreen() {
 
         if (foundProduct) {
           setProduct(foundProduct);
+          const canonicalSlug = getProductSlug(foundProduct);
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          const img = (foundProduct.images && foundProduct.images.length > 0) ? foundProduct.images[0] : (foundProduct as any).image;
+          updateOpenGraphTags(
+            `${foundProduct.name} | ViBa Mart`,
+            foundProduct.description || `Buy ${foundProduct.name} on ViBa Mart`,
+            img,
+            `${origin}/products/${canonicalSlug}`
+          );
+
           try {
             const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
             const updated = [foundProduct.id, ...existing.filter((pid: string) => pid !== foundProduct.id)].slice(0, 8);
@@ -119,7 +130,6 @@ export default function MobileProductDetailScreen() {
           }
 
           // Canonical redirect check
-          const canonicalSlug = getProductSlug(foundProduct);
           if (targetSlugOrId !== canonicalSlug && (
             targetSlugOrId === foundProduct.id || 
             /^\d+$/.test(targetSlugOrId) ||
@@ -166,14 +176,8 @@ export default function MobileProductDetailScreen() {
   };
 
   const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product?.name || 'ViBa Mart Product',
-        url: window.location.href,
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard!");
+    if (product) {
+      shareProduct(product);
     }
   };
 

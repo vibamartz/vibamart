@@ -15,6 +15,7 @@ import ProductCard from '../components/ProductCard';
 import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -90,9 +91,17 @@ export default function ProductDetail() {
         if (foundProduct) {
           setProduct(foundProduct);
           setSelectedVariant(foundProduct.variants?.[0]?.id);
+          const canonicalSlug = getProductSlug(foundProduct);
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          const img = (foundProduct.images && foundProduct.images.length > 0) ? foundProduct.images[0] : (foundProduct as any).image;
+          updateOpenGraphTags(
+            `${foundProduct.name} | ViBa Mart`,
+            foundProduct.description || `Buy ${foundProduct.name} on ViBa Mart`,
+            img,
+            `${origin}/products/${canonicalSlug}`
+          );
           
           // Canonical URL enforcement (Replace numeric/ID/ProductCode paths with clean canonical slug URL)
-          const canonicalSlug = getProductSlug(foundProduct);
           if (targetSlugOrId !== canonicalSlug && (
             targetSlugOrId === foundProduct.id || 
             /^\d+$/.test(targetSlugOrId) ||
@@ -276,23 +285,12 @@ export default function ProductDetail() {
                     <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-rose-500' : ''}`} />
                  </button>
                  <button 
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({
-                        title: product.name,
-                        text: product.description,
-                        url: window.location.href,
-                      }).catch(err => console.error('Error sharing:', err));
-                    } else {
-                      navigator.clipboard.writeText(window.location.href);
-                      toast.success('Link copied to clipboard!');
-                    }
-                  }}
-                  aria-label="Share product"
-                  className="p-3 touch-target min-h-[44px] flex items-center justify-center bg-white/90 backdrop-blur shadow-sm rounded-full text-gray-400 hover:text-green-600 transition-colors"
-                 >
-                    <Share2 className="w-5 h-5" />
-                 </button>
+                   onClick={() => product && shareProduct(product)}
+                   aria-label="Share product"
+                   className="p-3 touch-target min-h-[44px] flex items-center justify-center bg-white/90 backdrop-blur shadow-sm rounded-full text-gray-400 hover:text-green-600 transition-colors"
+                  >
+                     <Share2 className="w-5 h-5" />
+                  </button>
               </div>
            </div>
            <div className="grid grid-cols-4 gap-4">
