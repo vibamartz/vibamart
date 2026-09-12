@@ -13,6 +13,7 @@ import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPayment } from '../../shared/utils/razorpay';
+import { NotificationEngine } from '../../backend/services/notificationEngine';
 
 export default function MobileCheckoutScreen() {
   const navigate = useNavigate();
@@ -196,6 +197,14 @@ export default function MobileCheckoutScreen() {
 
     try {
       const docRef = await addDoc(collection(db, 'orders'), newOrder);
+
+      // Dispatch order confirmation push & in-app notification
+      try {
+        await NotificationEngine.notifyOrderConfirmed({ id: docRef.id, ...newOrder } as Order);
+      } catch (notifErr) {
+        console.warn('Failed to send mobile order confirmation notification:', notifErr);
+      }
+
       clearCart();
       toast.success("Order placed successfully!", { icon: '🎉' });
       navigate('/order-success', { state: { orderId: docRef.id, customId, order: { id: docRef.id, ...newOrder } } });

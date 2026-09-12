@@ -8,7 +8,7 @@ import {
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
-import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
@@ -16,9 +16,10 @@ import LocationPickerModal from './LocationPickerModal';
 import { getCategorySlug, getProductSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
-import { getDocs } from 'firebase/firestore';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
+import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
+import { PushService } from '../../backend/services/pushService';
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
@@ -80,14 +81,18 @@ export default function Navbar() {
     }
   }, [location]);
 
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+
   // Fetch Notifications
   useEffect(() => {
     if (!user) {
       setNotifications([]);
       return;
     }
+    PushService.registerDevice(user.uid);
+
     const q = query(
-      collection(db, 'notifications'),
+      collection(db, 'user_notifications'),
       where('userId', 'in', [user.uid, 'all']),
       orderBy('createdAt', 'desc')
     );
@@ -95,16 +100,16 @@ export default function Navbar() {
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setNotifications(notifs);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'notifications', false);
+      handleFirestoreError(error, OperationType.LIST, 'user_notifications', false);
     });
     return () => unsubscribe();
   }, [user]);
 
   const markNotificationAsRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'notifications', id), { read: true });
+      await updateDoc(doc(db, 'user_notifications', id), { read: true });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `notifications/${id}`, false);
+      handleFirestoreError(error, OperationType.UPDATE, `user_notifications/${id}`, false);
     }
   };
 
@@ -552,12 +557,23 @@ export default function Navbar() {
                       className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 flex flex-col max-h-[400px]"
                     >
                       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <h3 className="font-black text-gray-900">Notifications</h3>
-                        {notifications.filter(n => !n.read).length > 0 && (
-                          <button onClick={markAllAsRead} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest">
-                            Mark all read
+                        <h3 className="font-black text-gray-900 text-sm">Notifications</h3>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setIsNotificationsOpen(false);
+                              setShowPreferencesModal(true);
+                            }}
+                            className="text-[10px] font-bold text-gray-500 hover:text-primary uppercase tracking-wider"
+                          >
+                            Settings
                           </button>
-                        )}
+                          {notifications.filter(n => !n.read).length > 0 && (
+                            <button onClick={markAllAsRead} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest">
+                              Mark all read
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="overflow-y-auto flex-1 p-2">
                         {notifications.length === 0 ? (
@@ -568,8 +584,14 @@ export default function Navbar() {
                               key={notif.id} 
                               onClick={() => {
                                 markNotificationAsRead(notif.id);
-                                if (notif.orderId) navigate(`/track-request/${notif.orderId}`);
                                 setIsNotificationsOpen(false);
+                                if (notif.destinationSlug) {
+                                  navigate(notif.destinationSlug);
+                                } else if (notif.orderId) {
+                                  navigate(`/track-order/${notif.orderId}`);
+                                } else if (notif.productId) {
+                                  navigate(`/products/${notif.productId}`);
+                                }
                               }}
                               className={`p-3 rounded-xl mb-1 cursor-pointer transition-all border border-transparent ${notif.read ? 'bg-white hover:bg-gray-50' : 'bg-primary/5 hover:border-primary/20 hover:bg-primary/10'}`}
                             >
@@ -937,6 +959,11 @@ export default function Navbar() {
       <LocationPickerModal
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
+      />
+
+      <CustomerNotificationPreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
       />
     </nav>
   );

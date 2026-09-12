@@ -11,8 +11,8 @@ import { Order, OrderItem, Address } from '../../shared/types';
 import axios from 'axios';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
-
 import { processPayment } from '../../shared/utils/razorpay';
+import { NotificationEngine } from '../../backend/services/notificationEngine';
 
 declare global {
   interface Window {
@@ -398,6 +398,13 @@ export default function Checkout() {
         const uniqueId = await generateUniqueOrderId();
         orderData.customOrderId = uniqueId;
         await setDoc(doc(db, 'orders', uniqueId), orderData);
+
+        // Dispatch order confirmation push & in-app notification
+        try {
+          await NotificationEngine.notifyOrderConfirmed({ id: uniqueId, ...orderData } as Order);
+        } catch (notifErr) {
+          console.warn('Failed to send order confirmation notification:', notifErr);
+        }
 
         if (user && address.street) {
           const isDuplicate = user.addresses?.some(

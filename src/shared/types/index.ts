@@ -407,5 +407,4 @@ export interface UserRewards {
   transactions?: RewardTransaction[];
 }
 
-
-
+export * from './notifications';

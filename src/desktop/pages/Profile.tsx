@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
+import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import { useAuthStore, useSettingsStore } from '../../backend/store';
 import { db, auth, storage, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
@@ -30,6 +31,7 @@ export default function Profile() {
   const { settings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [showNotificationPrefsModal, setShowNotificationPrefsModal] = useState(false);
 
   const isOrderEligibleForReturn = (order: Order) => {
     if (order.status !== 'delivered') return false;
@@ -1147,11 +1149,14 @@ export default function Profile() {
                             <Bell className="w-6 h-6" />
                           </div>
                           <div>
-                            <h4 className="text-sm font-black text-gray-900">Notifications</h4>
-                            <p className="text-xs text-gray-500 mt-1">Configure how you receive updates</p>
+                            <h4 className="text-sm font-black text-gray-900">Notifications & Engagement</h4>
+                            <p className="text-xs text-gray-500 mt-1">Configure price drop alerts, order updates & offers</p>
                           </div>
                         </div>
-                        <button className="px-6 py-2.5 bg-white text-gray-900 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+                        <button 
+                          onClick={() => setShowNotificationPrefsModal(true)}
+                          className="px-6 py-2.5 bg-white text-gray-900 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
+                        >
                           Manage
                         </button>
                       </div>
@@ -1528,6 +1533,12 @@ export default function Profile() {
           user={user}
         />
       )}
+
+      <CustomerNotificationPreferencesModal 
+        isOpen={showNotificationPrefsModal}
+        onClose={() => setShowNotificationPrefsModal(false)}
+        userId={user?.uid}
+      />
     </div>
   );
 }

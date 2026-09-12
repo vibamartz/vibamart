@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle, 
-  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift 
+  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders
 } from 'lucide-react';
 import { useAuthStore } from '../../backend/store';
 import { auth } from '../../backend/firebase/firebase';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 
 export default function MobileProfileScreen() {
   const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
+  const [showPrefsModal, setShowPrefsModal] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -53,6 +55,7 @@ export default function MobileProfileScreen() {
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
     { title: 'Notifications', icon: Bell, path: '/notifications', badge: null, color: 'text-purple-600 bg-purple-50' },
+    { title: 'Notification Preferences', icon: Sliders, action: () => setShowPrefsModal(true), badge: null, color: 'text-teal-600 bg-teal-50' },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];
 
@@ -95,7 +98,13 @@ export default function MobileProfileScreen() {
           <motion.div
             key={idx}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate(item.path)}
+            onClick={() => {
+              if (item.action) {
+                item.action();
+              } else if (item.path) {
+                navigate(item.path);
+              }
+            }}
             className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-yellow-50/50 rounded-2xl transition-all"
           >
             <div className="flex items-center gap-3">
@@ -133,6 +142,12 @@ export default function MobileProfileScreen() {
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </motion.button>
       </div>
+
+      <CustomerNotificationPreferencesModal 
+        isOpen={showPrefsModal}
+        onClose={() => setShowPrefsModal(false)}
+        userId={user.uid}
+      />
     </div>
   );
 }

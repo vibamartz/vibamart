@@ -255,5 +255,45 @@ service cloud.firestore {
       allow create: if true;
       allow read: if isAdmin();
     }
+
+    // --- Notification & Customer Engagement Rules ---
+    match /user_notifications/{notifId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all' || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, delete: if isAdmin();
+    }
+
+    match /user_notification_preferences/{userId} {
+      allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /notification_devices/{deviceId} {
+      allow read, write: if isSignedIn() || isAdmin();
+    }
+
+    match /notification_events/{eventId} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+
+    match /notification_templates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /notification_campaigns/{campaignId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /notificationLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /ab_tests/{testId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /ml_models/{modelId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

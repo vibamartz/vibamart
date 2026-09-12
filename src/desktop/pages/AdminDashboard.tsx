@@ -33,6 +33,8 @@ import AdminCancellationManagementView from '../components/AdminCancellationMana
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 import FeatureRegistryManagementView from '../components/FeatureRegistryManagementView';
 import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
+import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
+import { NotificationEngine } from '../../backend/services/notificationEngine';
 
 
 const STATS = [
@@ -459,6 +461,7 @@ export default function AdminDashboard() {
           <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
@@ -1011,9 +1014,10 @@ export default function AdminDashboard() {
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
           {activeTab === 'vendors' && <VendorsManagementView />}
+          {activeTab === 'notifications-engagement' && <AdminNotificationsManagementView />}
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />
@@ -2614,6 +2618,26 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
 
       await updateDoc(orderRef, updatePayload);
 
+      // Trigger Lifecycle Push & In-App Notification
+      try {
+        const updatedOrderObj = { ...order, ...updatePayload, id: orderId };
+        if (status === 'packed') {
+          await NotificationEngine.notifyOrderPacked(updatedOrderObj);
+        } else if (status === 'shipped') {
+          await NotificationEngine.notifyOrderShipped(updatedOrderObj, order.carrier, order.trackingId);
+        } else if (status === 'out_for_delivery') {
+          await NotificationEngine.notifyOutForDelivery(updatedOrderObj);
+        } else if (status === 'delivered') {
+          await NotificationEngine.notifyOrderDelivered(updatedOrderObj);
+        } else if (status === 'cancelled') {
+          await NotificationEngine.notifyOrderCancelled(updatedOrderObj, message || 'Order cancelled by administrator');
+        } else if (status === 'refunded') {
+          await NotificationEngine.notifyRefundProcessed(updatedOrderObj, order.total);
+        }
+      } catch (notifErr) {
+        console.warn('Failed to send status notification:', notifErr);
+      }
+
       await logAdminAction(AdminAction.SETTINGS_UPDATE, `Updated Order #${orderId} status to ${status}`, orderId, 'orders');
       toast.success(`Order ${status.replace('_', ' ')} successfully`);
 
@@ -2664,6 +2688,18 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
       }
 
       await updateDoc(orderRef, updateData);
+
+      if (shouldShip && targetOrder) {
+        try {
+          await NotificationEngine.notifyOrderShipped(
+            { ...targetOrder, ...updateData, id: orderId },
+            form.carrier,
+            form.trackingId
+          );
+        } catch (notifErr) {
+          console.warn('Failed to send shipping notification:', notifErr);
+        }
+      }
 
       await logAdminAction(AdminAction.SETTINGS_UPDATE, `Updated delivery/tracking info for Order #${orderId}`, orderId, 'orders');
       toast.success(shouldShip ? 'Tracking information updated and order shipped' : 'Expected delivery date updated');

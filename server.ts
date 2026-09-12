@@ -637,6 +637,208 @@ async function startServer() {
     }
   });
 
+  // ==========================================
+  // NOTIFICATION & ENGAGEMENT API ROUTES
+  // ==========================================
+
+  // Register Device Push Token
+  app.post("/api/notifications/devices/register", async (req, res) => {
+    try {
+      const { token, userId, platform, os, browser, appVersion, metadata } = req.body;
+      if (!token) {
+        return res.status(400).json({ success: false, error: "Device token is required" });
+      }
+
+      const db = admin.firestore();
+      const sanitizedToken = token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+      const docId = `${userId || 'anon'}_${sanitizedToken}`;
+
+      await db.collection("notification_devices").doc(docId).set({
+        token,
+        userId: userId || 'anonymous',
+        platform: platform || 'web',
+        os: os || 'unknown',
+        browser: browser || 'unknown',
+        appVersion: appVersion || '1.0.0',
+        isActive: true,
+        lastActiveAt: new Date().toISOString(),
+        metadata: metadata || {},
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      res.json({ success: true, message: "Device registered successfully" });
+    } catch (error: any) {
+      console.error("Device registration error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to register device" });
+    }
+  });
+
+  // Ingest Client Telemetry Event
+  app.post("/api/notifications/events", async (req, res) => {
+    try {
+      const { userId, eventType, category, channel, metadata, campaignId, templateId, notificationId } = req.body;
+      if (!eventType) {
+        return res.status(400).json({ success: false, error: "eventType is required" });
+      }
+
+      const db = admin.firestore();
+      const eventRecord = {
+        userId: userId || 'anonymous',
+        eventType,
+        category: category || 'general',
+        channel: channel || 'in_app',
+        metadata: metadata || {},
+        campaignId: campaignId || null,
+        templateId: templateId || null,
+        notificationId: notificationId || null,
+        timestamp: new Date().toISOString()
+      };
+
+      await db.collection("notification_events").add(eventRecord);
+      res.json({ success: true, message: "Event recorded" });
+    } catch (error: any) {
+      console.error("Notification event ingestion error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to ingest event" });
+    }
+  });
+
+  // Send Direct / Transactional Notification
+  app.post("/api/notifications/send", async (req, res) => {
+    try {
+      const {
+        userId,
+        title,
+        message,
+        category = 'system_alert',
+        channel = 'in_app',
+        priority = 'high',
+        actionUrl,
+        imageUrl,
+        orderId,
+        productId,
+        metadata = {}
+      } = req.body;
+
+      if (!title || !message) {
+        return res.status(400).json({ success: false, error: "Title and message are required" });
+      }
+
+      const db = admin.firestore();
+      const notificationDoc = {
+        userId: userId || 'all',
+        title,
+        message,
+        body: message,
+        category,
+        channel,
+        priority,
+        actionUrl: actionUrl || null,
+        imageUrl: imageUrl || null,
+        orderId: orderId || null,
+        productId: productId || null,
+        read: false,
+        isRead: false,
+        metadata,
+        createdAt: new Date().toISOString()
+      };
+
+      const docRef = await db.collection("user_notifications").add(notificationDoc);
+
+      // Audit log
+      await db.collection("notificationLogs").add({
+        notificationId: docRef.id,
+        recipientId: userId || 'all',
+        category,
+        channel,
+        title,
+        status: 'delivered',
+        dispatchedAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, notificationId: docRef.id });
+    } catch (error: any) {
+      console.error("Direct notification dispatch error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to send notification" });
+    }
+  });
+
+  // AI Copy Generator for Marketing Campaigns
+  app.post("/api/notifications/generate-copy", async (req, res) => {
+    try {
+      const { category, tone = 'enthusiastic', discount, productName, targetAudience } = req.body;
+
+      // Deterministic & creative template generation matrix
+      const copies: Record<string, { titles: string[], bodies: string[] }> = {
+        flash_sale: {
+          titles: [
+            `⚡ FLASH SALE: Save ${discount || '40%'} Right Now!`,
+            `🔥 Hurry! Unbeatable ${discount || 'Special'} Price Drops Inside`,
+            `⏰ 2 Hours Only: Grab Your Favorites Before They're Gone!`
+          ],
+          bodies: [
+            `Don't miss our biggest markdown today! Premium quality guaranteed with fast doorstep shipping.`,
+            `Exclusive flash deal reserved for you. Tap now to secure your basket before stock expires!`,
+            `Mega savings unlocked for a limited time. Shop the collection now on ViBa Mart!`
+          ]
+        },
+        price_drop: {
+          titles: [
+            `📉 Price Drop Alert on ${productName || 'Your Saved Item'}!`,
+            `🎉 Good News: Price Just Slashed for You!`,
+            `🏷️ Steal Deal: ${productName || 'Product'} is now at its Lowest Price`
+          ],
+          bodies: [
+            `We noticed you were checking out ${productName || 'this item'}. The price just dropped—grab it before it sells out!`,
+            `Your wishlist item is on sale! Complete your purchase now for instant dispatch.`,
+            `Special discount applied! Experience unmatched savings today on ViBa Mart.`
+          ]
+        },
+        back_in_stock: {
+          titles: [
+            `✨ Back in Stock: ${productName || 'Your Favorite Item'} is Here!`,
+            `📦 Fresh Stock Just Landed at ViBa Mart!`,
+            `🚀 Restocked & Ready to Ship to Your Door!`
+          ],
+          bodies: [
+            `The item you've been waiting for is officially back in stock. Units are limited, so place your order today!`,
+            `Restocked by popular demand! Tap to claim yours before warehouse inventory depletes.`,
+            `Good news! ${productName || 'Your saved product'} is available again. Shop now!`
+          ]
+        },
+        abandoned_cart: {
+          titles: [
+            `🛒 You left something special in your cart!`,
+            `⏳ Your basket is waiting! Complete your order today`,
+            `🎁 Extra perks waiting in your cart—finish checkout!`
+          ],
+          bodies: [
+            `Items in your cart are in high demand. Finish your checkout in 1-click for guaranteed delivery.`,
+            `Still thinking it over? We've reserved your items so you don't miss out!`,
+            `Your dream products are just a tap away. Complete checkout today on ViBa Mart!`
+          ]
+        }
+      };
+
+      const selectedCategoryCopies = copies[category] || copies.flash_sale;
+      const titleIndex = Math.floor(Math.random() * selectedCategoryCopies.titles.length);
+      const bodyIndex = Math.floor(Math.random() * selectedCategoryCopies.bodies.length);
+
+      res.json({
+        success: true,
+        generatedTitle: selectedCategoryCopies.titles[titleIndex],
+        generatedBody: selectedCategoryCopies.bodies[bodyIndex],
+        variants: [
+          { title: selectedCategoryCopies.titles[0], body: selectedCategoryCopies.bodies[0] },
+          { title: selectedCategoryCopies.titles[1], body: selectedCategoryCopies.bodies[1] },
+          { title: selectedCategoryCopies.titles[2], body: selectedCategoryCopies.bodies[2] }
+        ]
+      });
+    } catch (error: any) {
+      console.error("Generate copy error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to generate copy" });
+    }
+  });
+
   // Catch-all for undefined API routes to return 404 JSON instead of falling through to Vite (which may cause infinite proxy loops)
   app.all("/api/*", (req, res) => {
     res.status(404).json({ success: false, error: `API route not found: ${req.method} ${req.url}` });
