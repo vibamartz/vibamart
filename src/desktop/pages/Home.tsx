@@ -374,7 +374,7 @@ export default function Home() {
                   {cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
                     <Flame className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-rose-500'}`} />
                   ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
-                    <Lipstick className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-amber-500'}`} />
+                    <Lipstick className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-emerald-600'}`} />
                   ) : (
                     renderCategoryFallbackIcon(cat.name, cat.icon, `w-6 h-6 ${isActive ? 'text-primary' : 'text-emerald-600'}`)
                   )}
