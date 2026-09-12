@@ -808,9 +808,9 @@ export default function Rewards() {
                   <ShoppingBag className="w-4 h-4" /> Buy Now (₹{selectedCoupon.buyNowPrice})
                 </button>
 
-                {selectedCoupon.brandWebsiteUrl && (
+                {getValidBrandUrl(selectedCoupon.brandWebsiteUrl) && (
                   <a
-                    href={selectedCoupon.brandWebsiteUrl}
+                    href={getValidBrandUrl(selectedCoupon.brandWebsiteUrl)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1.5"

@@ -560,6 +560,17 @@ export default function MobileRewardsScreen() {
                 >
                   <ShoppingBag className="w-4 h-4" /> Buy Now (₹{selectedCoupon.buyNowPrice})
                 </button>
+
+                {getValidBrandUrl(selectedCoupon.brandWebsiteUrl) && (
+                  <a
+                    href={getValidBrandUrl(selectedCoupon.brandWebsiteUrl)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-3 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1 shrink-0"
+                  >
+                    Official <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                  </a>
+                )}
               </div>
             </motion.div>
           </div>

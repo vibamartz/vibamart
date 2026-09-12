@@ -13,7 +13,7 @@ export function getValidBrandUrl(url?: string): string | null {
       fullUrl = `https://${fullUrl}`;
     }
     const parsed = new URL(fullUrl);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname && (parsed.hostname.includes('.') || parsed.hostname === 'localhost')) {
       return parsed.href;
     }
   } catch (e) {

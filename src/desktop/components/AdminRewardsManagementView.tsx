@@ -814,7 +814,7 @@ export default function AdminRewardsManagementView() {
     setCouponForm({
       brandName: '',
       brandLogo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=150&h=150&fit=crop',
-      brandWebsiteUrl: 'https://',
+      brandWebsiteUrl: '',
       title: '',
       code: `REWARD-${Math.floor(1000 + Math.random() * 9000)}`,
       discountType: 'flat',
@@ -843,6 +843,7 @@ export default function AdminRewardsManagementView() {
     setEditingCoupon(coupon);
     setCouponForm({
       ...coupon,
+      brandWebsiteUrl: coupon.brandWebsiteUrl || '',
       validFrom: coupon.validFrom ? new Date(coupon.validFrom).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
       expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)
     });
@@ -897,9 +898,19 @@ export default function AdminRewardsManagementView() {
       return;
     }
 
+    // Validate Official Website Link (if entered)
+    const rawUrl = (couponForm.brandWebsiteUrl || '').trim();
+    let validatedUrl: string | null = null;
+    if (rawUrl && rawUrl !== 'https://' && rawUrl !== 'http://') {
+      validatedUrl = getValidBrandUrl(rawUrl);
+      if (!validatedUrl) {
+        toast.error('Please enter a valid Official Website URL (e.g. https://www.nike.com or nike.com)');
+        return;
+      }
+    }
+
     setSavingCoupon(true);
     try {
-      const validatedUrl = getValidBrandUrl(couponForm.brandWebsiteUrl);
       const existingSlugs = offers.map(o => o.slug || '').filter(Boolean);
       const generatedSlug = generateUniqueSlug(couponForm.title || couponForm.brandName || 'reward', existingSlugs, editingCoupon?.slug);
 
@@ -1330,6 +1341,27 @@ export default function AdminRewardsManagementView() {
                         </strong>
                       </div>
 
+                      {/* Official Link Badge */}
+                      <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl text-[11px]">
+                        <span className="text-gray-500 font-bold flex items-center gap-1">
+                          <LinkIcon className="w-3 h-3 text-amber-500" /> Official Link:
+                        </span>
+                        {getValidBrandUrl(coupon.brandWebsiteUrl) ? (
+                          <a
+                            href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-amber-600 hover:text-amber-700 font-bold max-w-[170px] truncate flex items-center gap-1 hover:underline"
+                            title={coupon.brandWebsiteUrl}
+                          >
+                            {coupon.brandWebsiteUrl?.replace(/^https?:\/\//i, '').replace(/\/$/, '')}
+                            <ExternalLink className="w-3 h-3 shrink-0 text-gray-400" />
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 italic text-[10px]">Not Configured</span>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-2 gap-2 text-[11px] bg-gray-50 p-2.5 rounded-xl text-gray-600 font-medium">
                         <div><span className="text-gray-400">Buy Price:</span> <strong className="text-amber-600 font-bold">₹{coupon.buyNowPrice}</strong></div>
                         <div><span className="text-gray-400">Stock:</span> <strong className="text-gray-900 font-bold">{coupon.remainingQuantity} / {coupon.totalQuantity}</strong></div>
@@ -1554,6 +1586,180 @@ export default function AdminRewardsManagementView() {
         </div>
       )}
 
+      {/* TAB 4: LIVE DEVICE PREVIEW */}
+      {activeTab === 'preview' && (
+        <div className="space-y-6 font-sans">
+          {/* Preview Controls Bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-amber-500" /> Customer Storefront Live Preview
+              </h2>
+              <p className="text-xs text-gray-500">
+                Interactive preview of the Rewards & Brand Coupons as seen by customers on Desktop & Mobile. Test the Official links and button actions.
+              </p>
+            </div>
+
+            {/* Device Switcher */}
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setPreviewDevice('desktop')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  previewDevice === 'desktop' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" /> Desktop View
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewDevice('mobile')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                  previewDevice === 'mobile' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" /> Mobile View
+              </button>
+            </div>
+          </div>
+
+          {/* Preview Canvas */}
+          {previewDevice === 'desktop' ? (
+            <div className="bg-gray-50 p-6 rounded-3xl border border-gray-200 space-y-6">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <div className="flex items-center gap-2 text-xs text-gray-500 font-bold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                  Showing active coupons ({offers.filter(o => o.active).length}) on Desktop Storefront
+                </div>
+                <span className="text-[11px] text-gray-400">Desktop Viewport (100% Scale)</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {offers.filter(o => o.active).map((coupon) => (
+                  <div
+                    key={coupon.id}
+                    className="bg-white rounded-3xl border border-amber-100 shadow-md overflow-hidden flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Image Header */}
+                      <div className="h-44 relative bg-gray-100 overflow-hidden">
+                        <img
+                          src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
+                          alt={coupon.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute left-4 bottom-3 flex items-center gap-2">
+                          <img
+                            src={coupon.brandLogo || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'}
+                            alt={coupon.brandName}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow bg-white"
+                          />
+                          <div>
+                            <span className="text-white font-black text-xs block">{coupon.brandName}</span>
+                            <span className="text-[10px] text-amber-300 font-bold uppercase">{coupon.category || 'Official Partner'}</span>
+                          </div>
+                        </div>
+                        <div className="absolute right-3 top-3">
+                          <span className="px-3 py-1 bg-amber-500 text-white font-black text-xs rounded-full shadow">
+                            {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-5 space-y-2">
+                        <h3 className="font-bold text-gray-900 text-sm line-clamp-1">{coupon.title}</h3>
+                        <p className="text-xs text-gray-500 line-clamp-2">{coupon.description || coupon.terms}</p>
+                      </div>
+                    </div>
+
+                    {/* Customer Action Buttons */}
+                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                      <div className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-default">
+                        <ShoppingBag className="w-4 h-4" /> Buy Coupon (₹{coupon.buyNowPrice})
+                      </div>
+                      {getValidBrandUrl(coupon.brandWebsiteUrl) && (
+                        <a
+                          href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0"
+                          title="Visit Official Brand Webpage"
+                        >
+                          Visit Official Brand <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center p-6 bg-slate-900 rounded-3xl">
+              <div className="w-full max-w-sm bg-gray-50 rounded-[2.5rem] border-4 border-slate-700 shadow-2xl p-4 overflow-hidden space-y-4">
+                <div className="text-center py-2 border-b border-gray-200">
+                  <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-2" />
+                  <span className="text-xs font-black text-gray-800">Customer Mobile Preview</span>
+                </div>
+
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                  {offers.filter(o => o.active).map((coupon) => (
+                    <div
+                      key={coupon.id}
+                      className="bg-white rounded-3xl border border-amber-100 shadow-sm overflow-hidden"
+                    >
+                      <div className="h-36 relative bg-gray-100 overflow-hidden">
+                        <img
+                          src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
+                          alt={coupon.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                        <div className="absolute left-3 bottom-2.5 flex items-center gap-2">
+                          <img
+                            src={coupon.brandLogo || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'}
+                            alt={coupon.brandName}
+                            className="w-8 h-8 rounded-full object-cover border-2 border-white bg-white"
+                          />
+                          <span className="text-white font-black text-xs">{coupon.brandName}</span>
+                        </div>
+                        <div className="absolute right-3 top-3">
+                          <span className="px-2.5 py-0.5 bg-amber-500 text-white font-black text-[11px] rounded-full shadow">
+                            {coupon.discountType === 'percent' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 space-y-1.5">
+                        <h4 className="font-bold text-gray-900 text-xs line-clamp-1">{coupon.title}</h4>
+                        <p className="text-[11px] text-gray-500 line-clamp-2">{coupon.description || coupon.terms}</p>
+                      </div>
+
+                      <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+                        <div className="flex-1 py-2 bg-amber-500 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1 cursor-default">
+                          <ShoppingBag className="w-3.5 h-3.5" /> Buy (₹{coupon.buyNowPrice})
+                        </div>
+                        {getValidBrandUrl(coupon.brandWebsiteUrl) && (
+                          <a
+                            href={getValidBrandUrl(coupon.brandWebsiteUrl)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1"
+                          >
+                            Official <ExternalLink className="w-3 h-3 text-gray-400" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* MODAL 1: ADD / EDIT COUPON PROMO ENGINE MODAL */}
       <AnimatePresence>
         {isCouponModalOpen && (
@@ -1618,6 +1824,44 @@ export default function AdminRewardsManagementView() {
                           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 outline-none font-bold"
                           placeholder="e.g. Puma, Nike, Apple"
                         />
+                      </div>
+
+                      {/* Official Website Link (Brand URL) */}
+                      <div className="col-span-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                            <LinkIcon className="w-3.5 h-3.5 text-amber-500" />
+                            Official Website Link (Brand URL)
+                          </label>
+                          {getValidBrandUrl(couponForm.brandWebsiteUrl) ? (
+                            <a
+                              href={getValidBrandUrl(couponForm.brandWebsiteUrl)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 hover:underline"
+                            >
+                              <CheckCircle2 className="w-3 h-3" /> Test Link <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : couponForm.brandWebsiteUrl?.trim() ? (
+                            <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Invalid URL format
+                            </span>
+                          ) : null}
+                        </div>
+                        <input
+                          type="text"
+                          value={couponForm.brandWebsiteUrl || ''}
+                          onChange={(e) => setCouponForm({ ...couponForm, brandWebsiteUrl: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-xl text-xs outline-none focus:ring-2 transition-all font-medium ${
+                            couponForm.brandWebsiteUrl?.trim() && !getValidBrandUrl(couponForm.brandWebsiteUrl)
+                              ? 'border-rose-300 bg-rose-50/50 text-rose-800 focus:ring-rose-400'
+                              : 'border-gray-200 bg-white focus:ring-amber-500'
+                          }`}
+                          placeholder="e.g. https://www.nike.com or nike.com"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">
+                          When a customer clicks the <strong>Official</strong> button on the reward card, they will be redirected to this website.
+                        </p>
                       </div>
 
                       {/* Unique Coupon Code & Generator */}
