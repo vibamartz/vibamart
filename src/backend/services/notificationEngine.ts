@@ -391,4 +391,96 @@ export class NotificationEngine {
       destinationSlug: `/cart`,
     });
   }
+
+  /**
+   * Broadcast Push Notification to All Users, Segment, or Specific User
+   */
+  public static async broadcastPushNotification(params: {
+    target: 'all' | 'segment' | 'user';
+    segmentUserIds?: string[];
+    targetUserId?: string;
+    category: NotificationCategory;
+    title: string;
+    message: string;
+    image?: string;
+    destinationSlug?: string;
+    ctaText?: string;
+    priority?: NotificationPriority;
+    campaignId?: string;
+    couponCode?: string;
+    bypassLimits?: boolean;
+  }): Promise<{ success: boolean; sentCount: number; message: string }> {
+    let sentCount = 0;
+
+    if (params.target === 'all') {
+      const res = await this.dispatchNotification({
+        userId: 'all',
+        category: params.category,
+        title: params.title,
+        message: params.message,
+        image: params.image,
+        destinationSlug: params.destinationSlug || '/',
+        ctaText: params.ctaText || 'View Details',
+        priority: params.priority || 'high',
+        campaignId: params.campaignId,
+        couponCode: params.couponCode,
+        bypassFrequencyLimits: true,
+        bypassQuietHours: params.bypassLimits ?? true,
+      });
+      if (res.success) {
+        return { success: true, sentCount: 1, message: 'Broadcast notification pushed to all active users successfully!' };
+      } else {
+        return { success: false, sentCount: 0, message: res.reason || 'Failed to dispatch broadcast' };
+      }
+    }
+
+    if (params.target === 'segment' && params.segmentUserIds && params.segmentUserIds.length > 0) {
+      for (const uid of params.segmentUserIds) {
+        const res = await this.dispatchNotification({
+          userId: uid,
+          category: params.category,
+          title: params.title,
+          message: params.message,
+          image: params.image,
+          destinationSlug: params.destinationSlug || '/',
+          ctaText: params.ctaText || 'View Details',
+          priority: params.priority || 'high',
+          campaignId: params.campaignId,
+          couponCode: params.couponCode,
+          bypassFrequencyLimits: params.bypassLimits ?? false,
+          bypassQuietHours: params.bypassLimits ?? false,
+        });
+        if (res.success) sentCount++;
+      }
+      return { 
+        success: sentCount > 0, 
+        sentCount, 
+        message: `Pushed notification to ${sentCount} user(s) in selected segment.` 
+      };
+    }
+
+    if (params.target === 'user' && params.targetUserId) {
+      const res = await this.dispatchNotification({
+        userId: params.targetUserId,
+        category: params.category,
+        title: params.title,
+        message: params.message,
+        image: params.image,
+        destinationSlug: params.destinationSlug || '/',
+        ctaText: params.ctaText || 'View Details',
+        priority: params.priority || 'high',
+        campaignId: params.campaignId,
+        couponCode: params.couponCode,
+        bypassFrequencyLimits: true,
+        bypassQuietHours: true,
+      });
+      if (res.success) {
+        return { success: true, sentCount: 1, message: 'Notification pushed to user successfully!' };
+      } else {
+        return { success: false, sentCount: 0, message: res.reason || 'Failed to dispatch to user' };
+      }
+    }
+
+    return { success: false, sentCount: 0, message: 'No valid target specified' };
+  }
 }

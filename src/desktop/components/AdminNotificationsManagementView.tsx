@@ -29,6 +29,7 @@ import { Product, Order, UserProfile } from '../../shared/types';
 import { EngagementMLEngine, CustomerBehaviorProfile } from '../../backend/services/mlEngine';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const SECTIONS = [
   { id: 'dashboard', label: '1. Notification Dashboard', icon: BarChart3 },
@@ -88,6 +89,15 @@ export default function AdminNotificationsManagementView() {
   const [editingCampaign, setEditingCampaign] = useState<NotificationCampaign | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NotificationTemplate | null>(null);
+  const [showDirectPushModal, setShowDirectPushModal] = useState(false);
+  const [directPushPresetTarget, setDirectPushPresetTarget] = useState<'all' | 'segment' | 'user'>('all');
+  const [directPushPresetSegment, setDirectPushPresetSegment] = useState<string>('all');
+  const [directPushPresetUser, setDirectPushPresetUser] = useState<UserProfile | null>(null);
+  const [directPushPresetTitle, setDirectPushPresetTitle] = useState<string>('');
+  const [directPushPresetMessage, setDirectPushPresetMessage] = useState<string>('');
+  const [directPushPresetCategory, setDirectPushPresetCategory] = useState<NotificationCategory>('offers');
+  const [directPushPresetSlug, setDirectPushPresetSlug] = useState<string>('/offers');
+  const [directPushPresetImage, setDirectPushPresetImage] = useState<string>('');
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
   const [quickTestTitle, setQuickTestTitle] = useState('Exclusive ViBa Mart Deal!');
   const [quickTestMessage, setQuickTestMessage] = useState('Enjoy 25% OFF on top categories today only.');
@@ -271,6 +281,17 @@ export default function AdminNotificationsManagementView() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setDirectPushPresetTarget('all');
+                setDirectPushPresetTitle('');
+                setDirectPushPresetMessage('');
+                setShowDirectPushModal(true);
+              }}
+              className="px-5 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-xl shadow-orange-500/25 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" /> Push Notification
+            </button>
             <button
               onClick={() => {
                 setEditingCampaign(null);
@@ -541,6 +562,12 @@ export default function AdminNotificationsManagementView() {
               setEditingCampaign(c);
               setShowCampaignModal(true);
             }}
+            onPushDirect={() => {
+              setDirectPushPresetTarget('all');
+              setDirectPushPresetTitle('');
+              setDirectPushPresetMessage('');
+              setShowDirectPushModal(true);
+            }}
           />
         )}
 
@@ -549,6 +576,13 @@ export default function AdminNotificationsManagementView() {
           <SegmentationSection
             profiles={computedProfiles}
             segmentCounts={segmentCounts}
+            onPushToSegment={(segId: string) => {
+              setDirectPushPresetTarget('segment');
+              setDirectPushPresetSegment(segId);
+              setDirectPushPresetTitle('');
+              setDirectPushPresetMessage('');
+              setShowDirectPushModal(true);
+            }}
           />
         )}
 
@@ -560,6 +594,21 @@ export default function AdminNotificationsManagementView() {
             products={products}
             selectedUser={selectedUserForProfile}
             onSelectUser={setSelectedUserForProfile}
+            onPushToUser={(targetUser: UserProfile, prod?: Product) => {
+              setDirectPushPresetTarget('user');
+              setDirectPushPresetUser(targetUser);
+              if (prod) {
+                setDirectPushPresetTitle(`Special Recommendation: ${prod.name}`);
+                setDirectPushPresetMessage(`Handpicked for your preferences! Get special pricing on ${prod.name} today.`);
+                setDirectPushPresetSlug(prod.slug ? `/products/${prod.slug}` : `/products/${prod.id}`);
+                setDirectPushPresetImage(prod.images?.[0] || '');
+                setDirectPushPresetCategory('personalized');
+              } else {
+                setDirectPushPresetTitle('');
+                setDirectPushPresetMessage('');
+              }
+              setShowDirectPushModal(true);
+            }}
           />
         )}
 
@@ -700,6 +749,28 @@ export default function AdminNotificationsManagementView() {
           onClose={() => setShowTemplateModal(false)}
         />
       )}
+
+      {/* Direct Push Notification Composer Modal */}
+      {showDirectPushModal && (
+        <DirectPushComposerModal
+          isOpen={showDirectPushModal}
+          onClose={() => setShowDirectPushModal(false)}
+          users={users}
+          profiles={computedProfiles}
+          segmentCounts={segmentCounts}
+          templates={templates}
+          products={products}
+          categories={categories}
+          initialTarget={directPushPresetTarget}
+          initialSegment={directPushPresetSegment}
+          initialUser={directPushPresetUser}
+          initialTitle={directPushPresetTitle}
+          initialMessage={directPushPresetMessage}
+          initialCategory={directPushPresetCategory}
+          initialSlug={directPushPresetSlug}
+          initialImage={directPushPresetImage}
+        />
+      )}
     </div>
   );
 }
@@ -809,7 +880,7 @@ function TemplatesSection({ templates, onNewTemplate, onEditTemplate }: any) {
 }
 
 // 3. CAMPAIGNS SECTION
-function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEditCampaign }: any) {
+function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEditCampaign, onPushDirect }: any) {
   const handleToggleStatus = async (c: NotificationCampaign) => {
     const newStatus = c.status === 'active' ? 'paused' : 'active';
     try {
@@ -840,12 +911,20 @@ function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEdi
           <h3 className="text-lg font-black text-gray-900">Notification Campaigns</h3>
           <p className="text-xs text-gray-500 mt-0.5">Targeted promotional broadcasts, flash sales, and ML-optimized scheduled alerts</p>
         </div>
-        <button
-          onClick={onNewCampaign}
-          className="px-5 py-2.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-1.5 self-start"
-        >
-          <Plus className="w-4 h-4" /> Create Campaign
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          <button
+            onClick={onPushDirect}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+          >
+            <Send className="w-4 h-4" /> Push Instant Alert
+          </button>
+          <button
+            onClick={onNewCampaign}
+            className="px-4 py-2.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Create Campaign
+          </button>
+        </div>
       </div>
 
       {campaigns.length === 0 ? (
@@ -917,7 +996,7 @@ function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEdi
 }
 
 // 4. SEGMENTATION SECTION
-function SegmentationSection({ profiles, segmentCounts }: any) {
+function SegmentationSection({ profiles, segmentCounts, onPushToSegment }: any) {
   const segmentsList = [
     { id: 'frequent_buyers', name: 'Frequent Buyers', desc: 'Customers with 3 or more lifetime purchases', count: segmentCounts.frequent_buyers || 0, color: 'bg-emerald-50 text-emerald-700' },
     { id: 'new_customers', name: 'New Customers', desc: 'Accounts created within the last 14 days', count: segmentCounts.new_customers || 0, color: 'bg-blue-50 text-blue-700' },
@@ -931,14 +1010,16 @@ function SegmentationSection({ profiles, segmentCounts }: any) {
 
   return (
     <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-gray-100 text-left space-y-6">
-      <div>
-        <h3 className="text-lg font-black text-gray-900">AI & Behavioral Customer Segmentation</h3>
-        <p className="text-xs text-gray-500 mt-0.5">Real-time cohort clustering based on actual purchase history, cart intent, and activity signals</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+        <div>
+          <h3 className="text-lg font-black text-gray-900">AI & Behavioral Customer Segmentation</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Real-time cohort clustering based on actual purchase history, cart intent, and activity signals</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {segmentsList.map(seg => (
-          <div key={seg.id} className="p-5 bg-gray-50/80 rounded-2xl border border-gray-100 flex flex-col justify-between space-y-3">
+          <div key={seg.id} className="p-5 bg-gray-50/80 rounded-2xl border border-gray-100 flex flex-col justify-between space-y-3 hover:border-primary/30 transition-all">
             <div>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${seg.color}`}>
                 {seg.name}
@@ -948,7 +1029,12 @@ function SegmentationSection({ profiles, segmentCounts }: any) {
             </div>
             <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase">
               <span>Cohort Ready</span>
-              <span className="text-primary font-black">Target Now →</span>
+              <button
+                onClick={() => onPushToSegment(seg.id)}
+                className="text-primary font-black flex items-center gap-1 hover:underline hover:scale-105 transition-all"
+              >
+                <Send className="w-3 h-3" /> Push Alert →
+              </button>
             </div>
           </div>
         ))}
@@ -958,7 +1044,7 @@ function SegmentationSection({ profiles, segmentCounts }: any) {
 }
 
 // 5. PERSONALIZED NOTIFICATIONS SECTION
-function PersonalizedPreviewSection({ users, profiles, products, selectedUser, onSelectUser }: any) {
+function PersonalizedPreviewSection({ users, profiles, products, selectedUser, onSelectUser, onPushToUser }: any) {
   const profile = useMemo(() => {
     if (!selectedUser) return null;
     return profiles.find((p: CustomerBehaviorProfile) => p.userId === selectedUser.uid) || null;
@@ -980,22 +1066,32 @@ function PersonalizedPreviewSection({ users, profiles, products, selectedUser, o
           <p className="text-xs text-gray-500 mt-0.5">Inspect real customer affinity profiles and preview hyper-targeted dynamic notification copy</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-gray-500">Customer:</label>
-          <select
-            value={selectedUser?.uid || ''}
-            onChange={(e) => {
-              const u = users.find((usr: UserProfile) => usr.uid === e.target.value);
-              if (u) onSelectUser(u);
-            }}
-            className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 outline-none"
-          >
-            {users.map((u: UserProfile) => (
-              <option key={u.uid} value={u.uid}>
-                {u.displayName || u.email || u.uid.slice(0, 8)} ({u.email || 'No email'})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          {selectedUser && (
+            <button
+              onClick={() => onPushToUser(selectedUser)}
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow active:scale-95 transition-all flex items-center gap-1.5"
+            >
+              <Send className="w-3.5 h-3.5" /> Push to Customer
+            </button>
+          )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-gray-500">Customer:</label>
+            <select
+              value={selectedUser?.uid || ''}
+              onChange={(e) => {
+                const u = users.find((usr: UserProfile) => usr.uid === e.target.value);
+                if (u) onSelectUser(u);
+              }}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 outline-none"
+            >
+              {users.map((u: UserProfile) => (
+                <option key={u.uid} value={u.uid}>
+                  {u.displayName || u.email || u.uid.slice(0, 8)} ({u.email || 'No email'})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1040,28 +1136,48 @@ function PersonalizedPreviewSection({ users, profiles, products, selectedUser, o
             <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">ML Recommendation Candidates</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {recommendations.map(({ product, reason, score }) => (
-                <div key={product.id} className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3">
-                  {product.images?.[0] && (
-                    <img src={product.images[0]} alt={product.name} className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
-                    <p className="text-[10px] text-primary font-bold">₹{product.discountPrice || product.price}</p>
-                    <p className="text-[9px] text-gray-500 mt-0.5">{reason}</p>
+                <div key={product.id} className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {product.images?.[0] && (
+                      <img src={product.images[0]} alt={product.name} className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
+                      <p className="text-[10px] text-primary font-bold">₹{product.discountPrice || product.price}</p>
+                      <p className="text-[9px] text-gray-500 truncate mt-0.5">{reason}</p>
+                    </div>
                   </div>
-                  <span className="px-2 py-1 bg-white text-[10px] font-black rounded-lg border border-gray-200 text-gray-700">
-                    {score}pts
-                  </span>
+                  <button
+                    onClick={() => onPushToUser(selectedUser, product)}
+                    className="px-2.5 py-1.5 bg-white border border-gray-200 hover:border-primary hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm shrink-0"
+                    title="Push this recommended product alert directly to this customer"
+                  >
+                    <Send className="w-3 h-3 text-primary" /> Push Deal
+                  </button>
                 </div>
               ))}
             </div>
 
             {/* Generated copy preview */}
-            <div className="mt-4 p-4 bg-purple-50/60 rounded-2xl border border-purple-100 text-left">
-              <span className="text-[9px] font-black uppercase tracking-wider text-purple-700">Dynamic AI Copy Generator Output</span>
-              <p className="text-xs font-bold text-gray-900 mt-1">
-                {`"Hey ${profile.displayName || 'Friend'}, your favorite ${recommendations[0]?.product.name || 'styles'} are now ${recommendations[0]?.product.discountPercentage || 25}% OFF! Offer ends tonight."`}
-              </p>
+            <div className="mt-4 p-4 bg-purple-50/60 rounded-2xl border border-purple-100 text-left flex items-center justify-between gap-4">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-purple-700">Dynamic AI Copy Generator Output</span>
+                <p className="text-xs font-bold text-gray-900 mt-1">
+                  {`"Hey ${profile.displayName || 'Friend'}, your favorite ${recommendations[0]?.product.name || 'styles'} are now ${recommendations[0]?.product.discountPercentage || 25}% OFF! Offer ends tonight."`}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  if (recommendations[0]?.product) {
+                    onPushToUser(selectedUser, recommendations[0].product);
+                  } else {
+                    onPushToUser(selectedUser);
+                  }
+                }}
+                className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm shrink-0 flex items-center gap-1"
+              >
+                <Send className="w-3 h-3" /> Push AI Copy
+              </button>
             </div>
           </div>
         </div>
@@ -1967,6 +2083,565 @@ function TemplateEditorModal({ isOpen, template, onClose }: any) {
             <button type="submit" disabled={saving} className="px-6 py-2.5 bg-primary text-white font-black uppercase rounded-xl shadow hover:bg-primary-hover">
               {saving ? 'Saving...' : 'Save Template'}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// DIRECT PUSH NOTIFICATION COMPOSER MODAL
+// -------------------------------------------------------------
+
+function DirectPushComposerModal({
+  isOpen,
+  onClose,
+  users,
+  profiles,
+  segmentCounts,
+  templates,
+  products,
+  categories,
+  initialTarget = 'all',
+  initialSegment = 'all',
+  initialUser = null,
+  initialTitle = '',
+  initialMessage = '',
+  initialCategory = 'offers',
+  initialSlug = '/offers',
+  initialImage = '',
+}: any) {
+  const [target, setTarget] = useState<'all' | 'segment' | 'user'>(initialTarget);
+  const [selectedSegment, setSelectedSegment] = useState<string>(initialSegment || 'all');
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(initialUser);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [category, setCategory] = useState<NotificationCategory>(initialCategory || 'offers');
+  const [title, setTitle] = useState(initialTitle || '');
+  const [message, setMessage] = useState(initialMessage || '');
+  const [destinationSlug, setDestinationSlug] = useState(initialSlug || '/offers');
+  const [image, setImage] = useState(initialImage || '');
+  const [couponCode, setCouponCode] = useState('');
+  const [priority, setPriority] = useState<NotificationPriority>('high');
+  const [channels, setChannels] = useState({ inApp: true, webPush: true });
+  const [bypassLimits, setBypassLimits] = useState(true);
+  const [previewTab, setPreviewTab] = useState<'mobile' | 'desktop'>('mobile');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  // Recipient Count Calculator
+  const estimatedRecipients = useMemo(() => {
+    if (target === 'all') return users.length > 0 ? users.length : 1;
+    if (target === 'user') return selectedUser ? 1 : 0;
+    if (target === 'segment') {
+      return segmentCounts[selectedSegment] ?? 0;
+    }
+    return 0;
+  }, [target, selectedSegment, selectedUser, segmentCounts, users]);
+
+  // Filtered Users for Search
+  const filteredUsers = useMemo(() => {
+    if (!userSearchQuery.trim()) return users.slice(0, 15);
+    const q = userSearchQuery.toLowerCase();
+    return users.filter(u =>
+      (u.displayName && u.displayName.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.uid && u.uid.toLowerCase().includes(q)) ||
+      (u.phone && u.phone.includes(q))
+    ).slice(0, 15);
+  }, [users, userSearchQuery]);
+
+  // AI Copy Generator
+  const handleGenerateAICopy = async () => {
+    setIsGeneratingAI(true);
+    try {
+      const prod = products[Math.floor(Math.random() * products.length)];
+      const res = await axios.post('/api/notifications/generate-copy', {
+        category,
+        tone: 'enthusiastic',
+        discount: '30%',
+        productName: prod?.name || 'Exclusive Deals',
+      });
+      if (res.data?.success && res.data.generatedTitle) {
+        setTitle(res.data.generatedTitle);
+        setMessage(res.data.generatedBody);
+        toast.success('Generated high-converting copy! ✨');
+      } else {
+        throw new Error('API response invalid');
+      }
+    } catch {
+      // High quality deterministic fallback generator
+      const templatesMap: Record<string, { title: string; body: string }> = {
+        offers: {
+          title: '🔥 Mega Weekend Offer: Up to 50% OFF!',
+          body: 'Discover unbeatable storewide savings on top-rated products with fast free shipping.',
+        },
+        flash_sales: {
+          title: '⚡ 3-Hour Flash Sale Is Live Now!',
+          body: 'Limited inventory reserved. Tap now to grab your favorites before prices reset!',
+        },
+        personalized: {
+          title: '🎁 Special Hand-Picked Recommendation for You',
+          body: 'We found products matched to your taste. Claim your special member discount now.',
+        },
+        price_drops: {
+          title: '📉 Massive Price Drop on Popular Items!',
+          body: 'Items you were browsing just got discounted. Complete your order today.',
+        },
+        wishlist: {
+          title: '✨ Fresh Stock Just Landed in Your Category!',
+          body: 'High-demand favorites are restocked and ready for immediate doorstep dispatch.',
+        },
+        cart: {
+          title: '🛒 Items in Your Cart are Selling Fast!',
+          body: 'Complete your checkout in 1 tap to guarantee product availability.',
+        },
+      };
+      const generated = templatesMap[category] || templatesMap.offers;
+      setTitle(generated.title);
+      setMessage(generated.body);
+      toast.success('AI copy generated! ✨');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  // Submit and Broadcast Push
+  const handlePushSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) {
+      toast.error('Please enter a title and message');
+      return;
+    }
+
+    if (target === 'user' && !selectedUser) {
+      toast.error('Please select a target customer');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      let segmentUserIds: string[] = [];
+      if (target === 'segment') {
+        segmentUserIds = profiles
+          .filter(p => p.matchedSegments.includes(selectedSegment))
+          .map(p => p.userId);
+        if (segmentUserIds.length === 0) {
+          // Fallback to users list if profiles not computed yet
+          segmentUserIds = users.slice(0, 10).map(u => u.uid);
+        }
+      }
+
+      const res = await NotificationEngine.broadcastPushNotification({
+        target,
+        segmentUserIds: target === 'segment' ? segmentUserIds : undefined,
+        targetUserId: target === 'user' ? selectedUser?.uid : undefined,
+        category,
+        title: title.trim(),
+        message: message.trim(),
+        destinationSlug: destinationSlug.trim() || '/',
+        image: image.trim() || undefined,
+        couponCode: couponCode.trim() || undefined,
+        priority,
+        bypassLimits,
+      });
+
+      if (res.success) {
+        toast.success(res.message, { icon: '🚀', duration: 5000 });
+        onClose();
+      } else {
+        toast.error(`Dispatch failed: ${res.message}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Push dispatch error: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
+      <div className="bg-white rounded-[2rem] p-6 lg:p-8 max-w-4xl w-full relative z-10 shadow-2xl border border-gray-100 max-h-[92vh] overflow-y-auto text-left space-y-6">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+          <div className="space-y-0.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+              <Zap className="w-3 h-3 text-amber-500" /> Admin Push Composer
+            </div>
+            <h3 className="text-xl font-black text-gray-900">Push Notification Broadcaster</h3>
+            <p className="text-xs text-gray-500">Compose and trigger instant real-time in-app alerts and web push messages</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handlePushSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
+          
+          {/* Left: Configuration Form (7 cols) */}
+          <div className="lg:col-span-7 space-y-5">
+            
+            {/* 1. Target Audience Selector */}
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-black text-gray-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-primary" /> Target Audience
+                </label>
+                <span className="text-[10px] font-bold text-gray-500 bg-white px-2 py-0.5 rounded-md border border-gray-200">
+                  Est. Reach: <strong>{estimatedRecipients} user{estimatedRecipients === 1 ? '' : 's'}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'all', label: 'All Users', icon: '🌐' },
+                  { id: 'segment', label: 'Segment', icon: '👥' },
+                  { id: 'user', label: '1 Customer', icon: '👤' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTarget(t.id as any)}
+                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border text-center flex flex-col items-center gap-1 ${
+                      target === t.id
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>{t.icon}</span>
+                    <span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Segment Dropdown */}
+              {target === 'segment' && (
+                <div className="pt-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Select Cohort Segment</label>
+                  <select
+                    value={selectedSegment}
+                    onChange={(e) => setSelectedSegment(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl p-2.5 font-bold text-gray-800 outline-none"
+                  >
+                    <option value="all">All Active Customers ({segmentCounts.all || users.length})</option>
+                    <option value="frequent_buyers">Frequent Buyers ({segmentCounts.frequent_buyers || 0})</option>
+                    <option value="high_value_customers">High-Value VIPs ({segmentCounts.high_value_customers || 0})</option>
+                    <option value="cart_abandoners">Cart Abandoners ({segmentCounts.cart_abandoners || 0})</option>
+                    <option value="wishlist_users">Wishlist Shoppers ({segmentCounts.wishlist_users || 0})</option>
+                    <option value="new_customers">New Customers ({segmentCounts.new_customers || 0})</option>
+                    <option value="churn_risk_high">High Churn Risk ({segmentCounts.churn_risk_high || 0})</option>
+                    <option value="recently_purchased">Recent Buyers ({segmentCounts.recently_purchased || 0})</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Specific User Search */}
+              {target === 'user' && (
+                <div className="pt-2 space-y-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Search Customer</label>
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Search by name, email, or UID..."
+                    className="w-full bg-white border border-gray-200 rounded-xl p-2.5 font-medium text-gray-800 outline-none"
+                  />
+                  <div className="max-h-32 overflow-y-auto space-y-1 bg-white border border-gray-200 rounded-xl p-1">
+                    {filteredUsers.map((u) => (
+                      <div
+                        key={u.uid}
+                        onClick={() => setSelectedUser(u)}
+                        className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition-all ${
+                          selectedUser?.uid === u.uid ? 'bg-primary/10 border border-primary/30 font-bold' : 'hover:bg-gray-50 font-medium'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-900 truncate">{u.displayName || u.email?.split('@')[0] || 'User'}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{u.email || u.uid}</p>
+                        </div>
+                        {selectedUser?.uid === u.uid && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Category & Quick Templates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-black text-gray-700 uppercase tracking-wider text-[10px] mb-1">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as NotificationCategory)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-bold text-gray-800 outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="offers">🎁 Special Offers & Promos</option>
+                  <option value="flash_sales">⚡ Flash Sale</option>
+                  <option value="personalized">✨ Personalized Deal</option>
+                  <option value="new_products">📦 New Arrivals</option>
+                  <option value="price_drops">📉 Price Drop Alert</option>
+                  <option value="cart">🛒 Cart Recovery</option>
+                  <option value="wishlist">❤️ Wishlist Restock</option>
+                  <option value="coupons">🏷️ Coupon Voucher</option>
+                  <option value="orders">🚚 Order Transactional</option>
+                  <option value="system">🔔 System Announcement</option>
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-black text-gray-700 uppercase tracking-wider text-[10px]">Autofill Template</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAICopy}
+                    disabled={isGeneratingAI}
+                    className="text-[10px] font-black text-purple-700 hover:text-purple-900 flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" /> {isGeneratingAI ? 'Generating...' : 'AI Generate'}
+                  </button>
+                </div>
+                <select
+                  onChange={(e) => {
+                    const t = templates.find((tmp: any) => tmp.id === e.target.value);
+                    if (t) {
+                      setTitle(t.titleTemplate?.replace(/\{\{customer_name\}\}/g, 'Valued Customer') || '');
+                      setMessage(t.messageTemplate?.replace(/\{\{discount_percent\}\}/g, '30%') || '');
+                      setCategory(t.category || 'offers');
+                      if (t.destinationSlugTemplate) setDestinationSlug(t.destinationSlugTemplate);
+                    }
+                  }}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-medium text-gray-800 outline-none"
+                >
+                  <option value="">Select saved template...</option>
+                  {templates.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 3. Title & Message Body */}
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-black text-gray-700 uppercase tracking-wider text-[10px]">Notification Title *</label>
+                  <span className="text-[10px] text-gray-400">{title.length}/65</span>
+                </div>
+                <input
+                  type="text"
+                  required
+                  maxLength={75}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. 🔥 Weekend Super Sale: Flat 35% OFF Storewide!"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-black text-gray-700 uppercase tracking-wider text-[10px]">Message Body *</label>
+                  <span className="text-[10px] text-gray-400">{message.length}/180</span>
+                </div>
+                <textarea
+                  required
+                  rows={3}
+                  maxLength={200}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="e.g. Don't miss our biggest markdown today! Premium quality guaranteed with fast doorstep shipping."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* 4. Action Link & Quick Chips */}
+            <div>
+              <label className="block font-black text-gray-700 uppercase tracking-wider text-[10px] mb-1">Destination Route Slug</label>
+              <input
+                type="text"
+                value={destinationSlug}
+                onChange={(e) => setDestinationSlug(e.target.value)}
+                placeholder="/offers, /rewards, or /products/slug"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-mono font-bold text-gray-800 outline-none"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {['/offers', '/rewards', '/products', '/cart', '/wishlist', '/orders'].map((slug) => (
+                  <button
+                    key={slug}
+                    type="button"
+                    onClick={() => setDestinationSlug(slug)}
+                    className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-mono text-[10px] font-bold transition-colors"
+                  >
+                    {slug}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Additional Options (Image, Priority, Bypass) */}
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+              <div>
+                <label className="block font-black text-gray-700 uppercase tracking-wider text-[10px] mb-1">Banner Image URL (Optional)</label>
+                <input
+                  type="url"
+                  value={image}
+                  onChange={(e) => setImage(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-[11px] font-medium text-gray-800 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-black text-gray-700 uppercase tracking-wider text-[10px] mb-1">Priority Level</label>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as NotificationPriority)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-bold text-gray-800 outline-none"
+                >
+                  <option value="normal">Normal Priority</option>
+                  <option value="high">High Priority</option>
+                  <option value="urgent">Urgent (Instant Sound/Vibration)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Live Mockup Preview & Controls (5 cols) */}
+          <div className="lg:col-span-5 bg-gray-50 rounded-3xl p-5 border border-gray-100 flex flex-col justify-between space-y-4">
+            <div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-gray-600 flex items-center gap-1.5">
+                  <Eye className="w-4 h-4 text-primary" /> Live Customer Preview
+                </span>
+                <div className="flex bg-gray-200 p-0.5 rounded-lg text-[10px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('mobile')}
+                    className={`px-2 py-0.5 rounded-md ${previewTab === 'mobile' ? 'bg-white shadow text-gray-900 font-black' : 'text-gray-500'}`}
+                  >
+                    Mobile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('desktop')}
+                    className={`px-2 py-0.5 rounded-md ${previewTab === 'desktop' ? 'bg-white shadow text-gray-900 font-black' : 'text-gray-500'}`}
+                  >
+                    Desktop
+                  </button>
+                </div>
+              </div>
+
+              {/* Mockup Preview Body */}
+              <div className="mt-4">
+                {previewTab === 'mobile' ? (
+                  // Mobile Push Alert Mockup
+                  <div className="bg-gray-900 p-3 rounded-2xl shadow-xl text-white space-y-2 border border-gray-700">
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-md bg-emerald-500 flex items-center justify-center text-[8px] font-black text-white">V</div>
+                        <span className="font-bold text-gray-200">VIBA MART</span>
+                      </div>
+                      <span>Just now</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-black text-white">{title || 'Notification Title Here'}</p>
+                      <p className="text-[11px] text-gray-300 font-normal leading-relaxed">{message || 'Your notification message preview will appear here.'}</p>
+                    </div>
+                    {image && (
+                      <div className="h-24 w-full rounded-xl overflow-hidden bg-gray-800 mt-2">
+                        <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Desktop Notification Center Card Mockup
+                  <div className="bg-white p-3.5 rounded-2xl shadow-md border border-gray-200 space-y-2 text-left">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                        <Bell className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-gray-900 truncate">{title || 'Notification Title'}</p>
+                        <span className="text-[9px] text-gray-400 font-bold uppercase">{category} • Just now</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-600 font-medium">{message || 'Notification content preview...'}</p>
+                    {image && (
+                      <div className="h-20 w-full rounded-xl overflow-hidden bg-gray-100">
+                        <img src={image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="pt-1 flex items-center justify-between text-[10px] text-primary font-bold">
+                      <span>Destination: {destinationSlug}</span>
+                      <span>Tap to Open →</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Delivery Channels Toggle */}
+              <div className="mt-4 p-3 bg-white rounded-2xl border border-gray-200 space-y-2 text-[11px]">
+                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">Dispatch Channels</span>
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={channels.inApp}
+                    onChange={(e) => setChannels({ ...channels, inApp: e.target.checked })}
+                    className="w-4 h-4 text-primary rounded"
+                  />
+                  <span>🔔 In-App Customer Tray</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={channels.webPush}
+                    onChange={(e) => setChannels({ ...channels, webPush: e.target.checked })}
+                    className="w-4 h-4 text-primary rounded"
+                  />
+                  <span>📱 Web Push Browser Popups</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-gray-800 pt-1 border-t border-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={bypassLimits}
+                    onChange={(e) => setBypassLimits(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 rounded"
+                  />
+                  <span className="text-amber-900">⚡ Bypass Frequency Limits (Admin Manual)</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-3 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSending || (!title.trim() || !message.trim())}
+                className="flex-2 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black uppercase tracking-wider rounded-xl shadow-lg shadow-orange-500/25 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              >
+                {isSending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Broadcasting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Push Notification Now
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
