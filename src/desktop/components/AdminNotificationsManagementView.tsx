@@ -27,7 +27,7 @@ import {
 } from '../../shared/types/notifications';
 import { Product, Order, UserProfile } from '../../shared/types';
 import { EngagementMLEngine, CustomerBehaviorProfile } from '../../backend/services/mlEngine';
-import { NotificationEngine } from '../../backend/services/notificationEngine';
+import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
@@ -1798,15 +1798,17 @@ function CampaignEditorModal({ isOpen, campaign, templates, products, categories
         updatedAt: new Date().toISOString(),
       };
 
+      const sanitized = sanitizeFirestoreData(payload);
+
       if (campaign?.id) {
-        await updateDoc(doc(db, 'notification_campaigns', campaign.id), payload);
+        await updateDoc(doc(db, 'notification_campaigns', campaign.id), sanitized);
         toast.success('Campaign updated');
       } else {
-        payload.createdAt = new Date().toISOString();
-        payload.sentCount = 0;
-        payload.clickCount = 0;
-        payload.attributedRevenue = 0;
-        await addDoc(collection(db, 'notification_campaigns'), payload);
+        sanitized.createdAt = new Date().toISOString();
+        sanitized.sentCount = 0;
+        sanitized.clickCount = 0;
+        sanitized.attributedRevenue = 0;
+        await addDoc(collection(db, 'notification_campaigns'), sanitized);
         toast.success('Campaign created and activated');
       }
       onClose();
@@ -1998,12 +2000,14 @@ function TemplateEditorModal({ isOpen, template, onClose }: any) {
         updatedAt: new Date().toISOString(),
       };
 
+      const sanitized = sanitizeFirestoreData(payload);
+
       if (template?.id) {
-        await updateDoc(doc(db, 'notification_templates', template.id), payload);
+        await updateDoc(doc(db, 'notification_templates', template.id), sanitized);
         toast.success('Template updated');
       } else {
-        payload.createdAt = new Date().toISOString();
-        await addDoc(collection(db, 'notification_templates'), payload);
+        sanitized.createdAt = new Date().toISOString();
+        await addDoc(collection(db, 'notification_templates'), sanitized);
         toast.success('Template created');
       }
       onClose();

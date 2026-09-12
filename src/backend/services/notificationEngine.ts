@@ -16,6 +16,24 @@ import { Order, Product } from '../../shared/types';
 // In-memory debounce buffer to prevent duplicate event spamming
 const recentEventsBuffer = new Set<string>();
 
+/**
+ * Strips all undefined fields recursively so Firestore never throws
+ * "Unsupported field value: undefined" errors.
+ */
+export function sanitizeFirestoreData<T extends Record<string, any>>(obj: T): T {
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+        result[key] = sanitizeFirestoreData(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
 export class NotificationEngine {
   /**
    * Track customer engagement event
@@ -57,7 +75,7 @@ export class NotificationEngine {
         timestamp: new Date().toISOString(),
       };
 
-      await addDoc(collection(db, 'notification_events'), record);
+      await addDoc(collection(db, 'notification_events'), sanitizeFirestoreData(record));
     } catch (err) {
       console.warn('Failed tracking notification event:', err);
     }
@@ -198,7 +216,7 @@ export class NotificationEngine {
         experimentVariant: params.experimentVariant,
       };
 
-      const docRef = await addDoc(collection(db, 'user_notifications'), notifData);
+      const docRef = await addDoc(collection(db, 'user_notifications'), sanitizeFirestoreData(notifData));
       const notificationId = docRef.id;
 
       // Step 4: Dispatch Web Push if supported and current user matches
@@ -227,7 +245,7 @@ export class NotificationEngine {
         experimentVariant: params.experimentVariant,
       };
 
-      await addDoc(collection(db, 'notificationLogs'), logRecord);
+      await addDoc(collection(db, 'notificationLogs'), sanitizeFirestoreData(logRecord));
 
       return { success: true, notificationId };
     } catch (err: any) {
