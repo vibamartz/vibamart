@@ -15,6 +15,7 @@ import { generateUniqueSlug, createSlug } from '../../shared/utilities/slug';
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { useAdminDateFilter } from './AdminDateFilterContext';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
@@ -547,6 +548,7 @@ function CouponCardProductImagesManager({ images = [], onChange, accentColor = '
 }
 
 export default function AdminRewardsManagementView() {
+  const { isDateInRange, dateRange, selectedPreset } = useAdminDateFilter();
   const {
     config,
     offers,
@@ -1010,6 +1012,7 @@ export default function AdminRewardsManagementView() {
 
   // Filtered Reward Orders
   const filteredOrders = rewardOrders.filter(o => {
+    if (!isDateInRange(o.createdAt)) return false;
     if (orderStatusFilter === 'pending') return o.paymentStatus === 'pending' || o.paymentStatus === 'submitted';
     if (orderStatusFilter === 'confirmed') return o.paymentStatus === 'confirmed';
     if (orderStatusFilter === 'used') return o.couponStatus === 'used';
@@ -1017,7 +1020,7 @@ export default function AdminRewardsManagementView() {
     return true;
   });
 
-  const pendingOrdersCount = rewardOrders.filter(o => o.paymentStatus === 'pending' || o.paymentStatus === 'submitted').length;
+  const pendingOrdersCount = filteredOrders.filter(o => o.paymentStatus === 'pending' || o.paymentStatus === 'submitted').length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
@@ -1028,7 +1031,14 @@ export default function AdminRewardsManagementView() {
             <Gift className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900">Rewards & Brand Coupons Management</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-gray-900">Rewards & Brand Coupons Management</h1>
+              {selectedPreset !== 'all' && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full">
+                  {dateRange.formattedRange}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500">Configure storewide rewards section, create brand coupons, set discounts, and verify customer payments.</p>
           </div>
         </div>

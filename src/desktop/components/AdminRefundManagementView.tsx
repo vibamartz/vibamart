@@ -4,6 +4,7 @@ import { Search, Eye, Clock, CreditCard, X } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import toast from 'react-hot-toast';
+import { useAdminDateFilter } from './AdminDateFilterContext';
 
 const safeFormatDate = (val: any): string => {
   if (!val) return 'N/A';
@@ -19,6 +20,7 @@ const safeFormatDate = (val: any): string => {
 };
 
 export default function AdminRefundManagementView() {
+  const { isDateInRange, dateRange, selectedPreset } = useAdminDateFilter();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected' | 'Processed'>('Pending');
@@ -85,6 +87,7 @@ export default function AdminRefundManagementView() {
   };
 
   const filteredRequests = requests.filter(r => {
+    if (!isDateInRange(r.createdAt)) return false;
     if (filter !== 'all' && r.status !== filter) return false;
     if (searchTerm) {
       return (
@@ -101,7 +104,14 @@ export default function AdminRefundManagementView() {
       <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Refund Requests</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Refund Requests</h3>
+              {selectedPreset !== 'all' && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-primary/10 text-primary rounded-full">
+                  {dateRange.formattedRange}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-500 font-medium">Review and manage manual refund requests</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">

@@ -28,6 +28,7 @@ import {
 import { Product, Order, UserProfile } from '../../shared/types';
 import { EngagementMLEngine, CustomerBehaviorProfile } from '../../backend/services/mlEngine';
 import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
+import { useAdminDateFilter } from './AdminDateFilterContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
@@ -57,6 +58,7 @@ const SECTIONS = [
 export default function AdminNotificationsManagementView() {
   const { user } = useAuthStore();
   const { categories } = useCategoryStore();
+  const { isDateInRange, dateRange, selectedPreset } = useAdminDateFilter();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -181,14 +183,17 @@ export default function AdminNotificationsManagementView() {
 
   // Compute live performance metrics
   const stats = useMemo(() => {
-    const totalSent = notifications.length;
-    const opened = notifications.filter(n => n.read || n.openedAt).length;
-    const clicked = notifications.filter(n => n.clickedAt).length;
-    const converted = notifications.filter(n => n.convertedAt).length;
+    const filteredNotifs = notifications.filter(n => isDateInRange(n.createdAt));
+    const filteredCamps = campaigns.filter(c => isDateInRange(c.createdAt || c.scheduledFor));
+
+    const totalSent = filteredNotifs.length;
+    const opened = filteredNotifs.filter(n => n.read || n.openedAt).length;
+    const clicked = filteredNotifs.filter(n => n.clickedAt).length;
+    const converted = filteredNotifs.filter(n => n.convertedAt).length;
     const openRate = totalSent > 0 ? Math.round((opened / totalSent) * 100) : 0;
     const ctr = totalSent > 0 ? Math.round((clicked / totalSent) * 100) : 0;
     const conversionRate = totalSent > 0 ? Math.round((converted / totalSent) * 100) : 0;
-    const attributedRevenue = campaigns.reduce((sum, c) => sum + (c.attributedRevenue || 0), 0);
+    const attributedRevenue = filteredCamps.reduce((sum, c) => sum + (c.attributedRevenue || 0), 0);
 
     return {
       totalSent,
@@ -199,9 +204,9 @@ export default function AdminNotificationsManagementView() {
       ctr,
       conversionRate,
       attributedRevenue,
-      activeCampaigns: campaigns.filter(c => c.status === 'active').length,
+      activeCampaigns: filteredCamps.filter(c => c.status === 'active').length,
     };
-  }, [notifications, campaigns]);
+  }, [notifications, campaigns, isDateInRange]);
 
   // Compute live customer segments
   const computedProfiles = useMemo(() => {

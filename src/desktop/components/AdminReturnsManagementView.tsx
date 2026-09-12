@@ -5,6 +5,7 @@ import { Eye, X, Clock, CreditCard, Box, Image as ImageIcon, Search } from 'luci
 import toast from 'react-hot-toast';
 import { db, auth } from '../../backend/firebase/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAdminDateFilter } from './AdminDateFilterContext';
 
 const safeFormatDate = (val: any): string => {
   if (!val) return 'N/A';
@@ -26,6 +27,7 @@ export default function AdminReturnsManagementView({
   returns: ReturnRequest[],
   onUpdateStatus?: (id: string, status: string, adminNotes: string) => Promise<void>
 }) {
+  const { isDateInRange, dateRange, selectedPreset } = useAdminDateFilter();
   const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
   const [orderCache, setOrderCache] = useState<Record<string, Order>>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +60,7 @@ export default function AdminReturnsManagementView({
   }, [returns]);
 
   const filteredReturns = returns.filter(r => {
+    if (!isDateInRange(r.createdAt)) return false;
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
     const matchSearch = 
       r.id.toLowerCase().includes(searchTerm.toLowerCase()) || 

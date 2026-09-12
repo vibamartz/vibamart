@@ -6,6 +6,7 @@ import { FileText, Download, Eye, RefreshCw, Search, CheckCircle2, DollarSign, C
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import toast from 'react-hot-toast';
+import { useAdminDateFilter } from './AdminDateFilterContext';
 
 interface AdminInvoicesViewProps {
   orders: Order[];
@@ -13,14 +14,15 @@ interface AdminInvoicesViewProps {
 }
 
 export default function AdminInvoicesView({ orders, loading }: AdminInvoicesViewProps) {
+  const { isDateInRange, dateRange, selectedPreset } = useAdminDateFilter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
-  // Filter delivered orders or orders with invoiceNumber
+  // Filter delivered orders or orders with invoiceNumber within date range
   const deliveredOrders = orders.filter(
-    (o) => o.status === 'delivered' || !!o.invoiceNumber
+    (o) => (o.status === 'delivered' || !!o.invoiceNumber) && isDateInRange(o.invoiceDate || o.createdAt)
   );
 
   const filteredInvoices = deliveredOrders.filter((order) => {
@@ -71,7 +73,14 @@ export default function AdminInvoicesView({ orders, loading }: AdminInvoicesView
               <FileText className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight">Tax Invoices Management</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-gray-900 tracking-tight">Tax Invoices Management</h2>
+                {selectedPreset !== 'all' && (
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-primary/10 text-primary rounded-full">
+                    {dateRange.formattedRange}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500 font-medium mt-0.5">
                 View, download, and manage tax invoices for all delivered orders.
               </p>

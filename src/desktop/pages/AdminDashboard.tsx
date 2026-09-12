@@ -35,6 +35,8 @@ import FeatureRegistryManagementView from '../components/FeatureRegistryManageme
 import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
 import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
+import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
+import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
 
 
 const STATS = [
@@ -85,8 +87,9 @@ function getDisplayOrderId(id: string | null | undefined): string {
   return id.startsWith('VBM') ? id : id.slice(-8).toUpperCase();
 }
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const { user } = useAuthStore();
+  const { isDateInRange, dateRange, selectedPreset, setPreset, resetFilter } = useAdminDateFilter();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -116,63 +119,209 @@ export default function AdminDashboard() {
     return new Date(val);
   }, []);
 
+  // Filter orders and returns based on the globally active date range
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => isDateInRange(o.createdAt));
+  }, [orders, isDateInRange]);
+
+  const filteredReturns = useMemo(() => {
+    return returns.filter(r => isDateInRange(r.createdAt));
+  }, [returns, isDateInRange]);
+
   const dynamicStats = useMemo(() => {
+    const totalDeliveredRevenue = filteredOrders.reduce((sum, o) => sum + (o.status === 'delivered' ? (o.total || 0) : 0), 0);
+    const pendingCount = filteredOrders.filter(o => o.status === 'pending').length;
+    const pendingReturnsCount = filteredReturns.filter(r => r.status?.toLowerCase() === 'pending').length;
+    const uniqueCustomers = Array.from(new Set(filteredOrders.map(o => o.customerId).filter(Boolean))).length;
+
     return [
       { 
         label: 'Total Revenue', 
-        value: `₹${orders.reduce((sum, o) => sum + (o.status === 'delivered' ? (o.total || 0) : 0), 0).toLocaleString()}`, 
-        change: '+12%', 
+        value: `₹${totalDeliveredRevenue.toLocaleString()}`, 
+        change: selectedPreset !== 'all' ? dateRange.label : '+12%', 
         icon: TrendingUp, 
         color: 'text-emerald-500', 
         bg: 'bg-emerald-50' 
       },
       { 
         label: 'Total Orders', 
-        value: orders.length.toString(), 
-        change: `+${orders.filter(o => {
-          const orderDate = safeNewDate(o.createdAt);
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          return orderDate > sevenDaysAgo;
-        }).length} new`, 
+        value: filteredOrders.length.toString(), 
+        change: `${filteredOrders.length} in period`, 
         icon: ShoppingBag, 
         color: 'text-blue-500', 
         bg: 'bg-blue-50' 
       },
       { 
         label: 'Pending Orders', 
-        value: orders.filter(o => o.status === 'pending').length.toString(), 
-        change: 'Awaiting', 
+        value: pendingCount.toString(), 
+        change: pendingCount > 0 ? 'Awaiting' : 'All Clear', 
         icon: AlertTriangle, 
         color: 'text-amber-500', 
         bg: 'bg-amber-50' 
       },
       { 
         label: 'Return Requests', 
-        value: returns.filter(r => r.status?.toLowerCase() === 'pending').length.toString(), 
-        change: 'Active', 
+        value: pendingReturnsCount.toString(), 
+        change: pendingReturnsCount > 0 ? 'Active' : 'Zero', 
         icon: TrendingUp, 
         color: 'text-rose-500', 
         bg: 'bg-rose-50' 
       },
       { 
         label: 'Total Customers', 
-        value: Array.from(new Set(orders.map(o => o.customerId))).length.toString(), 
-        change: '+10%', 
+        value: (uniqueCustomers || (filteredOrders.length > 0 ? filteredOrders.length : 0)).toString(), 
+        change: 'Active in period', 
         icon: Users, 
         color: 'text-indigo-500', 
         bg: 'bg-indigo-50' 
       },
       { 
         label: 'Total Returns', 
-        value: returns.length.toString(), 
+        value: filteredReturns.length.toString(), 
         change: 'Total', 
         icon: Info, 
         color: 'text-purple-500', 
         bg: 'bg-purple-50' 
       },
     ];
-  }, [orders, returns, safeNewDate]);
+  }, [filteredOrders, filteredReturns, selectedPreset, dateRange]);
+
+  // Dynamically compute real sales data points for Revenue Chart
+  const dynamicSalesChartData = useMemo(() => {
+    if (filteredOrders.length === 0) {
+      if (selectedPreset === 'today') {
+        return [
+          { label: '00:00 - 06:00', sales: 0 },
+          { label: '06:00 - 12:00', sales: 0 },
+          { label: '12:00 - 18:00', sales: 0 },
+          { label: '18:00 - 24:00', sales: 0 },
+        ];
+      }
+      if (selectedPreset === 'last-7-days') {
+        const days: { label: string; sales: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          days.push({
+            label: d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' }),
+            sales: 0
+          });
+        }
+        return days;
+      }
+      return [
+        { label: 'Week 1', sales: 0 },
+        { label: 'Week 2', sales: 0 },
+        { label: 'Week 3', sales: 0 },
+        { label: 'Week 4', sales: 0 },
+      ];
+    }
+
+    const buckets: Record<string, number> = {};
+
+    if (selectedPreset === 'today') {
+      const slots = ['00-06', '06-12', '12-18', '18-24'];
+      slots.forEach(s => { buckets[s] = 0; });
+
+      filteredOrders.forEach(o => {
+        const d = safeNewDate(o.createdAt);
+        const h = d.getHours();
+        const slotKey = h < 6 ? '00-06' : h < 12 ? '06-12' : h < 18 ? '12-18' : '18-24';
+        buckets[slotKey] = (buckets[slotKey] || 0) + (o.status === 'delivered' || o.total ? (o.total || 0) : 0);
+      });
+
+      return Object.entries(buckets).map(([slot, sales]) => ({
+        label: `${slot}:00`,
+        sales
+      }));
+    }
+
+    if (selectedPreset === 'last-7-days' || selectedPreset === 'last-30-days') {
+      const numDays = selectedPreset === 'last-7-days' ? 7 : 30;
+      for (let i = numDays - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        buckets[key] = 0;
+      }
+
+      filteredOrders.forEach(o => {
+        const d = safeNewDate(o.createdAt);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        if (buckets[key] !== undefined) {
+          buckets[key] += (o.total || 0);
+        } else {
+          buckets[key] = (o.total || 0);
+        }
+      });
+
+      return Object.entries(buckets).map(([label, sales]) => ({
+        label,
+        sales
+      }));
+    }
+
+    // Last 6 months / This year / Custom / All
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    filteredOrders.forEach(o => {
+      const d = safeNewDate(o.createdAt);
+      const m = monthNames[d.getMonth()];
+      buckets[m] = (buckets[m] || 0) + (o.total || 0);
+    });
+
+    if (Object.keys(buckets).length === 0) {
+      return SALES_DATA;
+    }
+
+    return Object.entries(buckets).map(([label, sales]) => ({
+      label,
+      sales
+    }));
+  }, [filteredOrders, selectedPreset, safeNewDate]);
+
+  // Dynamically compute customer insights data
+  const dynamicCustomerInsightsData = useMemo(() => {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayBuckets: Record<string, { new: number; returning: number }> = {
+      Mon: { new: 0, returning: 0 },
+      Tue: { new: 0, returning: 0 },
+      Wed: { new: 0, returning: 0 },
+      Thu: { new: 0, returning: 0 },
+      Fri: { new: 0, returning: 0 },
+      Sat: { new: 0, returning: 0 },
+      Sun: { new: 0, returning: 0 },
+    };
+
+    const customerOrderCounts: Record<string, number> = {};
+    orders.forEach(o => {
+      if (o.customerId) {
+        customerOrderCounts[o.customerId] = (customerOrderCounts[o.customerId] || 0) + 1;
+      }
+    });
+
+    filteredOrders.forEach(o => {
+      const d = safeNewDate(o.createdAt);
+      const day = dayNames[d.getDay()];
+      if (!dayBuckets[day]) dayBuckets[day] = { new: 0, returning: 0 };
+      const count = customerOrderCounts[o.customerId || ''] || 1;
+      if (count > 1) {
+        dayBuckets[day].returning += 1;
+      } else {
+        dayBuckets[day].new += 1;
+      }
+    });
+
+    const hasData = Object.values(dayBuckets).some(b => b.new > 0 || b.returning > 0);
+    if (!hasData) {
+      return CUSTOMER_INSIGHTS_DATA;
+    }
+
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(name => ({
+      name,
+      new: dayBuckets[name]?.new || 0,
+      returning: dayBuckets[name]?.returning || 0
+    }));
+  }, [filteredOrders, orders, safeNewDate]);
 
 
 
@@ -490,16 +639,19 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 lg:px-8 shrink-0 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button onClick={() => setShowMobileSidebar(true)} className="lg:hidden p-2 touch-target -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[120px] sm:max-w-xs">{activeTab.replace('-', ' ')}</h1>
+            <h1 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[90px] sm:max-w-xs">{activeTab.replace('-', ' ')}</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block">
-              <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-4 py-2 pl-10 text-sm w-64 focus:ring-2 focus:ring-primary/20" />
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {/* Global Admin Date Range Filter */}
+            <AdminDateRangeFilter />
+
+            <div className="relative hidden md:block">
+              <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-4 py-2 pl-10 text-sm w-48 lg:w-64 focus:ring-2 focus:ring-primary/20" />
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             </div>
 
@@ -628,30 +780,29 @@ export default function AdminDashboard() {
                   {/* Revenue Chart */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-bold">Revenue Overview</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Revenue Overview</h3>
+                        <p className="text-xs text-gray-400 font-medium">Delivered sales performance for {dateRange.label}</p>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-gray-400" />
-                        <select className="bg-gray-50 border-none text-xs font-bold rounded-lg px-3 py-2 outline-none text-gray-600">
-                          <option>Last 7 Days</option>
-                          <option>Last 30 Days</option>
-                          <option>Last 6 Months</option>
-                          <option>This Year</option>
-                        </select>
+                        <span className="text-xs font-bold text-primary bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10">
+                          {dateRange.formattedRange}
+                        </span>
                       </div>
                     </div>
                     <div className="h-[300px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={SALES_DATA}>
+                        <AreaChart data={dynamicSalesChartData}>
                           <defs>
                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#1e40af" stopOpacity={0.1} />
+                              <stop offset="5%" stopColor="#1e40af" stopOpacity={0.15} />
                               <stop offset="95%" stopColor="#1e40af" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                          <Tooltip formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, 'Revenue']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                           <Area type="monotone" dataKey="sales" stroke="#1e40af" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -661,11 +812,14 @@ export default function AdminDashboard() {
                   {/* Customer Insights Chart */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-bold">Customer Insights</h3>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Customer Insights</h3>
+                        <p className="text-xs text-gray-400 font-medium">New vs Returning customers in {dateRange.label}</p>
+                      </div>
                     </div>
                     <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={CUSTOMER_INSIGHTS_DATA}>
+                        <BarChart data={dynamicCustomerInsightsData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
@@ -689,7 +843,7 @@ export default function AdminDashboard() {
                         Notification Center
                       </h3>
                       <span className="bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
-                        {orders.filter(o => o.status === 'pending').length} New
+                        {filteredOrders.filter(o => o.status === 'pending').length} New
                       </span>
                     </div>
                     
@@ -697,11 +851,11 @@ export default function AdminDashboard() {
                     <div className="flex gap-1 overflow-x-auto pb-2 mb-4 shrink-0 border-b border-gray-100 scrollbar-none">
               {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
                         const counts: Record<string, number> = {
-                          alerts: orders.slice(0, 5).length,
-                          pending: orders.filter(o => o.status === 'pending').length,
-                          confirmed: orders.filter(o => o.status === 'confirmed').length,
-                          cancelled: orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length,
-                          returns: returns.filter(r => r.status?.toLowerCase() === 'pending').length
+                          alerts: filteredOrders.slice(0, 5).length,
+                          pending: filteredOrders.filter(o => o.status === 'pending').length,
+                          confirmed: filteredOrders.filter(o => o.status === 'confirmed').length,
+                          cancelled: filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length,
+                          returns: filteredReturns.filter(r => r.status?.toLowerCase() === 'pending').length
                         };
                         return (
                           <button
@@ -722,10 +876,10 @@ export default function AdminDashboard() {
                     {/* Tab Content */}
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
                       {notificationTab === 'alerts' && (
-                        orders.slice(0, 5).length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No recent order alerts</p>
+                        filteredOrders.slice(0, 5).length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No order alerts in selected period</p>
                         ) : (
-                          orders.slice(0, 5).map(order => (
+                          filteredOrders.slice(0, 5).map(order => (
                             <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-2 text-left relative group">
                               <div className="flex justify-between items-start">
                                 <span className="text-[11px] font-black text-gray-900 flex items-center gap-1.5 leading-tight">
@@ -759,10 +913,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'pending' && (
-                        orders.filter(o => o.status === 'pending').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No pending orders</p>
+                        filteredOrders.filter(o => o.status === 'pending').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No pending orders in selected period</p>
                         ) : (
-                          orders.filter(o => o.status === 'pending').map(order => (
+                          filteredOrders.filter(o => o.status === 'pending').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
@@ -787,10 +941,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'confirmed' && (
-                        orders.filter(o => o.status === 'confirmed').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No confirmed orders</p>
+                        filteredOrders.filter(o => o.status === 'confirmed').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No confirmed orders in selected period</p>
                         ) : (
-                          orders.filter(o => o.status === 'confirmed').map(order => (
+                          filteredOrders.filter(o => o.status === 'confirmed').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
@@ -815,10 +969,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'cancelled' && (
-                        orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No cancelled orders</p>
+                        filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No cancelled orders in selected period</p>
                         ) : (
-                          orders.filter(o => o.status === 'cancelled' || o.status === 'refunded').map(order => (
+                          filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').map(order => (
                             <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-xs font-black text-gray-750">#{getDisplayOrderId(order.id)}</p>
@@ -842,10 +996,10 @@ export default function AdminDashboard() {
                       )}
 
                       {notificationTab === 'returns' && (
-                        returns.filter(r => r.status?.toLowerCase() === 'pending').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No return requests</p>
+                        filteredReturns.filter(r => r.status?.toLowerCase() === 'pending').length === 0 ? (
+                          <p className="text-xs text-gray-400 italic py-6 text-center">No return requests in selected period</p>
                         ) : (
-                          returns.filter(r => r.status?.toLowerCase() === 'pending').map(ret => (
+                          filteredReturns.filter(r => r.status?.toLowerCase() === 'pending').map(ret => (
                             <div key={ret.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
                               <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Return Request</p>
@@ -904,7 +1058,12 @@ export default function AdminDashboard() {
               {/* Recent Orders Table */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-lg font-bold">Recent Orders</h3>
+                  <div>
+                    <h3 className="text-lg font-bold">Recent Orders</h3>
+                    {selectedPreset !== 'all' && (
+                      <span className="text-[10px] font-bold text-gray-400">Showing {filteredOrders.length} orders for {dateRange.formattedRange}</span>
+                    )}
+                  </div>
                   <button onClick={() => setActiveTab('orders')} className="text-sm font-bold text-primary hover:underline">View All</button>
                 </div>
                 <div className="overflow-x-auto">
@@ -920,10 +1079,10 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {orders.length === 0 ? (
-                        <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-450 font-bold uppercase tracking-wider">No orders placed yet</td></tr>
+                      {filteredOrders.length === 0 ? (
+                        <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-450 font-bold uppercase tracking-wider">No orders found for the selected period</td></tr>
                       ) : (
-                        orders.slice(0, 5).map(o => (
+                        filteredOrders.slice(0, 5).map(o => (
                           <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4 text-sm font-bold text-gray-705">#{getDisplayOrderId(o.id)}</td>
                             <td className="px-6 py-4 text-sm font-medium text-gray-900">{o.contactName || 'Guest'}</td>
@@ -971,19 +1130,19 @@ export default function AdminDashboard() {
               selectedOrder={selectedOrder} 
               setSelectedOrder={setSelectedOrder} 
               setActiveTab={setActiveTab} 
-              orders={orders} 
+              orders={filteredOrders} 
               loading={loadingOrders} 
             />
           )}
           {activeTab === 'invoices' && (
-            <AdminInvoicesView orders={orders} loading={loadingOrders} />
+            <AdminInvoicesView orders={filteredOrders} loading={loadingOrders} />
           )}
           {activeTab === 'order-details' && selectedOrder && <AdminOrderDetailsView order={selectedOrder} onBack={() => setActiveTab('orders')} />}
           {activeTab === 'cancellations' && <AdminCancellationManagementView />}
           {activeTab === 'refunds' && <AdminRefundManagementView />}
           {activeTab === 'returns' && (
             <AdminReturnsManagementView 
-              returns={returns}
+              returns={filteredReturns}
               onUpdateStatus={async (id, status, adminNotes) => {
                 const idToken = await auth.currentUser?.getIdToken();
                 const res = await fetch('/api/requests/update-status', {
@@ -1132,7 +1291,7 @@ function ActionButton({ icon: Icon, label, color, onClick }: { icon: any, label:
 }
 
 function ReportsView({ type }: { type: 'sales' | 'payment' }) {
-  const [dateRange, setDateRange] = useState('7d');
+  const { isDateInRange, selectedPreset, setPreset, dateRange, resetFilter } = useAdminDateFilter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1152,58 +1311,89 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     return () => unsubscribe();
   }, []);
 
+  // Filter orders by active date range
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => isDateInRange(o.createdAt));
+  }, [orders, isDateInRange]);
+
   // Aggregate real orders by date for salesData
-  const salesMap: Record<string, { date: string; amount: number; orders: number; items: number }> = {};
-  
-  orders.forEach(order => {
-    if (!order.createdAt) return;
-    const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  const salesData = useMemo(() => {
+    const salesMap: Record<string, { date: string; amount: number; orders: number; items: number }> = {};
+    
+    filteredOrders.forEach(order => {
+      if (!order.createdAt) return;
+      const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      
+      const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      
+      if (salesMap[dateStr]) {
+        salesMap[dateStr].amount += order.total || 0;
+        salesMap[dateStr].orders += 1;
+        salesMap[dateStr].items += itemsCount;
+      } else {
+        salesMap[dateStr] = {
+          date: dateStr,
+          amount: order.total || 0,
+          orders: 1,
+          items: itemsCount
+        };
+      }
     });
-    
-    const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-    
-    if (salesMap[dateStr]) {
-      salesMap[dateStr].amount += order.total || 0;
-      salesMap[dateStr].orders += 1;
-      salesMap[dateStr].items += itemsCount;
-    } else {
-      salesMap[dateStr] = {
-        date: dateStr,
-        amount: order.total || 0,
-        orders: 1,
-        items: itemsCount
+
+    return Object.values(salesMap);
+  }, [filteredOrders]);
+
+  const paymentData = useMemo(() => {
+    return filteredOrders.map(order => {
+      const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) : 'N/A';
+
+      return {
+        id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
+        customer: order.contactName || order.contactEmail || 'Guest Customer',
+        method: order.paymentMethod ? (order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.toUpperCase()) : 'Unknown',
+        status: order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'failed' ? 'failed' : 'pending',
+        amount: `₹${(order.total || 0).toLocaleString()}`,
+        date: formattedDate
       };
-    }
-  });
+    });
+  }, [filteredOrders]);
 
-  const salesData = Object.values(salesMap);
+  const totalVolume = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [filteredOrders]);
 
-  const paymentData = orders.map(order => {
-    const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : 'N/A';
+  const totalPaid = useMemo(() => {
+    return filteredOrders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [filteredOrders]);
 
-    return {
-      id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
-      customer: order.contactName || order.contactEmail || 'Guest Customer',
-      method: order.paymentMethod ? (order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.toUpperCase()) : 'Unknown',
-      status: order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'failed' ? 'failed' : 'pending',
-      amount: `₹${(order.total || 0).toLocaleString()}`,
-      date: formattedDate
-    };
-  });
+  const avgBasketSize = useMemo(() => {
+    return filteredOrders.length > 0 ? Math.round(totalVolume / filteredOrders.length) : 0;
+  }, [filteredOrders, totalVolume]);
+
+  const successRate = useMemo(() => {
+    if (filteredOrders.length === 0) return '0%';
+    const paidCount = filteredOrders.filter(o => o.paymentStatus === 'paid').length;
+    return `${Math.round((paidCount / filteredOrders.length) * 100)}%`;
+  }, [filteredOrders]);
+
+  const pendingApprovals = useMemo(() => {
+    return filteredOrders.filter(o => o.paymentStatus === 'pending' || o.status === 'pending').length;
+  }, [filteredOrders]);
 
   const exportToCSV = () => {
     const data = type === 'sales' ? salesData : paymentData;
     if (data.length === 0) {
-      toast.error('No transactions available to export');
+      toast.error('No transactions available to export for this period');
       return;
     }
     const headers = Object.keys(data[0]).join(',');
@@ -1212,14 +1402,14 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${type}_report_${dateRange}.csv`);
+    link.setAttribute("download", `${type}_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     logAdminAction(
       AdminAction.EXPORT_REPORT,
-      `Exported ${type} report for ${dateRange} period.`
+      `Exported ${type} report for ${dateRange.label} (${dateRange.formattedRange}).`
     );
   };
 
@@ -1231,14 +1421,22 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">{type === 'sales' ? 'Sales Analytics Report' : 'Payment Transaction Report'}</h2>
-          <p className="text-sm text-gray-500">Detailed breakdown of {type} metrics</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">{type === 'sales' ? 'Sales Analytics Report' : 'Payment Transaction Report'}</h2>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+              {dateRange.label} ({dateRange.formattedRange})
+            </span>
+          </div>
+          <p className="text-sm text-gray-500">Detailed breakdown of {type} metrics for the selected period</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex bg-gray-50 p-1 rounded-xl">
-            <FilterBtn active={dateRange === '7d'} onClick={() => setDateRange('7d')}>7 Days</FilterBtn>
-            <FilterBtn active={dateRange === '30d'} onClick={() => setDateRange('30d')}>30 Days</FilterBtn>
-            <FilterBtn active={dateRange === '90d'} onClick={() => setDateRange('90d')}>90 Days</FilterBtn>
+            <FilterBtn active={selectedPreset === 'today'} onClick={() => setPreset('today')}>Today</FilterBtn>
+            <FilterBtn active={selectedPreset === 'last-7-days'} onClick={() => setPreset('last-7-days')}>7 Days</FilterBtn>
+            <FilterBtn active={selectedPreset === 'last-30-days'} onClick={() => setPreset('last-30-days')}>30 Days</FilterBtn>
+            <FilterBtn active={selectedPreset === 'last-6-months'} onClick={() => setPreset('last-6-months')}>6 Months</FilterBtn>
+            <FilterBtn active={selectedPreset === 'this-year'} onClick={() => setPreset('this-year')}>This Year</FilterBtn>
+            <FilterBtn active={selectedPreset === 'all'} onClick={resetFilter}>All</FilterBtn>
           </div>
           <button
             onClick={exportToCSV}
@@ -1251,14 +1449,32 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ReportStat label={type === 'sales' ? 'Total Volume' : 'Net Payments'} value={type === 'sales' ? '₹0' : '₹0'} icon={TrendingUp} color="text-blue-500" />
-        <ReportStat label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'} value={type === 'sales' ? '₹0' : '0%'} icon={PieChart} color="text-primary" />
-        <ReportStat label={type === 'sales' ? 'New Customers' : 'Pending Approvals'} value={type === 'sales' ? '0' : '₹0'} icon={Users} color="text-blue-500" />
+        <ReportStat 
+          label={type === 'sales' ? 'Total Volume' : 'Net Payments'} 
+          value={type === 'sales' ? `₹${totalVolume.toLocaleString()}` : `₹${totalPaid.toLocaleString()}`} 
+          icon={TrendingUp} 
+          color="text-blue-500" 
+        />
+        <ReportStat 
+          label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'} 
+          value={type === 'sales' ? `₹${avgBasketSize.toLocaleString()}` : successRate} 
+          icon={PieChart} 
+          color="text-primary" 
+        />
+        <ReportStat 
+          label={type === 'sales' ? 'Total Transactions' : 'Pending Approvals'} 
+          value={type === 'sales' ? filteredOrders.length.toString() : pendingApprovals.toString()} 
+          icon={Users} 
+          color="text-blue-500" 
+        />
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-bold">Detailed Data View</h3>
+          <span className="text-xs font-bold text-gray-400">
+            {type === 'sales' ? `${salesData.length} active date groups` : `${paymentData.length} records`}
+          </span>
         </div>
         <div className="overflow-x-auto">
           {type === 'sales' ? (
@@ -1269,7 +1485,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                   <th className="px-6 py-4">Revenue</th>
                   <th className="px-6 py-4">Orders</th>
                   <th className="px-6 py-4">Items Sold</th>
-                  <th className="px-6 py-4">Growth</th>
+                  <th className="px-6 py-4">Avg / Order</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1279,16 +1495,16 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                   </tr>
                 ) : salesData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded yet.</td>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded in this date range.</td>
                   </tr>
                 ) : (
                   salesData.map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium">{row.date}</td>
-                      <td className="px-6 py-4 text-sm font-bold">₹{row.amount.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm">{row.orders}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{row.amount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm font-semibold">{row.orders}</td>
                       <td className="px-6 py-4 text-sm">{row.items}</td>
-                      <td className="px-6 py-4 text-xs font-bold text-blue-500">+{Math.floor(Math.random() * 10)}%</td>
+                      <td className="px-6 py-4 text-xs font-bold text-emerald-600">₹{Math.round(row.amount / (row.orders || 1)).toLocaleString()}</td>
                     </tr>
                   ))
                 )}
@@ -1313,7 +1529,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                   </tr>
                 ) : paymentData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400 font-medium">No payment transactions recorded yet.</td>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400 font-medium">No payment transactions recorded in this date range.</td>
                   </tr>
                 ) : (
                   paymentData.map((row, i) => (
@@ -1351,7 +1567,7 @@ function FilterBtn({ children, active, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
     >
       {children}
     </button>
@@ -1371,6 +1587,7 @@ function ReportStat({ label, value, icon: Icon, color }: any) {
 }
 
 function ActivityLogsView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [activeSubTab, setActiveSubTab] = useState<'admin' | 'notifications'>('admin');
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
   const [notificationLogs, setNotificationLogs] = useState<any[]>([]);
@@ -1381,7 +1598,7 @@ function ActivityLogsView() {
     const q = query(
       collection(db, 'adminLogs'),
       orderBy('timestamp', 'desc'),
-      limit(50)
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1403,7 +1620,7 @@ function ActivityLogsView() {
     const q = query(
       collection(db, 'notificationLogs'),
       orderBy('timestamp', 'desc'),
-      limit(50)
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1421,15 +1638,35 @@ function ActivityLogsView() {
     return () => unsubscribe();
   }, []);
 
+  const filteredAdminLogs = useMemo(() => {
+    return adminLogs.filter(log => isDateInRange(log.timestamp));
+  }, [adminLogs, isDateInRange]);
+
+  const filteredNotificationLogs = useMemo(() => {
+    return notificationLogs.filter(log => isDateInRange(log.timestamp));
+  }, [notificationLogs, isDateInRange]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-6"
     >
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900">System Logs</h2>
-        <p className="text-sm text-gray-500">Real-time audit trails and system notifications logs</p>
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">System Logs</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Real-time audit trails and system notifications logs</p>
+        </div>
+        <div className="text-xs font-bold text-gray-400">
+          Showing {activeSubTab === 'admin' ? filteredAdminLogs.length : filteredNotificationLogs.length} events
+        </div>
       </div>
 
       {/* Sub-tab Toggle */}
@@ -1442,7 +1679,7 @@ function ActivityLogsView() {
               : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
           }`}
         >
-          Admin Activity Logs
+          Admin Activity Logs ({filteredAdminLogs.length})
         </button>
         <button
           onClick={() => setActiveSubTab('notifications')}
@@ -1452,7 +1689,7 @@ function ActivityLogsView() {
               : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
           }`}
         >
-          Notification Logs
+          Notification Logs ({filteredNotificationLogs.length})
         </button>
       </div>
 
@@ -1473,20 +1710,20 @@ function ActivityLogsView() {
                   <tr>
                     <td colSpan={4} className="px-6 py-10 text-center text-gray-500">Loading logs...</td>
                   </tr>
-                ) : adminLogs.length === 0 ? (
+                ) : filteredAdminLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No activity logs found.</td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No activity logs found for the selected date range.</td>
                   </tr>
                 ) : (
-                  adminLogs.map((log) => (
+                  filteredAdminLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : 'Just now'}
+                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : (log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Just now')}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-gray-900">{log.adminEmail}</span>
-                          <span className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {log.adminId.slice(0, 8)}...</span>
+                          <span className="text-[10px] text-gray-400 uppercase tracking-tight">ID: {log.adminId?.slice(0, 8) || 'N/A'}...</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1508,7 +1745,6 @@ function ActivityLogsView() {
                 <tr>
                   <th className="px-6 py-4">Timestamp</th>
                   <th className="px-6 py-4">Order ID</th>
-
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Error Detail</th>
                 </tr>
@@ -1516,14 +1752,14 @@ function ActivityLogsView() {
               <tbody className="divide-y divide-gray-100">
                 {loadingNotif ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">Loading notification logs...</td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">Loading notification logs...</td>
                   </tr>
-                ) : notificationLogs.length === 0 ? (
+                ) : filteredNotificationLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500">No notification logs found.</td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No notification logs found for the selected date range.</td>
                   </tr>
                 ) : (
-                  notificationLogs.map((log) => (
+                  filteredNotificationLogs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-xs text-gray-500">
                         {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Just now'}
@@ -1531,7 +1767,6 @@ function ActivityLogsView() {
                       <td className="px-6 py-4 text-xs font-bold text-gray-900">
                         #{getDisplayOrderId(log.orderId) || 'N/A'}
                       </td>
-
                       <td className="px-6 py-4">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
                           log.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
@@ -1596,6 +1831,7 @@ function OrderRow({ id, customer, date, amount, status }: any) {
 
 function UserManagementView() {
   const { user: currentUser } = useAuthStore();
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com';
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1610,7 +1846,7 @@ function UserManagementView() {
     let q = query(
       collection(db, 'users'),
       orderBy('createdAt', 'desc'),
-      limit(50)
+      limit(100)
     );
 
     if (roleFilter !== 'all') {
@@ -1618,7 +1854,7 @@ function UserManagementView() {
         collection(db, 'users'),
         where('role', '==', roleFilter),
         orderBy('createdAt', 'desc'),
-        limit(50)
+        limit(100)
       );
     }
 
@@ -1632,6 +1868,10 @@ function UserManagementView() {
 
     return () => unsubscribe();
   }, [roleFilter]);
+
+  const filteredUsersList = useMemo(() => {
+    return usersList.filter(u => isDateInRange(u.createdAt));
+  }, [usersList, isDateInRange]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1689,13 +1929,20 @@ function UserManagementView() {
     >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">User Management</h2>
-          <p className="text-sm text-gray-500">Display and manage system users and their roles</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">User Management</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Display and manage system users and their roles ({filteredUsersList.length} found)</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {searchEmail && (
             <span className="text-xs font-bold text-primary bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/10">
-              Found {usersList.length} results for "{searchEmail}"
+              Found {filteredUsersList.length} results for "{searchEmail}"
             </span>
           )}
           <div className="flex bg-gray-50 p-1 rounded-xl">
@@ -1795,12 +2042,12 @@ function UserManagementView() {
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center text-gray-500">Loading users...</td>
                 </tr>
-              ) : usersList.length === 0 ? (
+              ) : filteredUsersList.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No users found.</td>
+                  <td colSpan={4} className="px-6 py-10 text-center text-gray-500">No users found for the selected date range.</td>
                 </tr>
               ) : (
-                usersList.map((user) => (
+                filteredUsersList.map((user) => (
                   <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -3160,6 +3407,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
 }
 
 function CustomersManagementView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [customers, setCustomers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<UserProfile | null>(null);
@@ -3176,15 +3424,26 @@ function CustomersManagementView() {
     return () => unsubscribe();
   }, []);
 
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(c => isDateInRange(c.createdAt));
+  }, [customers, isDateInRange]);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center">
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Customers Directory</h2>
-          <p className="text-sm text-gray-500">View and manage your registered customer base</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">Customers Directory</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">View and manage your registered customer base ({filteredCustomers.length} in selected range)</p>
         </div>
         <div className="bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
-          <span className="text-xs font-black text-primary uppercase tracking-widest">{customers.length} Total Customers</span>
+          <span className="text-xs font-black text-primary uppercase tracking-widest">{filteredCustomers.length} Total Customers</span>
         </div>
       </div>
 
@@ -3203,9 +3462,9 @@ function CustomersManagementView() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">Loading customers...</td></tr>
-              ) : customers.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">No customers found.</td></tr>
-              ) : customers.map(customer => (
+              ) : filteredCustomers.length === 0 ? (
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">No customers registered in the selected period.</td></tr>
+              ) : filteredCustomers.map(customer => (
                 <tr key={customer.uid} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -3276,6 +3535,7 @@ function CustomersManagementView() {
 }
 
 function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onClose: () => void }) {
+  const { isDateInRange } = useAdminDateFilter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -3294,7 +3554,11 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
     fetchOrders();
   }, [customer.uid]);
 
-  const totalSpent = orders.reduce((sum, order) => sum + (order.paymentStatus === 'paid' ? order.total : 0), 0);
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => isDateInRange(o.createdAt));
+  }, [orders, isDateInRange]);
+
+  const totalSpent = filteredOrders.reduce((sum, order) => sum + (order.paymentStatus === 'paid' ? order.total : 0), 0);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -3319,7 +3583,7 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
           <div className="grid grid-cols-3 gap-6">
             <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Orders</p>
-              <p className="text-2xl font-black text-gray-900">{orders.length}</p>
+              <p className="text-2xl font-black text-gray-900">{filteredOrders.length}</p>
             </div>
             <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Spent</p>
@@ -3362,9 +3626,9 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
             <div className="space-y-3">
               {loading ? (
                 <p className="text-sm text-gray-400 italic">Loading history...</p>
-              ) : orders.length === 0 ? (
-                <p className="text-sm text-gray-400 italic text-center py-10 bg-gray-50 rounded-3xl">No historical transactions detected.</p>
-              ) : orders.map(order => (
+              ) : filteredOrders.length === 0 ? (
+                <p className="text-sm text-gray-400 italic text-center py-10 bg-gray-50 rounded-3xl">No historical transactions detected for selected date range.</p>
+              ) : filteredOrders.map(order => (
                 <div key={order.id} className="flex justify-between items-center p-5 bg-gray-50 rounded-[2rem] border border-gray-100 group hover:bg-white hover:shadow-xl transition-all duration-500">
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-black text-gray-900 tracking-tight">#{getDisplayOrderId(order.id)}</span>
@@ -3393,6 +3657,279 @@ function CustomerDetailModal({ customer, onClose }: { customer: UserProfile, onC
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function AnalyticsView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
+  const [searchLogs, setSearchLogs] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'searchAnalytics'), orderBy('timestamp', 'desc'), limit(100));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setSearchLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(200));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(200));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setUsers(snapshot.docs.map(doc => doc.data() as UserProfile));
+    });
+    return () => unsub();
+  }, []);
+
+  const filteredSearchLogs = useMemo(() => {
+    return searchLogs.filter(log => isDateInRange(log.timestamp));
+  }, [searchLogs, isDateInRange]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => isDateInRange(o.createdAt));
+  }, [orders, isDateInRange]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => isDateInRange(u.createdAt));
+  }, [users, isDateInRange]);
+
+  // Dynamically compute Revenue vs Orders chart data
+  const revenueVsOrdersData = useMemo(() => {
+    if (selectedPreset === 'today') {
+      const slots = ['00-06', '06-12', '12-18', '18-24'];
+      const map: Record<string, { revenue: number; orders: number }> = {};
+      slots.forEach(s => { map[s] = { revenue: 0, orders: 0 }; });
+
+      filteredOrders.forEach(o => {
+        const d = new Date(o.createdAt);
+        const h = d.getHours();
+        const slotKey = h < 6 ? '00-06' : h < 12 ? '06-12' : h < 18 ? '12-18' : '18-24';
+        map[slotKey].revenue += (o.total || 0);
+        map[slotKey].orders += 1;
+      });
+
+      return slots.map(s => ({
+        name: `${s}:00`,
+        revenue: map[s].revenue,
+        orders: map[s].orders
+      }));
+    }
+
+    if (selectedPreset === 'last-7-days' || selectedPreset === 'last-30-days') {
+      const count = selectedPreset === 'last-7-days' ? 7 : 14;
+      const days: { name: string; revenue: number; orders: number }[] = [];
+      const map: Record<string, { revenue: number; orders: number }> = {};
+
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        map[key] = { revenue: 0, orders: 0 };
+        days.push({ name: key, revenue: 0, orders: 0 });
+      }
+
+      filteredOrders.forEach(o => {
+        const d = new Date(o.createdAt);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        if (map[key]) {
+          map[key].revenue += (o.total || 0);
+          map[key].orders += 1;
+        }
+      });
+
+      return days.map(d => ({
+        name: d.name,
+        revenue: map[d.name]?.revenue || 0,
+        orders: map[d.name]?.orders || 0
+      }));
+    }
+
+    // Default months
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const map: Record<string, { revenue: number; orders: number }> = {};
+    months.forEach(m => { map[m] = { revenue: 0, orders: 0 }; });
+
+    filteredOrders.forEach(o => {
+      const d = new Date(o.createdAt);
+      const m = months[d.getMonth()];
+      map[m].revenue += (o.total || 0);
+      map[m].orders += 1;
+    });
+
+    const activeMonths = months.filter(m => map[m].revenue > 0 || map[m].orders > 0);
+    const displayList = activeMonths.length > 0 ? activeMonths : months.slice(0, 6);
+
+    return displayList.map(m => ({
+      name: m,
+      revenue: map[m]?.revenue || 0,
+      orders: map[m]?.orders || 0
+    }));
+  }, [filteredOrders, selectedPreset]);
+
+  // Dynamically compute User Acquisition chart data
+  const userAcquisitionData = useMemo(() => {
+    if (selectedPreset === 'last-7-days' || selectedPreset === 'last-30-days') {
+      const count = selectedPreset === 'last-7-days' ? 7 : 14;
+      const days: { name: string; users: number }[] = [];
+      const map: Record<string, number> = {};
+
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        map[key] = 0;
+        days.push({ name: key, users: 0 });
+      }
+
+      filteredUsers.forEach(u => {
+        const d = new Date(u.createdAt);
+        const key = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        if (map[key] !== undefined) {
+          map[key] += 1;
+        }
+      });
+
+      return days.map(d => ({
+        name: d.name,
+        users: map[d.name] || 0
+      }));
+    }
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const map: Record<string, number> = {};
+    months.forEach(m => { map[m] = 0; });
+
+    filteredUsers.forEach(u => {
+      const d = new Date(u.createdAt);
+      const m = months[d.getMonth()];
+      map[m] = (map[m] || 0) + 1;
+    });
+
+    const activeMonths = months.filter(m => map[m] > 0);
+    const displayList = activeMonths.length > 0 ? activeMonths : months.slice(0, 6);
+
+    return displayList.map(m => ({
+      name: m,
+      users: map[m] || 0
+    }));
+  }, [filteredUsers, selectedPreset]);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">Advanced Analytics</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Deep dive into store performance, search traffic, and customer acquisition</p>
+        </div>
+      </div>
+
+      {/* Search Analytics Card */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 text-primary rounded-xl">
+              <Search className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">Search Analytics</h3>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Recent customer searches in period</p>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-primary bg-primary/5 px-3 py-1 rounded-lg">
+            {filteredSearchLogs.length} Searches
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 text-left">
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Query</th>
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Type</th>
+                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredSearchLogs.length > 0 ? filteredSearchLogs.map(log => (
+                <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-4 font-medium text-gray-700">{log.query}</td>
+                  <td className="py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${
+                      log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
+                      log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
+                      'bg-blue-100 text-blue-600'
+                    }`}>
+                      {log.type}
+                    </span>
+                  </td>
+                  <td className="py-4 text-sm text-gray-500">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-gray-400 text-sm">No search data recorded for the selected period</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-800">Revenue vs Orders</h3>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{selectedPreset !== 'all' ? dateRange.label : 'Overall'}</span>
+          </div>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueVsOrdersData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <Tooltip />
+                <Bar dataKey="revenue" fill="#1e40af" radius={[4, 4, 0, 0]} name="Revenue (₹)" />
+                <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Orders" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-800">User Acquisition</h3>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{filteredUsers.length} New Users</span>
+          </div>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={userAcquisitionData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="users" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2 }} name="Users Registered" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -3513,108 +4050,6 @@ function SettingsView() {
         >
           Save Configuration
         </button>
-      </div>
-    </motion.div>
-  );
-}
-
-function AnalyticsView() {
-  const data: any[] = [];
-  const [searchLogs, setSearchLogs] = useState<any[]>([]);
-
-  useEffect(() => {
-    const q = query(collection(db, 'searchAnalytics'), orderBy('timestamp', 'desc'), limit(50));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setSearchLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsub();
-  }, []);
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900">Advanced Analytics</h2>
-        <p className="text-sm text-gray-500">Deep dive into store performance and user behavior</p>
-      </div>
-
-      {/* Search Analytics Card */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-primary/10 text-primary rounded-xl">
-            <Search className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-800">Search Analytics</h3>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Recent customer searches</p>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 text-left">
-                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Query</th>
-                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Type</th>
-                <th className="py-4 text-[10px] font-black uppercase text-gray-400 tracking-widest">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {searchLogs.length > 0 ? searchLogs.map(log => (
-                <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="py-4 font-medium text-gray-700">{log.query}</td>
-                  <td className="py-4">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${
-                      log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
-                      log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
-                      'bg-blue-100 text-blue-600'
-                    }`}>
-                      {log.type}
-                    </span>
-                  </td>
-                  <td className="py-4 text-sm text-gray-500">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={3} className="py-8 text-center text-gray-400 text-sm">No search data yet</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-lg font-bold mb-6 text-gray-800">Revenue vs Orders</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#1e40af" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h3 className="text-lg font-bold mb-6 text-gray-800">User Acquisition</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="users" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
       </div>
     </motion.div>
   );
@@ -6016,6 +6451,7 @@ function AddBannerModal({ banner, onClose }: { banner: Banner | null, onClose: (
 }
 
 function CouponsManagementView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -6032,6 +6468,10 @@ function CouponsManagementView() {
     return () => unsubscribe();
   }, []);
 
+  const filteredCoupons = useMemo(() => {
+    return coupons.filter(c => isDateInRange(c.createdAt || c.expiry));
+  }, [coupons, isDateInRange]);
+
   const deleteCoupon = async (code: string) => {
     try {
       await deleteDoc(doc(db, 'coupons', code));
@@ -6043,10 +6483,17 @@ function CouponsManagementView() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Promo Engine</h2>
-          <p className="text-sm text-gray-500">Generate discount codes and incentives</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">Promo Engine</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Generate discount codes and incentives ({filteredCoupons.length} coupons)</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -6060,9 +6507,9 @@ function CouponsManagementView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
           <div className="col-span-full py-20 text-center text-gray-400">Loading coupons...</div>
-        ) : coupons.length === 0 ? (
-          <div className="col-span-full py-20 text-center text-gray-400">No active coupons. Create one to start!</div>
-        ) : coupons.map(coupon => (
+        ) : filteredCoupons.length === 0 ? (
+          <div className="col-span-full py-20 text-center text-gray-400">No active coupons found for the selected period. Create one to start!</div>
+        ) : filteredCoupons.map(coupon => (
           <div key={coupon.code} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 -mr-10 -mt-10 rounded-full group-hover:scale-150 transition-transform duration-700" />
             <div className="flex justify-between items-start mb-4">
@@ -6205,6 +6652,7 @@ function AddCouponModal({ onClose }: { onClose: () => void }) {
 }
 
 function ReviewsManagementView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -6247,6 +6695,10 @@ function ReviewsManagementView() {
     return () => unsubscribe();
   }, [filter, productNames]);
 
+  const filteredReviews = useMemo(() => {
+    return reviews.filter(r => isDateInRange(r.createdAt));
+  }, [reviews, isDateInRange]);
+
   const updateReviewStatus = async (reviewId: string, status: 'approved' | 'rejected' | 'pending') => {
     try {
       await updateDoc(doc(db, 'reviews', reviewId), { status });
@@ -6269,8 +6721,15 @@ function ReviewsManagementView() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition-all duration-500">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Review Moderation</h2>
-          <p className="text-sm text-gray-500">Approve or reject customer product reviews</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">Review Moderation</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Approve or reject customer product reviews ({filteredReviews.length} in period)</p>
         </div>
         <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl overflow-x-auto">
           {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
@@ -6291,12 +6750,12 @@ function ReviewsManagementView() {
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="font-medium">Loading reviews...</p>
           </div>
-        ) : reviews.length === 0 ? (
+        ) : filteredReviews.length === 0 ? (
           <div className="col-span-full py-40 flex flex-col items-center justify-center bg-white rounded-[40px] border-2 border-dashed border-gray-100">
             <Activity className="w-16 h-16 text-gray-200 mb-4" />
-            <p className="text-lg font-bold text-gray-400">No reviews found.</p>
+            <p className="text-lg font-bold text-gray-400">No reviews found for the selected period.</p>
           </div>
-        ) : reviews.map(review => (
+        ) : filteredReviews.map(review => (
           <div key={review.id} className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-100 transition-all duration-500 group flex flex-col h-full">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
@@ -6458,6 +6917,7 @@ function VendorsManagementView() {
 }
 
 function AnnouncementsManagementView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -6473,6 +6933,10 @@ function AnnouncementsManagementView() {
     });
     return () => unsubscribe();
   }, []);
+
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter(a => isDateInRange(a.createdAt));
+  }, [announcements, isDateInRange]);
 
   const toggleAnnouncement = async (id: string, active: boolean) => {
     try {
@@ -6495,10 +6959,17 @@ function AnnouncementsManagementView() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
-      <div className="flex justify-between items-center bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm transition-all duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm transition-all duration-700">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">Global Announcements</h2>
-          <p className="text-sm text-gray-500 font-medium">Broadcast messages to all store users in real-time</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Global Announcements</h2>
+            {selectedPreset !== 'all' && (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                {dateRange.formattedRange}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 font-medium">Broadcast messages to all store users in real-time ({filteredAnnouncements.length} in period)</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -6512,14 +6983,14 @@ function AnnouncementsManagementView() {
       <div className="grid grid-cols-1 gap-6">
         {loading ? (
           <div className="py-20 text-center text-gray-400 italic">Synchronizing broadcast data...</div>
-        ) : announcements.length === 0 ? (
+        ) : filteredAnnouncements.length === 0 ? (
           <div className="py-40 flex flex-col items-center justify-center bg-white rounded-[40px] border-2 border-dashed border-gray-100">
             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
               <Bell className="w-8 h-8 text-gray-200" />
             </div>
-            <p className="text-xl font-black text-gray-300">No active broadcasts.</p>
+            <p className="text-xl font-black text-gray-300">No active broadcasts for this period.</p>
           </div>
-        ) : announcements.map(ann => (
+        ) : filteredAnnouncements.map(ann => (
           <div key={ann.id} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-100 transition-all duration-500 overflow-hidden relative group">
             <div className={`absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-1000 ${ann.type === 'sale' ? 'bg-blue-500' :
                 ann.type === 'critical' ? 'bg-red-500' : 'bg-blue-500'
@@ -6625,6 +7096,7 @@ function AnnouncementsManagementView() {
 }
 
 function ReturnManagementView() {
+  const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ReturnRequest['status'] | 'all'>('all');
@@ -6657,6 +7129,10 @@ function ReturnManagementView() {
 
     return () => unsubscribe();
   }, [filter]);
+
+  const filteredReturns = useMemo(() => {
+    return returns.filter(r => isDateInRange(r.createdAt || (r as any).createdDate));
+  }, [returns, isDateInRange]);
 
   const updateReturnStatus = async (returnId: string, status: ReturnRequest['status']) => {
     const tid = toast.loading(`Updating return status to ${status.replace('_', ' ')}...`);
@@ -6695,20 +7171,31 @@ function ReturnManagementView() {
   };
 
   const returnMetrics = [
-    { name: 'Requested', value: returns.filter(r => r.status === 'requested').length || 5 },
-    { name: 'Approved', value: returns.filter(r => r.status === 'approved').length || 12 },
-    { name: 'Refunded', value: returns.filter(r => r.status === 'refunded').length || 8 },
-    { name: 'Returned', value: returns.filter(r => r.status === 'returned').length || 10 },
+    { name: 'Requested', value: filteredReturns.filter(r => r.status === 'requested').length || 0 },
+    { name: 'Approved', value: filteredReturns.filter(r => r.status === 'approved').length || 0 },
+    { name: 'Refunded', value: filteredReturns.filter(r => r.status === 'refunded').length || 0 },
+    { name: 'Returned', value: filteredReturns.filter(r => r.status === 'returned').length || 0 },
   ];
+
+  const totalRefundCapital = useMemo(() => {
+    return filteredReturns.reduce((acc, r) => acc + (r.refundAmount || 0), 0);
+  }, [filteredReturns]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 pb-20">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
             <div>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Returns Overview</h3>
-              <p className="text-sm text-gray-500 font-medium">Monitoring return lifecycle and refund patterns</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Returns Overview</h3>
+                {selectedPreset !== 'all' && (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
+                    {dateRange.formattedRange}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 font-medium">Monitoring return lifecycle and refund patterns ({filteredReturns.length} in period)</p>
             </div>
             <div className="flex bg-gray-50 p-1.5 rounded-2xl gap-1 overflow-x-auto max-w-[450px] scrollbar-none">
               {(['all', 'requested', 'approved', 'pickup_scheduled', 'returned', 'refunded'] as const).map(s => (
@@ -6751,9 +7238,9 @@ function ReturnManagementView() {
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
                   <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold italic">Scanning return signatures...</td></tr>
-                ) : returns.length === 0 ? (
-                  <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold">No return requests found in repository.</td></tr>
-                ) : returns.map(ret => (
+                ) : filteredReturns.length === 0 ? (
+                  <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold">No return requests found for the selected period.</td></tr>
+                ) : filteredReturns.map(ret => (
                   <tr key={ret.id} className="group hover:bg-gray-50/50 transition-all">
                     <td className="px-4 py-6">
                       <div className="flex flex-col">
@@ -6799,7 +7286,7 @@ function ReturnManagementView() {
             <div className="relative z-10">
               <PieChart className="w-10 h-10 text-white/40 mb-6" />
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-2">Total Refund Capital</p>
-              <p className="text-4xl font-black tracking-tighter italic">₹{(returns.reduce((acc, r) => acc + (r.refundAmount || 0), 0)).toLocaleString()}</p>
+              <p className="text-4xl font-black tracking-tighter italic">₹{totalRefundCapital.toLocaleString()}</p>
               <div className="mt-10 pt-8 border-t border-white/10 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black uppercase opacity-40">Success Rate</span>
@@ -6824,6 +7311,14 @@ function ReturnManagementView() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <AdminDateFilterProvider>
+      <AdminDashboardContent />
+    </AdminDateFilterProvider>
   );
 }
 
