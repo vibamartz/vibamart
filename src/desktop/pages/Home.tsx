@@ -306,39 +306,13 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-20">
+    <div className="space-y-6 sm:space-y-8 pb-20 pt-2 sm:pt-4">
 
       {/* 1. All Categories Bar (Top Category Section) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-4 bg-emerald-50 rounded-3xl border border-emerald-100/80">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={scrollCategoryLeft}
-              className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
-              title="Scroll Left"
-              aria-label="Scroll Left"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={scrollCategoryRight}
-              className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
-              title="Scroll Right"
-              aria-label="Scroll Right"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-            View All <ChevronRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
-
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div
           ref={categoryScrollRef}
-          className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1.5 min-w-0 w-full snap-x snap-mandatory"
+          className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
         >
           <Link
             to="/for-you"
@@ -404,7 +378,7 @@ export default function Home() {
                     navigate('/products');
                   }
                 }}
-                className={`relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20 ${
+                className={`relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20 ${
                   activeBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                 } cursor-pointer`}
               >
@@ -435,7 +409,7 @@ export default function Home() {
           ) : (
             <div
               onClick={() => navigate('/products')}
-              className="relative h-[140px] sm:h-[220px] md:h-[280px] lg:h-[340px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl border border-white/20 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+              className="relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl border border-white/20 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
             >
               <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
                 <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
