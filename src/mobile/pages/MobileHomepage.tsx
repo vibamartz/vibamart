@@ -359,9 +359,10 @@ export default function MobileHomepage() {
     >
 
       {/* ========================================================================= */}
-      {/* TOP HEADER SECTION (Mobile)                                              */}
+      {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
       {/* ========================================================================= */}
-      <header className="w-full min-w-0 bg-primary p-3.5 rounded-2xl space-y-3 shadow-md border border-emerald-800/40">
+      <div className="w-full min-w-0 bg-gradient-to-b from-primary via-[#15803d] to-emerald-50 p-3.5 rounded-2xl space-y-3 shadow-md border border-emerald-800/30 overflow-hidden">
+        <header className="w-full min-w-0 space-y-3">
         {/* 1. VIBA + REWARDS (2 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
         <section className="w-full min-w-0">
           <div className="grid grid-cols-2 gap-[clamp(10px,3.5vw,16px)] w-full min-w-0">
@@ -568,7 +569,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section)                       */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-2 bg-emerald-50 p-2.5 rounded-2xl border border-emerald-100/80">
+      <section className="w-full min-w-0 space-y-2 pt-1">
         <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
           {navCategoriesList.map((cat) => {
             const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
@@ -613,6 +614,7 @@ export default function MobileHomepage() {
           })}
         </div>
       </section>
+    </div>
 
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
