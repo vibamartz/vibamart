@@ -308,8 +308,8 @@ export default function Home() {
   return (
     <div className="space-y-12 sm:space-y-16 pb-20">
 
-      {/* 1. All Categories Bar (Always at top) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pt-6">
+      {/* 1. All Categories Bar (Top Category Section) */}
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-4 bg-emerald-50 rounded-3xl border border-emerald-100/80">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1">
             <button

@@ -359,217 +359,216 @@ export default function MobileHomepage() {
     >
 
       {/* ========================================================================= */}
-      {/* 1. VIBA + REWARDS (2 equal cards in 1 row, ratio ~2.1:1, radius 22px)      */}
+      {/* TOP HEADER SECTION (Mobile)                                              */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0">
-        <div className="grid grid-cols-2 gap-[clamp(10px,3.5vw,16px)] w-full min-w-0">
-          {/* Card 1: VIBA */}
-          <motion.div
-            whileTap={{ scale: 0.96 }}
-            onClick={() => navigate('/')}
-            style={{ height: 'clamp(74px, 20vw, 95px)' }}
-            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
-          >
-            <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
-              <Logo iconOnly className="scale-75 sm:scale-85" />
-            </div>
-            <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
-              VIBA
-            </span>
-          </motion.div>
+      <header className="w-full min-w-0 bg-primary p-3.5 rounded-2xl space-y-3 shadow-md border border-emerald-800/40">
+        {/* 1. VIBA + REWARDS (2 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
+        <section className="w-full min-w-0">
+          <div className="grid grid-cols-2 gap-[clamp(10px,3.5vw,16px)] w-full min-w-0">
+            {/* Card 1: VIBA */}
+            <motion.div
+              whileTap={{ scale: 0.96 }}
+              onClick={() => navigate('/')}
+              style={{ height: 'clamp(74px, 20vw, 95px)' }}
+              className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+            >
+              <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+                <Logo iconOnly className="scale-75 sm:scale-85" />
+              </div>
+              <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                VIBA
+              </span>
+            </motion.div>
 
-          {/* Card 2: REWARDS */}
-          <motion.div
-            whileTap={{ scale: 0.96 }}
-            onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
-            style={{ height: 'clamp(74px, 20vw, 95px)' }}
-            className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
-          >
-            {/* Colorful Gift Logo (increased size, no shadow circle) */}
-            <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
-              <svg
-                className="w-full h-full shrink-0 drop-shadow-xs"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <linearGradient id="rewardsGiftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#F59E0B" />
-                    <stop offset="30%" stopColor="#EF4444" />
-                    <stop offset="70%" stopColor="#EC4899" />
-                    <stop offset="100%" stopColor="#8B5CF6" />
-                  </linearGradient>
-                  <linearGradient id="rewardsRibbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FCD34D" />
-                    <stop offset="100%" stopColor="#F59E0B" />
-                  </linearGradient>
-                </defs>
-                {/* Gift Box Base */}
-                <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="url(#rewardsGiftGrad)" />
-                {/* Box Top / Lid */}
-                <rect x="2" y="5" width="20" height="4" rx="1.5" fill="url(#rewardsGiftGrad)" filter="brightness(1.15)" />
-                {/* Vertical Ribbon */}
-                <rect x="10.5" y="5" width="3" height="15" fill="url(#rewardsRibbonGrad)" />
-                {/* Horizontal Ribbon */}
-                <rect x="2" y="6.2" width="20" height="1.6" fill="url(#rewardsRibbonGrad)" opacity="0.85" />
-                {/* Bow Left */}
-                <path d="M12 5.2C10.2 2.2 6.5 1.8 6.5 3.8C6.5 5.5 10.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
-                {/* Bow Right */}
-                <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
-              </svg>
-            </div>
+            {/* Card 2: REWARDS */}
+            <motion.div
+              whileTap={{ scale: 0.96 }}
+              onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
+              style={{ height: 'clamp(74px, 20vw, 95px)' }}
+              className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+            >
+              {/* Colorful Gift Logo (increased size, no shadow circle) */}
+              <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+                <svg
+                  className="w-full h-full shrink-0 drop-shadow-xs"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient id="rewardsGiftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#F59E0B" />
+                      <stop offset="30%" stopColor="#EF4444" />
+                      <stop offset="70%" stopColor="#EC4899" />
+                      <stop offset="100%" stopColor="#8B5CF6" />
+                    </linearGradient>
+                    <linearGradient id="rewardsRibbonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FCD34D" />
+                      <stop offset="100%" stopColor="#F59E0B" />
+                    </linearGradient>
+                  </defs>
+                  {/* Gift Box Base */}
+                  <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="url(#rewardsGiftGrad)" />
+                  {/* Box Top / Lid */}
+                  <rect x="2" y="5" width="20" height="4" rx="1.5" fill="url(#rewardsGiftGrad)" filter="brightness(1.15)" />
+                  {/* Vertical Ribbon */}
+                  <rect x="10.5" y="5" width="3" height="15" fill="url(#rewardsRibbonGrad)" />
+                  {/* Horizontal Ribbon */}
+                  <rect x="2" y="6.2" width="20" height="1.6" fill="url(#rewardsRibbonGrad)" opacity="0.85" />
+                  {/* Bow Left */}
+                  <path d="M12 5.2C10.2 2.2 6.5 1.8 6.5 3.8C6.5 5.5 10.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
+                  {/* Bow Right */}
+                  <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGrad)" />
+                </svg>
+              </div>
 
-            <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
-              REWARDS
-            </span>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 2. DELIVERY ADDRESS CARD (Compact single-line, clean, truncated)          */}
-      {/* ========================================================================= */}
-      <section className="w-full min-w-0">
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setIsLocationModalOpen(true)}
-          className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden h-9 sm:h-10 min-w-0"
-        >
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
-            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
-            <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-              {displayAddress}
-            </span>
+              <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+                REWARDS
+              </span>
+            </motion.div>
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
-        </motion.button>
-      </section>
+        </section>
 
-      {/* ========================================================================= */}
-      {/* 3. SEARCH BAR (h-50-58px, radius-18px, compact icons)                      */}
-      {/* ========================================================================= */}
-      <section className="relative w-full min-w-0">
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full min-w-0" style={{ height: 'clamp(48px, 12vw, 56px)' }}>
-          <div className="absolute left-3.5 sm:left-4 z-10 flex items-center pointer-events-none text-gray-400">
-            <Search className="w-4 h-4 text-emerald-600" />
-          </div>
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search products"
-            value={searchQuery}
-            onFocus={() => setIsSearchFocused(true)}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white h-full rounded-[18px] pl-10 pr-28 sm:pr-32 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
-          />
+        {/* 2. DELIVERY ADDRESS CARD */}
+        <section className="w-full min-w-0">
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setIsLocationModalOpen(true)}
+            className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden h-9 sm:h-10 min-w-0"
+          >
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
+              <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+                {displayAddress}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
+          </motion.button>
+        </section>
 
-          <div className="absolute right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-white pl-1 rounded-r-[18px]">
-            {settings.enableVoiceSearch && (
-              <button
-                type="button"
-                onClick={startVoiceSearch}
-                aria-label="Voice Search"
-                className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
-                  }`}
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-            )}
-            {settings.enableVisualSearch && (
+        {/* 3. SEARCH BAR */}
+        <section className="relative w-full min-w-0">
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full min-w-0" style={{ height: 'clamp(48px, 12vw, 56px)' }}>
+            <div className="absolute left-3.5 sm:left-4 z-10 flex items-center pointer-events-none text-gray-400">
+              <Search className="w-4 h-4 text-emerald-600" />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products"
+              value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white h-full rounded-[18px] pl-10 pr-28 sm:pr-32 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
+            />
+
+            <div className="absolute right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-white pl-1 rounded-r-[18px]">
+              {settings.enableVoiceSearch && (
+                <button
+                  type="button"
+                  onClick={startVoiceSearch}
+                  aria-label="Voice Search"
+                  className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                    }`}
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              )}
+              {settings.enableVisualSearch && (
+                <button
+                  type="button"
+                  onClick={() => setIsCameraModalOpen(true)}
+                  aria-label="Camera Search"
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsCameraModalOpen(true)}
-                aria-label="Camera Search"
+                aria-label="QR Code Scanner"
                 className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
               >
-                <Camera className="w-4 h-4" />
+                <QrCode className="w-4 h-4" />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsCameraModalOpen(true)}
-              aria-label="QR Code Scanner"
-              className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
-            >
-              <QrCode className="w-4 h-4" />
-            </button>
-          </div>
-        </form>
+            </div>
+          </form>
 
-        {/* Search Suggestions Overlay */}
-        <AnimatePresence>
-          {isSearchFocused && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
-            >
-              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
-                <button
-                  onClick={() => setIsSearchFocused(false)}
-                  className="text-xs font-bold text-emerald-600"
-                >
-                  Close
-                </button>
-              </div>
+          {/* Search Suggestions Overlay */}
+          <AnimatePresence>
+            {isSearchFocused && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
+                  <button
+                    onClick={() => setIsSearchFocused(false)}
+                    className="text-xs font-bold text-emerald-600"
+                  >
+                    Close
+                  </button>
+                </div>
 
-              {recentSearches.length > 0 && (
+                {recentSearches.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <History className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Recent Searches</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recentSearches.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setSearchQuery(s);
+                            navigate(`/products?q=${s}`);
+                            setIsSearchFocused(false);
+                          }}
+                          className="bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
-                    <History className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Recent Searches</span>
+                    <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Trending Searches</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {recentSearches.map((s, i) => (
+                    {trendingSearches.map((t, i) => (
                       <button
                         key={i}
                         onClick={() => {
-                          setSearchQuery(s);
-                          navigate(`/products?q=${s}`);
+                          setSearchQuery(t);
+                          navigate(`/products?q=${t}`);
                           setIsSearchFocused(false);
                         }}
-                        className="bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+                        className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
                       >
-                        {s}
+                        🔥 {t}
                       </button>
                     ))}
                   </div>
                 </div>
-              )}
-
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
-                  <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Trending Searches</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {trendingSearches.map((t, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setSearchQuery(t);
-                        navigate(`/products?q=${t}`);
-                        setIsSearchFocused(false);
-                      }}
-                      className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
-                    >
-                      🔥 {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </section>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+      </header>
 
       {/* ========================================================================= */}
-      {/* 4. COMPACT CATEGORY CAROUSEL (Always visible at top)                     */}
+      {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section)                       */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-2">
+      <section className="w-full min-w-0 space-y-2 bg-emerald-50 p-2.5 rounded-2xl border border-emerald-100/80">
         <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
           {navCategoriesList.map((cat) => {
             const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;

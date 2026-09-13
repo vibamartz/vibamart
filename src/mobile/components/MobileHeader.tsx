@@ -73,7 +73,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-yellow-100 shadow-sm transition-all" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <header className="sticky top-0 z-40 bg-primary backdrop-blur-md border-b border-emerald-800/40 shadow-sm transition-all" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex items-center justify-between px-3.5 py-2.5 max-w-[768px] mx-auto w-full min-w-0">
         
         {/* Left Side: Back button on inner pages OR Logo on home */}
