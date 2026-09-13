@@ -1687,7 +1687,7 @@ export default function AdminRewardsManagementView() {
                           className="px-3 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0"
                           title="Visit Official Brand Webpage"
                         >
-                          Visit Official Brand <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                          Official <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                         </a>
                       )}
                     </div>

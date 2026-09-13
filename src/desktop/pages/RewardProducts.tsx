@@ -283,7 +283,7 @@ export default function RewardProducts() {
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-white/10 hover:bg-white/20 text-amber-300 border border-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                 >
-                  Visit Official Brand <ExternalLink className="w-3.5 h-3.5" />
+                  Official <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
             </div>

@@ -567,7 +567,7 @@ export default function Rewards() {
                           className="px-3 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1 shrink-0"
                           title="Visit Official Brand Webpage"
                         >
-                          Visit Official Brand <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                          Official <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                         </a>
                       )}
 
@@ -707,7 +707,7 @@ export default function Rewards() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:underline"
                           >
-                            Visit Official Brand <ExternalLink className="w-3 h-3" />
+                            Official <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
                       </div>
@@ -824,7 +824,7 @@ export default function Rewards() {
                     rel="noopener noreferrer"
                     className="px-4 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold flex items-center gap-1.5"
                   >
-                    Visit Official Brand <ExternalLink className="w-4 h-4 text-gray-400" />
+                    Official <ExternalLink className="w-4 h-4 text-gray-400" />
                   </a>
                 )}
               </div>

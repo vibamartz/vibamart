@@ -489,7 +489,7 @@ export default function MobileRewardsScreen() {
                       <span>Paid: <strong>₹{order.amountPaid}</strong></span>
                       {getValidBrandUrl(order.brandWebsiteUrl) && (
                         <a href={getValidBrandUrl(order.brandWebsiteUrl)!} target="_blank" rel="noopener noreferrer" className="text-amber-600 font-bold flex items-center gap-0.5">
-                          Visit Official Brand <ExternalLink className="w-3 h-3" />
+                          Official <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
                     </div>
