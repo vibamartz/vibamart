@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Package, Clock, CheckCircle2, Truck, AlertTriangle, ChevronRight, ArrowRight, ShieldCheck, RefreshCcw, Star
 } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
@@ -161,11 +161,10 @@ export default function MobileOrdersScreen() {
             <button
               key={tab.id}
               onClick={() => setFilterTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
-                filterTab === tab.id
+              className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${filterTab === tab.id
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {tab.label}
             </button>

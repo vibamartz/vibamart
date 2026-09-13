@@ -108,7 +108,7 @@ export default function MobileRewardsScreen() {
     if (!coupon.active) return false;
 
     const matchesSearch = (coupon.brandName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (coupon.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (coupon.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || coupon.category === selectedCategory;
 
     const now = Date.now();
@@ -303,9 +303,8 @@ export default function MobileRewardsScreen() {
         <div className="flex gap-2 overflow-x-auto pb-1 text-xs font-bold scrollbar-none">
           <button
             onClick={() => setSelectedCategory('all')}
-            className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all ${
-              selectedCategory === 'all' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-amber-100'
-            }`}
+            className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all ${selectedCategory === 'all' ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-amber-100'
+              }`}
           >
             All Brands
           </button>
@@ -313,9 +312,8 @@ export default function MobileRewardsScreen() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all ${
-                selectedCategory === cat ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-amber-100'
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-gray-600 border border-amber-100'
+                }`}
             >
               {cat}
             </button>
@@ -328,25 +326,22 @@ export default function MobileRewardsScreen() {
         <div className="flex bg-white p-1 rounded-2xl border border-amber-100 shadow-sm gap-1 text-xs font-bold">
           <button
             onClick={() => setActiveTab('vouchers')}
-            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
-              activeTab === 'vouchers' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
-            }`}
+            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'vouchers' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
+              }`}
           >
             <Tag className="w-3.5 h-3.5" /> Coupons ({filteredCoupons.length})
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
-              activeTab === 'history' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
-            }`}
+            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'history' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
+              }`}
           >
             <Clock className="w-3.5 h-3.5" /> My Orders ({myOrders.length})
           </button>
           <button
             onClick={() => setActiveTab('rules')}
-            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${
-              activeTab === 'rules' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
-            }`}
+            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'rules' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-600'
+              }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" /> Flow
           </button>
