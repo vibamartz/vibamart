@@ -435,7 +435,7 @@ export default function MobileHomepage() {
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => setIsLocationModalOpen(true)}
-            className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs border border-orange-200/60 flex items-center justify-between cursor-pointer hover:border-orange-300 transition-all overflow-hidden h-9 sm:h-10 min-w-0"
+            className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between cursor-pointer transition-all overflow-hidden h-9 sm:h-10 min-w-0"
           >
             <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
               <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />

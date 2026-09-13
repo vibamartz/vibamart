@@ -105,7 +105,7 @@ export default function MobileHeader({ onOpenSearch, onOpenNotifications }: Mobi
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setIsLocationModalOpen(true)}
-              className="flex items-center gap-1 bg-yellow-50/90 border border-yellow-200/70 px-2.5 py-1 rounded-full text-left max-w-[180px] min-w-0"
+              className="flex items-center gap-1 bg-yellow-50/90 px-2.5 py-1 rounded-full text-left max-w-[180px] min-w-0"
             >
               <MapPin className="w-3.5 h-3.5 text-yellow-600 shrink-0 fill-yellow-100" />
               <span className="text-[10px] font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
