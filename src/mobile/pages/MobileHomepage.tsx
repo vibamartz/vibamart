@@ -432,19 +432,28 @@ export default function MobileHomepage() {
 
         {/* 2. DELIVERY ADDRESS CARD */}
         <section className="w-full min-w-0">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setIsLocationModalOpen(true)}
-            className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between cursor-pointer transition-all overflow-hidden h-9 sm:h-10 min-w-0"
-          >
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+          <div className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between h-9 sm:h-10 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden text-left cursor-pointer"
+            >
               <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
               <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
                 {displayAddress}
               </span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
-          </motion.button>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-0.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCameraModalOpen(true)}
+              aria-label="Barcode / QR Code Scanner"
+              className="p-1 text-gray-500 hover:text-emerald-600 transition-all rounded-full shrink-0 ml-2 cursor-pointer flex items-center justify-center"
+            >
+              <QrCode className="w-4 h-4 text-emerald-600" />
+            </button>
+          </div>
         </section>
 
         {/* 3. SEARCH BAR */}
@@ -460,7 +469,7 @@ export default function MobileHomepage() {
               value={searchQuery}
               onFocus={() => setIsSearchFocused(true)}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white h-full rounded-[18px] pl-10 pr-28 sm:pr-32 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
+              className="w-full bg-white h-full rounded-[18px] pl-10 pr-20 sm:pr-24 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
             />
 
             <div className="absolute right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-white pl-1 rounded-r-[18px]">
@@ -485,14 +494,6 @@ export default function MobileHomepage() {
                   <Camera className="w-4 h-4" />
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setIsCameraModalOpen(true)}
-                aria-label="QR Code Scanner"
-                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
-              >
-                <QrCode className="w-4 h-4" />
-              </button>
             </div>
           </form>
 
