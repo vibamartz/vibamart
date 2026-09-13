@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <defs>
+    <linearGradient id="vGradFav" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="bGradFav" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent background - Official ViBa VB Logo Mark -->
+  <g transform="translate(0, 0)">
+    <!-- Stylized V -->
+    <path
+      d="M10 25 L38 85 L48 85 L32 25 Z"
+      fill="url(#vGradFav)"
+    />
+
+    <!-- Parallel Slashes -->
+    <path
+      d="M45 25 L65 85 H70 L50 25 Z"
+      fill="url(#vGradFav)"
+      opacity="0.9"
+    />
+    <path
+      d="M55 25 L75 85 H80 L60 25 Z"
+      fill="url(#bGradFav)"
+      opacity="0.9"
+    />
+
+    <!-- Stylized B -->
+    <path
+      d="M65 25 L88 25 C95 25 100 30 100 38 C100 45 95 50 88 52 C95 54 100 59 100 68 C100 77 95 85 85 85 H70 L90 25 Z"
+      fill="url(#bGradFav)"
+    />
+  </g>
+</svg>
