@@ -294,9 +294,9 @@ export default function Navbar() {
   const isHomePage = location.pathname === '/' || location.pathname === '/mobile' || location.pathname === '/mobile-home' || location.pathname === '/home-mobile';
 
   return (
-    <nav className={`sticky top-0 z-50 shadow-sm ${isHomePage ? 'hidden md:block' : ''}`}>
+    <nav className={`sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 ${isHomePage ? 'hidden md:block' : ''}`}>
       {/* Top Header Bar */}
-      <div className="bg-primary border-b border-emerald-800/40">
+      <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
           <div className={`${isMenuOpen ? 'hidden' : 'flex'} sm:flex transition-all duration-300`}>
@@ -672,7 +672,7 @@ export default function Navbar() {
       </div>
 
       {/* Secondary Category Nav (Top Category Section) */}
-      <div className="border-t border-emerald-200/60 bg-emerald-50 relative group/secnav">
+      <div className="border-t border-gray-100 bg-white relative group/secnav">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex items-center">
           <button
             type="button"
