@@ -519,13 +519,14 @@ export default function Navbar() {
 
             <Link
               to="/wishlist"
-              className="relative p-2.5 bg-gray-50 hover:bg-rose-50 border border-gray-200 hover:border-rose-200 rounded-full text-gray-600 hover:text-rose-600 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-rose-50 border border-gray-200 hover:border-rose-200 rounded-full text-gray-700 hover:text-rose-600 transition-all shrink-0 cursor-pointer shadow-2xs font-bold text-xs"
               title="View Wishlist"
               aria-label="Wishlist"
             >
-              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20" />
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20 stroke-[2.2]" />
+              <span className="text-xs font-extrabold text-gray-800 hover:text-rose-600">Wishlist</span>
               {user?.wishlist && user.wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                <span className="min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs ml-0.5">
                   {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
                 </span>
               )}

@@ -430,34 +430,39 @@ export default function MobileHomepage() {
           </div>
         </section>
 
-        {/* 2. DELIVERY ADDRESS CARD & WISHLIST BUTTON */}
+        {/* 2. DELIVERY ADDRESS CARD & SEPARATE WISHLIST BUTTON */}
         <section className="w-full min-w-0">
-          <div className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between h-9 sm:h-10 min-w-0">
-            <button
-              type="button"
+          <div className="flex items-center gap-2 w-full min-w-0">
+            {/* Delivery Address Card */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={() => setIsLocationModalOpen(true)}
-              className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden text-left cursor-pointer"
+              className="flex-1 bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between cursor-pointer transition-all overflow-hidden h-9 sm:h-10 min-w-0"
             >
-              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
-              <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
-                {displayAddress}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-0.5" />
-            </button>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
+                <span className="text-xs font-bold text-gray-800 truncate whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+                  {displayAddress}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
+            </motion.button>
 
-            <button
-              type="button"
+            {/* Separate Wishlist Button */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/wishlist')}
               aria-label="Wishlist"
-              className="relative p-1 text-rose-500 hover:text-rose-600 transition-all rounded-full shrink-0 ml-2 cursor-pointer flex items-center justify-center"
+              className="relative bg-white/95 backdrop-blur-md rounded-2xl px-3 h-9 sm:h-10 flex items-center justify-center gap-1.5 text-rose-600 hover:text-rose-700 font-bold text-xs shadow-xs shrink-0 cursor-pointer transition-all border border-rose-100/60"
             >
-              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20" />
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20 stroke-[2.2]" />
+              <span className="text-xs font-extrabold text-gray-800">Wishlist</span>
               {user?.wishlist && user.wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                <span className="min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs">
                   {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
                 </span>
               )}
-            </button>
+            </motion.button>
           </div>
         </section>
 
