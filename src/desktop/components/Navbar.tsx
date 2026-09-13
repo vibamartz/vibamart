@@ -500,21 +500,37 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Delivery Address Selector NEXT TO Search Bar */}
-          <button
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs"
-            title={formatHeaderAddress(selectedAddress)}
-          >
-            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
-            <div className="flex flex-col min-w-0 leading-tight">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
-              <span className="text-xs font-bold text-gray-800 truncate">
-                {formatHeaderAddress(selectedAddress)}
-              </span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
-          </button>
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLocationModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs cursor-pointer"
+              title={formatHeaderAddress(selectedAddress)}
+            >
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
+                <span className="text-xs font-bold text-gray-800 truncate">
+                  {formatHeaderAddress(selectedAddress)}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
+            </button>
+
+            <Link
+              to="/wishlist"
+              className="relative p-2.5 bg-gray-50 hover:bg-rose-50 border border-gray-200 hover:border-rose-200 rounded-full text-gray-600 hover:text-rose-600 transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
+              title="View Wishlist"
+              aria-label="Wishlist"
+            >
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20" />
+              {user?.wishlist && user.wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                  {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
 
           {/* Desktop Actions */}
@@ -525,8 +541,13 @@ export default function Navbar() {
                 <span className="text-sm font-medium">Admin</span>
               </Link>
             )}
-            <Link to="/wishlist" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Wishlist">
+            <Link to="/wishlist" className="text-gray-600 hover:text-rose-600 transition-colors relative p-2 touch-target flex items-center" aria-label="Wishlist">
               <Heart className="w-6 h-6" />
+              {user?.wishlist && user.wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                  {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
+                </span>
+              )}
             </Link>
             <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Cart">
               <ShoppingCart className="w-6 h-6" />

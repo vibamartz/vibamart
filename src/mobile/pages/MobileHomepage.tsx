@@ -430,7 +430,7 @@ export default function MobileHomepage() {
           </div>
         </section>
 
-        {/* 2. DELIVERY ADDRESS CARD */}
+        {/* 2. DELIVERY ADDRESS CARD & WISHLIST BUTTON */}
         <section className="w-full min-w-0">
           <div className="w-full bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between h-9 sm:h-10 min-w-0">
             <button
@@ -447,11 +447,16 @@ export default function MobileHomepage() {
 
             <button
               type="button"
-              onClick={() => setIsCameraModalOpen(true)}
-              aria-label="Barcode / QR Code Scanner"
-              className="p-1 text-gray-500 hover:text-emerald-600 transition-all rounded-full shrink-0 ml-2 cursor-pointer flex items-center justify-center"
+              onClick={() => navigate('/wishlist')}
+              aria-label="Wishlist"
+              className="relative p-1 text-rose-500 hover:text-rose-600 transition-all rounded-full shrink-0 ml-2 cursor-pointer flex items-center justify-center"
             >
-              <QrCode className="w-4 h-4 text-emerald-600" />
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20" />
+              {user?.wishlist && user.wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-xs">
+                  {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
+                </span>
+              )}
             </button>
           </div>
         </section>
