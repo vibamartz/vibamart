@@ -500,38 +500,21 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Delivery Address Selector NEXT TO Search Bar */}
-          <div className="hidden sm:flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsLocationModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs cursor-pointer"
-              title={formatHeaderAddress(selectedAddress)}
-            >
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
-              <div className="flex flex-col min-w-0 leading-tight">
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
-                <span className="text-xs font-bold text-gray-800 truncate">
-                  {formatHeaderAddress(selectedAddress)}
-                </span>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
-            </button>
-
-            <Link
-              to="/wishlist"
-              className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-rose-50 border border-gray-200 hover:border-rose-200 rounded-full text-gray-700 hover:text-rose-600 transition-all shrink-0 cursor-pointer shadow-2xs font-bold text-xs"
-              title="View Wishlist"
-              aria-label="Wishlist"
-            >
-              <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20 stroke-[2.2]" />
-              <span className="text-xs font-extrabold text-gray-800 hover:text-rose-600">Wishlist</span>
-              {user?.wishlist && user.wishlist.length > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs ml-0.5">
-                  {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
-                </span>
-              )}
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs cursor-pointer"
+            title={formatHeaderAddress(selectedAddress)}
+          >
+            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
+              <span className="text-xs font-bold text-gray-800 truncate">
+                {formatHeaderAddress(selectedAddress)}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
+          </button>
         </div>
 
           {/* Desktop Actions */}
