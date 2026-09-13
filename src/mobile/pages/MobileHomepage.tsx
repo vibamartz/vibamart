@@ -361,7 +361,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
       {/* ========================================================================= */}
-      <div className="w-full min-w-0 bg-gradient-to-b from-emerald-100 via-emerald-50/50 to-transparent p-3.5 space-y-3">
+      <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3.5 bg-gradient-to-b from-emerald-100 via-emerald-50/50 to-transparent space-y-3 min-w-0">
         <header className="w-full min-w-0 space-y-3">
         {/* 1. VIBA + REWARDS (2 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
         <section className="w-full min-w-0">
