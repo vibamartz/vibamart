@@ -1,17 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle, 
-  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders
+import {
+  User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle,
+  LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders,
+  CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard
 } from 'lucide-react';
 import { useAuthStore } from '../../backend/store';
-import { auth } from '../../backend/firebase/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProfileScreen() {
   const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editedName, setEditedName] = useState(user?.displayName || '');
+  const [editedPhone, setEditedPhone] = useState(user?.phone || '');
+  const [ordersCount, setOrdersCount] = useState<number>(0);
+  const [showOverview, setShowOverview] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setEditedName(user.displayName || '');
+    setEditedPhone(user.phone || '');
+
+    const fetchOrdersCount = async () => {
+      try {
+        const q = query(collection(db, 'orders'), where('userId', '==', user.uid));
+        const snap = await getDocs(q);
+        setOrdersCount(snap.size);
+      } catch (err) {
+        console.error("Error fetching user orders count:", err);
+      }
+    };
+
+    fetchOrdersCount();
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        displayName: editedName,
+        phone: editedPhone
+      });
+      setUser({ ...user, displayName: editedName, phone: editedPhone });
+      setIsEditingProfile(false);
+      toast.success("Profile overview updated successfully");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -46,6 +92,7 @@ export default function MobileProfileScreen() {
 
   const accountName = user.displayName || user.email.split('@')[0];
   const userPhoto = user.photoURL || 'https://via.placeholder.com/150';
+  const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'Recently Joined';
 
   interface MenuItem {
     title: string;
@@ -57,8 +104,9 @@ export default function MobileProfileScreen() {
   }
 
   const menuItems: MenuItem[] = [
-    { title: 'ViBa Rewards & Points', icon: Gift, path: '/rewards', badge: 'Bonus', color: 'text-amber-600 bg-amber-50' },
-    { title: 'My Orders & Tracking', icon: Package, path: '/orders', badge: null, color: 'text-blue-600 bg-blue-50' },
+    { title: 'Account Overview', icon: User, badge: 'Profile', color: 'text-emerald-700 bg-emerald-50', action: () => setShowOverview(prev => !prev) },
+    { title: 'ViBa Rewards', icon: Gift, path: '/rewards', badge: 'Bonus', color: 'text-amber-600 bg-amber-50' },
+    { title: 'My Orders', icon: Package, path: '/orders', badge: ordersCount > 0 ? ordersCount : null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
     { title: 'Notifications', icon: Bell, path: '/notifications', badge: null, color: 'text-purple-600 bg-purple-50' },
@@ -97,6 +145,126 @@ export default function MobileProfileScreen() {
           </div>
         )}
       </div>
+
+      {/* Account Overview Section */}
+      <AnimatePresence>
+        {showOverview && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-white rounded-3xl p-4 shadow-sm border border-yellow-100 space-y-4"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Account Overview</h3>
+                  <p className="text-[10px] text-gray-400 font-medium">Personal & Contact Info</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditingProfile(!isEditingProfile)}
+                className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-wider border border-gray-200 flex items-center gap-1"
+              >
+                <Edit2 className="w-3 h-3" />
+                {isEditingProfile ? 'Cancel' : 'Edit'}
+              </button>
+            </div>
+
+            {/* Account Details */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Email Address</span>
+                  <span className="text-xs font-bold text-gray-900 truncate block">{user.email}</span>
+                </div>
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              </div>
+
+              <div className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                <User className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Full Name</span>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={e => setEditedName(e.target.value)}
+                      className="w-full text-xs font-bold text-gray-900 bg-white border border-emerald-300 rounded-lg px-2 py-1 outline-none mt-0.5"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900 truncate block">{user.displayName || 'Not provided'}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Phone Number</span>
+                  {isEditingProfile ? (
+                    <input
+                      type="text"
+                      value={editedPhone}
+                      onChange={e => setEditedPhone(e.target.value)}
+                      className="w-full text-xs font-bold text-gray-900 bg-white border border-emerald-300 rounded-lg px-2 py-1 outline-none mt-0.5"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold text-gray-900 truncate block">{user.phone || 'Not provided'}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-2.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Member Since</span>
+                  <span className="text-xs font-bold text-gray-900 truncate block">{memberSince}</span>
+                </div>
+              </div>
+
+              {isEditingProfile && (
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:bg-emerald-700 active:scale-98 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Profile Changes'}
+                </button>
+              )}
+            </div>
+
+            {/* Account Quick Stats Grid */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+              <div
+                onClick={() => navigate('/orders')}
+                className="bg-emerald-50/60 p-2.5 rounded-2xl border border-emerald-100 text-center cursor-pointer active:scale-95 transition-all"
+              >
+                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 block">Orders</span>
+                <span className="text-base font-black text-emerald-900 mt-0.5 block">{ordersCount}</span>
+              </div>
+              <div
+                onClick={() => navigate('/wishlist')}
+                className="bg-rose-50/60 p-2.5 rounded-2xl border border-rose-100 text-center cursor-pointer active:scale-95 transition-all"
+              >
+                <span className="text-[9px] font-black uppercase tracking-wider text-rose-800 block">Wishlist</span>
+                <span className="text-base font-black text-rose-900 mt-0.5 block">{user.wishlist?.length || 0}</span>
+              </div>
+              <div
+                onClick={() => navigate('/addresses')}
+                className="bg-amber-50/60 p-2.5 rounded-2xl border border-amber-100 text-center cursor-pointer active:scale-95 transition-all"
+              >
+                <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">Addresses</span>
+                <span className="text-base font-black text-amber-900 mt-0.5 block">{user.addresses?.length || 0}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Account Navigation Grid */}
       <div className="bg-white rounded-3xl p-2 shadow-sm border border-yellow-100 divide-y divide-gray-100">
