@@ -10,6 +10,7 @@ import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, 
 import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
+import { VariantImageInput } from './VariantImageInput';
 
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
@@ -540,23 +541,16 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Upload or configure exact Size Chart image URL for customer viewing</p>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Upload an image file or enter exact Size Chart image URL for customer viewing</p>
               </div>
             </div>
-            <div className="space-y-4">
-              <input
-                type="text"
+            <div>
+              <VariantImageInput
                 value={formData.sizeChart || ''}
-                onChange={e => setFormData(p => ({ ...p, sizeChart: e.target.value }))}
-                placeholder="Enter Size Chart Image URL (e.g. https://.../size-chart.png)"
-                className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm"
+                onChange={val => setFormData(p => ({ ...p, sizeChart: val }))}
+                label="Size Chart Image (Upload File or Enter Link)"
+                imageTypeLabel="Size Chart image"
               />
-              {formData.sizeChart && (
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Size Chart Preview</span>
-                  <img src={formData.sizeChart} alt="Size Chart Preview" className="max-h-64 object-contain rounded-xl border bg-white" />
-                </div>
-              )}
             </div>
           </div>
 
@@ -852,13 +846,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                         />
                       </div>
 
-                      <div className="col-span-2 lg:col-span-4 space-y-2">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Variant-Specific Image URL</label>
-                        <input
-                          className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                          placeholder="https://.../variant-image.jpg"
+                      <div className="col-span-2 lg:col-span-4">
+                        <VariantImageInput
                           value={v.image || ''}
-                          onChange={e => updateVariant(v.id, 'image', e.target.value)}
+                          onChange={val => updateVariant(v.id, 'image', val)}
                         />
                       </div>
                     </div>
