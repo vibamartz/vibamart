@@ -12,7 +12,9 @@ import axios from 'axios';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import { processPayment } from '../../shared/utils/razorpay';
-import { NotificationEngine } from '../../backend/services/notificationEngine';
+import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
+import LocationPickerModal from '../components/LocationPickerModal';
+
 
 declare global {
   interface Window {
@@ -87,6 +89,8 @@ export default function Checkout() {
   });
   const [zipLoading, setZipLoading] = useState(false);
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+
 
   const handleZipcodeLookup = async (zipCode: string, countryVal: string) => {
     const cleanZip = zipCode.trim().replace(/\D/g, '').slice(0, 6);
@@ -368,9 +372,12 @@ export default function Checkout() {
           label: address.label || "Home"
         };
 
-        const orderData: any = {
+        const rawOrderData: any = {
           customerId: user ? user.uid : 'guest',
           items: orderItems,
+          subtotal,
+          shipping,
+          codFee,
           total: grandTotal,
           status: "pending",
           paymentStatus: pStatus,
@@ -391,13 +398,16 @@ export default function Checkout() {
         const contactName = user ? user.displayName : guestInfo.name;
         const contactPhone = user ? user.phone : guestInfo.phone;
 
-        if (contactEmail) orderData.contactEmail = contactEmail;
-        if (contactName) orderData.contactName = contactName;
-        if (contactPhone) orderData.contactPhone = contactPhone;
+        if (contactEmail) rawOrderData.contactEmail = contactEmail;
+        if (contactName) rawOrderData.contactName = contactName;
+        if (contactPhone) rawOrderData.contactPhone = contactPhone;
+
+        const orderData = sanitizeFirestoreData(rawOrderData);
 
         const uniqueId = await generateUniqueOrderId();
         orderData.customOrderId = uniqueId;
         await setDoc(doc(db, 'orders', uniqueId), orderData);
+
 
         // Update inventory stock according to existing inventory logic
         try {
@@ -599,80 +609,45 @@ export default function Checkout() {
             summary={address.street ? `${address.fullName}, ${address.house} ${address.street}, ${address.city} - ${address.zip}` : ''}
             onClickHeader={() => setStep(2)}
           >
-            <div className="space-y-6">
-              {/* List of Saved Addresses for logged in user */}
-              {user && user.addresses && user.addresses.length > 0 && !isEditingAddress && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Saved Address</h4>
-                    <button
-                      onClick={() => {
-                        setEditingAddressIndex(null);
-                        setEditAddressForm({
-                          fullName: user.displayName || "",
-                          phone: user.phone || "",
-                          house: "",
-                          street: "",
-                          landmark: "",
-                          city: "",
-                          state: "",
-                          country: "India",
-                          zip: "",
-                          label: "Home"
-                        });
-                        setIsEditingAddress(true);
-                      }}
-                      className="text-xs font-bold text-primary hover:underline uppercase tracking-wider"
-                    >
-                      + Add New Address
-                    </button>
+            <div className="space-y-4">
+              {address.street ? (
+                <div className="p-4 rounded-xl border border-gray-200/80 bg-white/80 flex justify-between items-center gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-gray-900 text-sm">{address.fullName}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        {address.label || 'Home'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                      {address.house}, {address.street}, {address.landmark ? `${address.landmark}, ` : ''}{address.city}, {address.state} - {address.zip}
+                    </p>
+                    <p className="text-xs font-bold text-gray-700">Mobile: {address.phone}</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {user.addresses.map((addr, idx) => {
-                      const isSelected = address.street === addr.street && address.house === addr.house && address.zip === addr.zip;
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => setAddress(addr)}
-                          className={`p-5 rounded-2xl border-2 cursor-pointer transition-all relative ${
-                            isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-gray-100 hover:border-gray-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md">
-                              {addr.label || 'Home'}
-                            </span>
-                            {isSelected && (
-                              <div className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">✓</div>
-                            )}
-                          </div>
-                          <h5 className="font-bold text-gray-900 text-sm">{addr.fullName}</h5>
-                          <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                            {addr.house}, {addr.street}, {addr.landmark ? `${addr.landmark}, ` : ''}{addr.city}, {addr.state} - {addr.zip}
-                          </p>
-                          <p className="text-xs font-bold text-gray-700 mt-2">Mobile: {addr.phone}</p>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingAddressIndex(idx);
-                              setEditAddressForm(addr);
-                              setIsEditingAddress(true);
-                            }}
-                            className="mt-3 text-[10px] font-bold text-primary hover:underline uppercase tracking-wider"
-                          >
-                            Edit Address
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationModal(true)}
+                    className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border border-emerald-200 shrink-0"
+                  >
+                    Change Address
+                  </button>
+                </div>
+              ) : (
+                <div className="p-6 rounded-xl border border-dashed border-gray-300 text-center space-y-3">
+                  <p className="text-xs text-gray-500 font-bold">No delivery address selected</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationModal(true)}
+                    className="px-5 py-2.5 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-primary-hover"
+                  >
+                    Select or Add Address
+                  </button>
                 </div>
               )}
 
-              {/* Edit or Add Address Form */}
-              {(isEditingAddress || !user || !user.addresses || user.addresses.length === 0) && (
-                <div className="space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+              {/* Edit or Add Address Form (Fallback for direct edit) */}
+              {isEditingAddress && (
+                <div className="space-y-4 py-2">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">
                       {editingAddressIndex !== null ? 'Edit Address' : 'Enter Delivery Address'}
@@ -800,21 +775,6 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  {user && editingAddressIndex === null && (
-                    <div className="flex items-center gap-2 pt-2">
-                      <input
-                        type="checkbox"
-                        id="saveAddress"
-                        checked={saveAddress}
-                        onChange={(e) => setSaveAddress(e.target.checked)}
-                        className="w-4 h-4 rounded text-primary focus:ring-primary"
-                      />
-                      <label htmlFor="saveAddress" className="text-xs font-bold text-gray-600 cursor-pointer">
-                        Save this address to my profile for future checkouts
-                      </label>
-                    </div>
-                  )}
-
                   <div className="flex gap-3 pt-2">
                     <button
                       type="button"
@@ -823,18 +783,13 @@ export default function Checkout() {
                     >
                       Save & Use This Address
                     </button>
-                    {user && user.addresses && user.addresses.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEditingAddress(false);
-                          setEditingAddressIndex(null);
-                        }}
-                        className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-gray-50 transition-all"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingAddress(false)}
+                      className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-gray-50 transition-all"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
@@ -843,7 +798,7 @@ export default function Checkout() {
               {address.street && !isEditingAddress && (
                 <button
                   onClick={() => setStep(3)}
-                  className="w-full bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-100 hover:bg-primary-hover transition-all"
+                  className="w-full bg-primary text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs shadow-md hover:bg-primary-hover transition-all"
                 >
                   Deliver Here & Proceed to Payment
                 </button>
@@ -870,30 +825,21 @@ export default function Checkout() {
                       isActive={paymentMethod === 'razorpay'}
                       onClick={() => setPaymentMethod('razorpay')}
                     />
-                    {isCodAvailableForCart ? (
+                    {isCodAvailableForCart && (
                       <PaymentOption
                         icon={Truck}
                         label="Cash on Delivery (COD)"
                         isActive={paymentMethod === 'cod'}
+                        isGrey={true}
                         onClick={() => setPaymentMethod('cod')}
                       />
-                    ) : (
-                      <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50 opacity-60 flex items-center justify-between cursor-not-allowed">
-                        <div className="flex items-center gap-3">
-                          <Truck className="w-5 h-5 text-gray-400" />
-                          <div>
-                            <span className="text-xs font-bold text-gray-500 block">Cash on Delivery (COD)</span>
-                            <span className="text-[10px] text-red-500 font-bold block">Disabled for 1+ items in cart</span>
-                          </div>
-                        </div>
-                      </div>
                     )}
                   </div>
                 );
               })()}
 
               <div className="border-t border-gray-100 pt-6">
-                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl text-xs font-bold text-gray-500 mb-6">
+                <div className="flex items-center gap-3 bg-gray-50/80 p-4 rounded-xl text-xs font-bold text-gray-500 mb-6">
                   <ShieldCheck className="w-5 h-5 text-primary shrink-0" />
                   <span>By placing your order, you agree to ViBa Mart's terms of use and privacy policy.</span>
                 </div>
@@ -901,7 +847,7 @@ export default function Checkout() {
                 <button
                   onClick={handlePlaceOrder}
                   disabled={loading}
-                  className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-lg shadow-2xl shadow-gray-200 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
+                  className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-lg shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : `Confirm Order - ₹${grandTotal.toLocaleString()}`}
                 </button>
@@ -912,9 +858,9 @@ export default function Checkout() {
 
         {/* Price Details */}
         <div className="w-full lg:w-80 space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-50 pb-4">Price Details</h3>
-            <div className="space-y-4 mb-6 border-b border-gray-100 pb-6">
+          <div className="py-4 sticky top-24">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-200/60 pb-4">Price Details</h3>
+            <div className="space-y-4 mb-6 border-b border-gray-200/60 pb-6">
               <div className="flex justify-between text-sm font-bold text-gray-500">
                 <span>Total MRP ({items.length} items)</span>
                 <span className="text-gray-900">₹{totalMRP.toLocaleString()}</span>
@@ -938,9 +884,9 @@ export default function Checkout() {
               <span>Total Price</span>
               <span>₹{grandTotal.toLocaleString()}</span>
             </div>
-            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-primary" />
-              <p className="text-[10px] font-black text-primary uppercase tracking-wider leading-relaxed">Safe and Secure Payments. 100% Authentic Products.</p>
+            <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-600" />
+              <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wider leading-relaxed">Safe and Secure Payments. 100% Authentic Products.</p>
             </div>
           </div>
         </div>
@@ -952,26 +898,37 @@ export default function Checkout() {
         onClose={() => setShowLocationPermissionModal(false)}
         onAllowAccess={handleUseCurrentLocation}
       />
+
+      <LocationPickerModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelect={(pin, addrStr, fullAddrObj) => {
+          if (fullAddrObj) {
+            setAddress(fullAddrObj);
+            setIsEditingAddress(false);
+          }
+        }}
+      />
     </div>
   );
 }
 
 function CheckoutStep({ number, title, isActive, isCompleted, summary, children, onClickHeader }: any) {
   return (
-    <div className={`overflow-hidden transition-all duration-300 ${isActive ? 'bg-white shadow-xl rounded-2xl border border-gray-100' : isCompleted ? 'bg-white/80 rounded-xl border border-gray-100 hover:shadow-md' : 'bg-gray-50/50 grayscale opacity-60 rounded-xl'}`}>
+    <div className={`overflow-hidden transition-all duration-300 ${isActive ? 'py-4 border-b border-gray-200/80' : isCompleted ? 'py-3 border-b border-gray-200/60' : 'py-3 opacity-60'}`}>
       <div
-        className={`px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between ${isActive ? 'bg-gray-900 text-white' : ''} ${isCompleted && onClickHeader ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+        className={`px-2 py-3 flex items-center justify-between ${isCompleted && onClickHeader ? 'cursor-pointer hover:bg-gray-50/50 transition-colors' : ''}`}
         onClick={isCompleted && onClickHeader ? onClickHeader : undefined}
       >
         <div className="flex items-center gap-3 sm:gap-4">
           <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${isActive ? 'bg-primary text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
             {isCompleted ? '✓' : number}
           </div>
-          <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-xs">{title}</h3>
+          <h3 className="font-black uppercase tracking-widest text-[10px] sm:text-xs text-gray-900">{title}</h3>
         </div>
         {isCompleted && (
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 hidden sm:inline">{summary}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hidden sm:inline">{summary}</span>
             {onClickHeader && <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Change</span>}
           </div>
         )}
@@ -982,7 +939,7 @@ function CheckoutStep({ number, title, isActive, isCompleted, summary, children,
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="p-4 sm:p-8"
+            className="py-4"
           >
             {children}
           </motion.div>
@@ -992,9 +949,34 @@ function CheckoutStep({ number, title, isActive, isCompleted, summary, children,
   );
 }
 
-function PaymentOption({ icon: Icon, label, isActive, onClick }: any) {
+function PaymentOption({ icon: Icon, label, isActive, onClick, isGrey }: any) {
+  if (isGrey) {
+    return (
+      <div 
+        onClick={onClick} 
+        className={`p-5 rounded-2xl border-2 flex items-center gap-5 cursor-pointer transition-all ${
+          isActive 
+            ? 'border-gray-500 bg-gray-200/90 shadow-xs' 
+            : 'border-gray-300 bg-gray-100 hover:border-gray-400'
+        }`}
+      >
+        <div className={`p-2 rounded-xl ${isActive ? 'bg-gray-700 text-white' : 'bg-gray-300 text-gray-700'}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        <span className={`font-black text-sm uppercase tracking-widest ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
+          {label}
+        </span>
+        {isActive && (
+          <div className="ml-auto w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center">
+            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div onClick={onClick} className={`p-5 rounded-2xl border-2 flex items-center gap-5 cursor-pointer transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-gray-200'}`}>
+    <div onClick={onClick} className={`p-5 rounded-2xl border-2 flex items-center gap-5 cursor-pointer transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
       <div className={`p-2 rounded-xl ${isActive ? 'bg-primary text-white' : 'bg-gray-50 text-gray-400'}`}>
         <Icon className="w-6 h-6" />
       </div>
@@ -1003,3 +985,4 @@ function PaymentOption({ icon: Icon, label, isActive, onClick }: any) {
     </div>
   );
 }
+

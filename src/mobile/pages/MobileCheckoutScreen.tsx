@@ -13,7 +13,10 @@ import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { processPayment } from '../../shared/utils/razorpay';
-import { NotificationEngine } from '../../backend/services/notificationEngine';
+import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
+import LocationPickerModal from '../../desktop/components/LocationPickerModal';
+
+
 
 export default function MobileCheckoutScreen() {
   const navigate = useNavigate();
@@ -28,9 +31,10 @@ export default function MobileCheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'razorpay' | 'upi' | 'wallet'>('cod');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Add address modal state
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
   const [newFullName, setNewFullName] = useState(user?.displayName || '');
+
   const [newPhone, setNewPhone] = useState(user?.phone || '');
   const [newHouse, setNewHouse] = useState('');
   const [newStreet, setNewStreet] = useState('');
@@ -163,27 +167,32 @@ export default function MobileCheckoutScreen() {
 
     const customId = `VBM${Date.now().toString().slice(-6)}`;
 
-    const newOrder: Omit<Order, 'id'> = {
+    const rawOrder: any = {
       customOrderId: customId,
       customerId: user?.uid || 'guest_' + Date.now(),
       contactEmail: user?.email || 'guest@vibamart.com',
       contactName: selectedAddress.fullName || contactName || 'Guest User',
       contactPhone: contactPhone || selectedAddress.phone,
-      items: items.map(i => ({
-        productId: i.productId,
-        variantId: i.variantId,
-        name: i.product.name,
-        price: i.product.discountPrice || i.product.price,
-        quantity: i.quantity,
-        image: i.product.images?.[0] || '',
-        gst: i.product.gst || 0,
-        enableGst: i.product.enableGst !== false
-      })),
+      items: items.map(i => {
+        const itemObj: any = {
+          productId: i.productId,
+          name: i.product.name,
+          price: i.product.discountPrice || i.product.price,
+          quantity: i.quantity,
+          image: i.product.images?.[0] || '',
+          gst: i.product.gst || 0,
+          enableGst: i.product.enableGst !== false
+        };
+        if (i.variantId) itemObj.variantId = i.variantId;
+        return itemObj;
+      }),
+      subtotal: cartTotal,
+      deliveryCharge,
+      codFee,
       total: grandTotal,
       status: 'pending',
       paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
       paymentMethod,
-      paymentReference: payResult.paymentId || undefined,
       address: selectedAddress,
       createdAt: new Date().toISOString(),
       statusHistory: [
@@ -195,8 +204,15 @@ export default function MobileCheckoutScreen() {
       ]
     };
 
+    if (payResult.paymentId) {
+      rawOrder.paymentReference = payResult.paymentId;
+    }
+
+    const newOrder = sanitizeFirestoreData(rawOrder);
+
     try {
       const docRef = await addDoc(collection(db, 'orders'), newOrder);
+
 
       // Update inventory stock according to existing inventory logic
       try {
@@ -243,9 +259,9 @@ export default function MobileCheckoutScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-4">
       {/* Checkout Title Header */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
+      <div className="py-2 flex items-center justify-between border-b border-gray-200/60">
         <div>
           <h2 className="text-sm font-black text-gray-900">Checkout & Payment</h2>
           <p className="text-[10px] text-gray-500 font-bold">Fast & Encrypted Delivery</p>
@@ -253,64 +269,48 @@ export default function MobileCheckoutScreen() {
         <ShieldCheck className="w-5 h-5 text-emerald-600" />
       </div>
 
-      {/* Step 1: Delivery Address & Phone */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+      {/* Step 1: Delivery Address */}
+      <div className="py-2 space-y-2 border-b border-gray-200/60">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <span>Delivery Address</span>
           </div>
           <button
-            onClick={() => setShowAddressModal(true)}
-            className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1"
+            type="button"
+            onClick={() => setShowLocationPickerModal(true)}
+            className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full flex items-center gap-1 border border-emerald-200"
           >
-            <Plus className="w-3 h-3" /> Add New
+            Change Address
           </button>
         </div>
 
-        {addresses.length > 0 ? (
-          <div className="space-y-2">
-            {addresses.map((addr, idx) => (
-              <div
-                key={idx}
-                onClick={() => setSelectedAddressIndex(idx)}
-                className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-start justify-between ${
-                  selectedAddressIndex === idx
-                    ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-gray-900">{addr.fullName}</span>
-                    <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                      {addr.label || 'Home'}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 font-medium">{addr.house}, {addr.street}</p>
-                  <p className="text-gray-500 font-medium">{addr.city}, {addr.state} - {addr.zip}</p>
-                  <p className="text-gray-600 font-bold">Phone: {addr.phone}</p>
-                </div>
-                {selectedAddressIndex === idx && (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                )}
-              </div>
-            ))}
+        {selectedAddress.street || selectedAddress.house ? (
+          <div className="p-3 bg-white/80 rounded-xl border border-gray-200/80 text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-gray-900">{selectedAddress.fullName}</span>
+              <span className="text-[9px] font-black uppercase bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded">
+                {selectedAddress.label || 'Home'}
+              </span>
+            </div>
+            <p className="text-gray-700 font-medium">{selectedAddress.house}, {selectedAddress.street}</p>
+            <p className="text-gray-500 font-medium">{selectedAddress.city}, {selectedAddress.state} - {selectedAddress.zip}</p>
+            <p className="text-gray-700 font-bold">Phone: {selectedAddress.phone}</p>
           </div>
         ) : (
-          <div className="text-center py-3 bg-gray-50 rounded-xl border border-dashed border-gray-300 space-y-2">
-            <p className="text-xs text-gray-500 font-bold">No saved addresses found.</p>
+          <div className="text-center py-3 bg-white/60 rounded-xl border border-dashed border-gray-300 space-y-2">
+            <p className="text-xs text-gray-500 font-bold">No delivery address selected.</p>
             <button
-              onClick={() => setShowAddressModal(true)}
+              onClick={() => setShowLocationPickerModal(true)}
               className="px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase"
             >
-              Add Delivery Address
+              Select Delivery Address
             </button>
           </div>
         )}
 
         {/* Contact Phone Field */}
-        <div className="pt-2 border-t border-gray-100 space-y-1">
+        <div className="pt-2 space-y-1">
           <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1">
             <Phone className="w-3 h-3 text-emerald-600" /> Contact Phone Number
           </label>
@@ -320,14 +320,14 @@ export default function MobileCheckoutScreen() {
             value={contactPhone}
             onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ''))}
             placeholder="10-digit mobile number"
-            className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+            className="w-full bg-white border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
           />
         </div>
       </div>
 
       {/* Step 2: Payment Method Selector */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-2">
+      <div className="py-2 space-y-3 border-b border-gray-200/60">
+        <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
           <CreditCard className="w-4 h-4 text-emerald-600" />
           <span>Select Payment Option</span>
         </div>
@@ -336,46 +336,46 @@ export default function MobileCheckoutScreen() {
           {(() => {
             const isCodAvailableForCart = items.every(i => i.product.isCodAllowed !== false);
             const options = [
-              { id: 'cod', title: 'Cash on Delivery (COD)', sub: isCodAvailableForCart ? 'Pay cash upon delivery' : 'Disabled for items in cart', icon: Banknote, tag: 'Popular', disabled: !isCodAvailableForCart },
-              { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant', disabled: false },
-              { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure', disabled: false },
+              ...(isCodAvailableForCart ? [{ id: 'cod', title: 'Cash on Delivery (COD)', sub: 'Pay cash upon delivery', icon: Banknote, tag: 'Popular', isGrey: true }] : []),
+              { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant', isGrey: false },
+              { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure', isGrey: false },
             ];
 
             return options.map((pm) => (
               <div
                 key={pm.id}
-                onClick={() => {
-                  if (pm.disabled) {
-                    toast.error("Cash on Delivery is disabled for one or more items in your cart.");
-                    return;
-                  }
-                  setPaymentMethod(pm.id as any);
-                }}
-                className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
-                  pm.disabled
-                    ? 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
+                onClick={() => setPaymentMethod(pm.id as any)}
+                className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${
+                  pm.isGrey
+                    ? paymentMethod === pm.id
+                      ? 'bg-gray-200/90 border-gray-500 ring-2 ring-gray-400/20'
+                      : 'bg-gray-100 border-gray-300'
                     : paymentMethod === pm.id
-                    ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20 cursor-pointer'
-                    : 'bg-gray-50 border-gray-200 cursor-pointer'
+                    ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20'
+                    : 'bg-white border-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${paymentMethod === pm.id && !pm.disabled ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                  <div className={`p-2 rounded-lg ${
+                    pm.isGrey
+                      ? paymentMethod === pm.id ? 'bg-gray-700 text-white' : 'bg-gray-300 text-gray-700'
+                      : paymentMethod === pm.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  }`}>
                     <pm.icon className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-gray-900">{pm.title}</span>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${pm.disabled ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-800'}`}>
-                        {pm.disabled ? 'Disabled' : pm.tag}
+                      <span className={`font-extrabold ${pm.isGrey ? 'text-gray-900' : 'text-gray-900'}`}>{pm.title}</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${pm.isGrey ? 'bg-gray-300 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {pm.tag}
                       </span>
                     </div>
-                    <p className={`text-[10px] font-medium ${pm.disabled ? 'text-red-500 font-bold' : 'text-gray-500'}`}>{pm.sub}</p>
+                    <p className="text-[10px] font-medium text-gray-500">{pm.sub}</p>
                   </div>
                 </div>
 
-                {paymentMethod === pm.id && !pm.disabled && (
-                  <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                {paymentMethod === pm.id && (
+                  <CheckCircle2 className={`w-5 h-5 shrink-0 ${pm.isGrey ? 'text-gray-700' : 'text-blue-600'}`} />
                 )}
               </div>
             ));
@@ -384,11 +384,11 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 3: Order Items Summary */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
+      <div className="py-2 space-y-2 border-b border-gray-200/60">
         <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
           Order Items ({items.length})
         </h3>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-gray-100/80">
           {items.map((item) => (
             <div key={item.productId} className="py-2 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 min-w-0">
@@ -409,8 +409,8 @@ export default function MobileCheckoutScreen() {
       </div>
 
       {/* Step 4: Final Price Breakdown */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2 text-xs">
-        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-100 pb-1.5">
+      <div className="py-2 space-y-2 text-xs">
+        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider border-b border-gray-200/60 pb-1.5">
           Price Details
         </h3>
         <div className="flex justify-between text-gray-600">
@@ -435,7 +435,7 @@ export default function MobileCheckoutScreen() {
             <span className="font-bold text-gray-900">₹{codFee}</span>
           </div>
         )}
-        <div className="pt-2 border-t border-gray-100 flex justify-between items-baseline text-sm font-black">
+        <div className="pt-2 border-t border-gray-200/60 flex justify-between items-baseline text-sm font-black">
           <span className="text-gray-900">Total Price</span>
           <span className="text-emerald-700">₹{grandTotal.toLocaleString()}</span>
         </div>
@@ -550,6 +550,19 @@ export default function MobileCheckoutScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      <LocationPickerModal
+        isOpen={showLocationPickerModal}
+        onClose={() => setShowLocationPickerModal(false)}
+        onLocationSelect={(pin, addrStr, fullObj) => {
+          if (fullObj) {
+            const updated = [...addresses, fullObj];
+            setAddresses(updated);
+            setSelectedAddressIndex(updated.length - 1);
+          }
+        }}
+      />
     </div>
   );
 }
+

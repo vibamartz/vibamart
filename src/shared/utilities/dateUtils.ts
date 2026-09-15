@@ -26,7 +26,21 @@ export function formatDeliveredDate(order: Order): string {
   return `Delivered · ${mm}/${dd}`;
 }
 
-export function getDynamicExpectedDeliveryDate(baseDate: Date = new Date()): { deliveryRange: string; expectedBy: string; fullFormattedText: string } {
+export function getShortDeliveryText(baseDate: Date = new Date()): string {
+  const targetDate = new Date(baseDate);
+  targetDate.setDate(targetDate.getDate() + 7);
+
+  const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const weekday = WEEKDAYS[targetDate.getDay()];
+  const day = targetDate.getDate();
+  const month = MONTHS[targetDate.getMonth()];
+
+  return `Delivery by ${weekday}, ${day} ${month}`;
+}
+
+export function getDynamicExpectedDeliveryDate(baseDate: Date = new Date()): { deliveryRange: string; expectedBy: string; fullFormattedText: string; shortText: string } {
   const targetDate = new Date(baseDate);
   targetDate.setDate(targetDate.getDate() + 7);
 
@@ -36,16 +50,18 @@ export function getDynamicExpectedDeliveryDate(baseDate: Date = new Date()): { d
 
   const expectedBy = `Expected by ${weekday}, ${month} ${day}`;
   const deliveryRange = `Delivery in 4–7 days`;
+  const shortText = getShortDeliveryText(baseDate);
   
   return {
     deliveryRange,
     expectedBy,
-    fullFormattedText: `${deliveryRange} • ${expectedBy}`
+    fullFormattedText: `${deliveryRange} • ${expectedBy}`,
+    shortText
   };
 }
 
 export function getFormattedDeliveryDate(product?: any): string {
-  const { deliveryRange, expectedBy } = getDynamicExpectedDeliveryDate();
-  return `${deliveryRange} | ${expectedBy}`;
+  return getShortDeliveryText();
 }
+
 
