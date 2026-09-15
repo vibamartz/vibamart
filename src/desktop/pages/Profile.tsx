@@ -808,8 +808,8 @@ export default function Profile() {
 
                              <div className="flex items-center gap-4 overflow-x-auto py-2 hide-scrollbar">
                                {order.items.map((item, idx) => (
-                                 <div key={idx} className="flex-shrink-0 w-16 h-16 rounded-xl border border-gray-100 overflow-hidden relative bg-white">
-                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                 <div key={idx} className="flex-shrink-0 w-16 h-16 rounded-xl border border-gray-100 overflow-hidden relative bg-white flex items-center justify-center p-0.5">
+                                    <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
                                     {item.quantity > 1 && (
                                       <span className="absolute bottom-1 right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-lg flex items-center justify-center shadow-lg">
                                         {item.quantity}
@@ -1763,8 +1763,8 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
               onClick={() => navigate(`/products/${getProductSlug(product)}`)}
               className="bg-white p-4 rounded-[32px] border border-gray-100 shadow-sm flex gap-4 group hover:border-primary/20 hover:shadow-lg hover:scale-[1.01] transition-all cursor-pointer"
             >
-              <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
-                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <div className="w-28 h-28 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0 p-1.5 flex items-center justify-center border border-gray-100">
+                <img src={product.images[0]} alt={product.name} className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500" />
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
                 <div>

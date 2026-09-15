@@ -101,7 +101,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+            className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           
           <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">

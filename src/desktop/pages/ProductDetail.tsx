@@ -317,13 +317,13 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-white sm:rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-12">
         {/* Left: Image Gallery */}
         <div className="w-full lg:flex-1 space-y-4">
-          <div className="relative aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 lg:sticky lg:top-24">
+          <div className="relative aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50/80 border border-gray-100 lg:sticky lg:top-24 flex items-center justify-center p-3 sm:p-4">
             <img
               src={activeImageSrc}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="max-w-full max-h-full object-contain drop-shadow-sm"
             />
-            <div className="absolute top-4 right-4 flex flex-col gap-2">
+            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
               <button
                 onClick={handleToggleWishlist}
                 aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
@@ -347,9 +347,9 @@ export default function ProductDetail() {
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${selectedImage === idx && !currentVariant?.image ? 'border-green-600' : 'border-transparent opacity-60'}`}
+                className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-gray-50/50 p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600' : 'border-transparent opacity-60'}`}
               >
-                <img src={img} className="w-full h-full object-cover" />
+                <img src={img} alt="" className="max-w-full max-h-full object-contain" />
               </button>
             ))}
           </div>

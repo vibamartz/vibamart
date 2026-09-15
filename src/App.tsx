@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Logo from './desktop/components/Logo';
 import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore } from './backend/store';
 import { useIsMobile } from './shared/utilities/useIsMobile';
+import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
 
 // Desktop UI (Isolated Desktop Fronted)
@@ -106,6 +107,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 function MainAppRoutes() {
   const isMobile = useIsMobile();
+  useDoubleBackToExit();
 
   if (isMobile) {
     return (

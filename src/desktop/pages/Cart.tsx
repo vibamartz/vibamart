@@ -234,8 +234,8 @@ export default function Cart() {
 
                     return (
                       <div key={`${item.productId}-${item.variantId}`} className="py-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
-                        <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0">
-                          <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover rounded-xl bg-gray-50" />
+                        <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 bg-gray-50/80 rounded-xl p-1.5 flex items-center justify-center border border-gray-100">
+                          <img src={item.product.images[0]} alt={item.product.name} className="max-w-full max-h-full object-contain" />
                         </div>
                         <div className="flex-1 flex flex-col min-w-0">
                           <div className="flex justify-between items-start gap-2">

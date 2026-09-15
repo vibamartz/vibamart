@@ -482,13 +482,13 @@ export default function Rewards() {
                   >
                     <div>
                       {/* Product & Brand Image Header */}
-                      <div className="h-48 relative overflow-hidden bg-gray-100">
+                      <div className="h-48 relative overflow-hidden bg-gray-50 p-2 flex items-center justify-center">
                         <img
                           src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
                           alt={coupon.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
 
                         {/* Brand Logo & Name */}
                         <div className="absolute left-4 bottom-3 flex items-center gap-2.5 z-10">
@@ -768,11 +768,11 @@ export default function Rewards() {
 
               {/* Main Image Gallery */}
               <div className="space-y-3">
-                <div className="h-64 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 relative">
+                <div className="h-64 rounded-2xl overflow-hidden bg-gray-50 border border-gray-200 relative flex items-center justify-center p-3">
                   <img
                     src={(selectedCoupon.catalogImages && selectedCoupon.catalogImages[selectedGalleryImgIndex]) || selectedCoupon.productImage}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-full object-contain"
                   />
                   <div className="absolute right-4 top-4 bg-amber-500 text-white font-black text-xs px-3 py-1 rounded-full shadow-lg">
                     {selectedCoupon.discountType === 'percent' ? `${selectedCoupon.discountValue}% OFF` : `₹${selectedCoupon.discountValue} OFF`}
@@ -786,11 +786,11 @@ export default function Rewards() {
                       <button
                         key={idx}
                         onClick={() => setSelectedGalleryImgIndex(idx)}
-                        className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                        className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-gray-50 p-1 flex items-center justify-center ${
                           selectedGalleryImgIndex === idx ? 'border-amber-500 scale-95' : 'border-gray-200 opacity-60'
                         }`}
                       >
-                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <img src={img} alt="" className="max-w-full max-h-full object-contain" />
                       </button>
                     ))}
                   </div>
