@@ -818,7 +818,6 @@ export default function OrderTracking() {
                     <Package className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 1</span>
                     <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Products ({order.items.length})</h3>
                   </div>
                 </div>
@@ -864,7 +863,6 @@ export default function OrderTracking() {
                   <MapPin className="w-6 h-6 text-emerald-600" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 2</span>
                   <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Delivery Details</h3>
                 </div>
               </div>
@@ -903,7 +901,6 @@ export default function OrderTracking() {
                       <CreditCard className="w-6 h-6 text-indigo-600" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 3</span>
                       <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Price Details</h3>
                     </div>
                   </div>
@@ -951,7 +948,6 @@ export default function OrderTracking() {
                   <Sparkles className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Section 4</span>
                   <h3 className="text-lg font-black text-gray-900 uppercase tracking-wider">Products For You</h3>
                 </div>
               </div>
@@ -1031,7 +1027,8 @@ export default function OrderTracking() {
 
               <div className="pt-4 border-t border-gray-100 space-y-2 text-xs text-gray-500">
                 <p className="font-bold text-gray-900">Customer Support Assistance</p>
-                <p>For urgent order queries or assistance, contact support at <span className="text-primary font-bold">viba.mart@hotmail.com</span></p>
+                <p>Email: <a href="mailto:viba.mart@hotmail.com" className="text-primary font-bold hover:underline">viba.mart@hotmail.com</a></p>
+                <p>Phone: <a href="tel:+919905523505" className="text-primary font-bold hover:underline">+91 9905 52 3505</a></p>
               </div>
             </motion.div>
           </motion.div>

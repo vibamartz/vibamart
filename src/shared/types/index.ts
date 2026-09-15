@@ -82,6 +82,8 @@ export interface Product {
   deliveryDays?: number;
   expectedDelivery?: string;
   estimatedDelivery?: string;
+  isCodAllowed?: boolean; // Admin toggle for COD availability (default true)
+  isStockVisible?: boolean; // Admin toggle for stock visibility (default true)
   createdAt: string;
 }
 

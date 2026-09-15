@@ -203,11 +203,14 @@ export default async function handler(req: any, res: any) {
             transaction.update(prodUpdate.ref, prodUpdate.updates);
           }
           
+          const cancelApprovalTime = new Date().toISOString();
           const orderTransactionUpdates = {
             status: "cancelled",
+            cancelledAt: cancelApprovalTime,
+            updatedAt: cancelApprovalTime,
             statusHistory: admin.firestore.FieldValue.arrayUnion({
               status: "cancelled",
-              timestamp: new Date().toISOString(),
+              timestamp: cancelApprovalTime,
               message: "Cancellation approved by admin"
             })
           };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCartStore, useAuthStore } from '../../backend/store';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Heart, Clock, Truck, Zap } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Heart, Clock, Truck, Zap, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -10,6 +10,8 @@ import { doc, updateDoc, arrayUnion, collection, query, where, getDocs, document
 import { Product } from '../../shared/types';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import ProductCard from '../components/ProductCard';
+import LocationPickerModal from '../components/LocationPickerModal';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import toast from 'react-hot-toast';
 
 function RecentlyViewedCartSection() {
@@ -132,6 +134,8 @@ function WishlistCartSection() {
 export default function Cart() {
   const { items, removeItem, updateQuantity, total } = useCartStore();
   const { user } = useAuthStore();
+  const { selectedAddress } = useLocationStore();
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
 
   const handleMoveToWishlist = async (productId: string, variantId?: string) => {
@@ -186,6 +190,42 @@ export default function Cart() {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Cart Items List */}
             <div className="flex-1 space-y-6">
+              {/* Selected Delivery Address Box */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Delivery Address</span>
+                      {selectedAddress?.label && (
+                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase border border-emerald-100">
+                          {selectedAddress.label}
+                        </span>
+                      )}
+                    </div>
+                    {selectedAddress ? (
+                      <p className="text-sm font-bold text-gray-800 mt-0.5 truncate">
+                        {selectedAddress.fullName ? `${selectedAddress.fullName} — ` : ''}
+                        {selectedAddress.house ? `${selectedAddress.house}, ` : ''}
+                        {selectedAddress.street || ''}
+                        {selectedAddress.city ? `, ${selectedAddress.city}` : ''}
+                        {selectedAddress.zip ? ` (${selectedAddress.zip})` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-500 mt-0.5">No delivery address selected</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowLocationModal(true)}
+                  className="px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shrink-0 border border-emerald-200"
+                >
+                  Change Address
+                </button>
+              </div>
+
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h2 className="text-2xl font-black text-gray-900 mb-6">Shopping Cart ({items.length})</h2>
                 <div className="divide-y divide-gray-100 font-medium">
@@ -337,6 +377,10 @@ export default function Cart() {
         {/* Requirement 1: Your Wishlist Products Section */}
         <WishlistCartSection />
 
+        <LocationPickerModal 
+          isOpen={showLocationModal} 
+          onClose={() => setShowLocationModal(false)} 
+        />
       </div>
     </div>
   );

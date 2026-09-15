@@ -763,8 +763,8 @@ export default function Profile() {
                                </div>
                                <div className="flex gap-4">
                                  <div className="flex flex-col items-end">
-                                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Date</span>
-                                   <span className="text-xs font-bold text-gray-600">{new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{order.status === 'cancelled' ? 'Canceled Date' : 'Date'}</span>
+                                   <span className="text-xs font-bold text-gray-600">{new Date(order.status === 'cancelled' ? (order.cancelledAt || order.statusHistory?.find(s => s.status === 'cancelled')?.timestamp || order.updatedAt || order.createdAt) : order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                  </div>
                                  <div className="flex flex-col items-end">
                                    <div className="flex flex-col items-end">

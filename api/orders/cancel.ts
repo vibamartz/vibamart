@@ -216,12 +216,15 @@ export default async function handler(req: any, res: any) {
       for (const prodUpdate of updatesByProduct.values()) {
         batch.update(prodUpdate.ref, prodUpdate.updates);
       }
+      const cancellationTime = new Date().toISOString();
       batch.update(db.collection("orders").doc(targetOrderId), {
         status: "cancelled",
         cancellationReason: reason,
+        cancelledAt: cancellationTime,
+        updatedAt: cancellationTime,
         statusHistory: admin.firestore.FieldValue.arrayUnion({
           status: "cancelled",
-          timestamp: new Date().toISOString(),
+          timestamp: cancellationTime,
           message: "Cancelled by customer"
         })
       });

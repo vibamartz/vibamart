@@ -107,8 +107,8 @@ export default function MobileWishlistScreen() {
               onClick={() => navigate(`/products/${getProductSlug(product)}`)}
               className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer"
             >
-              <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">
-                <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" />
+              <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 p-1.5 flex items-center justify-center mb-2">
+                <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-contain" />
               </div>
               <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight min-h-[32px]">{product.name}</h4>
               <div className="space-y-2 mt-2 pt-1 border-t border-gray-100">

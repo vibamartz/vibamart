@@ -46,6 +46,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       serviceablePincodes: [],
       color: '',
       size: '',
+      isCodAllowed: true,
+      isStockVisible: true,
       createdAt: new Date().toISOString(),
     };
     if (product) {
@@ -64,6 +66,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         categoryId: product.categoryId || '',
         subCategoryId: product.subCategoryId || '',
         nestedSubCategoryId: product.nestedSubCategoryId || '',
+        isCodAllowed: product.isCodAllowed !== false,
+        isStockVisible: product.isStockVisible !== false,
         variants: (product.variants || []).map(v => ({
           ...v,
           name: v.name || '',
@@ -617,6 +621,39 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   onChange={e => setFormData(p => ({ ...p, stock: Number(e.target.value) }))}
                   className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Cash on Delivery (COD)</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable COD for checkout</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.isCodAllowed !== false}
+                      onChange={e => setFormData(p => ({ ...p, isCodAllowed: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Stock Visibility</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Display stock status to customers</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.isStockVisible !== false}
+                      onChange={e => setFormData(p => ({ ...p, isStockVisible: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Primary Collection</label>

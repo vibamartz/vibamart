@@ -199,7 +199,9 @@ export default function MobileOrdersScreen() {
                   <div>
                     <span className="text-xs font-black text-gray-900">{displayId}</span>
                     <span className="text-[10px] text-gray-400 font-medium block">
-                      Placed on {new Date(order.createdAt).toLocaleDateString()}
+                      {order.status === 'cancelled'
+                        ? `Cancelled on ${new Date(order.cancelledAt || order.statusHistory?.find(s => s.status === 'cancelled')?.timestamp || order.updatedAt || order.createdAt).toLocaleDateString()}`
+                        : `Placed on ${new Date(order.createdAt).toLocaleDateString()}`}
                     </span>
                   </div>
                   {getStatusBadge(order)}

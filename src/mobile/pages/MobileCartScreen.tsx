@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap 
+  Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin 
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -10,6 +10,8 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { doc, updateDoc, arrayUnion, collection, query, where, getDocs, documentId } from 'firebase/firestore';
 import { Product } from '../../shared/types';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -46,7 +48,7 @@ function MobileRecentlyViewedSection() {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
+    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-3">
       <div className="flex items-center gap-2">
         <Clock className="w-4 h-4 text-emerald-600" />
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Recently Viewed</h3>
@@ -135,7 +137,7 @@ function MobileWishlistSection() {
   }, [user]);
 
   return (
-    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 space-y-3">
+    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-3">
       <div className="flex items-center gap-2">
         <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Your Wishlist Products</h3>
@@ -192,6 +194,8 @@ function MobileWishlistSection() {
 export default function MobileCartScreen() {
   const { items, updateQuantity, removeItem, clearCart, total } = useCartStore();
   const { user } = useAuthStore();
+  const { selectedAddress } = useLocationStore();
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
 
   const cartTotal = total();
@@ -249,7 +253,7 @@ export default function MobileCartScreen() {
       
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-yellow-100 text-center flex flex-col items-center justify-center">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mb-3 text-amber-700">
             <ShoppingBag className="w-8 h-8" />
           </div>
@@ -266,8 +270,44 @@ export default function MobileCartScreen() {
         </div>
       ) : (
         <>
+          {/* Selected Delivery Address Box */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Delivery Address</span>
+                  {selectedAddress?.label && (
+                    <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded uppercase border border-emerald-100">
+                      {selectedAddress.label}
+                    </span>
+                  )}
+                </div>
+                {selectedAddress ? (
+                  <p className="text-xs font-bold text-gray-900 truncate mt-0.5">
+                    {selectedAddress.fullName ? `${selectedAddress.fullName} — ` : ''}
+                    {selectedAddress.house ? `${selectedAddress.house}, ` : ''}
+                    {selectedAddress.street || ''}
+                    {selectedAddress.city ? `, ${selectedAddress.city}` : ''}
+                    {selectedAddress.zip ? ` (${selectedAddress.zip})` : ''}
+                  </p>
+                ) : (
+                  <p className="text-xs font-medium text-gray-500 mt-0.5">No delivery address selected</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0 border border-emerald-200"
+            >
+              Change
+            </button>
+          </div>
+
           {/* Top Header Card */}
-          <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-black text-gray-900">
                 Shopping Cart ({items.length} {items.length === 1 ? 'item' : 'items'})
@@ -310,7 +350,7 @@ export default function MobileCartScreen() {
                 <motion.div
                   key={`${item.productId}-${item.variantId || 'default'}`}
                   layout
-                  className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex flex-col gap-2.5 relative"
+                  className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col gap-2.5 relative"
                 >
                   <div className="flex gap-3">
                     {/* Product Image */}
@@ -412,7 +452,7 @@ export default function MobileCartScreen() {
           </div>
 
           {/* Bill Details Summary Card */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2.5">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2.5">
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               Price Details
             </h3>
@@ -454,7 +494,7 @@ export default function MobileCartScreen() {
 
       {/* Sticky Bottom Checkout Bar (only if items present) */}
       {items.length > 0 && (
-        <div className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
+        <div className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 p-3 shadow-lg flex items-center justify-between max-w-md mx-auto">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400">Total</span>
             <p className="text-base font-black text-gray-900">₹{grandTotal.toLocaleString()}</p>
@@ -468,6 +508,11 @@ export default function MobileCartScreen() {
           </button>
         </div>
       )}
+
+      <LocationPickerModal 
+        isOpen={showLocationModal} 
+        onClose={() => setShowLocationModal(false)} 
+      />
     </div>
   );
 }

@@ -112,8 +112,8 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
       toast.error("Please select a product to review");
       return;
     }
-    if (order.status !== 'delivered') {
-      toast.error("Reviews are only allowed for delivered orders.");
+    if (order.status !== 'delivered' || (order.customerId && order.customerId !== user.uid)) {
+      toast.error("Only verified buyers of delivered orders can write a review.");
       return;
     }
     if (isAlreadyReviewed) {

@@ -4,7 +4,7 @@ import {
   MapPin, Phone, CreditCard, Banknote, ShieldCheck, CheckCircle2, 
   ArrowRight, Plus, Check, Edit2, AlertCircle, ShoppingBag 
 } from 'lucide-react';
-import { collection, addDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Address, Order } from '../../shared/types';
 import { useCartStore, useAuthStore } from '../../backend/store';
@@ -198,6 +198,32 @@ export default function MobileCheckoutScreen() {
     try {
       const docRef = await addDoc(collection(db, 'orders'), newOrder);
 
+      // Update inventory stock according to existing inventory logic
+      try {
+        for (const item of items) {
+          const prodRef = doc(db, 'products', item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const pData = prodSnap.data();
+            const currentStock = pData.stock || 0;
+            const updatedStock = Math.max(0, currentStock - item.quantity);
+            const updates: any = { stock: updatedStock };
+            if (updatedStock === 0) updates.inStock = false;
+            if (item.variantId && pData.variants && Array.isArray(pData.variants)) {
+              updates.variants = pData.variants.map((v: any) => {
+                if (v.id === item.variantId) {
+                  return { ...v, stock: Math.max(0, (v.stock || 0) - item.quantity) };
+                }
+                return v;
+              });
+            }
+            await updateDoc(prodRef, updates);
+          }
+        }
+      } catch (stockErr) {
+        console.warn('Mobile inventory stock update warning:', stockErr);
+      }
+
       // Dispatch order confirmation push & in-app notification
       try {
         await NotificationEngine.notifyOrderConfirmed({ id: docRef.id, ...newOrder } as Order);
@@ -307,40 +333,53 @@ export default function MobileCheckoutScreen() {
         </div>
 
         <div className="space-y-2">
-          {[
-            { id: 'cod', title: 'Cash on Delivery (COD)', sub: 'Pay cash upon delivery', icon: Banknote, tag: 'Popular' },
-            { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant' },
-            { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure' },
-          ].map((pm) => (
-            <div
-              key={pm.id}
-              onClick={() => setPaymentMethod(pm.id as any)}
-              className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
-                paymentMethod === pm.id
-                  ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20'
-                  : 'bg-gray-50 border-gray-200'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${paymentMethod === pm.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                  <pm.icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-gray-900">{pm.title}</span>
-                    <span className="text-[8px] font-black uppercase bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">
-                      {pm.tag}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 font-medium">{pm.sub}</p>
-                </div>
-              </div>
+          {(() => {
+            const isCodAvailableForCart = items.every(i => i.product.isCodAllowed !== false);
+            const options = [
+              { id: 'cod', title: 'Cash on Delivery (COD)', sub: isCodAvailableForCart ? 'Pay cash upon delivery' : 'Disabled for items in cart', icon: Banknote, tag: 'Popular', disabled: !isCodAvailableForCart },
+              { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant', disabled: false },
+              { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure', disabled: false },
+            ];
 
-              {paymentMethod === pm.id && (
-                <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
-              )}
-            </div>
-          ))}
+            return options.map((pm) => (
+              <div
+                key={pm.id}
+                onClick={() => {
+                  if (pm.disabled) {
+                    toast.error("Cash on Delivery is disabled for one or more items in your cart.");
+                    return;
+                  }
+                  setPaymentMethod(pm.id as any);
+                }}
+                className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
+                  pm.disabled
+                    ? 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
+                    : paymentMethod === pm.id
+                    ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20 cursor-pointer'
+                    : 'bg-gray-50 border-gray-200 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${paymentMethod === pm.id && !pm.disabled ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    <pm.icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-gray-900">{pm.title}</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${pm.disabled ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-800'}`}>
+                        {pm.disabled ? 'Disabled' : pm.tag}
+                      </span>
+                    </div>
+                    <p className={`text-[10px] font-medium ${pm.disabled ? 'text-red-500 font-bold' : 'text-gray-500'}`}>{pm.sub}</p>
+                  </div>
+                </div>
+
+                {paymentMethod === pm.id && !pm.disabled && (
+                  <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                )}
+              </div>
+            ));
+          })()}
         </div>
       </div>
 

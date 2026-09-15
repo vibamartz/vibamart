@@ -90,11 +90,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         whileHover={{ y: -5, scale: 1.02 }}
         className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
       >
-        <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50">
+        <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50/80 p-2 flex items-center justify-center">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           
           <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
@@ -155,12 +155,12 @@ export default function ProductCard({ product }: ProductCardProps) {
             <span className="text-xs text-gray-400 font-medium">({product.numReviews})</span>
           </div>
 
-          {product.variants && product.variants.length > 0 && (
+          {product.variants && product.variants.length > 0 ? (
             <div className="mb-4 space-y-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
-                {selectedVariant && selectedVariant.stock < 10 && selectedVariant.stock > 0 && (
-                  <span className="text-[10px] font-bold text-amber-500 animate-pulse">Only {selectedVariant.stock} left!</span>
+                {product.isStockVisible !== false && selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
+                  <span className="text-[10px] font-black text-rose-600 animate-pulse">Only {selectedVariant.stock} left</span>
                 )}
               </div>
               <div className="relative group/select">
@@ -181,6 +181,12 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </div>
               </div>
             </div>
+          ) : (
+            product.isStockVisible !== false && product.stock > 0 && product.stock <= 5 && (
+              <div className="mb-2">
+                <span className="text-[10px] font-black text-rose-600 animate-pulse">Only {product.stock} left</span>
+              </div>
+            )
           )}
 
           <div className="mt-auto flex items-end justify-between">

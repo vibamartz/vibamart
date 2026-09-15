@@ -604,7 +604,7 @@ export default function MobileOrderDetailsScreen() {
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-emerald-600" />
               <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                1. Products ({order.items.length})
+                Products ({order.items.length})
               </h3>
             </div>
             <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">
@@ -649,7 +649,7 @@ export default function MobileOrderDetailsScreen() {
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-              2. Delivery Details
+              Delivery Details
             </h3>
           </div>
           <div className="py-2 space-y-1.5">
@@ -676,7 +676,7 @@ export default function MobileOrderDetailsScreen() {
               <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                 <CreditCard className="w-4 h-4 text-emerald-600" />
                 <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                  3. Price Details
+                  Price Details
                 </h3>
               </div>
               <div className="py-2 space-y-2">
@@ -720,7 +720,7 @@ export default function MobileOrderDetailsScreen() {
           <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-              4. Products For You
+              Products For You
             </h3>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -799,7 +799,8 @@ export default function MobileOrderDetailsScreen() {
 
               <div className="pt-3 border-t border-gray-100 text-xs text-gray-500 space-y-1">
                 <p className="font-bold text-gray-800">Need further support?</p>
-                <p>Contact customer care at <span className="text-emerald-700 font-bold">viba.mart@hotmail.com</span></p>
+                <p>Email: <a href="mailto:viba.mart@hotmail.com" className="text-emerald-700 font-bold hover:underline">viba.mart@hotmail.com</a></p>
+                <p>Phone: <a href="tel:+919905523505" className="text-emerald-700 font-bold hover:underline">+91 9905 52 3505</a></p>
               </div>
             </motion.div>
           </motion.div>

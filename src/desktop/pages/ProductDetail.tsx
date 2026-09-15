@@ -346,10 +346,16 @@ export default function ProductDetail() {
                    {product.rating} <Star className="w-4 h-4 fill-current" />
                 </div>
                 <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{product.numReviews} Ratings & Reviews</span>
-                {product.stock > 0 ? (
-                  <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wider">In Stock</span>
-                ) : (
-                  <span className="text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
+                {product.isStockVisible !== false && (
+                  (currentVariant ? currentVariant.stock : product.stock) > 0 && (currentVariant ? currentVariant.stock : product.stock) <= 5 ? (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-200 animate-pulse">
+                      Only {currentVariant ? currentVariant.stock : product.stock} left
+                    </span>
+                  ) : (currentVariant ? currentVariant.stock : product.stock) > 0 ? (
+                    <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wider">In Stock</span>
+                  ) : (
+                    <span className="text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
+                  )
                 )}
               </div>
 

@@ -399,6 +399,32 @@ export default function Checkout() {
         orderData.customOrderId = uniqueId;
         await setDoc(doc(db, 'orders', uniqueId), orderData);
 
+        // Update inventory stock according to existing inventory logic
+        try {
+          for (const item of items) {
+            const prodRef = doc(db, 'products', item.productId);
+            const prodSnap = await getDoc(prodRef);
+            if (prodSnap.exists()) {
+              const pData = prodSnap.data();
+              const currentStock = pData.stock || 0;
+              const updatedStock = Math.max(0, currentStock - item.quantity);
+              const updates: any = { stock: updatedStock };
+              if (updatedStock === 0) updates.inStock = false;
+              if (item.variantId && pData.variants && Array.isArray(pData.variants)) {
+                updates.variants = pData.variants.map((v: any) => {
+                  if (v.id === item.variantId) {
+                    return { ...v, stock: Math.max(0, (v.stock || 0) - item.quantity) };
+                  }
+                  return v;
+                });
+              }
+              await updateDoc(prodRef, updates);
+            }
+          }
+        } catch (stockErr) {
+          console.warn('Inventory stock update warning:', stockErr);
+        }
+
         // Dispatch order confirmation push & in-app notification
         try {
           await NotificationEngine.notifyOrderConfirmed({ id: uniqueId, ...orderData } as Order);
@@ -834,20 +860,37 @@ export default function Checkout() {
             onClickHeader={() => setStep(3)}
           >
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <PaymentOption
-                  icon={CreditCard}
-                  label="Razorpay (UPI / Card / NetBanking)"
-                  isActive={paymentMethod === 'razorpay'}
-                  onClick={() => setPaymentMethod('razorpay')}
-                />
-                <PaymentOption
-                  icon={Truck}
-                  label="Cash on Delivery (COD)"
-                  isActive={paymentMethod === 'cod'}
-                  onClick={() => setPaymentMethod('cod')}
-                />
-              </div>
+              {(() => {
+                const isCodAvailableForCart = items.every(i => i.product.isCodAllowed !== false);
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <PaymentOption
+                      icon={CreditCard}
+                      label="Razorpay (UPI / Card / NetBanking)"
+                      isActive={paymentMethod === 'razorpay'}
+                      onClick={() => setPaymentMethod('razorpay')}
+                    />
+                    {isCodAvailableForCart ? (
+                      <PaymentOption
+                        icon={Truck}
+                        label="Cash on Delivery (COD)"
+                        isActive={paymentMethod === 'cod'}
+                        onClick={() => setPaymentMethod('cod')}
+                      />
+                    ) : (
+                      <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50 opacity-60 flex items-center justify-between cursor-not-allowed">
+                        <div className="flex items-center gap-3">
+                          <Truck className="w-5 h-5 text-gray-400" />
+                          <div>
+                            <span className="text-xs font-bold text-gray-500 block">Cash on Delivery (COD)</span>
+                            <span className="text-[10px] text-red-500 font-bold block">Disabled for 1+ items in cart</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="border-t border-gray-100 pt-6">
                 <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-xl text-xs font-bold text-gray-500 mb-6">

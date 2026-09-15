@@ -222,13 +222,46 @@ export default function MobileProductDetailScreen() {
     navigate('/checkout');
   };
 
+  const checkCanReview = async () => {
+    if (!user) {
+      toast.error("Only verified buyers of delivered orders can write a review.");
+      return false;
+    }
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('customerId', '==', user.uid),
+        where('status', '==', 'delivered')
+      );
+      const snap = await getDocs(q);
+      const hasPurchased = snap.docs.some(doc => {
+        const data = doc.data();
+        return data.items?.some((i: any) => i.productId === productId);
+      });
+
+      if (!hasPurchased) {
+        toast.error("Only verified buyers of delivered orders can write a review.");
+        return false;
+      }
+      return true;
+    } catch (err) {
+      toast.error("Only verified buyers of delivered orders can write a review.");
+      return false;
+    }
+  };
+
+  const handleOpenWriteReviewModal = async () => {
+    const canReview = await checkCanReview();
+    if (canReview) {
+      setShowReviewModal(true);
+    }
+  };
+
   const handleAddReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast.error("Please login to write a review");
-      navigate('/login');
-      return;
-    }
+    const canReview = await checkCanReview();
+    if (!canReview) return;
+
     if (!newComment.trim()) {
       toast.error("Please add a review comment");
       return;
@@ -237,9 +270,9 @@ export default function MobileProductDetailScreen() {
     try {
       await addDoc(collection(db, 'reviews'), {
         productId: productId,
-        userId: user.uid,
-        userName: user.displayName || user.email.split('@')[0],
-        userPhoto: user.photoURL || '',
+        userId: user!.uid,
+        userName: user!.displayName || user!.email?.split('@')[0] || 'Customer',
+        userPhoto: user!.photoURL || '',
         rating: newRating,
         comment: newComment.trim(),
         createdAt: new Date().toISOString(),
@@ -326,197 +359,207 @@ export default function MobileProductDetailScreen() {
         )}
       </div>
 
-      {/* Main Info Card */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-            {product.brand || 'ViBa Select'}
-          </span>
-
-          <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span className="text-xs font-extrabold text-amber-900">{product.rating || 4.5}</span>
-            <span className="text-[10px] text-gray-400">({product.numReviews || reviews.length || 12})</span>
-          </div>
-        </div>
-
-        <h1 className="text-base font-extrabold text-gray-900 leading-snug">
-          {product.name}
-        </h1>
-
-        {/* Price & Discounts */}
-        <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100">
-          <span className="text-2xl font-black text-gray-900">
-            ₹{finalPrice.toLocaleString()}
-          </span>
-          {product.price > finalPrice && (
-            <span className="text-sm text-gray-400 line-through">
-              ₹{product.price.toLocaleString()}
+      {/* Seamless Flowing Product Details Layout */}
+      <div className="bg-white rounded-2xl p-4 shadow-xs space-y-5">
+        {/* Main Info */}
+        <div className="space-y-3 pb-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              {product.brand || 'ViBa Select'}
             </span>
-          )}
-          {discountAmount > 0 && (
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-              Save ₹{discountAmount.toLocaleString()}
+
+            <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span className="text-xs font-extrabold text-amber-900">{product.rating || 4.5}</span>
+              <span className="text-[10px] text-gray-400">({product.numReviews || reviews.length || 12})</span>
+            </div>
+          </div>
+
+          <h1 className="text-base font-extrabold text-gray-900 leading-snug">
+            {product.name}
+          </h1>
+
+          {/* Price & Discounts */}
+          <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100">
+            <span className="text-2xl font-black text-gray-900">
+              ₹{finalPrice.toLocaleString()}
             </span>
-          )}
-        </div>
-        <p className="text-[10px] font-bold text-gray-500">
-          {product.enableGst === false || (product.gst || 0) === 0 ? 'GST Exempt / Tax: 0%' : `Inclusive of all taxes (GST ${product.gst || 18}% included)`}
-        </p>
-      </div>
-
-      {/* Product Variants (Colors / Sizes / Extra Options) */}
-      {product.variants && product.variants.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2">
-          <label className="text-xs font-black text-gray-800 uppercase tracking-wider block">
-            Select Option / Variant
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {product.variants.map((variant) => (
-              <button
-                key={variant.id}
-                onClick={() => setSelectedVariantId(variant.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  selectedVariantId === variant.id
-                    ? 'bg-blue-600 text-white border-blue-600 shadow'
-                    : 'bg-gray-50 text-gray-800 border-gray-200'
-                }`}
-              >
-                {variant.name || variant.color || variant.size || `Variant ${variant.id}`}
-                {variant.extraPrice ? ` (+₹${variant.extraPrice})` : ''}
-              </button>
-            ))}
+            {product.price > finalPrice && (
+              <span className="text-sm text-gray-400 line-through">
+                ₹{product.price.toLocaleString()}
+              </span>
+            )}
+            {discountAmount > 0 && (
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                Save ₹{discountAmount.toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-[10px] font-bold text-gray-500">
+              {product.enableGst === false || (product.gst || 0) === 0 ? 'GST Exempt / Tax: 0%' : `Inclusive of all taxes (GST ${product.gst || 18}% included)`}
+            </p>
+            {product.isStockVisible !== false && (selectedVariant ? selectedVariant.stock : product.stock) > 0 && (selectedVariant ? selectedVariant.stock : product.stock) <= 5 && (
+              <span className="text-xs font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
+                Only {selectedVariant ? selectedVariant.stock : product.stock} left
+              </span>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Pincode & Delivery Checker */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-2.5">
-        <div className="flex items-center gap-2 text-xs font-black text-gray-800 uppercase tracking-wider">
-          <Truck className="w-4 h-4 text-emerald-600" />
-          <span>Delivery Options & Availability</span>
-        </div>
-
-        <form onSubmit={handleCheckPincode} className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              maxLength={6}
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
-              placeholder="Enter 6-digit Pincode"
-              className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-            />
-            <MapPin className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
-          </div>
-          <button
-            type="submit"
-            className="px-4 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider"
-          >
-            Check
-          </button>
-        </form>
-
-        {deliveryStatus === 'available' && (
-          <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
-            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Fast Delivery Available to <strong>{pincode}</strong> (Expected: 2-4 Days)</span>
-          </p>
-        )}
-        {deliveryStatus === 'unavailable' && (
-          <p className="text-xs font-bold text-rose-700 bg-rose-50 p-2 rounded-xl border border-rose-200">
-            Sorry, delivery is currently unavailable to {pincode}.
-          </p>
-        )}
-      </div>
-
-      {/* 7-Day Return Policy Notice */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-start gap-3">
-        <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
-          <RefreshCcw className="w-5 h-5" />
-        </div>
-        <div>
-          <h4 className="text-xs font-black text-gray-900">
-            {settings.returnWindowDays || 7}-Day Hassle-Free Returns
-          </h4>
-          <p className="text-[11px] font-medium text-gray-600 mt-0.5 leading-relaxed">
-            Eligible for return or replacement within 7 days of delivery for defective, wrong, or damaged products with valid image proof.
-          </p>
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
-            <button
-              onClick={() => navigate('/faq')}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Description & Specifications */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-          Product Description & Specs
-        </h3>
-        <p className="text-xs font-medium text-gray-700 leading-relaxed">
-          {product.fullDescription || product.description}
-        </p>
-
-        {product.specifications && product.specifications.length > 0 && (
-          <div className="space-y-1 pt-2 border-t border-gray-100">
-            <span className="text-[10px] font-black uppercase text-gray-400">Specifications</span>
-            <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
-              {product.specifications.map((spec, i) => (
-                <div key={i} className="py-1.5 flex justify-between text-xs">
-                  <span className="font-bold text-gray-500">{spec.key}</span>
-                  <span className="font-extrabold text-gray-900">{spec.value}</span>
-                </div>
+        {/* Product Variants */}
+        {product.variants && product.variants.length > 0 && (
+          <div className="pb-4 border-b border-gray-100 space-y-2">
+            <label className="text-xs font-black text-gray-800 uppercase tracking-wider block">
+              Select Option / Variant
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {product.variants.map((variant) => (
+                <button
+                  key={variant.id}
+                  onClick={() => setSelectedVariantId(variant.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                    selectedVariantId === variant.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow'
+                      : 'bg-gray-50 text-gray-800 border-gray-200'
+                  }`}
+                >
+                  {variant.name || variant.color || variant.size || `Variant ${variant.id}`}
+                  {variant.extraPrice ? ` (+₹${variant.extraPrice})` : ''}
+                </button>
               ))}
             </div>
           </div>
         )}
-      </div>
 
-      {/* Customer Reviews Section */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
-            <MessageSquare className="w-4 h-4 text-emerald-600" />
-            <span>Customer Reviews ({reviews.length})</span>
+        {/* Delivery Details & Pincode Checker */}
+        <div className="pb-4 border-b border-gray-100 space-y-2.5">
+          <div className="flex items-center gap-2 text-xs font-black text-gray-800 uppercase tracking-wider">
+            <Truck className="w-4 h-4 text-emerald-600" />
+            <span>Delivery Options & Availability</span>
           </div>
-          <button
-            onClick={() => setShowReviewModal(true)}
-            className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200"
-          >
-            Write Review
-          </button>
+
+          <form onSubmit={handleCheckPincode} className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                maxLength={6}
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter 6-digit Pincode"
+                className="w-full bg-gray-50 border border-gray-200 h-10 rounded-xl px-3 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              />
+              <MapPin className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
+            </div>
+            <button
+              type="submit"
+              className="px-4 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider"
+            >
+              Check
+            </button>
+          </form>
+
+          {deliveryStatus === 'available' && (
+            <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Fast Delivery Available to <strong>{pincode}</strong> (Expected: 2-4 Days)</span>
+            </p>
+          )}
+          {deliveryStatus === 'unavailable' && (
+            <p className="text-xs font-bold text-rose-700 bg-rose-50 p-2 rounded-xl border border-rose-200">
+              Sorry, delivery is currently unavailable to {pincode}.
+            </p>
+          )}
         </div>
 
-        {reviews.length > 0 ? (
-          <div className="space-y-3 divide-y divide-gray-100">
-            {reviews.slice(0, 5).map((rev) => (
-              <div key={rev.id} className="pt-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-gray-900">{rev.userName}</span>
-                  <div className="flex items-center text-amber-400">
-                    {Array(rev.rating).fill(0).map((_, idx) => (
-                      <Star key={idx} className="w-3 h-3 fill-amber-400" />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs font-medium text-gray-700">{rev.comment}</p>
-                <span className="text-[9px] text-gray-400">
-                  {new Date(rev.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            ))}
+        {/* 7-Day Return Policy Notice */}
+        <div className="pb-4 border-b border-gray-100 flex items-start gap-3">
+          <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
+            <RefreshCcw className="w-5 h-5" />
           </div>
-        ) : (
-          <p className="text-xs text-gray-500 font-bold text-center py-2">
-            No reviews yet. Be the first to review this product!
+          <div>
+            <h4 className="text-xs font-black text-gray-900">
+              {settings.returnWindowDays || 7}-Day Hassle-Free Returns
+            </h4>
+            <p className="text-[11px] font-medium text-gray-600 mt-0.5 leading-relaxed">
+              Eligible for return or replacement within 7 days of delivery for defective, wrong, or damaged products with valid image proof.
+            </p>
+            <div className="pt-2 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
+              <button
+                onClick={() => navigate('/faq')}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Product Details & Specifications */}
+        <div className="pb-4 border-b border-gray-100 space-y-3">
+          <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+            Product Description & Specs
+          </h3>
+          <p className="text-xs font-medium text-gray-700 leading-relaxed">
+            {product.fullDescription || product.description}
           </p>
-        )}
+
+          {product.specifications && product.specifications.length > 0 && (
+            <div className="space-y-1 pt-2 border-t border-gray-100">
+              <span className="text-[10px] font-black uppercase text-gray-400">Specifications</span>
+              <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
+                {product.specifications.map((spec, i) => (
+                  <div key={i} className="py-1.5 flex justify-between text-xs">
+                    <span className="font-bold text-gray-500">{spec.key}</span>
+                    <span className="font-extrabold text-gray-900">{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Ratings & Reviews */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+              <span>Customer Reviews ({reviews.length})</span>
+            </div>
+            <button
+              onClick={() => handleOpenWriteReviewModal()}
+              className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200"
+            >
+              Write Review
+            </button>
+          </div>
+
+          {reviews.length > 0 ? (
+            <div className="space-y-3 divide-y divide-gray-100">
+              {reviews.slice(0, 5).map((rev) => (
+                <div key={rev.id} className="pt-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-gray-900">{rev.userName}</span>
+                    <div className="flex items-center text-amber-400">
+                      {Array(rev.rating).fill(0).map((_, idx) => (
+                        <Star key={idx} className="w-3 h-3 fill-amber-400" />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs font-medium text-gray-700">{rev.comment}</p>
+                  <span className="text-[9px] text-gray-400">
+                    {new Date(rev.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 font-bold text-center py-2">
+              No reviews yet. Be the first to review this product!
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Fixed Mobile Bottom Action Bar */}
