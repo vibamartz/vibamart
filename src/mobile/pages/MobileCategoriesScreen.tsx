@@ -150,7 +150,7 @@ export default function MobileCategoriesScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none flex flex-col">
+    <div className="min-h-0 bg-[#FFFDF5] pb-20 font-sans select-none flex flex-col">
       {/* Top Header Banner */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 p-4 text-white shadow-md">
         <div className="flex items-center justify-between">
@@ -159,7 +159,7 @@ export default function MobileCategoriesScreen() {
               Explore Collections
             </span>
             <h2 className="text-lg font-black tracking-tight text-white mt-1">
-              All Categories & Departments
+              All Categories
             </h2>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
@@ -169,9 +169,9 @@ export default function MobileCategoriesScreen() {
       </div>
 
       {/* Main Split Layout: Left Sidebar + Right Content Area */}
-      <div className="flex-1 flex overflow-hidden min-h-[70vh]">
+      <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar (Categories with Unified Logo Style) */}
-        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto hide-scrollbar py-2 pb-36 sm:pb-40 space-y-1.5 shrink-0">
+        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto hide-scrollbar py-2 pb-20 space-y-1.5 shrink-0">
           {categories.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -179,11 +179,10 @@ export default function MobileCategoriesScreen() {
                 key={cat.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategorySelect(cat.id)}
-                className={`w-full p-2.5 flex flex-col items-center justify-center text-center transition-all relative ${
-                  isActive
+                className={`w-full p-2.5 flex flex-col items-center justify-center text-center transition-all relative ${isActive
                     ? 'bg-emerald-50/90 text-emerald-900 font-extrabold'
                     : 'text-gray-600 hover:bg-yellow-50/40 font-semibold'
-                }`}
+                  }`}
               >
                 {isActive && (
                   <motion.div
@@ -208,7 +207,7 @@ export default function MobileCategoriesScreen() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 overflow-y-auto p-3 pb-36 sm:pb-40 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 pb-20 space-y-4">
           {selectedCategory && (
             <AnimatePresence mode="wait">
               <motion.div
@@ -278,11 +277,10 @@ export default function MobileCategoriesScreen() {
                             key={sub.id}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => handleSubCategorySelect(sub.id)}
-                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                              isSubSelected
+                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isSubSelected
                                 ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
                                 : 'bg-white border-yellow-100 hover:border-emerald-300'
-                            }`}
+                              }`}
                           >
                             <CategoryLogo
                               name={sub.name}
@@ -312,11 +310,10 @@ export default function MobileCategoriesScreen() {
                             key={nested.id}
                             whileTap={{ scale: 0.96 }}
                             onClick={() => handleNestedSubCategorySelect(nested.id)}
-                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                              isNestedSelected
+                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isNestedSelected
                                 ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
                                 : 'bg-white border-yellow-100 hover:border-emerald-300'
-                            }`}
+                              }`}
                           >
                             <CategoryLogo
                               name={nested.name}
@@ -400,11 +397,10 @@ export default function MobileCategoriesScreen() {
 
                               <button
                                 onClick={(e) => handleAddToCart(e, product)}
-                                className={`w-full py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
-                                  isInCart
+                                className={`w-full py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${isInCart
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
-                                }`}
+                                  }`}
                               >
                                 {isInCart ? <Check className="w-3 h-3 text-emerald-600" /> : <ShoppingCart className="w-3 h-3" />}
                                 {isInCart ? 'In Cart' : 'Add to Cart'}

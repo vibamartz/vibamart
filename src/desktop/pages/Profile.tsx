@@ -28,7 +28,7 @@ import { getProductSlug } from '../../shared/utilities/slug';
 export default function Profile() {
   const { user, setUser } = useAuthStore();
   const { settings } = useSettingsStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings' | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
 
   const isOrderEligibleForReturn = (order: Order) => {
@@ -708,20 +708,7 @@ export default function Profile() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Total Orders</span>
-                       <span className="text-3xl font-black text-gray-900">{orders.length}</span>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Waitlisted</span>
-                       <span className="text-3xl font-black text-blue-500">{waitlist.length}</span>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Wishlist Items</span>
-                       <span className="text-3xl font-black text-rose-500">{wishlistProducts.length}</span>
-                    </div>
-                  </div>
+
 
 
                 </motion.div>

@@ -19,7 +19,7 @@ export default function MobileProfileScreen() {
   const [editedName, setEditedName] = useState(user?.displayName || '');
   const [editedPhone, setEditedPhone] = useState(user?.phone || '');
   const [ordersCount, setOrdersCount] = useState<number>(0);
-  const [showOverview, setShowOverview] = useState<boolean>(true);
+  const [showOverview, setShowOverview] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function MobileProfileScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
+    <div className="min-h-0 bg-[#FFFDF5] pb-20 font-sans select-none p-3 space-y-3">
       {/* Profile Header Card */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">
@@ -238,30 +238,6 @@ export default function MobileProfileScreen() {
               )}
             </div>
 
-            {/* Account Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
-              <div
-                onClick={() => navigate('/orders')}
-                className="bg-emerald-50/60 p-2.5 rounded-2xl border border-emerald-100 text-center cursor-pointer active:scale-95 transition-all"
-              >
-                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 block">Orders</span>
-                <span className="text-base font-black text-emerald-900 mt-0.5 block">{ordersCount}</span>
-              </div>
-              <div
-                onClick={() => navigate('/wishlist')}
-                className="bg-rose-50/60 p-2.5 rounded-2xl border border-rose-100 text-center cursor-pointer active:scale-95 transition-all"
-              >
-                <span className="text-[9px] font-black uppercase tracking-wider text-rose-800 block">Wishlist</span>
-                <span className="text-base font-black text-rose-900 mt-0.5 block">{user.wishlist?.length || 0}</span>
-              </div>
-              <div
-                onClick={() => navigate('/addresses')}
-                className="bg-amber-50/60 p-2.5 rounded-2xl border border-amber-100 text-center cursor-pointer active:scale-95 transition-all"
-              >
-                <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">Addresses</span>
-                <span className="text-base font-black text-amber-900 mt-0.5 block">{user.addresses?.length || 0}</span>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
