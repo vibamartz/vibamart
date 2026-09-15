@@ -355,7 +355,7 @@ export default function MobileHomepage() {
   return (
     <div
       className="min-h-screen bg-[#FFF3EB] w-full max-w-[768px] mx-auto font-sans select-none overflow-x-hidden space-y-3 sm:space-y-4 px-3.5 xs:px-4 sm:px-5 pt-3 sm:pt-4 min-w-0"
-      style={{ paddingBottom: 'calc(clamp(80px, 20vw, 96px) + env(safe-area-inset-bottom, 0px) + 32px)' }}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
     >
 
       {/* ========================================================================= */}
