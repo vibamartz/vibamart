@@ -600,7 +600,7 @@ export default function MobileHomepage() {
                   height: 'clamp(60px, 16vw, 66px)'
                 }}
                 className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-500/20'
+                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
                   : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
                   }`}
               >
