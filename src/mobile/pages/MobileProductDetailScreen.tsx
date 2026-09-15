@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw, 
-  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle 
+import {
+  Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw,
+  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -71,7 +71,7 @@ export default function MobileProductDetailScreen() {
           if (snap.exists()) {
             foundProduct = { id: snap.id, ...snap.data() } as Product;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         // 2. Query slug field
         if (!foundProduct) {
@@ -98,8 +98,8 @@ export default function MobileProductDetailScreen() {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
             .map(d => ({ id: d.id, ...d.data() } as Product))
-            .find(p => 
-              getProductSlug(p) === targetSlugOrId || 
+            .find(p =>
+              getProductSlug(p) === targetSlugOrId ||
               createSlug(p.name) === targetSlugOrId ||
               (cleanTargetCode && p.productCode && cleanProductCode(p.productCode) === cleanTargetCode)
             );
@@ -136,7 +136,7 @@ export default function MobileProductDetailScreen() {
 
           // Canonical redirect check
           if (targetSlugOrId !== canonicalSlug && (
-            targetSlugOrId === foundProduct.id || 
+            targetSlugOrId === foundProduct.id ||
             /^\d+$/.test(targetSlugOrId) ||
             (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
           )) {
@@ -385,9 +385,8 @@ export default function MobileProductDetailScreen() {
               <button
                 key={idx}
                 onClick={() => setActiveImageIndex(idx)}
-                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
-                  activeImageIndex === idx ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
-                }`}
+                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIndex === idx ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
+                  }`}
               >
                 <img src={img} alt="" className="w-full h-full object-cover" />
               </button>
@@ -452,11 +451,10 @@ export default function MobileProductDetailScreen() {
                 <button
                   key={variant.id}
                   onClick={() => setSelectedVariantId(variant.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                    selectedVariantId === variant.id
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${selectedVariantId === variant.id
                       ? 'bg-blue-600 text-white border-blue-600 shadow'
                       : 'bg-gray-50 text-gray-800 border-gray-200'
-                  }`}
+                    }`}
                 >
                   {variant.name || variant.color || variant.size || `Variant ${variant.id}`}
                   {variant.extraPrice ? ` (+₹${variant.extraPrice})` : ''}
@@ -603,11 +601,10 @@ export default function MobileProductDetailScreen() {
       <div className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-yellow-100 p-3 shadow-lg flex items-center gap-2 max-w-md mx-auto">
         <button
           onClick={handleAddToCart}
-          className={`flex-1 py-3.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-            isInCart
+          className={`flex-1 py-3.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 ${isInCart
               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
               : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-          }`}
+            }`}
         >
           <ShoppingCart className="w-4 h-4 text-emerald-700" />
           {isInCart ? 'Go to Cart' : 'Add to Cart'}
