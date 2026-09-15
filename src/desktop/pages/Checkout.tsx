@@ -830,7 +830,6 @@ export default function Checkout() {
                         icon={Truck}
                         label="Cash on Delivery (COD)"
                         isActive={paymentMethod === 'cod'}
-                        isGrey={true}
                         onClick={() => setPaymentMethod('cod')}
                       />
                     )}
@@ -949,32 +948,7 @@ function CheckoutStep({ number, title, isActive, isCompleted, summary, children,
   );
 }
 
-function PaymentOption({ icon: Icon, label, isActive, onClick, isGrey }: any) {
-  if (isGrey) {
-    return (
-      <div 
-        onClick={onClick} 
-        className={`p-5 rounded-2xl border-2 flex items-center gap-5 cursor-pointer transition-all ${
-          isActive 
-            ? 'border-gray-500 bg-gray-200/90 shadow-xs' 
-            : 'border-gray-300 bg-gray-100 hover:border-gray-400'
-        }`}
-      >
-        <div className={`p-2 rounded-xl ${isActive ? 'bg-gray-700 text-white' : 'bg-gray-300 text-gray-700'}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        <span className={`font-black text-sm uppercase tracking-widest ${isActive ? 'text-gray-900' : 'text-gray-700'}`}>
-          {label}
-        </span>
-        {isActive && (
-          <div className="ml-auto w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center">
-            <div className="w-1.5 h-1.5 bg-white rounded-full" />
-          </div>
-        )}
-      </div>
-    );
-  }
-
+function PaymentOption({ icon: Icon, label, isActive, onClick }: any) {
   return (
     <div onClick={onClick} className={`p-5 rounded-2xl border-2 flex items-center gap-5 cursor-pointer transition-all ${isActive ? 'border-primary bg-primary/5' : 'border-gray-100 hover:border-gray-200 bg-white'}`}>
       <div className={`p-2 rounded-xl ${isActive ? 'bg-primary text-white' : 'bg-gray-50 text-gray-400'}`}>

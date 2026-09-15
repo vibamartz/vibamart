@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  MapPin, Phone, CreditCard, Banknote, ShieldCheck, CheckCircle2, 
-  ArrowRight, Plus, Check, Edit2, AlertCircle, ShoppingBag 
+import {
+  MapPin, Phone, CreditCard, Banknote, ShieldCheck, CheckCircle2,
+  ArrowRight, Plus, Check, Edit2, AlertCircle, ShoppingBag
 } from 'lucide-react';
 import { collection, addDoc, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -312,7 +312,7 @@ export default function MobileCheckoutScreen() {
         {/* Contact Phone Field */}
         <div className="pt-2 space-y-1">
           <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1">
-            <Phone className="w-3 h-3 text-emerald-600" /> Contact Phone Number
+            <Phone className="w-3 h-3 text-emerald-800" /> Phone Number
           </label>
           <input
             type="tel"
@@ -336,37 +336,30 @@ export default function MobileCheckoutScreen() {
           {(() => {
             const isCodAvailableForCart = items.every(i => i.product.isCodAllowed !== false);
             const options = [
-              ...(isCodAvailableForCart ? [{ id: 'cod', title: 'Cash on Delivery (COD)', sub: 'Pay cash upon delivery', icon: Banknote, tag: 'Popular', isGrey: true }] : []),
-              { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant', isGrey: false },
-              { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure', isGrey: false },
+              ...(isCodAvailableForCart ? [{ id: 'cod', title: 'Cash on Delivery (COD)', sub: 'Pay cash upon delivery', icon: Banknote, tag: 'Popular' }] : []),
+              { id: 'upi', title: 'UPI Payment', sub: 'GPay, PhonePe, Paytm, BHIM', icon: CreditCard, tag: 'Instant' },
+              { id: 'razorpay', title: 'Credit / Debit Card / NetBanking', sub: 'Razorpay Secure Checkout', icon: CreditCard, tag: 'Secure' },
             ];
 
             return options.map((pm) => (
               <div
                 key={pm.id}
                 onClick={() => setPaymentMethod(pm.id as any)}
-                className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${
-                  pm.isGrey
-                    ? paymentMethod === pm.id
-                      ? 'bg-gray-200/90 border-gray-500 ring-2 ring-gray-400/20'
-                      : 'bg-gray-100 border-gray-300'
-                    : paymentMethod === pm.id
+                className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${paymentMethod === pm.id
                     ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20'
                     : 'bg-white border-gray-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    pm.isGrey
-                      ? paymentMethod === pm.id ? 'bg-gray-700 text-white' : 'bg-gray-300 text-gray-700'
-                      : paymentMethod === pm.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                  }`}>
+                  <div className={`p-2 rounded-lg ${paymentMethod === pm.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
                     <pm.icon className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className={`font-extrabold ${pm.isGrey ? 'text-gray-900' : 'text-gray-900'}`}>{pm.title}</span>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${pm.isGrey ? 'bg-gray-300 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>
+                      <span className="font-extrabold text-gray-900">{pm.title}</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${paymentMethod === pm.id ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
                         {pm.tag}
                       </span>
                     </div>
@@ -375,7 +368,7 @@ export default function MobileCheckoutScreen() {
                 </div>
 
                 {paymentMethod === pm.id && (
-                  <CheckCircle2 className={`w-5 h-5 shrink-0 ${pm.isGrey ? 'text-gray-700' : 'text-blue-600'}`} />
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-blue-600" />
                 )}
               </div>
             ));
@@ -392,10 +385,10 @@ export default function MobileCheckoutScreen() {
           {items.map((item) => (
             <div key={item.productId} className="py-2 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 min-w-0">
-                <img 
-                  src={item.product.images?.[0] || 'https://via.placeholder.com/40'} 
-                  alt={item.product.name} 
-                  className="w-8 h-8 rounded-lg object-cover border border-gray-200 shrink-0" 
+                <img
+                  src={item.product.images?.[0] || 'https://via.placeholder.com/40'}
+                  alt={item.product.name}
+                  className="w-8 h-8 rounded-lg object-cover border border-gray-200 shrink-0"
                 />
                 <span className="font-bold text-gray-900 truncate max-w-[170px]">{item.product.name}</span>
                 <span className="text-gray-400 font-semibold">x{item.quantity}</span>
@@ -469,7 +462,7 @@ export default function MobileCheckoutScreen() {
               className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3"
             >
               <h3 className="text-base font-black text-gray-900">Add Delivery Address</h3>
-              
+
               <input
                 type="text"
                 placeholder="Full Name"
