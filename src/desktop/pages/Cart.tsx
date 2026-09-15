@@ -44,7 +44,7 @@ function RecentlyViewedCartSection() {
   }, []);
 
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 mt-8">
+    <div className="mt-8 py-4 border-t border-gray-200/60">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-emerald-50 rounded-xl text-primary">
           <Clock className="w-5 h-5" />
@@ -104,7 +104,7 @@ function WishlistCartSection() {
   }, [user]);
 
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 mt-8">
+    <div className="mt-8 py-4 border-t border-gray-200/60">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-rose-50 rounded-xl text-rose-500">
           <Heart className="w-5 h-5 fill-current" />
@@ -190,8 +190,8 @@ export default function Cart() {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Cart Items List */}
             <div className="flex-1 space-y-6">
-              {/* Selected Delivery Address Box */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between gap-4">
+              {/* Selected Delivery Address */}
+              <div className="py-3 flex items-center justify-between gap-4 border-b border-gray-200/60 pb-4">
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
                     <MapPin className="w-5 h-5" />
@@ -226,7 +226,7 @@ export default function Cart() {
                 </button>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="py-4">
                 <h2 className="text-2xl font-black text-gray-900 mb-6">Shopping Cart ({items.length})</h2>
                 <div className="divide-y divide-gray-100 font-medium">
                   {items.map((item) => {
@@ -327,7 +327,7 @@ export default function Cart() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+              <div className="py-4 border-t border-gray-200/60 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-gray-600">
                   <ShoppingBag className="w-6 h-6" />
                   <p className="font-medium">Add more items to unlock free gifts! 🎁</p>
@@ -338,7 +338,7 @@ export default function Cart() {
 
             {/* Order Summary */}
             <div className="w-full lg:w-96 space-y-6">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 sticky top-24">
+              <div className="py-4 sticky top-24">
                 <h3 className="text-xl font-black text-gray-900 mb-6">Price Details</h3>
                 <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6 mb-6">
                   <div className="flex justify-between text-gray-600">

@@ -48,7 +48,7 @@ function MobileRecentlyViewedSection() {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-3">
+    <div className="py-3 border-t border-gray-200/60 space-y-3">
       <div className="flex items-center gap-2">
         <Clock className="w-4 h-4 text-emerald-600" />
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Recently Viewed</h3>
@@ -137,7 +137,7 @@ function MobileWishlistSection() {
   }, [user]);
 
   return (
-    <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 space-y-3">
+    <div className="py-3 border-t border-gray-200/60 space-y-3">
       <div className="flex items-center gap-2">
         <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Your Wishlist Products</h3>
@@ -270,8 +270,8 @@ export default function MobileCartScreen() {
         </div>
       ) : (
         <>
-          {/* Selected Delivery Address Box */}
-          <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
+          {/* Selected Delivery Address */}
+          <div className="py-2.5 border-b border-gray-200/60 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
                 <MapPin className="w-4 h-4" />
@@ -306,8 +306,8 @@ export default function MobileCartScreen() {
             </button>
           </div>
 
-          {/* Top Header Card */}
-          <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex items-center justify-between">
+          {/* Top Header */}
+          <div className="py-2.5 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-black text-gray-900">
                 Shopping Cart ({items.length} {items.length === 1 ? 'item' : 'items'})
@@ -451,8 +451,8 @@ export default function MobileCartScreen() {
             })}
           </div>
 
-          {/* Bill Details Summary Card */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2.5">
+          {/* Bill Details Summary */}
+          <div className="py-3 border-t border-gray-200/60 space-y-2.5">
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               Price Details
             </h3>

@@ -32,3 +32,27 @@ export function filterOutRewardProducts(products: Product[], rewardProductIds: S
   if (!rewardProductIds || rewardProductIds.size === 0) return products;
   return products.filter(p => !rewardProductIds.has(p.id) && !(p as any).isRewardProduct);
 }
+
+/**
+ * Fetches product IDs associated with expired, inactive, or exhausted reward offers.
+ */
+export async function getExpiredRewardProductIds(): Promise<Set<string>> {
+  try {
+    const snap = await getDocs(collection(db, 'reward_offers'));
+    const expiredIds = new Set<string>();
+    const now = Date.now();
+    snap.docs.forEach(docSnap => {
+      const data = docSnap.data() as BrandCoupon;
+      const isExpired = data.active === false || (data.expiryDate && new Date(data.expiryDate).getTime() < now) || data.remainingQuantity === 0;
+      if (isExpired && Array.isArray(data.productIds)) {
+        data.productIds.forEach(id => {
+          if (id) expiredIds.add(id);
+        });
+      }
+    });
+    return expiredIds;
+  } catch (e) {
+    console.error("Error fetching expired reward product IDs:", e);
+    return new Set<string>();
+  }
+}

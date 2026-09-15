@@ -138,17 +138,24 @@ export default function ProductDetail() {
     checkWaitlist();
   }, [user, product]);
 
-  // Track recently viewed products
+  // Track recently viewed products (exclude reward products and prevent duplicates)
   useEffect(() => {
-    if (product) {
-      try {
-        const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-        const updated = [product.id, ...existing.filter((pid: string) => pid !== product.id)].slice(0, 8);
-        localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
-      } catch (err) {
-        console.error("Error updating recently viewed:", err);
+    const trackRecent = async () => {
+      if (product) {
+        try {
+          const rewardIds = await getRewardProductIds();
+          if (rewardIds.has(product.id) || (product as any).isRewardProduct) {
+            return; // Requirement 5: Do NOT show Reward/Coupon products in Recently Viewed
+          }
+          const existing: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+          const updated = Array.from(new Set([product.id, ...existing.filter(pid => pid !== product.id)])).slice(0, 8);
+          localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+        } catch (err) {
+          console.error("Error updating recently viewed:", err);
+        }
       }
-    }
+    };
+    trackRecent();
   }, [product]);
 
   if (loading) return (
@@ -207,12 +214,19 @@ export default function ProductDetail() {
   };
 
   const handleToggleWishlist = async () => {
-    if (!user) {
+    if (!user || !product) {
       toast.error('Please login to use wishlist');
       return;
     }
 
     const isWishlisted = user.wishlist?.includes(product.id);
+    const currentWishlist = user.wishlist || [];
+    const newWishlist = isWishlisted
+      ? currentWishlist.filter(id => id !== product.id)
+      : Array.from(new Set([...currentWishlist, product.id]));
+
+    useAuthStore.getState().setUser({ ...user, wishlist: newWishlist });
+
     try {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
@@ -323,9 +337,6 @@ export default function ProductDetail() {
                   </p>
                 )}
               </div>
-              <p className="text-sm font-bold text-gray-500">
-                {product.enableGst === false || (product.gst || 0) === 0 ? 'Tax: GST Exempt (0%)' : `Inclusive of ${product.gst || 18}% GST`}. Free delivery on this item.
-              </p>
            </div>
 
            <div>
@@ -470,8 +481,12 @@ export default function ProductDetail() {
              {/* Offers & Services */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
                <ServiceIcon icon={ShieldCheck} title="Warranty" desc="1 Year Brand Warranty" />
-               <ServiceIcon icon={RefreshCcw} title="Replacement" desc="7 Days Policy" />
-               <ServiceIcon icon={Truck} title="Delivery" desc="Free Home Delivery" />
+               <ServiceIcon icon={RefreshCcw} title="Return Benefit" desc="7-day return" />
+               {product.isCodAllowed !== false ? (
+                 <ServiceIcon icon={PackageCheck} title="Payment Option" desc="Cash on Delivery" />
+               ) : (
+                 <ServiceIcon icon={Truck} title="Delivery" desc="Free Home Delivery" />
+               )}
             </div>
 
             {/* Help & Support Assistance */}

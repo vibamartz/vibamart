@@ -285,20 +285,19 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
 function AnimateStatus({ status, locationName }: { status: string, locationName?: string }) {
   if (status === 'idle') return null;
 
-  const deliveryDate = new Date();
-  deliveryDate.setDate(deliveryDate.getDate() + 3);
-  const formattedDate = deliveryDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() + 7);
+  const weekday = targetDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = targetDate.toLocaleDateString('en-US', { month: 'long' });
+  const day = targetDate.getDate();
 
   return (
     <div className="pt-2 animate-in fade-in slide-in-from-left-1 duration-500">
       {status === 'available' ? (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-black text-gray-900">Delivery by {formattedDate}</p>
-            <span className="text-xs text-gray-400 font-medium">|</span>
-            <span className="text-xs font-black text-green-600 uppercase tracking-widest">Free</span>
-          </div>
-          {locationName && <p className="text-[10px] text-gray-400 font-medium tracking-tight">to {locationName}</p>}
+        <div className="flex flex-col gap-0.5">
+          <p className="text-xs font-black text-gray-900 uppercase tracking-wide">Delivery in 4–7 days</p>
+          <p className="text-sm font-black text-emerald-700">Expected by {weekday}, {month} {day}</p>
+          {locationName && <p className="text-[10px] text-gray-400 font-medium tracking-tight mt-0.5">to {locationName}</p>}
         </div>
       ) : status === 'unavailable' ? (
         <div className="flex items-center gap-2 text-rose-500 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">

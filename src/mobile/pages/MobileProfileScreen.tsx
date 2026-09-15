@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle, 
@@ -8,12 +8,10 @@ import { useAuthStore } from '../../backend/store';
 import { auth } from '../../backend/firebase/firebase';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
-import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 
 export default function MobileProfileScreen() {
   const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
-  const [showPrefsModal, setShowPrefsModal] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -49,13 +47,21 @@ export default function MobileProfileScreen() {
   const accountName = user.displayName || user.email.split('@')[0];
   const userPhoto = user.photoURL || 'https://via.placeholder.com/150';
 
-  const menuItems = [
+  interface MenuItem {
+    title: string;
+    icon: any;
+    path?: string;
+    badge: any;
+    color: string;
+    action?: () => void;
+  }
+
+  const menuItems: MenuItem[] = [
     { title: 'ViBa Rewards & Points', icon: Gift, path: '/rewards', badge: 'Bonus', color: 'text-amber-600 bg-amber-50' },
     { title: 'My Orders & Tracking', icon: Package, path: '/orders', badge: null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
     { title: 'Notifications', icon: Bell, path: '/notifications', badge: null, color: 'text-purple-600 bg-purple-50' },
-    { title: 'Notification Preferences', icon: Sliders, action: () => setShowPrefsModal(true), badge: null, color: 'text-teal-600 bg-teal-50' },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];
 
@@ -142,12 +148,6 @@ export default function MobileProfileScreen() {
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </motion.button>
       </div>
-
-      <CustomerNotificationPreferencesModal 
-        isOpen={showPrefsModal}
-        onClose={() => setShowPrefsModal(false)}
-        userId={user.uid}
-      />
     </div>
   );
 }

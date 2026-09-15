@@ -26,25 +26,26 @@ export function formatDeliveredDate(order: Order): string {
   return `Delivered · ${mm}/${dd}`;
 }
 
+export function getDynamicExpectedDeliveryDate(baseDate: Date = new Date()): { deliveryRange: string; expectedBy: string; fullFormattedText: string } {
+  const targetDate = new Date(baseDate);
+  targetDate.setDate(targetDate.getDate() + 7);
+
+  const weekday = targetDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = targetDate.toLocaleDateString('en-US', { month: 'long' });
+  const day = targetDate.getDate();
+
+  const expectedBy = `Expected by ${weekday}, ${month} ${day}`;
+  const deliveryRange = `Delivery in 4–7 days`;
+  
+  return {
+    deliveryRange,
+    expectedBy,
+    fullFormattedText: `${deliveryRange} • ${expectedBy}`
+  };
+}
+
 export function getFormattedDeliveryDate(product?: any): string {
-  let deliveryDate = new Date();
-  if (product?.expectedDelivery || product?.estimatedDelivery) {
-    const d = new Date(product.expectedDelivery || product.estimatedDelivery);
-    if (!isNaN(d.getTime())) {
-      deliveryDate = d;
-    } else {
-      deliveryDate.setDate(deliveryDate.getDate() + 3);
-    }
-  } else if (product?.deliveryDays && typeof product.deliveryDays === 'number') {
-    deliveryDate.setDate(deliveryDate.getDate() + product.deliveryDays);
-  } else {
-    deliveryDate.setDate(deliveryDate.getDate() + 3);
-  }
-
-  const dayName = deliveryDate.toLocaleDateString('en-IN', { weekday: 'short' });
-  const dayNum = deliveryDate.getDate();
-  const monthName = deliveryDate.toLocaleDateString('en-IN', { month: 'short' });
-
-  return `Delivery by ${dayName}, ${dayNum} ${monthName}`;
+  const { deliveryRange, expectedBy } = getDynamicExpectedDeliveryDate();
+  return `${deliveryRange} | ${expectedBy}`;
 }
 

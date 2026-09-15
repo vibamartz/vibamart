@@ -67,6 +67,13 @@ export default function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
+    const currentWishlist = user.wishlist || [];
+    const newWishlist = isWishlisted
+      ? currentWishlist.filter(id => id !== product.id)
+      : Array.from(new Set([...currentWishlist, product.id]));
+
+    useAuthStore.getState().setUser({ ...user, wishlist: newWishlist });
+
     try {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {

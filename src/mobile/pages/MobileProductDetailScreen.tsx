@@ -4,7 +4,7 @@ import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw, 
   ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle 
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Review, Address } from '../../shared/types';
 import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
@@ -13,6 +13,8 @@ import { lookupZipcode } from '../../backend/services/zipcode';
 import { getProductSlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
+import { getRewardProductIds } from '../../shared/utilities/rewardUtils';
+import { getDynamicExpectedDeliveryDate } from '../../shared/utilities/dateUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -119,9 +121,12 @@ export default function MobileProductDetailScreen() {
           );
 
           try {
-            const existing = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-            const updated = [foundProduct.id, ...existing.filter((pid: string) => pid !== foundProduct.id)].slice(0, 8);
-            localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+            const rewardIds = await getRewardProductIds();
+            if (!rewardIds.has(foundProduct.id) && !(foundProduct as any).isRewardProduct) {
+              const existing: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
+              const updated = Array.from(new Set([foundProduct.id, ...existing.filter((pid: string) => pid !== foundProduct.id)])).slice(0, 8);
+              localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+            }
           } catch (err) {
             console.error("Error updating recently viewed:", err);
           }
@@ -158,21 +163,53 @@ export default function MobileProductDetailScreen() {
     fetchProduct();
   }, [targetSlugOrId, navigate]);
 
-  // Wishlist check
+  // Auto check delivery status if address is present
   useEffect(() => {
-    if (user?.wishlist && productId) {
-      setIsWishlisted(user.wishlist.includes(productId));
+    if (selectedAddress?.zip) {
+      setPincode(selectedAddress.zip);
+      if (product?.serviceablePincodes && product.serviceablePincodes.length > 0) {
+        const isServiced = product.serviceablePincodes.includes(selectedAddress.zip);
+        setDeliveryStatus(isServiced ? 'available' : 'unavailable');
+      } else {
+        setDeliveryStatus('available');
+      }
     }
-  }, [user, productId]);
+  }, [selectedAddress, product]);
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = async () => {
     if (!user) {
       toast.error("Please login to manage wishlist");
       navigate('/login');
       return;
     }
-    setIsWishlisted(!isWishlisted);
-    toast.success(isWishlisted ? "Removed from Wishlist" : "Saved to Wishlist");
+    const userRef = doc(db, 'users', user.uid);
+    const currentlyWishlisted = isWishlisted;
+    setIsWishlisted(!currentlyWishlisted);
+
+    const currentWishlist = user.wishlist || [];
+    const updatedWishlist = currentlyWishlisted
+      ? currentWishlist.filter(id => id !== productId)
+      : Array.from(new Set([...currentWishlist, productId]));
+
+    useAuthStore.getState().setUser({
+      ...user,
+      wishlist: updatedWishlist
+    });
+
+    try {
+      await updateDoc(userRef, {
+        wishlist: currentlyWishlisted ? arrayRemove(productId) : arrayUnion(productId)
+      });
+      toast.success(currentlyWishlisted ? "Removed from Wishlist" : "Saved to Wishlist");
+    } catch (err) {
+      console.error("Wishlist error:", err);
+      setIsWishlisted(currentlyWishlisted);
+      useAuthStore.getState().setUser({
+        ...user,
+        wishlist: currentWishlist
+      });
+      toast.error("Failed to update wishlist");
+    }
   };
 
   const handleShare = () => {
@@ -395,10 +432,7 @@ export default function MobileProductDetailScreen() {
               </span>
             )}
           </div>
-          <div className="flex items-center justify-between pt-1">
-            <p className="text-[10px] font-bold text-gray-500">
-              {product.enableGst === false || (product.gst || 0) === 0 ? 'GST Exempt / Tax: 0%' : `Inclusive of all taxes (GST ${product.gst || 18}% included)`}
-            </p>
+          <div className="flex items-center justify-end pt-1">
             {product.isStockVisible !== false && (selectedVariant ? selectedVariant.stock : product.stock) > 0 && (selectedVariant ? selectedVariant.stock : product.stock) <= 5 && (
               <span className="text-xs font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
                 Only {selectedVariant ? selectedVariant.stock : product.stock} left
@@ -459,12 +493,18 @@ export default function MobileProductDetailScreen() {
             </button>
           </form>
 
-          {deliveryStatus === 'available' && (
-            <p className="text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded-xl border border-emerald-200 flex items-center gap-1.5">
-              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Fast Delivery Available to <strong>{pincode}</strong> (Expected: 2-4 Days)</span>
-            </p>
-          )}
+          {deliveryStatus === 'available' && (() => {
+            const { expectedBy } = getDynamicExpectedDeliveryDate();
+            return (
+              <div className="text-xs font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-black uppercase text-[10px] tracking-wider text-emerald-900">Delivery in 4–7 days</span>
+                </div>
+                <p className="text-xs font-black text-emerald-700 ml-5.5">{expectedBy}</p>
+              </div>
+            );
+          })()}
           {deliveryStatus === 'unavailable' && (
             <p className="text-xs font-bold text-rose-700 bg-rose-50 p-2 rounded-xl border border-rose-200">
               Sorry, delivery is currently unavailable to {pincode}.
@@ -472,27 +512,30 @@ export default function MobileProductDetailScreen() {
           )}
         </div>
 
-        {/* 7-Day Return Policy Notice */}
-        <div className="pb-4 border-b border-gray-100 flex items-start gap-3">
-          <div className="p-2.5 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
-            <RefreshCcw className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-gray-900">
-              {settings.returnWindowDays || 7}-Day Hassle-Free Returns
-            </h4>
-            <p className="text-[11px] font-medium text-gray-600 mt-0.5 leading-relaxed">
-              Eligible for return or replacement within 7 days of delivery for defective, wrong, or damaged products with valid image proof.
-            </p>
-            <div className="pt-2 flex items-center justify-between">
-              <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
-              <button
-                onClick={() => navigate('/faq')}
-                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
-              </button>
+        {/* 7-day return Notice & COD badge */}
+        <div className="pb-4 border-b border-gray-100 space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
+                <RefreshCcw className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-black text-gray-900">7-day return</span>
             </div>
+
+            {product.isCodAllowed !== false && (
+              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase tracking-wider">
+                Cash on Delivery
+              </span>
+            )}
+          </div>
+          <div className="pt-1 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
+            <button
+              onClick={() => navigate('/faq')}
+              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
+            </button>
           </div>
         </div>
 
@@ -527,12 +570,6 @@ export default function MobileProductDetailScreen() {
               <MessageSquare className="w-4 h-4 text-emerald-600" />
               <span>Customer Reviews ({reviews.length})</span>
             </div>
-            <button
-              onClick={() => handleOpenWriteReviewModal()}
-              className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200"
-            >
-              Write Review
-            </button>
           </div>
 
           {reviews.length > 0 ? (
@@ -584,63 +621,6 @@ export default function MobileProductDetailScreen() {
         </button>
       </div>
 
-      {/* Write Review Modal */}
-      <AnimatePresence>
-        {showReviewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-4"
-            >
-              <h3 className="text-base font-black text-gray-900">Write Product Review</h3>
-              
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Rating</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewRating(star)}
-                      className="p-1"
-                    >
-                      <Star className={`w-6 h-6 ${star <= newRating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-700">Your Review</label>
-                <textarea
-                  rows={3}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Tell us what you like or dislike about this product..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => setShowReviewModal(false)}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold uppercase"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddReviewSubmit}
-                  className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase"
-                >
-                  Submit
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
