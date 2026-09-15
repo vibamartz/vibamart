@@ -321,7 +321,7 @@ export default function ProductDetail() {
             <img
               src={activeImageSrc}
               alt={product.name}
-              className="max-w-full max-h-full object-contain drop-shadow-sm"
+              className="w-full h-full object-contain drop-shadow-sm"
             />
             <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
               <button
@@ -349,7 +349,7 @@ export default function ProductDetail() {
                 onClick={() => setSelectedImage(idx)}
                 className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-gray-50/50 p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600' : 'border-transparent opacity-60'}`}
               >
-                <img src={img} alt="" className="max-w-full max-h-full object-contain" />
+                <img src={img} alt="" className="w-full h-full object-contain" />
               </button>
             ))}
           </div>

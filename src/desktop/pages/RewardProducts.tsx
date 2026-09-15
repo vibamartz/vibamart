@@ -347,7 +347,7 @@ export default function RewardProducts() {
                     <img
                       src={product.images?.[0] || 'https://via.placeholder.com/400?text=No+Image'}
                       alt={product.name}
-                      className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                     />
 
                     {/* Discount % Badge */}

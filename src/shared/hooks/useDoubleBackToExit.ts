@@ -44,6 +44,11 @@ export function useDoubleBackToExit() {
         } else {
           // Standard browser behavior fallback: attempt window.close()
           window.close();
+          setTimeout(() => {
+            if (!document.hidden) {
+              window.history.back();
+            }
+          }, 100);
         }
       } else {
         // First press on Home -> prevent immediate exit, show toast, set 1.5s window

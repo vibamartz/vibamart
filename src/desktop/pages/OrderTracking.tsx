@@ -830,7 +830,7 @@ export default function OrderTracking() {
                 {order.items.map((item, idx) => (
                   <div key={idx} className="py-4 flex items-center justify-between gap-4">
                     <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 shadow-sm p-1 flex items-center justify-center shrink-0">
-                      <img src={item.image} className="max-w-full max-h-full object-contain" alt={item.name} />
+                      <img src={item.image} className="w-full h-full object-contain" alt={item.name} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
@@ -958,7 +958,7 @@ export default function OrderTracking() {
                 {recommendedProducts.map((p) => (
                   <Link key={p.id} to={`/products/${p.slug || p.id}`} className="group py-2">
                     <div className="aspect-square bg-gray-50/80 rounded-2xl overflow-hidden mb-3 border border-gray-100 group-hover:opacity-90 transition-opacity p-2 flex items-center justify-center">
-                      <img src={p.image || p.images?.[0]} alt={p.name} className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300" />
+                      <img src={p.image || p.images?.[0]} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
                     </div>
                     <p className="text-xs font-bold text-gray-900 truncate group-hover:text-primary transition-colors">{p.name}</p>
                     <p className="text-sm font-black text-gray-900 mt-1">₹{p.price.toLocaleString()}</p>

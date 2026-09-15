@@ -486,7 +486,7 @@ export default function Rewards() {
                         <img
                           src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
                           alt={coupon.title}
-                          className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
 
@@ -772,7 +772,7 @@ export default function Rewards() {
                   <img
                     src={(selectedCoupon.catalogImages && selectedCoupon.catalogImages[selectedGalleryImgIndex]) || selectedCoupon.productImage}
                     alt=""
-                    className="max-w-full max-h-full object-contain"
+                    className="w-full h-full object-contain"
                   />
                   <div className="absolute right-4 top-4 bg-amber-500 text-white font-black text-xs px-3 py-1 rounded-full shadow-lg">
                     {selectedCoupon.discountType === 'percent' ? `${selectedCoupon.discountValue}% OFF` : `₹${selectedCoupon.discountValue} OFF`}
@@ -790,7 +790,7 @@ export default function Rewards() {
                           selectedGalleryImgIndex === idx ? 'border-amber-500 scale-95' : 'border-gray-200 opacity-60'
                         }`}
                       >
-                        <img src={img} alt="" className="max-w-full max-h-full object-contain" />
+                        <img src={img} alt="" className="w-full h-full object-contain" />
                       </button>
                     ))}
                   </div>
