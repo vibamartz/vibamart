@@ -346,13 +346,16 @@ export default function Checkout() {
           name: item.product.name,
           price: finalPrice,
           quantity: item.quantity,
-          image: item.product.images?.[0] || "",
+          image: variant?.image || item.product.images?.[0] || "",
           gst: item.product.gst || 0,
           enableGst: item.product.enableGst !== false
         };
 
         if (item.variantId) {
           oi.variantId = item.variantId;
+          if (variant) {
+            oi.selectedVariant = variant.name || [variant.color || variant.colorName, variant.size || variant.shoeSize, variant.storage, variant.ram, variant.shade, variant.volume, variant.material, variant.model].filter(Boolean).join(' / ') || item.variantId;
+          }
         }
 
         return oi;

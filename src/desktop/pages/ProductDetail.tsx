@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
-import { Product, WaitlistItem } from '../../shared/types';
-import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
+import { Product, ProductVariant, WaitlistItem } from '../../shared/types';
+import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle, Ruler, X, Check } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore } from '../../backend/store';
+import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import LocationPickerModal from '../components/LocationPickerModal';
 import toast from 'react-hot-toast';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import PincodeChecker from '../components/PincodeChecker';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import {
@@ -16,6 +18,7 @@ import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilit
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
+import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -26,11 +29,14 @@ export default function ProductDetail() {
   const { addItem, items } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const { categories } = useCategoryStore();
+  const { selectedAddress } = useLocationStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
   const [notFound, setNotFound] = useState(false);
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
-  const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(null);
+  const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(true);
+  const [showSizeChartModal, setShowSizeChartModal] = useState(false);
+  const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
 
   // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
@@ -44,7 +50,7 @@ export default function ProductDetail() {
         let foundProduct: Product | null = null;
         const cleanTargetCode = cleanProductCode(targetSlugOrId);
 
-        // 1. Check if target is a direct Firestore doc ID
+        // 1. Check direct Firestore doc ID
         try {
           const prodRef = doc(db, 'products', targetSlugOrId);
           const snap = await getDoc(prodRef);
@@ -53,7 +59,7 @@ export default function ProductDetail() {
           }
         } catch (_) { }
 
-        // 2. Query by 'slug' field if not found directly
+        // 2. Query by 'slug' field
         if (!foundProduct) {
           const qSlug = query(collection(db, 'products'), where('slug', '==', targetSlugOrId));
           const snapSlug = await getDocs(qSlug);
@@ -73,7 +79,7 @@ export default function ProductDetail() {
           }
         }
 
-        // 4. Fallback scan by generated slug match or cleaned Product Code
+        // 4. Fallback scan
         if (!foundProduct) {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
@@ -90,7 +96,11 @@ export default function ProductDetail() {
 
         if (foundProduct) {
           setProduct(foundProduct);
-          setSelectedVariant(foundProduct.variants?.[0]?.id);
+          // Auto select first enabled variant
+          const firstValidVariant = foundProduct.variants?.find(v => !v.disabled);
+          if (firstValidVariant) {
+            setSelectedVariant(firstValidVariant.id);
+          }
           const canonicalSlug = getProductSlug(foundProduct);
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
           const img = (foundProduct.images && foundProduct.images.length > 0) ? foundProduct.images[0] : (foundProduct as any).image;
@@ -101,7 +111,6 @@ export default function ProductDetail() {
             `${origin}/products/${canonicalSlug}`
           );
 
-          // Canonical URL enforcement (Replace numeric/ID/ProductCode paths with clean canonical slug URL)
           if (targetSlugOrId !== canonicalSlug && (
             targetSlugOrId === foundProduct.id ||
             /^\d+$/.test(targetSlugOrId) ||
@@ -123,7 +132,7 @@ export default function ProductDetail() {
     fetchProduct();
   }, [targetSlugOrId, navigate]);
 
-  // Check waitlist separately when user is available
+  // Check waitlist
   useEffect(() => {
     if (!user || !product || product.stock > 0) return;
     const checkWaitlist = async () => {
@@ -138,14 +147,14 @@ export default function ProductDetail() {
     checkWaitlist();
   }, [user, product]);
 
-  // Track recently viewed products (exclude reward products and prevent duplicates)
+  // Track recently viewed
   useEffect(() => {
     const trackRecent = async () => {
       if (product) {
         try {
           const rewardIds = await getRewardProductIds();
           if (rewardIds.has(product.id) || (product as any).isRewardProduct) {
-            return; // Requirement 5: Do NOT show Reward/Coupon products in Recently Viewed
+            return;
           }
           const existing: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
           const updated = Array.from(new Set([product.id, ...existing.filter(pid => pid !== product.id)])).slice(0, 8);
@@ -166,6 +175,14 @@ export default function ProductDetail() {
 
   if (notFound || !product) return <Navigate to="/product-not-found" replace />;
 
+  const currentVariant = product.variants?.find(v => v.id === selectedVariant);
+  const basePrice = (currentVariant?.price && currentVariant.price > 0) ? currentVariant.price : (product.discountPrice || product.price);
+  const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
+  const originalPrice = product.mrp || product.price;
+  const discountPercentage = originalPrice > totalPrice ? Math.round(((originalPrice - totalPrice) / originalPrice) * 100) : 0;
+  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
+  const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
+
   const handleBuyNow = () => {
     if (isInCart) {
       navigate('/checkout');
@@ -175,7 +192,7 @@ export default function ProductDetail() {
     if (result.success) {
       navigate('/checkout');
     } else {
-      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock or limit reached.');
+      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock.');
     }
   };
 
@@ -184,7 +201,7 @@ export default function ProductDetail() {
     if (result.success) {
       toast.success('Product added to cart');
     } else {
-      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock or limit reached.');
+      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock.');
     }
   };
 
@@ -205,9 +222,7 @@ export default function ProductDetail() {
       } as Omit<WaitlistItem, 'id'>);
 
       setIsOnWaitlist(true);
-      toast.success('You have been added to the waitlist!', {
-        icon: '🔔'
-      });
+      toast.success('You have been added to the waitlist!', { icon: '🔔' });
     } catch (err) {
       toast.error('Failed to join waitlist');
     }
@@ -244,11 +259,31 @@ export default function ProductDetail() {
   const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
   const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
 
-  const currentVariant = product.variants?.find(v => v.id === selectedVariant);
-  const basePrice = product.discountPrice || product.price;
-  const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
-  const discountPercentage = Math.round(((product.price - basePrice) / product.price) * 100);
-  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
+  // Group variants by color, size, etc.
+  const activeVariants = (product.variants || []).filter(v => !v.disabled);
+
+  // Build specifications list excluding empty fields
+  const specsList: { key: string; value: string }[] = [];
+  if (product.specifications && Array.isArray(product.specifications)) {
+    product.specifications.forEach(s => {
+      if (s.key && s.value && s.key.trim() && s.value.trim()) {
+        specsList.push({ key: s.key.trim(), value: s.value.trim() });
+      }
+    });
+  }
+
+  // Fallback specs from top-level fields if not in specsList
+  if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
+    specsList.unshift({ key: 'Brand', value: product.brand });
+  }
+  if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
+    specsList.push({ key: 'Color', value: product.color });
+  }
+  if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+    specsList.push({ key: 'Size', value: product.size });
+  }
+
+  const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -284,7 +319,7 @@ export default function ProductDetail() {
         <div className="w-full lg:flex-1 space-y-4">
           <div className="relative aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 lg:sticky lg:top-24">
             <img
-              src={product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image'}
+              src={activeImageSrc}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -306,12 +341,13 @@ export default function ProductDetail() {
               </button>
             </div>
           </div>
+
           <div className="grid grid-cols-4 gap-4">
             {(product.images || []).map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
-                className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${selectedImage === idx ? 'border-green-600' : 'border-transparent opacity-60'}`}
+                className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${selectedImage === idx && !currentVariant?.image ? 'border-green-600' : 'border-transparent opacity-60'}`}
               >
                 <img src={img} className="w-full h-full object-cover" />
               </button>
@@ -319,20 +355,20 @@ export default function ProductDetail() {
           </div>
         </div>
 
-        {/* Right: Info */}
+        {/* Right: Info & Variants */}
         <div className="flex-1 space-y-8 py-4">
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <div className="flex items-baseline gap-4 flex-wrap">
                 <span className="text-5xl font-black text-gray-900">₹{totalPrice.toLocaleString()}</span>
-                {product.discountPrice && (
-                  <span className="text-2xl text-gray-400 line-through font-medium">₹{(product.price + (currentVariant?.extraPrice || 0)).toLocaleString()}</span>
+                {originalPrice > totalPrice && (
+                  <span className="text-2xl text-gray-400 line-through font-medium">₹{originalPrice.toLocaleString()}</span>
                 )}
                 {discountPercentage > 0 && <span className="text-2xl font-black text-green-600 uppercase">{discountPercentage}% OFF</span>}
               </div>
-              {product.discountPrice && product.price && (
+              {originalPrice > totalPrice && (
                 <p className="text-[10px] text-green-600 font-bold uppercase tracking-[0.2em] bg-green-50 px-3 py-1.5 rounded-lg w-max">
-                  You save ₹{(product.price - product.discountPrice).toLocaleString()}
+                  You save ₹{(originalPrice - totalPrice).toLocaleString()}
                 </p>
               )}
             </div>
@@ -341,11 +377,10 @@ export default function ProductDetail() {
           <div>
             <p className="text-sm font-black text-green-600 uppercase tracking-widest mb-2">Verified Merchant</p>
             <h1 className="text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tight">{product.name}</h1>
-            {/* Seller Info */}
             <div className="flex items-center gap-4 py-4 border-b border-gray-100">
               <div className="group flex items-center gap-2 cursor-pointer">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Seller:</span>
-                <span className="text-sm font-black text-primary hover:underline">{product.brand} Retail</span>
+                <span className="text-sm font-black text-primary hover:underline">{product.brand || 'ViBa Mart'} Retail</span>
                 <div className="bg-primary text-white text-[8px] font-black px-1.5 py-0.5 rounded tracking-tighter uppercase">4.8 ★</div>
               </div>
             </div>
@@ -353,15 +388,15 @@ export default function ProductDetail() {
 
           <div className="flex items-center gap-6 mt-6">
             <div className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1 rounded-lg text-sm font-black shadow-sm shadow-green-100">
-              {product.rating} <Star className="w-4 h-4 fill-current" />
+              {product.rating || 4.5} <Star className="w-4 h-4 fill-current" />
             </div>
             <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{product.numReviews} Ratings & Reviews</span>
             {product.isStockVisible !== false && (
-              (currentVariant ? currentVariant.stock : product.stock) > 0 && (currentVariant ? currentVariant.stock : product.stock) <= 5 ? (
+              currentStock > 0 && currentStock <= 5 ? (
                 <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-200 animate-pulse">
-                  Only {currentVariant ? currentVariant.stock : product.stock} left
+                  Only {currentStock} left
                 </span>
-              ) : (currentVariant ? currentVariant.stock : product.stock) > 0 ? (
+              ) : currentStock > 0 ? (
                 <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wider">In Stock</span>
               ) : (
                 <span className="text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
@@ -369,35 +404,147 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Variants */}
-          {product.variants && product.variants.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Select Variant</h3>
-              <div className="flex flex-wrap gap-2">
-                {product.variants.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => setSelectedVariant(v.id)}
-                    disabled={v.stock === 0}
-                    className={`px-6 py-3 rounded-xl border-2 font-bold transition-all ${selectedVariant === v.id
-                        ? 'border-green-600 bg-green-50 text-green-600'
-                        : v.stock === 0
-                          ? 'border-gray-50 bg-gray-50 text-gray-300 opacity-50 cursor-not-allowed'
-                          : 'border-gray-100 text-gray-500 hover:border-gray-200'
-                      }`}
-                  >
-                    {v.name}
-                    {v.stock === 0 && <span className="block text-[8px] uppercase tracking-tighter">Out of Stock</span>}
-                  </button>
-                ))}
-              </div>
+          {/* Variants Section */}
+          {activeVariants.length > 0 && (
+            <div className="space-y-6 pt-6 border-t border-gray-100">
+              {/* Selected Variant Summary */}
+              {currentVariant && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                    Selected Variant: <span className="text-gray-900 font-extrabold">{currentVariant.name || currentVariant.color || currentVariant.size || 'Default'}</span>
+                  </span>
+                  {product.sizeChart && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeChartModal(true)}
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-green-600 bg-green-50 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors uppercase tracking-wider"
+                    >
+                      <Ruler className="w-4 h-4" /> Size Chart
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Color Selection */}
+              {activeVariants.some(v => v.color || v.colorName) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                      Color: <span className="text-gray-900 font-extrabold">{currentVariant?.color || currentVariant?.colorName || 'Select Color'}</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {activeVariants.map((v) => {
+                      if (!v.color && !v.colorName) return null;
+                      const isSelected = selectedVariant === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v.id)}
+                          disabled={v.stock === 0}
+                          className={`px-4 py-2.5 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${
+                            isSelected
+                              ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
+                              : v.stock === 0
+                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-50 cursor-not-allowed'
+                              : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {v.colorHex && (
+                            <span
+                              className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0 shadow-xs"
+                              style={{ backgroundColor: v.colorHex }}
+                            />
+                          )}
+                          <span>{v.color || v.colorName}</span>
+                          {v.stock === 0 && <span className="text-[8px] text-rose-500 uppercase">(Out of stock)</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Size Selection */}
+              {activeVariants.some(v => v.size || v.shoeSize) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                      Size: <span className="text-gray-900 font-extrabold">{currentVariant?.size || currentVariant?.shoeSize || 'Select Size'}</span>
+                    </span>
+                    {product.sizeChart && !activeVariants.some(v => v.color) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSizeChartModal(true)}
+                        className="inline-flex items-center gap-1.5 text-xs font-black text-green-600 bg-green-50 px-3 py-1 rounded-xl hover:bg-green-100 transition-colors uppercase tracking-wider"
+                      >
+                        <Ruler className="w-4 h-4" /> Size Chart
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {activeVariants.map((v) => {
+                      if (!v.size && !v.shoeSize) return null;
+                      const isSelected = selectedVariant === v.id;
+                      const displaySize = v.size || v.shoeSize;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v.id)}
+                          disabled={v.stock === 0}
+                          className={`min-w-[48px] px-4 py-3 rounded-xl border-2 text-xs font-black transition-all ${
+                            isSelected
+                              ? 'border-green-600 bg-green-600 text-white shadow-md'
+                              : v.stock === 0
+                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
+                              : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                          }`}
+                        >
+                          {displaySize}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Storage / RAM / Shade / Volume / Material / Model Variants */}
+              {activeVariants.some(v => v.storage || v.ram || v.shade || v.volume || v.material || v.model) && (
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Options & Configuration</span>
+                  <div className="flex flex-wrap gap-2">
+                    {activeVariants.map((v) => {
+                      const label = [v.name, v.storage, v.ram, v.shade, v.volume, v.material, v.model].filter(Boolean).join(' • ');
+                      if (!label) return null;
+                      const isSelected = selectedVariant === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v.id)}
+                          disabled={v.stock === 0}
+                          className={`px-4 py-3 rounded-xl border-2 text-xs font-bold transition-all ${
+                            isSelected
+                              ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
+                              : v.stock === 0
+                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
+                              : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                          }`}
+                        >
+                          {label}
+                          {v.stock === 0 && <span className="block text-[8px] uppercase text-rose-500">Out of Stock</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Add to Cart / Buy Now */}
+          {/* Add to Cart / Buy Now Actions */}
           <div className="flex flex-col gap-4 items-stretch mt-6">
             <div className="flex-1 w-full flex flex-col gap-3">
-              {product.stock > 0 ? (
+              {currentStock > 0 ? (
                 <>
                   <button
                     onClick={() => {
@@ -407,21 +554,23 @@ export default function ProductDetail() {
                         handleAddToCart();
                       }
                     }}
-                    disabled={!isLocationAvailable || (!isInCart && (currentVariant ? currentVariant.stock === 0 : product.stock === 0))}
-                    className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${(!isLocationAvailable || (!isInCart && (currentVariant ? currentVariant.stock === 0 : product.stock === 0)))
+                    disabled={!isLocationAvailable}
+                    className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                      !isLocationAvailable
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                         : 'bg-yellow-400 text-gray-950 shadow-yellow-100 hover:bg-yellow-300 active:scale-95'
-                      }`}
+                    }`}
                   >
                     <ShoppingCart className="w-5 h-5" /> {isInCart ? 'Go to Cart' : 'Add to Cart'}
                   </button>
                   <button
                     onClick={handleBuyNow}
-                    disabled={!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0)}
-                    className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${(!isLocationAvailable || (currentVariant ? currentVariant.stock === 0 : product.stock === 0))
+                    disabled={!isLocationAvailable}
+                    className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
+                      !isLocationAvailable
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                         : 'bg-amber-500 text-gray-950 shadow-amber-200 hover:bg-amber-400 active:scale-95'
-                      }`}
+                    }`}
                   >
                     Buy Now
                   </button>
@@ -430,8 +579,9 @@ export default function ProductDetail() {
                 <button
                   onClick={isOnWaitlist ? undefined : handleJoinWaitlist}
                   disabled={isOnWaitlist}
-                  className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
-                    }`}
+                  className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
+                    isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
+                  }`}
                 >
                   {isOnWaitlist ? <><Bell className="w-5 h-5" /> On Waitlist</> : <><Bell className="w-5 h-5" /> Notify Me When Available</>}
                 </button>
@@ -439,41 +589,60 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Delivery Details Section */}
-          <div className="space-y-8 pt-8 border-t border-gray-100 mb-8">
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Details</h3>
-              <PincodeChecker
-                serviceablePincodes={product.serviceablePincodes}
-                onAvailabilityChange={(available) => setIsLocationAvailable(available)}
-                savedAddresses={user?.addresses}
-              />
-            </div>
+          {/* Delivery Details Section (Requirement 4 & 5) */}
+          <div className="space-y-4 pt-8 border-t border-gray-100">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Details</h3>
 
-            {user?.addresses && user.addresses.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Deliver to Saved Addresses</h3>
-                  <Link to="/profile" className="text-[10px] font-black uppercase text-primary tracking-widest hover:underline">Manage</Link>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {user.addresses.slice(0, 2).map((addr, idx) => (
-                    <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-start gap-3 group hover:bg-white hover:shadow-xl transition-all duration-500 cursor-pointer">
-                      <MapPin className="w-4 h-4 text-primary mt-1" />
-                      <div>
-                        <p className="text-xs font-black text-gray-900 line-clamp-1">{addr.street}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                          {addr.city}, {addr.zip}
-                        </p>
-                      </div>
+            {selectedAddress ? (
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/80 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="text-xs font-black text-gray-900 block">
+                        Deliver to {selectedAddress.fullName || 'Customer'} — {selectedAddress.zip}
+                      </span>
+                      <p className="text-xs font-medium text-gray-600 mt-0.5 line-clamp-2">
+                        {selectedAddress.house}, {selectedAddress.street}, {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.zip}
+                      </p>
                     </div>
-                  ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationPickerModal(true)}
+                    className="text-xs font-black uppercase text-green-600 tracking-wider hover:underline shrink-0 ml-3"
+                  >
+                    Change
+                  </button>
                 </div>
+                <div className="pt-2 border-t border-gray-200/60 flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-green-600" />
+                  <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
+                    {getShortDeliveryText()}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <span className="text-xs font-bold text-gray-700 block">No delivery address selected</span>
+                    <span className="text-[10px] text-gray-400">Select address to view exact delivery dates</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationPickerModal(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-green-700 transition-all shadow-sm"
+                >
+                  Select Address
+                </button>
               </div>
             )}
           </div>
 
-          {/* Offers & Services */}
+          {/* Offers & Warranties */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
             <ServiceIcon icon={ShieldCheck} title="Warranty" desc="1 Year Brand Warranty" />
             <ServiceIcon icon={RefreshCcw} title="Return Benefit" desc="7-day return" />
@@ -483,77 +652,77 @@ export default function ProductDetail() {
               <ServiceIcon icon={Truck} title="Delivery" desc="Free Home Delivery" />
             )}
           </div>
-
-          {/* Help & Support Assistance */}
-          <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Have Questions about this product?</h4>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">Get instant assistance from our support team or browse FAQs.</p>
-            </div>
-            <button
-              onClick={() => navigate('/faq')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-black uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
-            >
-              <HelpCircle className="w-4 h-4 text-gray-950" /> Help
-            </button>
-          </div>
-
-          {/* Description */}
-          <div className="pt-8 border-t border-gray-100">
-            <h3 className="text-xl font-black text-gray-900 mb-4">Product Description</h3>
-            <p className="text-gray-600 leading-relaxed font-medium">{product.description}</p>
-          </div>
-
-          {/* Highlights */}
-          <div className="pt-8 border-t border-gray-100">
-            <h3 className="text-xl font-black text-gray-900 mb-6">Product Highlights</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
-              {[
-                '100% Authentic Quality',
-                'Premium Build Materials',
-                'Tested for Durability',
-                'Fast Reliable Shipping',
-                'Eco-friendly Packaging',
-                'Secured Payment Options'
-              ].map((highlight, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  <span className="text-sm font-bold text-gray-600 tracking-tight">{highlight}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Full Description / Specs */}
-          {product.fullDescription && (
-            <div className="pt-8 border-t border-gray-100">
-              <h3 className="text-xl font-black text-gray-900 mb-6">Technical Specifications</h3>
-              <div className="bg-gray-50 rounded-3xl border border-gray-100 overflow-hidden">
-                <div className="divide-y divide-gray-100">
-                  {product.fullDescription.split('\n').filter(l => l.includes(':')).map((spec, i) => {
-                    const [key, val] = spec.split(':');
-                    return (
-                      <div key={i} className="flex flex-col sm:flex-row p-4 sm:p-6 hover:bg-white transition-colors">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{key}</span>
-                        <span className="text-sm font-black text-gray-900 sm:flex-1">{val}</span>
-                      </div>
-                    );
-                  })}
-                  {!product.fullDescription.includes(':') && (
-                    <p className="p-6 text-sm font-medium text-gray-600 leading-relaxed whitespace-pre-line">{product.fullDescription}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Similar Products Section */}
-      <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+      {/* Similar Products Section (Requirement 6) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+        <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+      </div>
+
+      {/* Product Information Details Section (Requirements 7 & 8) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
+          <h2 className="text-2xl font-black text-gray-900 italic tracking-tight">Product Information Details</h2>
+
+          {/* Specifications */}
+          {specsList.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-gray-900 tracking-tight">Specifications</h3>
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                {specsList.map((spec, i) => (
+                  <div key={i} className="flex flex-col sm:flex-row p-4 hover:bg-white transition-colors">
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{spec.key}</span>
+                    <span className="text-sm font-black text-gray-900 sm:flex-1">{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">Description</h3>
+            <p className="text-gray-600 leading-relaxed font-medium whitespace-pre-line text-sm">
+              {product.fullDescription || product.description}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Recently Viewed Section */}
-      <RecentlyViewed currentProductId={product.id} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+        <RecentlyViewed currentProductId={product.id} />
+      </div>
+
+      {/* Size Chart Modal */}
+      {showSizeChartModal && product.sizeChart && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 relative shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-2">
+                <Ruler className="w-5 h-5 text-green-600" />
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">Size Chart</h3>
+              </div>
+              <button
+                onClick={() => setShowSizeChartModal(false)}
+                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-2 flex items-center justify-center max-h-[70vh] overflow-y-auto">
+              <img src={product.sizeChart} alt="Size Chart" className="max-w-full h-auto rounded-xl object-contain" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={showLocationPickerModal}
+        onClose={() => setShowLocationPickerModal(false)}
+      />
     </div>
   );
 }
@@ -594,11 +763,11 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
   if (!loading && products.length === 0) return null;
 
   return (
-    <div className="mt-24 border-t border-gray-100 pt-24 pb-12">
-      <div className="flex items-center justify-between mb-12">
+    <div className="pt-8 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-8">
         <div className="space-y-1">
-          <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recommended for You</h2>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Based on your current view</p>
+          <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Recommendations from same category</p>
         </div>
         <Link to="/products" className="group flex items-center gap-2">
           <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
@@ -659,10 +828,10 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
   if (!loading && products.length === 0) return null;
 
   return (
-    <div className="mt-12 border-t border-gray-100 pt-12 pb-20">
-      <div className="flex items-center justify-between mb-12">
+    <div className="pt-8 border-t border-gray-100">
+      <div className="flex items-center justify-between mb-8">
         <div className="space-y-1">
-          <h2 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recently Viewed</h2>
+          <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recently Viewed</h2>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Products you looked at recently</p>
         </div>
       </div>

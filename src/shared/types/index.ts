@@ -76,6 +76,8 @@ export interface Product {
   features?: string[];
   color?: string; // Common color if no variants or default
   size?: string; // Common size if no variants or default
+  sizeChart?: string; // Size Chart image URL or matrix
+  variantAttributes?: string[]; // Enabled variant attribute types e.g. ['color', 'size', 'ram', 'storage', 'shade', 'material', 'volume', 'model']
   specifications?: { key: string; value: string }[];
   taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
@@ -91,13 +93,22 @@ export interface ProductVariant {
   id: string;
   name?: string;
   color?: string;
+  colorHex?: string;
+  colorName?: string;
   size?: string;
+  shoeSize?: string;
+  storage?: string;
+  ram?: string;
+  shade?: string;
+  volume?: string;
   material?: string;
+  model?: string;
   price?: number;
   extraPrice?: number;
   stock: number;
   sku?: string;
   image?: string;
+  disabled?: boolean;
 }
 
 export interface Category {

@@ -174,16 +174,25 @@ export default function MobileCheckoutScreen() {
       contactName: selectedAddress.fullName || contactName || 'Guest User',
       contactPhone: contactPhone || selectedAddress.phone,
       items: items.map(i => {
+        const variant = i.variantId ? i.product.variants?.find(v => v.id === i.variantId) : null;
+        const basePrice = (variant?.price && variant.price > 0) ? variant.price : (i.product.discountPrice || i.product.price);
+        const finalPrice = basePrice + (variant?.extraPrice || 0);
+
         const itemObj: any = {
           productId: i.productId,
           name: i.product.name,
-          price: i.product.discountPrice || i.product.price,
+          price: finalPrice,
           quantity: i.quantity,
-          image: i.product.images?.[0] || '',
+          image: variant?.image || i.product.images?.[0] || '',
           gst: i.product.gst || 0,
           enableGst: i.product.enableGst !== false
         };
-        if (i.variantId) itemObj.variantId = i.variantId;
+        if (i.variantId) {
+          itemObj.variantId = i.variantId;
+          if (variant) {
+            itemObj.selectedVariant = variant.name || [variant.color || variant.colorName, variant.size || variant.shoeSize, variant.storage, variant.ram, variant.shade, variant.volume, variant.material, variant.model].filter(Boolean).join(' / ') || i.variantId;
+          }
+        }
         return itemObj;
       }),
       subtotal: cartTotal,
