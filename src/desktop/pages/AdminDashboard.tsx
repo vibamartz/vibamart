@@ -33,7 +33,7 @@ import AdminCancellationManagementView from '../components/AdminCancellationMana
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 import FeatureRegistryManagementView from '../components/FeatureRegistryManagementView';
 import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
-import { VariantImageInput } from '../components/VariantImageInput';
+import { VariantImageInput, VariantMultiImageInput } from '../components/VariantImageInput';
 import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
@@ -4709,9 +4709,9 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                     <input className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none" value={v.sku} onChange={e => updateVariant(v.id, 'sku', e.target.value)} />
                   </div>
                   <div className="col-span-2 lg:col-span-4">
-                    <VariantImageInput
-                      value={v.image || ''}
-                      onChange={val => updateVariant(v.id, 'image', val)}
+                    <VariantMultiImageInput
+                      images={v.images || (v.image ? [v.image] : [])}
+                      onChange={imgs => updateVariant(v.id, 'images', imgs)}
                     />
                   </div>
                 </div>

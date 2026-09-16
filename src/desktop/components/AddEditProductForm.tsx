@@ -10,7 +10,7 @@ import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, 
 import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
-import { VariantImageInput } from './VariantImageInput';
+import { VariantImageInput, VariantMultiImageInput } from './VariantImageInput';
 import ProductLocationManager from './ProductLocationManager';
 
 import { createSlug } from '../../shared/utilities/slug';
@@ -77,26 +77,32 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         nestedSubCategoryId: product.nestedSubCategoryId || '',
         isCodAllowed: product.isCodAllowed !== false,
         isStockVisible: product.isStockVisible !== false,
-        variants: (product.variants || []).map(v => ({
-          ...v,
-          name: v.name || '',
-          color: v.color || '',
-          colorHex: v.colorHex || '#000000',
-          colorName: v.colorName || '',
-          size: v.size || '',
-          shoeSize: v.shoeSize || '',
-          storage: v.storage || '',
-          ram: v.ram || '',
-          shade: v.shade || '',
-          volume: v.volume || '',
-          material: v.material || '',
-          model: v.model || '',
-          sku: v.sku || '',
-          image: v.image || '',
-          price: v.price || 0,
-          stock: v.stock || 0,
-          disabled: v.disabled || false,
-        })),
+        variants: (product.variants || []).map(v => {
+          const vImages = Array.isArray(v.images) && v.images.length > 0
+            ? v.images.slice(0, 8)
+            : (v.image ? [v.image] : []);
+          return {
+            ...v,
+            name: v.name || '',
+            color: v.color || '',
+            colorHex: v.colorHex || '#000000',
+            colorName: v.colorName || '',
+            size: v.size || '',
+            shoeSize: v.shoeSize || '',
+            storage: v.storage || '',
+            ram: v.ram || '',
+            shade: v.shade || '',
+            volume: v.volume || '',
+            material: v.material || '',
+            model: v.model || '',
+            sku: v.sku || '',
+            image: vImages[0] || '',
+            images: vImages,
+            price: v.price || 0,
+            stock: v.stock || 0,
+            disabled: v.disabled || false,
+          };
+        }),
         images: product.images || [],
         tags: product.tags || [],
         features: product.features || [],
@@ -236,6 +242,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
   };
 
   const addVariant = () => {
+    const initialImg = formData.primaryImage || (formData.images?.[0] || '');
     const newVariant: ProductVariant = {
       id: `var_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       name: '',
@@ -254,7 +261,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       extraPrice: 0,
       stock: 10,
       sku: `${formData.sku || 'SKU'}_VAR_${(formData.variants?.length || 0) + 1}`,
-      image: formData.primaryImage || (formData.images?.[0] || ''),
+      image: initialImg,
+      images: initialImg ? [initialImg] : [],
       disabled: false,
     };
     setFormData(prev => ({ ...prev, variants: [...(prev.variants || []), newVariant] }));
@@ -284,7 +292,24 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
   const updateVariant = (id: string, field: keyof ProductVariant, value: any) => {
     setFormData(prev => ({
       ...prev,
-      variants: prev.variants?.map(v => v.id === id ? { ...v, [field]: value } : v)
+      variants: prev.variants?.map(v => {
+        if (v.id !== id) return v;
+        const updated = { ...v, [field]: value };
+        if (field === 'images') {
+          const imgs = Array.isArray(value) ? value.slice(0, 8) : [];
+          updated.images = imgs;
+          updated.image = imgs[0] || '';
+        } else if (field === 'image') {
+          const singleImg = value || '';
+          updated.image = singleImg;
+          if (!updated.images || updated.images.length === 0) {
+            updated.images = singleImg ? [singleImg] : [];
+          } else {
+            updated.images[0] = singleImg;
+          }
+        }
+        return updated;
+      })
     }));
   };
 
@@ -539,63 +564,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             </div>
           </div>
 
-          {/* Size Chart Section */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Upload an image file or enter exact Size Chart image URL for customer viewing</p>
-              </div>
-            </div>
-            <div>
-              <VariantImageInput
-                value={formData.sizeChart || ''}
-                onChange={val => setFormData(p => ({ ...p, sizeChart: val }))}
-                label="Size Chart Image (Upload File or Enter Link)"
-                imageTypeLabel="Size Chart image"
-              />
-            </div>
-          </div>
 
-          {/* Category Variant Attributes Config */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <div>
-              <h3 className="text-lg font-black text-gray-900 tracking-tight">Enabled Variant Attributes</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
-                Select which variant options apply to this product category
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { id: 'color', label: 'Color (Name & Swatch)' },
-                { id: 'size', label: 'Size (Clothing / Dimensions)' },
-                { id: 'shoeSize', label: 'Shoe Size (Footwear)' },
-                { id: 'storage', label: 'Storage (128GB, 256GB)' },
-                { id: 'ram', label: 'RAM (8GB, 16GB)' },
-                { id: 'shade', label: 'Shade (Beauty)' },
-                { id: 'volume', label: 'Size / Volume (50ml, 100ml)' },
-                { id: 'material', label: 'Material' },
-                { id: 'model', label: 'Model / Variant' }
-              ].map(attr => {
-                const isChecked = (formData.variantAttributes || []).includes(attr.id);
-                return (
-                  <button
-                    key={attr.id}
-                    type="button"
-                    onClick={() => toggleVariantAttribute(attr.id)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border-2 ${
-                      isChecked
-                        ? 'bg-green-600 text-white border-green-600 shadow-md'
-                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-gray-200'
-                    }`}
-                  >
-                    {isChecked && <Check className="w-3.5 h-3.5" />}
-                    {attr.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Variant Matrix */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
@@ -850,9 +819,9 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                       </div>
 
                       <div className="col-span-2 lg:col-span-4">
-                        <VariantImageInput
-                          value={v.image || ''}
-                          onChange={val => updateVariant(v.id, 'image', val)}
+                        <VariantMultiImageInput
+                          images={v.images || (v.image ? [v.image] : [])}
+                          onChange={imgs => updateVariant(v.id, 'images', imgs)}
                         />
                       </div>
                     </div>
@@ -951,98 +920,6 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   No specification fields added. Use Quick Category Attributes above or click Add Field.
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Pricing, Inventory & Meta */}
-        <div className="space-y-12">
-
-          {/* Economy & Pricing */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Economic Model</h3>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Market Retail Price (MRP)</label>
-                <input
-                  type="number"
-                  value={formData.mrp}
-                  onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Effective Selling Price</label>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
-                  className="w-full bg-blue-50/50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic text-blue-600"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Discount (%)</label>
-                  <div className="w-full bg-gray-50 rounded-[24px] px-8 py-5 font-black text-sm opacity-50">
-                    {formData.discountPercentage}%
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Savings (₹)</label>
-                  <div className="w-full bg-green-50 text-green-700 rounded-[24px] px-8 py-5 font-black text-sm">
-                    ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
-                  </div>
-                </div>
-                <div className="space-y-3 col-span-full md:col-span-2 bg-gray-50/80 p-6 rounded-[28px] border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
-                      <span className="text-[11px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.enableGst !== false}
-                        onChange={e => {
-                          const enabled = e.target.checked;
-                          setFormData(p => ({
-                            ...p,
-                            enableGst: enabled,
-                            gst: enabled ? (p.gst || 18) : 0
-                          }));
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-                  {formData.enableGst !== false ? (
-                    <div className="pt-2 flex items-center gap-4">
-                      <div className="flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST Rate (%)</label>
-                        <input
-                          type="number"
-                          value={formData.gst}
-                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
-                          placeholder="18"
-                          className="w-full bg-white border-2 border-gray-100 rounded-[20px] px-6 py-3 outline-none focus:border-primary transition-all font-black text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 pt-5">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                          GST Active ({formData.gst || 0}%)
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="pt-1">
-                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-3 py-1.5 rounded-full">
-                        🚫 GST Disabled / Tax Exempt
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1146,6 +1023,156 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   </select>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Pricing, Inventory & Meta */}
+        <div className="space-y-12">
+
+          {/* Economy & Pricing */}
+          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+            <h3 className="text-lg font-black text-gray-900 tracking-tight">Economic Model</h3>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Market Retail Price (MRP)</label>
+                <input
+                  type="number"
+                  value={formData.mrp}
+                  onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
+                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Effective Selling Price</label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
+                  className="w-full bg-blue-50/50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic text-blue-600"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Discount (%)</label>
+                  <div className="w-full bg-gray-50 rounded-[24px] px-8 py-5 font-black text-sm opacity-50">
+                    {formData.discountPercentage}%
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Savings (₹)</label>
+                  <div className="w-full bg-green-50 text-green-700 rounded-[24px] px-8 py-5 font-black text-sm">
+                    ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
+                  </div>
+                </div>
+                <div className="space-y-3 col-span-full md:col-span-2 bg-gray-50/80 p-6 rounded-[28px] border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
+                      <span className="text-[11px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enableGst !== false}
+                        onChange={e => {
+                          const enabled = e.target.checked;
+                          setFormData(p => ({
+                            ...p,
+                            enableGst: enabled,
+                            gst: enabled ? (p.gst || 18) : 0
+                          }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                  {formData.enableGst !== false ? (
+                    <div className="pt-2 flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST Rate (%)</label>
+                        <input
+                          type="number"
+                          value={formData.gst}
+                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
+                          placeholder="18"
+                          className="w-full bg-white border-2 border-gray-100 rounded-[20px] px-6 py-3 outline-none focus:border-primary transition-all font-black text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-5">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                          GST Active ({formData.gst || 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-1">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-3 py-1.5 rounded-full">
+                        🚫 GST Disabled / Tax Exempt
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Size Chart Section */}
+          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Upload an image file or enter exact Size Chart image URL for customer viewing</p>
+              </div>
+            </div>
+            <div>
+              <VariantImageInput
+                value={formData.sizeChart || ''}
+                onChange={val => setFormData(p => ({ ...p, sizeChart: val }))}
+                label="Size Chart Image (Upload File or Enter Link)"
+                imageTypeLabel="Size Chart image"
+              />
+            </div>
+          </div>
+
+          {/* Category Variant Attributes Config */}
+          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
+            <div>
+              <h3 className="text-lg font-black text-gray-900 tracking-tight">Enabled Variant Attributes</h3>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
+                Select which variant options apply to this product category
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { id: 'color', label: 'Color (Name & Swatch)' },
+                { id: 'size', label: 'Size (Clothing / Dimensions)' },
+                { id: 'shoeSize', label: 'Shoe Size (Footwear)' },
+                { id: 'storage', label: 'Storage (128GB, 256GB)' },
+                { id: 'ram', label: 'RAM (8GB, 16GB)' },
+                { id: 'shade', label: 'Shade (Beauty)' },
+                { id: 'volume', label: 'Size / Volume (50ml, 100ml)' },
+                { id: 'material', label: 'Material' },
+                { id: 'model', label: 'Model / Variant' }
+              ].map(attr => {
+                const isChecked = (formData.variantAttributes || []).includes(attr.id);
+                return (
+                  <button
+                    key={attr.id}
+                    type="button"
+                    onClick={() => toggleVariantAttribute(attr.id)}
+                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border-2 ${
+                      isChecked
+                        ? 'bg-green-600 text-white border-green-600 shadow-md'
+                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3.5 h-3.5" />}
+                    {attr.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
  

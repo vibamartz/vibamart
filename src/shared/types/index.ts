@@ -120,6 +120,7 @@ export interface ProductVariant {
   stock: number;
   sku?: string;
   image?: string;
+  images?: string[];
   disabled?: boolean;
 }
 
