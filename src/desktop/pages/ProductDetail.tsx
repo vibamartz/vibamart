@@ -19,6 +19,7 @@ import { cleanProductCode, formatProductCode } from '../../shared/utilities/prod
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
+import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -37,6 +38,14 @@ export default function ProductDetail() {
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(true);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
+
+  // Evaluate location availability when product or selectedAddress changes
+  useEffect(() => {
+    if (product) {
+      const res = isProductAvailableAtLocation(product, selectedAddress);
+      setIsLocationAvailable(res.available);
+    }
+  }, [product, selectedAddress]);
 
   // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
@@ -589,9 +598,16 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Delivery Details Section (Requirement 4 & 5) */}
+          {/* Delivery Details Section */}
           <div className="space-y-4 pt-8 border-t border-gray-100">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Details</h3>
+
+            {isLocationAvailable === false && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Product unavailable for delivery at selected address ({selectedAddress?.city ? selectedAddress.city + ', ' : ''}{selectedAddress?.zip}).</span>
+              </div>
+            )}
 
             {selectedAddress ? (
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/80 space-y-2">

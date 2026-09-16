@@ -3,7 +3,7 @@ import { collection, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestor
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
-import { Product, ProductVariant } from '../../shared/types';
+import { Product, ProductVariant, LocationAvailabilityRule } from '../../shared/types';
 import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
 import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText } from 'lucide-react';
@@ -11,6 +11,7 @@ import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 import { VariantImageInput } from './VariantImageInput';
+import ProductLocationManager from './ProductLocationManager';
 
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
@@ -48,6 +49,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       specifications: [],
       features: [],
       serviceablePincodes: [],
+      availabilityRules: [],
       color: '',
       size: '',
       isCodAllowed: true,
@@ -99,6 +101,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         tags: product.tags || [],
         features: product.features || [],
         serviceablePincodes: product.serviceablePincodes || [],
+        availabilityRules: product.availabilityRules || [],
         price: product.discountPrice !== undefined && product.discountPrice !== null ? product.discountPrice : product.price,
         mrp: product.discountPrice !== undefined && product.discountPrice !== null ? product.price : (product.mrp || product.price),
         stock: product.stock || 0,
@@ -1102,86 +1105,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 </div>
               </div>
 
-              {/* Serviceable Delivery Pincodes Management */}
-              <div className="bg-gray-50/80 p-6 rounded-[28px] border border-gray-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Serviceable Delivery Pincodes</span>
-                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">
-                      {(formData.serviceablePincodes || []).length > 0
-                        ? `Restricted to ${formData.serviceablePincodes!.length} specified pincode(s)`
-                        : 'Nationwide delivery enabled (No pincode restriction)'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={currentPincodeInput}
-                    onChange={e => setCurrentPincodeInput(e.target.value.replace(/[^\d, ]/g, ''))}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ',') {
-                        e.preventDefault();
-                        const pins = currentPincodeInput.split(/[\s,]+/).map(p => p.trim()).filter(p => p.length === 6);
-                        if (pins.length > 0) {
-                          const existingPins = formData.serviceablePincodes || [];
-                          const uniqueNewPins = pins.filter(p => !existingPins.includes(p));
-                          setFormData(p => ({ ...p, serviceablePincodes: [...existingPins, ...uniqueNewPins] }));
-                        }
-                        setCurrentPincodeInput('');
-                      }
-                    }}
-                    placeholder="Enter 6-digit pincode(s), e.g. 110001, 400001"
-                    className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary text-xs font-bold"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const pins = currentPincodeInput.split(/[\s,]+/).map(p => p.trim()).filter(p => p.length === 6);
-                      if (pins.length > 0) {
-                        const existingPins = formData.serviceablePincodes || [];
-                        const uniqueNewPins = pins.filter(p => !existingPins.includes(p));
-                        setFormData(p => ({ ...p, serviceablePincodes: [...existingPins, ...uniqueNewPins] }));
-                      }
-                      setCurrentPincodeInput('');
-                    }}
-                    className="px-4 py-2.5 bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-black transition-all"
-                  >
-                    Add Pincodes
-                  </button>
-                  {formData.serviceablePincodes && formData.serviceablePincodes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setFormData(p => ({ ...p, serviceablePincodes: [] }))}
-                      className="px-3 py-2.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-rose-100 transition-all"
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-
-                {formData.serviceablePincodes && formData.serviceablePincodes.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {formData.serviceablePincodes.map(pin => (
-                      <span key={pin} className="px-3 py-1.5 bg-emerald-50 text-emerald-800 text-xs font-black rounded-lg border border-emerald-200 flex items-center gap-1.5">
-                        {pin}
-                        <button
-                          type="button"
-                          onClick={() => setFormData(p => ({ ...p, serviceablePincodes: p.serviceablePincodes?.filter(x => x !== pin) }))}
-                          className="text-emerald-500 hover:text-rose-600 font-bold"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-gray-400 font-medium italic">
-                    No pincodes added. Product is serviceable across all pincodes.
-                  </p>
-                )}
-              </div>
+              {/* Product Stock Availability Location Management (State, District, City, PIN Codes) */}
+              <ProductLocationManager
+                rules={formData.availabilityRules || []}
+                onChange={(rules) => setFormData(p => ({ ...p, availabilityRules: rules }))}
+              />
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Primary Collection</label>
                 <select

@@ -44,6 +44,17 @@ export interface Address {
   isDefault?: boolean;
 }
 
+export interface LocationAvailabilityRule {
+  id: string;
+  type: 'state' | 'city' | 'district_all' | 'district_pincodes' | 'pincode';
+  state: string;
+  district?: string;
+  city?: string;
+  pincodes?: string[]; // Array of pincodes if type is 'district_pincodes' or 'pincode'
+  enabled: boolean; // toggle rule active/inactive
+  createdAt?: string;
+}
+
 export interface Product {
   id: string;
   slug?: string;
@@ -62,7 +73,7 @@ export interface Product {
   subCategoryId?: string;
   nestedSubCategoryId?: string;
   vendorId: string;
-  images: string[]; // Up to 6 images
+  images: string[]; // Up to 8 images
   primaryImage?: string;
   sku?: string;
   productCode?: string; // Auto-generated 12-digit numeric product code (Format: 8900 0996 XXXX)
@@ -81,6 +92,7 @@ export interface Product {
   specifications?: { key: string; value: string }[];
   taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
+  availabilityRules?: LocationAvailabilityRule[]; // Configured location availability rules (State, City, District, PIN Codes)
   deliveryDays?: number;
   expectedDelivery?: string;
   estimatedDelivery?: string;

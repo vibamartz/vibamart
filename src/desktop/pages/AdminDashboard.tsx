@@ -4072,7 +4072,7 @@ export function ProductImageUploader({
   const [isDragging, setIsDragging] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState('');
-  const MAX_SLOTS = 6;
+  const MAX_SLOTS = 8;
 
   const processFiles = useCallback(
     (files: FileList | null) => {

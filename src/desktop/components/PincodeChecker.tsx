@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, CheckCircle2, AlertCircle, Loader2, Navigation, Map as MapIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Address } from '../../shared/types';
+import { Address, Product } from '../../shared/types';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { reverseGeocodeCoords } from '../../shared/utilities/reverseGeocode';
 import { lookupZipcode } from '../../backend/services/zipcode';
+import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 import GoogleMapsLoader from './GoogleMapsLoader';
 import LocationPickerModal from './LocationPickerModal';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 
 interface PincodeCheckerProps {
+  product?: Product;
   serviceablePincodes?: string[];
   onAvailabilityChange?: (available: boolean) => void;
   savedAddresses?: Address[];
 }
 
-export default function PincodeChecker({ serviceablePincodes, onAvailabilityChange, savedAddresses: propsSaved }: PincodeCheckerProps) {
+export default function PincodeChecker({ product, serviceablePincodes, onAvailabilityChange, savedAddresses: propsSaved }: PincodeCheckerProps) {
   const { selectedAddress, savedAddresses: storeSaved, selectAddress } = useLocationStore();
   const activeSavedAddresses = (propsSaved && propsSaved.length > 0) ? propsSaved : storeSaved;
 
@@ -43,7 +45,7 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
       setPincode(defaultPin);
       checkAvailability(defaultPin);
     }
-  }, [selectedAddress, activeSavedAddresses]);
+  }, [selectedAddress, activeSavedAddresses, product]);
 
   const fetchLocationInfo = async (pin: string) => {
     if (!pin || pin.length < 6) return;
@@ -98,8 +100,11 @@ export default function PincodeChecker({ serviceablePincodes, onAvailabilityChan
     setStatus('loading');
     setErrorMessage('');
     try {
-      await fetchLocationInfo(cleanPin);
-      const isAvailable = !serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(cleanPin);
+      const info = await fetchLocationInfo(cleanPin);
+      const isAvailable = product 
+        ? isProductAvailableAtLocation(product, selectedAddress || { zip: cleanPin, city: info?.city, state: info?.state }).available
+        : (!serviceablePincodes || serviceablePincodes.length === 0 || serviceablePincodes.includes(cleanPin));
+      
       setStatus(isAvailable ? 'available' : 'unavailable');
       onAvailabilityChange?.(isAvailable);
       setIsEditing(false);
