@@ -110,6 +110,22 @@ export default function CategoriesManagementView() {
   // --- Form Handlers ---
   // --- Form Handlers ---
   const handleOpenAddModal = (type: 'category' | 'subcategory' | 'nested', catId: string | null = null, subId: string | null = null) => {
+    if (type === 'subcategory' && catId) {
+      const parentCat = categories.find(c => c.id === catId);
+      if (parentCat && (parentCat.subcategories || []).length >= 30) {
+        toast.error('Maximum limit of 30 subcategories per category reached.');
+        return;
+      }
+    }
+    if (type === 'nested' && catId && subId) {
+      const parentCat = categories.find(c => c.id === catId);
+      const parentSub = parentCat?.subcategories?.find(s => s.id === subId);
+      if (parentSub && (parentSub.subcategories || []).length >= 30) {
+        toast.error('Maximum limit of 30 nested subcategories per subcategory reached.');
+        return;
+      }
+    }
+
     setModalType(type);
     setActiveParentCatId(catId);
     setActiveSubCatId(subId);
@@ -220,6 +236,11 @@ export default function CategoriesManagementView() {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent not found");
         
+        if (!editingId && (parentCat.subcategories || []).length >= 30) {
+          toast.error('Maximum limit of 30 subcategories per category reached.');
+          return;
+        }
+
         const subId = editingId || generateId(formData.name);
         let updatedSubs = [...(parentCat.subcategories || [])];
         
@@ -243,6 +264,12 @@ export default function CategoriesManagementView() {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent not found");
         
+        const parentSub = parentCat.subcategories?.find(s => s.id === activeSubCatId);
+        if (!editingId && (parentSub?.subcategories || []).length >= 30) {
+          toast.error('Maximum limit of 30 nested subcategories per subcategory reached.');
+          return;
+        }
+
         const nestedId = editingId || generateId(formData.name);
         const updatedSubs = (parentCat.subcategories || []).map(sub => {
           if (sub.id === activeSubCatId) {
@@ -496,7 +523,7 @@ export default function CategoriesManagementView() {
                         {isCatExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                       </button>
                       {category.name}
-                      <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{category.subcategories?.length || 0} subs</span>
+                      <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{category.subcategories?.length || 0}/30 subs</span>
                     </div>
                     <div className="col-span-3 text-sm text-gray-500 font-mono text-xs truncate pr-4">
                       /{category.seoSlug}
@@ -538,7 +565,7 @@ export default function CategoriesManagementView() {
                                   {isSubExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                                 </button>
                                 {sub.name}
-                                <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{sub.subcategories?.length || 0} nested</span>
+                                <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{sub.subcategories?.length || 0}/30 nested</span>
                               </div>
                               <div className="col-span-4 flex items-center justify-end gap-2 pr-2">
                                 <button
