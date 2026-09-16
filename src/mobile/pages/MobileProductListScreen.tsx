@@ -518,11 +518,7 @@ export default function MobileProductListScreen() {
                       <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
                         {product.name}
                       </h4>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] font-bold text-yellow-700 bg-yellow-50 px-1.5 py-0.2 rounded flex items-center gap-0.5">
-                          {product.rating || 4.5} <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                        </span>
-                      </div>
+
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-100">
@@ -579,10 +575,7 @@ export default function MobileProductListScreen() {
                       {discountPct}% OFF
                     </span>
                   )}
-                  <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                    <span>{product.rating || 4.5}</span>
-                    <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
-                  </div>
+
                 </div>
 
                 <div className="flex flex-col flex-1 min-w-0 mb-2">

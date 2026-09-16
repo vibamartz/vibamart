@@ -152,23 +152,14 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="p-4 flex flex-col flex-1">
-          <span className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
+          <span className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-3">
             {product.name}
           </span>
-          <div className="flex items-center gap-1 mb-3">
-            <div className="flex bg-green-600/10 text-green-700 text-xs items-center gap-1 px-2 py-0.5 rounded font-bold">
-              {product.rating} <Star className="w-3 h-3 fill-current" />
-            </div>
-            <span className="text-xs text-gray-400 font-medium">({product.numReviews})</span>
-          </div>
 
           {product.variants && product.variants.length > 0 ? (
             <div className="mb-4 space-y-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
-                {product.isStockVisible !== false && selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
-                  <span className="text-[10px] font-black text-rose-600 animate-pulse">Only {selectedVariant.stock} left</span>
-                )}
               </div>
               <div className="relative group/select">
                 <select 
@@ -188,13 +179,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </div>
               </div>
             </div>
-          ) : (
-            product.isStockVisible !== false && product.stock > 0 && product.stock <= 5 && (
-              <div className="mb-2">
-                <span className="text-[10px] font-black text-rose-600 animate-pulse">Only {product.stock} left</span>
-              </div>
-            )
-          )}
+          ) : null}
 
           <div className="mt-auto flex items-end justify-between">
             <div>

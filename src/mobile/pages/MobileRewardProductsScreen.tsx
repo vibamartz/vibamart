@@ -380,12 +380,6 @@ export default function MobileRewardProductsScreen() {
                         </h4>
                       </Link>
 
-                      <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                        <Star className="w-3 h-3 text-amber-400 fill-current" />
-                        <span className="font-bold text-gray-900">{product.rating || 4.5}</span>
-                        <span>({product.numReviews || 8})</span>
-                      </div>
-
                       <div className="flex items-baseline gap-1.5 pt-0.5">
                         <span className="text-sm font-black text-gray-900">₹{sellingPrice}</span>
                         {mrpPrice && mrpPrice > sellingPrice && (

@@ -280,15 +280,8 @@ export default function MobileWishlistScreen() {
                 <h4 className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-tight min-h-[28px]">{product.name}</h4>
               </div>
 
-              {/* Rating Stars & Price */}
+              {/* Price */}
               <div className="space-y-1.5 mt-2 pt-1 border-t border-gray-100">
-                <div className="flex items-center gap-1">
-                  <div className="flex items-center gap-0.5 bg-emerald-50 text-emerald-800 px-1.5 py-0.2 rounded text-[9px] font-extrabold">
-                    {product.rating || 4.5} <Star className="w-2.5 h-2.5 fill-emerald-600 text-emerald-600" />
-                  </div>
-                  <span className="text-[9px] text-gray-400 font-bold">({product.numReviews || 0})</span>
-                </div>
-
                 <div className="flex items-baseline gap-1">
                   <span className="text-xs font-black text-gray-900">₹{sellingPrice.toLocaleString()}</span>
                   {product.discountPrice && product.price > product.discountPrice && (

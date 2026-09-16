@@ -390,22 +390,13 @@ export default function ProductDetail() {
               <div className="group flex items-center gap-2 cursor-pointer">
                 <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Seller:</span>
                 <span className="text-sm font-black text-primary hover:underline">{product.brand || 'ViBa Mart'} Retail</span>
-                <div className="bg-primary text-white text-[8px] font-black px-1.5 py-0.5 rounded tracking-tighter uppercase">4.8 ★</div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-6 mt-6">
-            <div className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1 rounded-lg text-sm font-black shadow-sm shadow-green-100">
-              {product.rating || 4.5} <Star className="w-4 h-4 fill-current" />
-            </div>
-            <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">{product.numReviews} Ratings & Reviews</span>
             {product.isStockVisible !== false && (
-              currentStock > 0 && currentStock <= 5 ? (
-                <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full uppercase tracking-wider border border-rose-200 animate-pulse">
-                  Only {currentStock} left
-                </span>
-              ) : currentStock > 0 ? (
+              currentStock > 0 ? (
                 <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wider">In Stock</span>
               ) : (
                 <span className="text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>

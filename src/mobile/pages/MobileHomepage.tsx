@@ -964,10 +964,6 @@ function MobileProductCardItem({
           </span>
         )}
 
-        <div className="absolute top-2 right-2 bg-black/45 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 z-10">
-          <span>{product.rating || 4.5}</span>
-          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-        </div>
       </div>
 
       {/* Brand & Name (Max 2 lines) */}

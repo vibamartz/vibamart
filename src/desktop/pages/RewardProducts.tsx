@@ -379,15 +379,6 @@ export default function RewardProducts() {
                       </h3>
                     </Link>
 
-                    {/* Rating */}
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-0.5">
-                      <div className="flex items-center text-amber-400">
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                        <span className="ml-1 font-bold text-gray-900">{product.rating || 4.5}</span>
-                      </div>
-                      <span className="text-[11px] text-gray-400">({product.numReviews || 12} reviews)</span>
-                    </div>
-
                     {/* Price Block */}
                     <div className="flex items-baseline gap-2 pt-1">
                       <span className="text-lg font-black text-gray-900">₹{sellingPrice}</span>

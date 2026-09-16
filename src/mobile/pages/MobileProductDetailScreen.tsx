@@ -322,12 +322,6 @@ export default function MobileProductDetailScreen() {
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
               {product.brand || 'ViBa Select'}
             </span>
-
-            <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-xs font-extrabold text-amber-900">{product.rating || 4.5}</span>
-              <span className="text-[10px] text-gray-400">({product.numReviews || reviews.length || 12})</span>
-            </div>
           </div>
 
           <h1 className="text-base font-extrabold text-gray-900 leading-snug">
@@ -349,13 +343,7 @@ export default function MobileProductDetailScreen() {
               </span>
             )}
           </div>
-          <div className="flex items-center justify-end pt-1">
-            {product.isStockVisible !== false && currentStock > 0 && currentStock <= 5 && (
-              <span className="text-xs font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 animate-pulse">
-                Only {currentStock} left
-              </span>
-            )}
-          </div>
+
         </div>
 
         {/* Product Variants (Requirement 1 & 2) */}
@@ -591,40 +579,7 @@ export default function MobileProductDetailScreen() {
           </div>
         </div>
 
-        {/* Customer Reviews */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-gray-800 uppercase tracking-wider">
-              <MessageSquare className="w-4 h-4 text-emerald-600" />
-              <span>Customer Reviews ({reviews.length})</span>
-            </div>
-          </div>
 
-          {reviews.length > 0 ? (
-            <div className="space-y-3 divide-y divide-gray-100">
-              {reviews.slice(0, 5).map((rev) => (
-                <div key={rev.id} className="pt-2 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-gray-900">{rev.userName}</span>
-                    <div className="flex items-center text-amber-400">
-                      {Array(rev.rating).fill(0).map((_, idx) => (
-                        <Star key={idx} className="w-3 h-3 fill-amber-400" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs font-medium text-gray-700">{rev.comment}</p>
-                  <span className="text-[9px] text-gray-400">
-                    {new Date(rev.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500 font-bold text-center py-2">
-              No reviews yet. Be the first to review this product!
-            </p>
-          )}
-        </div>
       </div>
 
       {/* Fixed Mobile Bottom Action Bar */}
