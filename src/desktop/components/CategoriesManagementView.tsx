@@ -9,6 +9,7 @@ import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
+import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded } from '../../backend/services/categoryStorageService';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -58,6 +59,13 @@ export default function CategoriesManagementView() {
       
       setCategories(catsData);
       setLoading(false);
+
+      // Auto-migrate any existing category documents that contain base64 image data
+      catsData.forEach(cat => {
+        migrateCategoryDocIfNeeded(cat).catch(err => {
+          console.error("Migration error for category:", cat.id, err);
+        });
+      });
     }, (error) => {
       console.error("Error fetching categories:", error);
       toast.error("Failed to load categories.");
@@ -216,23 +224,20 @@ export default function CategoriesManagementView() {
         const catId = editingId || generateId(formData.name);
         const catRef = doc(db, 'categories', catId);
         
-        const payload = cleanForFirestore({
+        const existingCat = editingId ? categories.find(c => c.id === catId) : null;
+        const rawPayload = {
+          ...existingCat,
           ...formData,
-          name: formData.name.trim(),
-          image: finalLogo || '',
-          icon: finalIcon || '',
-        });
+          name: formData.name!.trim(),
+          image: finalLogo || formData.image || '',
+          icon: finalIcon || formData.icon || '',
+          id: catId,
+          order: existingCat?.order ?? categories.length,
+          subcategories: existingCat?.subcategories ?? [],
+        };
 
-        if (editingId) {
-          await setDoc(catRef, payload, { merge: true });
-        } else {
-          await setDoc(catRef, cleanForFirestore({
-            id: catId,
-            ...payload,
-            order: categories.length,
-            subcategories: []
-          }), { merge: true });
-        }
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(rawPayload);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       } else if (modalType === 'subcategory' && activeParentCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -261,10 +266,12 @@ export default function CategoriesManagementView() {
         }
         
         const catRef = doc(db, 'categories', activeParentCatId);
-        await setDoc(catRef, cleanForFirestore({
+        const updatedCat = {
           ...parentCat,
           subcategories: updatedSubs
-        }), { merge: true });
+        };
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       } else if (modalType === 'nested' && activeParentCatId && activeSubCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -299,10 +306,12 @@ export default function CategoriesManagementView() {
         });
         
         const catRef = doc(db, 'categories', activeParentCatId);
-        await setDoc(catRef, cleanForFirestore({
+        const updatedCat = {
           ...parentCat,
           subcategories: updatedSubs
-        }), { merge: true });
+        };
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       }
 
       toast.success('Saved successfully');

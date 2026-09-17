@@ -137,53 +137,53 @@ function AdminDashboardContent() {
     const uniqueCustomers = Array.from(new Set(filteredOrders.map(o => o.customerId).filter(Boolean))).length;
 
     return [
-      { 
-        label: 'Total Revenue', 
-        value: `₹${totalDeliveredRevenue.toLocaleString()}`, 
-        change: selectedPreset !== 'all' ? dateRange.label : '+12%', 
-        icon: TrendingUp, 
-        color: 'text-emerald-500', 
-        bg: 'bg-emerald-50' 
+      {
+        label: 'Total Revenue',
+        value: `₹${totalDeliveredRevenue.toLocaleString()}`,
+        change: selectedPreset !== 'all' ? dateRange.label : '+12%',
+        icon: TrendingUp,
+        color: 'text-emerald-500',
+        bg: 'bg-emerald-50'
       },
-      { 
-        label: 'Total Orders', 
-        value: filteredOrders.length.toString(), 
-        change: `${filteredOrders.length} in period`, 
-        icon: ShoppingBag, 
-        color: 'text-blue-500', 
-        bg: 'bg-blue-50' 
+      {
+        label: 'Total Orders',
+        value: filteredOrders.length.toString(),
+        change: `${filteredOrders.length} in period`,
+        icon: ShoppingBag,
+        color: 'text-blue-500',
+        bg: 'bg-blue-50'
       },
-      { 
-        label: 'Pending Orders', 
-        value: pendingCount.toString(), 
-        change: pendingCount > 0 ? 'Awaiting' : 'All Clear', 
-        icon: AlertTriangle, 
-        color: 'text-amber-500', 
-        bg: 'bg-amber-50' 
+      {
+        label: 'Pending Orders',
+        value: pendingCount.toString(),
+        change: pendingCount > 0 ? 'Awaiting' : 'All Clear',
+        icon: AlertTriangle,
+        color: 'text-amber-500',
+        bg: 'bg-amber-50'
       },
-      { 
-        label: 'Return Requests', 
-        value: pendingReturnsCount.toString(), 
-        change: pendingReturnsCount > 0 ? 'Active' : 'Zero', 
-        icon: TrendingUp, 
-        color: 'text-rose-500', 
-        bg: 'bg-rose-50' 
+      {
+        label: 'Return Requests',
+        value: pendingReturnsCount.toString(),
+        change: pendingReturnsCount > 0 ? 'Active' : 'Zero',
+        icon: TrendingUp,
+        color: 'text-rose-500',
+        bg: 'bg-rose-50'
       },
-      { 
-        label: 'Total Customers', 
-        value: (uniqueCustomers || (filteredOrders.length > 0 ? filteredOrders.length : 0)).toString(), 
-        change: 'Active in period', 
-        icon: Users, 
-        color: 'text-indigo-500', 
-        bg: 'bg-indigo-50' 
+      {
+        label: 'Total Customers',
+        value: (uniqueCustomers || (filteredOrders.length > 0 ? filteredOrders.length : 0)).toString(),
+        change: 'Active in period',
+        icon: Users,
+        color: 'text-indigo-500',
+        bg: 'bg-indigo-50'
       },
-      { 
-        label: 'Total Returns', 
-        value: filteredReturns.length.toString(), 
-        change: 'Total', 
-        icon: Info, 
-        color: 'text-purple-500', 
-        bg: 'bg-purple-50' 
+      {
+        label: 'Total Returns',
+        value: filteredReturns.length.toString(),
+        change: 'Total',
+        icon: Info,
+        color: 'text-purple-500',
+        bg: 'bg-purple-50'
       },
     ];
   }, [filteredOrders, filteredReturns, selectedPreset, dateRange]);
@@ -336,7 +336,7 @@ function AdminDashboardContent() {
         id: doc.id,
         ...doc.data()
       } as Order));
-      
+
       if (!isInitialLoad.current) {
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added') {
@@ -355,7 +355,7 @@ function AdminDashboardContent() {
                   <div className="text-[11px] text-gray-600">📞 Phone: {newOrder.contactPhone || 'N/A'}</div>
                   <div className="text-[11px] text-gray-600">💰 Amount: ₹{(newOrder.total || 0).toLocaleString()}</div>
                   <div className="flex gap-2 justify-end mt-2">
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedOrder(newOrder);
                         setActiveTab('order-details');
@@ -402,7 +402,7 @@ function AdminDashboardContent() {
 
   // Track the last unread notifications count to play audio
   const lastUnreadCountRef = useRef(0);
-  
+
   useEffect(() => {
     const currentUnread = adminNotifications.filter(n => !n.read).length;
     if (currentUnread > lastUnreadCountRef.current) {
@@ -420,9 +420,8 @@ function AdminDashboardContent() {
       if (newestNotif && !newestNotif.read) {
         toast.custom((t) => (
           <div
-            className={`${
-              t.visible ? 'animate-enter' : 'animate-leave'
-            } max-w-md w-full bg-white shadow-xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 p-4 border border-gray-100`}
+            className={`${t.visible ? 'animate-enter' : 'animate-leave'
+              } max-w-md w-full bg-white shadow-xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 p-4 border border-gray-100`}
           >
             <div className="flex-1 w-0">
               <div className="flex items-start">
@@ -522,7 +521,7 @@ function AdminDashboardContent() {
         id: doc.id,
         ...doc.data()
       } as ReturnRequest));
-      
+
       setReturns(returnsData);
       setLoadingReturns(false);
     }, (error) => {
@@ -579,13 +578,13 @@ function AdminDashboardContent() {
     <div className="flex min-h-screen bg-gray-50 overflow-hidden">
       <AnimatePresence>
         {showMobileSidebar && (
-           <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
-              onClick={() => setShowMobileSidebar(false)}
-            />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
+            onClick={() => setShowMobileSidebar(false)}
+          />
         )}
       </AnimatePresence>
 
@@ -675,8 +674,8 @@ function AdminDashboardContent() {
               <AnimatePresence>
                 {showNotificationDropdown && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
+                    <div
+                      className="fixed inset-0 z-10"
                       onClick={() => setShowNotificationDropdown(false)}
                     />
                     <motion.div
@@ -776,7 +775,7 @@ function AdminDashboardContent() {
 
               {/* Analytics & Alerts Section */}
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                
+
                 {/* Left Column - Charts */}
                 <div className="xl:col-span-2 space-y-8">
                   {/* Revenue Chart */}
@@ -836,7 +835,7 @@ function AdminDashboardContent() {
 
                 {/* Right Column - Sidebars */}
                 <div className="space-y-8">
-                  
+
                   {/* Notification Center */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col max-h-[550px]">
                     <div className="flex items-center justify-between mb-4 shrink-0">
@@ -848,10 +847,10 @@ function AdminDashboardContent() {
                         {filteredOrders.filter(o => o.status === 'pending').length} New
                       </span>
                     </div>
-                    
+
                     {/* Tab Navigation */}
                     <div className="flex gap-1 overflow-x-auto pb-2 mb-4 shrink-0 border-b border-gray-100 scrollbar-none">
-              {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
+                      {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
                         const counts: Record<string, number> = {
                           alerts: filteredOrders.slice(0, 5).length,
                           pending: filteredOrders.filter(o => o.status === 'pending').length,
@@ -863,18 +862,17 @@ function AdminDashboardContent() {
                           <button
                             key={tab}
                             onClick={() => setNotificationTab(tab)}
-                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                              notificationTab === tab
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${notificationTab === tab
                                 ? 'bg-primary text-white shadow-md shadow-primary/15'
                                 : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                            }`}
+                              }`}
                           >
                             {tab} ({counts[tab]})
                           </button>
                         );
                       })}
                     </div>
-                    
+
                     {/* Tab Content */}
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
                       {notificationTab === 'alerts' && (
@@ -1023,7 +1021,7 @@ function AdminDashboardContent() {
                     </div>
                   </div>
 
-                  {/* Quick Actions & Stock Alerts */}
+                  {/* Quick Actions */}
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold mb-6">Operations</h3>
                     <div className="space-y-3">
@@ -1038,20 +1036,6 @@ function AdminDashboardContent() {
                         }}
                       />
                       <ActionButton icon={Download} label="Export Report" color="bg-gray-900" onClick={() => setActiveTab('sales-reports')} />
-                    </div>
-                    
-                    <div className="mt-8 border-t border-gray-100 pt-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3 text-rose-500" />
-                          Low Stock Alerts
-                        </h4>
-                      </div>
-                      <div className="space-y-3">
-                        <StockAlert product="iPhone 15 Pro Max" stock={2} />
-                        <StockAlert product="Sony WH-1000XM5" stock={5} />
-                        <StockAlert product="Nike Air Force 1" stock={0} />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1091,9 +1075,8 @@ function AdminDashboardContent() {
                             <td className="px-6 py-4 text-sm text-gray-500">{new Date(o.createdAt).toLocaleDateString()}</td>
                             <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{(o.total || 0).toLocaleString()}</td>
                             <td className="px-6 py-4">
-                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                                o.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
-                              }`}>
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${o.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                                }`}>
                                 {o.status}
                               </span>
                             </td>
@@ -1128,12 +1111,12 @@ function AdminDashboardContent() {
           {activeTab === 'products' && <NewProductManagementView />}
 
           {activeTab === 'orders' && (
-            <OrdersManagementView 
-              selectedOrder={selectedOrder} 
-              setSelectedOrder={setSelectedOrder} 
-              setActiveTab={setActiveTab} 
-              orders={filteredOrders} 
-              loading={loadingOrders} 
+            <OrdersManagementView
+              selectedOrder={selectedOrder}
+              setSelectedOrder={setSelectedOrder}
+              setActiveTab={setActiveTab}
+              orders={filteredOrders}
+              loading={loadingOrders}
             />
           )}
           {activeTab === 'invoices' && (
@@ -1143,7 +1126,7 @@ function AdminDashboardContent() {
           {activeTab === 'cancellations' && <AdminCancellationManagementView />}
           {activeTab === 'refunds' && <AdminRefundManagementView />}
           {activeTab === 'returns' && (
-            <AdminReturnsManagementView 
+            <AdminReturnsManagementView
               returns={filteredReturns}
               onUpdateStatus={async (id, status, adminNotes) => {
                 const idToken = await auth.currentUser?.getIdToken();
@@ -1199,17 +1182,17 @@ function AdminDashboardContent() {
       <AnimatePresence>
         {showPopup && popupOrders.length > 0 && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              onClick={() => setShowPopup(false)} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPopup(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-[2.5rem] p-8 max-w-lg w-full relative z-10 shadow-2xl border border-gray-100 max-h-[85vh] flex flex-col"
             >
               <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-4">
@@ -1221,7 +1204,7 @@ function AdminDashboardContent() {
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-0.5">{popupOrders.length} Pending Order{popupOrders.length > 1 ? 's' : ''}</p>
                 </div>
               </div>
-              
+
               <div className="overflow-y-auto flex-1 space-y-3 pr-2 scrollbar-thin">
                 {popupOrders.map(order => (
                   <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-amber-200 transition-all flex justify-between items-center text-left">
@@ -1247,7 +1230,7 @@ function AdminDashboardContent() {
                   </div>
                 ))}
               </div>
-              
+
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setShowPopup(false)}
@@ -1269,8 +1252,8 @@ function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any, label:
     <button
       onClick={onClick}
       className={`w-full flex touch-target min-h-[44px] items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${active
-          ? 'bg-primary text-white shadow-lg shadow-blue-100'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+        ? 'bg-primary text-white shadow-lg shadow-blue-100'
+        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
         }`}
     >
       <Icon className="w-5 h-5" />
@@ -1321,7 +1304,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   // Aggregate real orders by date for salesData
   const salesData = useMemo(() => {
     const salesMap: Record<string, { date: string; amount: number; orders: number; items: number }> = {};
-    
+
     filteredOrders.forEach(order => {
       if (!order.createdAt) return;
       const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -1329,9 +1312,9 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
         month: 'short',
         day: 'numeric'
       });
-      
+
       const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-      
+
       if (salesMap[dateStr]) {
         salesMap[dateStr].amount += order.total || 0;
         salesMap[dateStr].orders += 1;
@@ -1451,23 +1434,23 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ReportStat 
-          label={type === 'sales' ? 'Total Volume' : 'Net Payments'} 
-          value={type === 'sales' ? `₹${totalVolume.toLocaleString()}` : `₹${totalPaid.toLocaleString()}`} 
-          icon={TrendingUp} 
-          color="text-blue-500" 
+        <ReportStat
+          label={type === 'sales' ? 'Total Volume' : 'Net Payments'}
+          value={type === 'sales' ? `₹${totalVolume.toLocaleString()}` : `₹${totalPaid.toLocaleString()}`}
+          icon={TrendingUp}
+          color="text-blue-500"
         />
-        <ReportStat 
-          label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'} 
-          value={type === 'sales' ? `₹${avgBasketSize.toLocaleString()}` : successRate} 
-          icon={PieChart} 
-          color="text-primary" 
+        <ReportStat
+          label={type === 'sales' ? 'Avg. Basket Size' : 'Successful Payouts'}
+          value={type === 'sales' ? `₹${avgBasketSize.toLocaleString()}` : successRate}
+          icon={PieChart}
+          color="text-primary"
         />
-        <ReportStat 
-          label={type === 'sales' ? 'Total Transactions' : 'Pending Approvals'} 
-          value={type === 'sales' ? filteredOrders.length.toString() : pendingApprovals.toString()} 
-          icon={Users} 
-          color="text-blue-500" 
+        <ReportStat
+          label={type === 'sales' ? 'Total Transactions' : 'Pending Approvals'}
+          value={type === 'sales' ? filteredOrders.length.toString() : pendingApprovals.toString()}
+          icon={Users}
+          color="text-blue-500"
         />
       </div>
 
@@ -1548,7 +1531,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
                       <td className="px-6 py-4 text-sm font-bold">{row.amount}</td>
                       <td className="px-6 py-4">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${row.status === 'success' ? 'bg-blue-100 text-blue-600' :
-                            row.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                          row.status === 'failed' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
                           }`}>
                           {row.status}
                         </span>
@@ -1675,21 +1658,19 @@ function ActivityLogsView() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setActiveSubTab('admin')}
-          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-            activeSubTab === 'admin'
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeSubTab === 'admin'
               ? 'bg-primary text-white shadow-md'
               : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
-          }`}
+            }`}
         >
           Admin Activity Logs ({filteredAdminLogs.length})
         </button>
         <button
           onClick={() => setActiveSubTab('notifications')}
-          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-            activeSubTab === 'notifications'
+          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeSubTab === 'notifications'
               ? 'bg-primary text-white shadow-md'
               : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
-          }`}
+            }`}
         >
           Notification Logs ({filteredNotificationLogs.length})
         </button>
@@ -1770,9 +1751,8 @@ function ActivityLogsView() {
                         #{getDisplayOrderId(log.orderId) || 'N/A'}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-                          log.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                        }`}>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${log.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                          }`}>
                           {log.status}
                         </span>
                       </td>
@@ -2063,10 +2043,9 @@ function UserManagementView() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
                           user.role === 'admin' ? 'bg-red-100 text-red-600' :
-                          user.role === 'vendor' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                            user.role === 'vendor' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                         }`}>
                         {user.role}
                       </span>
@@ -2180,8 +2159,8 @@ function RoleOption({ role, current, description, onClick }: { role: Role, curre
       onClick={onClick}
       disabled={isActive}
       className={`w-full text-left p-4 rounded-2xl border-2 transition-all group ${isActive
-          ? 'border-primary bg-primary/5 opacity-60 cursor-not-allowed'
-          : 'border-gray-100 hover:border-primary hover:bg-blue-50'
+        ? 'border-primary bg-primary/5 opacity-60 cursor-not-allowed'
+        : 'border-gray-100 hover:border-primary hover:bg-blue-50'
         }`}
     >
       <div className="flex justify-between items-center mb-1">
@@ -2298,8 +2277,8 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, role }))}
                 className={`flex-1 rounded-xl text-[9px] font-black uppercase tracking-wider border-2 transition-all ${formData.role === role
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-gray-200'
                   }`}
               >
                 {role}
@@ -2774,12 +2753,12 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
   );
 }
 
-function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, orders: allOrders, loading }: { 
-  selectedOrder: Order | null, 
-  setSelectedOrder: (o: Order | null) => void, 
+function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, orders: allOrders, loading }: {
+  selectedOrder: Order | null,
+  setSelectedOrder: (o: Order | null) => void,
   setActiveTab: (t: string) => void,
   orders: Order[],
-  loading: boolean 
+  loading: boolean
 }) {
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -3002,7 +2981,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `vibamart_orders_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `vibamart_orders_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -3065,7 +3044,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
                 {sortDirection === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               </button>
             </div>
-            <button 
+            <button
               onClick={exportOrdersToCSV}
               className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
               title="Export Orders CSV"
@@ -3074,7 +3053,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
             </button>
           </div>
         </div>
- 
+
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
           {statusOptions.map((s) => (
             <button
@@ -3087,7 +3066,7 @@ function OrdersManagementView({ selectedOrder, setSelectedOrder, setActiveTab, o
           ))}
         </div>
       </div>
- 
+
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -3871,11 +3850,10 @@ function AnalyticsView() {
                 <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="py-4 font-medium text-gray-700">{log.query}</td>
                   <td className="py-4">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${
-                      log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
-                      log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
-                      'bg-blue-100 text-blue-600'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
+                        log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
+                          'bg-blue-100 text-blue-600'
+                      }`}>
                       {log.type}
                     </span>
                   </td>
@@ -3993,37 +3971,37 @@ function SettingsView() {
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Search Features</h3>
         <div className="space-y-3">
-          <Toggle 
-            label="Enable Voice Search" 
-            desc="Show microphone icon in search bar" 
-            value={localSettings.enableVoiceSearch} 
-            onChange={() => setLocalSettings(prev => ({ ...prev, enableVoiceSearch: !prev.enableVoiceSearch }))} 
+          <Toggle
+            label="Enable Voice Search"
+            desc="Show microphone icon in search bar"
+            value={localSettings.enableVoiceSearch}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableVoiceSearch: !prev.enableVoiceSearch }))}
           />
-          <Toggle 
-            label="Enable Visual Search" 
-            desc="Show camera icon for AI/Barcode search" 
-            value={localSettings.enableVisualSearch} 
-            onChange={() => setLocalSettings(prev => ({ ...prev, enableVisualSearch: !prev.enableVisualSearch }))} 
+          <Toggle
+            label="Enable Visual Search"
+            desc="Show camera icon for AI/Barcode search"
+            value={localSettings.enableVisualSearch}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableVisualSearch: !prev.enableVisualSearch }))}
           />
         </div>
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Homepage Banner</h3>
         <div className="space-y-3">
-          <Toggle 
-            label="Enable Homepage Banner" 
-            desc="Show the promotional banner slider on the homepage" 
-            value={localSettings.enableBanner} 
-            onChange={() => setLocalSettings(prev => ({ ...prev, enableBanner: !prev.enableBanner }))} 
+          <Toggle
+            label="Enable Homepage Banner"
+            desc="Show the promotional banner slider on the homepage"
+            value={localSettings.enableBanner}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableBanner: !prev.enableBanner }))}
           />
         </div>
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Order Cancellation & Returns</h3>
         <div className="space-y-4">
-          <Toggle 
-            label="Enable Manual Order Cancellation Review" 
-            desc="Require admin review for customer cancellation requests instead of auto-cancelling" 
-            value={localSettings.enableManualCancellation ?? false} 
-            onChange={() => setLocalSettings(prev => ({ ...prev, enableManualCancellation: !prev.enableManualCancellation }))} 
+          <Toggle
+            label="Enable Manual Order Cancellation Review"
+            desc="Require admin review for customer cancellation requests instead of auto-cancelling"
+            value={localSettings.enableManualCancellation ?? false}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableManualCancellation: !prev.enableManualCancellation }))}
           />
           <div className="space-y-2">
             <label className="block text-xs font-black uppercase text-gray-400 tracking-widest ml-1">Return Window (Days)</label>
@@ -4159,8 +4137,8 @@ export function ProductImageUploader({
         </div>
         <span
           className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${images.length >= MAX_SLOTS
-              ? 'bg-red-50 text-red-500 border-red-100'
-              : 'bg-gray-50 text-gray-400 border-gray-100'
+            ? 'bg-red-50 text-red-500 border-red-100'
+            : 'bg-gray-50 text-gray-400 border-gray-100'
             }`}
         >
           {images.length}/{MAX_SLOTS} Slots
@@ -4175,8 +4153,8 @@ export function ProductImageUploader({
           onDragLeave={handleDragLeave}
           onClick={() => fileInputRef.current?.click()}
           className={`relative w-full border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 py-14 cursor-pointer transition-all duration-300 group ${isDragging
-              ? 'border-blue-400 bg-blue-50 scale-[1.01]'
-              : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
+            ? 'border-blue-400 bg-blue-50 scale-[1.01]'
+            : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
             }`}
         >
           <div
@@ -4880,7 +4858,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
               )}
             </div>
           </div>
- 
+
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
             <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
@@ -4923,7 +4901,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
               </div>
               <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Optional — if added, minimum {settings.minKeywords}.</p>
             </div>
-            
+
             {formData.tags && formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50">
                 {formData.tags.map(tag => (
@@ -4958,7 +4936,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
               </div>
             )}
           </div>
- 
+
         </div>
       </form>
     </motion.div>
@@ -5104,52 +5082,52 @@ function CategoriesManagementView() {
       toast.error('Failed to update category: ' + e?.message);
     } finally {
       setBusy(false);
-      }
-    };
+    }
+  };
 
-    const handleDragStart = (e: React.DragEvent, id: string) => {
-      setDraggedCatId(id);
-      e.dataTransfer.effectAllowed = 'move';
-    };
-  
-    const handleDragOver = (e: React.DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    };
-  
-    const handleDrop = async (e: React.DragEvent, targetId: string) => {
-      e.preventDefault();
-      if (!draggedCatId || draggedCatId === targetId) return;
-  
-      const sortedCats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
-      const sourceIndex = sortedCats.findIndex(c => c.id === draggedCatId);
-      const targetIndex = sortedCats.findIndex(c => c.id === targetId);
-  
-      if (sourceIndex < 0 || targetIndex < 0) return;
-  
-      const [draggedItem] = sortedCats.splice(sourceIndex, 1);
-      sortedCats.splice(targetIndex, 0, draggedItem);
-  
-      setBusy(true);
-      try {
-        for (let i = 0; i < sortedCats.length; i++) {
-          await updateDoc(doc(db, 'categories', sortedCats[i].id), { order: i });
-        }
-        toast.success('Categories reordered');
-      } catch(err: any) {
-        toast.error('Failed to save category order: ' + err.message);
-      } finally {
-        setBusy(false);
-        setDraggedCatId(null);
-      }
-    };
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedCatId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
 
-    const updateCategoryImage = async (catId: string, newImage: string) => {
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedCatId || draggedCatId === targetId) return;
+
+    const sortedCats = [...categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const sourceIndex = sortedCats.findIndex(c => c.id === draggedCatId);
+    const targetIndex = sortedCats.findIndex(c => c.id === targetId);
+
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [draggedItem] = sortedCats.splice(sourceIndex, 1);
+    sortedCats.splice(targetIndex, 0, draggedItem);
+
+    setBusy(true);
+    try {
+      for (let i = 0; i < sortedCats.length; i++) {
+        await updateDoc(doc(db, 'categories', sortedCats[i].id), { order: i });
+      }
+      toast.success('Categories reordered');
+    } catch (err: any) {
+      toast.error('Failed to save category order: ' + err.message);
+    } finally {
+      setBusy(false);
+      setDraggedCatId(null);
+    }
+  };
+
+  const updateCategoryImage = async (catId: string, newImage: string) => {
     if (!newImage) return;
     setBusy(true);
     try {
       const cat = categories.find(c => c.id === catId);
-      if(!cat) return;
+      if (!cat) return;
       await setDoc(doc(db, 'categories', catId), { ...cat, image: newImage });
       toast.success('Category image updated');
     } catch (e: any) {
@@ -5569,15 +5547,15 @@ function CategoriesManagementView() {
       )}
 
       {categories.map(cat => (
-        <div 
-          key={cat.id} 
+        <div
+          key={cat.id}
           draggable
           onDragStart={(e) => handleDragStart(e, cat.id)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, cat.id)}
           className={`bg-white p-6 rounded-2xl shadow-sm border ${draggedCatId === cat.id ? 'border-primary opacity-50 border-dashed' : 'border-gray-100'} space-y-4`}
         >
-          
+
           {editingCatId === cat.id ? (
             <div className="flex flex-col gap-4 bg-gray-50 p-5 rounded-2xl border border-gray-100">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Editing Category: {cat.name}</h4>
@@ -5691,7 +5669,7 @@ function CategoriesManagementView() {
                     />
                   </div>
                 </div>
-                
+
                 {/* SEO Settings (Edit) */}
                 <div className="space-y-1 lg:col-span-3 border-t border-gray-200 pt-4 mt-2">
                   <h4 className="text-[10px] font-black text-gray-800 uppercase tracking-widest mb-3 flex items-center gap-1">
@@ -5879,322 +5857,322 @@ function CategoriesManagementView() {
                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Subcategories</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {cat.subcategories.map((sub, subIndex) => (
-                  <div key={sub.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub space-y-3">
-                    
-                    {editingSubId?.catId === cat.id && editingSubId?.subId === sub.id ? (
-                      <div className="flex flex-col gap-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Subcategory Name</label>
-                            <input
-                              type="text"
-                              value={editSubName}
-                              onChange={(e) => setEditSubName(e.target.value)}
-                              className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                              <span>Image URL / File</span>
-                              <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
-                                <Upload className="w-2.5 h-2.5" /> Upload File
-                                <input
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/webp"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      const dataUrl = ev.target?.result as string;
-                                      if (dataUrl) setEditSubImage(dataUrl);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }}
-                                />
-                              </label>
-                            </label>
-                            <input
-                              type="text"
-                              value={editSubImage.startsWith('data:') ? 'Local Uploaded File' : editSubImage}
-                              onChange={(e) => setEditSubImage(e.target.value)}
-                              className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => setEditingSubId(null)}
-                            className="px-2.5 py-1 bg-white border border-gray-250 rounded text-[10px] font-bold text-gray-500"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => saveEditSubcategory(cat.id, sub.id)}
-                            disabled={busy}
-                            className="px-2.5 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600 flex items-center gap-0.5"
-                          >
-                            <Check className="w-3 h-3" /> Save
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => toggleSub(cat.id, sub.id)}
-                            className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
-                          >
-                            <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${expandedSubs.includes(`${cat.id}-${sub.id}`) ? 'rotate-90' : ''}`} />
-                          </button>
-                          <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
-                          <div>
-                            <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
-                              {sub.subcategories && sub.subcategories.length > 0 && (
-                                <span className="text-[8px] font-black bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{sub.subcategories.length} nested</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex flex-col gap-0.5 mr-1">
-                            <button
-                              disabled={busy || subIndex === 0}
-                              onClick={() => moveSubcategory(cat.id, subIndex, 'up')}
-                              className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              title="Move up"
-                            >
-                              <ArrowUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              disabled={busy || subIndex === (cat.subcategories?.length || 0) - 1}
-                              onClick={() => moveSubcategory(cat.id, subIndex, 'down')}
-                              className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              title="Move down"
-                            >
-                              <ArrowDown className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <button
-                            disabled={busy}
-                            onClick={() => startEditSubcategory(cat.id, sub)}
-                            className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            disabled={busy}
-                            onClick={() => {
-                              if (activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id) {
-                                setActiveAddNestedId(null);
-                              } else {
-                                setActiveAddNestedId({ catId: cat.id, subId: sub.id });
-                              }
-                            }}
-                            className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black flex items-center gap-1 text-[10px] font-bold"
-                          >
-                            <Plus className="w-3 h-3" /> Nested
-                          </button>
-                          <button
-                            disabled={busy}
-                            onClick={() => deleteSubcategory(cat.id, sub.id)}
-                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/30"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                        <div key={sub.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100/50 group/sub space-y-3">
 
-                    {activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id && (
-                      <motion.form
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        onSubmit={(e) => addNestedSubcategory(e, cat.id, sub.id)}
-                        className="bg-white p-3 rounded-lg border border-gray-100 space-y-3 mt-2"
-                      >
-                        <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Add Nested Subcategory to {sub.name}</h5>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Name</label>
-                            <input
-                              required
-                              type="text"
-                              value={newNestedName}
-                              onChange={(e) => setNewNestedName(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
-                              placeholder="e.g. Android"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                              <span>Image</span>
-                              <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
-                                <Upload className="w-2 h-2" /> Upload
-                                <input
-                                  type="file"
-                                  accept="image/jpeg,image/png,image/webp"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      const dataUrl = ev.target?.result as string;
-                                      if (dataUrl) setNewNestedImage(dataUrl);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }}
-                                />
-                              </label>
-                            </label>
-                            <input
-                              type="text"
-                              value={newNestedImage.startsWith('data:') ? 'Local Uploaded File' : newNestedImage}
-                              onChange={(e) => setNewNestedImage(e.target.value)}
-                              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
-                              placeholder="Image URL"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setActiveAddNestedId(null)}
-                            className="px-2.5 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-500"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={busy}
-                            className="px-2.5 py-1 bg-primary text-white rounded text-[10px] font-bold hover:bg-primary-hover shadow-sm"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </motion.form>
-                    )}
-
-                    {sub.subcategories && sub.subcategories.length > 0 && (
-                      <AnimatePresence>
-                        {expandedSubs.includes(`${cat.id}-${sub.id}`) && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                          >
-                            <div className="pl-4 border-l border-gray-200 space-y-2 mt-2">
-                              <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nested Subcategories</h5>
-                              <div className="space-y-1.5">
-                                {sub.subcategories.map((nested, nestedIndex) => (
-                                  <div key={nested.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100">
-                              
-                                    {editingNestedId?.catId === cat.id && editingNestedId?.subId === sub.id && editingNestedId?.nestedId === nested.id ? (
-                                      <div className="flex-grow flex flex-col gap-2">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                          <div className="space-y-0.5">
-                                            <label className="text-[7px] font-black uppercase text-gray-400">Nested Name</label>
-                                            <input
-                                              type="text"
-                                              value={editNestedName}
-                                              onChange={(e) => setEditNestedName(e.target.value)}
-                                              className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
-                                            />
-                                          </div>
-                                          <div className="space-y-0.5">
-                                            <label className="text-[7px] font-black uppercase text-gray-400">Image URL</label>
-                                            <input
-                                              type="text"
-                                              value={editNestedImage}
-                                              onChange={(e) => setEditNestedImage(e.target.value)}
-                                              className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
-                                            />
-                                          </div>
-                                        </div>
-                                        <div className="flex justify-end gap-1">
-                                          <button
-                                            onClick={() => setEditingNestedId(null)}
-                                            className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-bold"
-                                          >
-                                            Cancel
-                                          </button>
-                                          <button
-                                            onClick={() => saveEditNestedSubcategory(cat.id, sub.id, nested.id)}
-                                            disabled={busy}
-                                            className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold"
-                                          >
-                                            Save
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="flex items-center gap-2">
-                                          <img src={nested.image} alt={nested.name} className="w-8 h-8 rounded object-cover border border-gray-100" />
-                                          <div>
-                                            <span className="font-semibold text-gray-700 text-xs">{nested.name}</span>
-                                            <span className="text-[7px] font-bold text-gray-400 block uppercase tracking-wider">ID: {nested.id}</span>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <div className="flex flex-col gap-0.5 mr-0.5">
-                                            <button
-                                              disabled={busy || nestedIndex === 0}
-                                              onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'up')}
-                                              className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                              title="Move up"
-                                            >
-                                              <ArrowUp className="w-2.5 h-2.5" />
-                                            </button>
-                                            <button
-                                              disabled={busy || nestedIndex === (sub.subcategories?.length || 0) - 1}
-                                              onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'down')}
-                                              className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                              title="Move down"
-                                            >
-                                              <ArrowDown className="w-2.5 h-2.5" />
-                                            </button>
-                                          </div>
-                                          <button
-                                            disabled={busy}
-                                            onClick={() => startEditNestedSubcategory(cat.id, sub.id, nested)}
-                                            className="p-1 bg-gray-50 border border-gray-150 rounded text-gray-500 hover:bg-gray-100"
-                                          >
-                                            <Edit3 className="w-3 h-3" />
-                                          </button>
-                                          <button
-                                            disabled={busy}
-                                            onClick={() => deleteNestedSubcategory(cat.id, sub.id, nested.id)}
-                                            className="p-1 bg-rose-50 text-rose-500 rounded hover:bg-rose-100"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        </div>
-                                      </>
-                                    )}
-
-                                  </div>
-                                ))}
+                          {editingSubId?.catId === cat.id && editingSubId?.subId === sub.id ? (
+                            <div className="flex flex-col gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Subcategory Name</label>
+                                  <input
+                                    type="text"
+                                    value={editSubName}
+                                    onChange={(e) => setEditSubName(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                                    <span>Image URL / File</span>
+                                    <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                                      <Upload className="w-2.5 h-2.5" /> Upload File
+                                      <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => {
+                                            const dataUrl = ev.target?.result as string;
+                                            if (dataUrl) setEditSubImage(dataUrl);
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }}
+                                      />
+                                    </label>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editSubImage.startsWith('data:') ? 'Local Uploaded File' : editSubImage}
+                                    onChange={(e) => setEditSubImage(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  onClick={() => setEditingSubId(null)}
+                                  className="px-2.5 py-1 bg-white border border-gray-250 rounded text-[10px] font-bold text-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => saveEditSubcategory(cat.id, sub.id)}
+                                  disabled={busy}
+                                  className="px-2.5 py-1 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600 flex items-center gap-0.5"
+                                >
+                                  <Check className="w-3 h-3" /> Save
+                                </button>
                               </div>
                             </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    )}
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => toggleSub(cat.id, sub.id)}
+                                  className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-700 flex-shrink-0"
+                                >
+                                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${expandedSubs.includes(`${cat.id}-${sub.id}`) ? 'rotate-90' : ''}`} />
+                                </button>
+                                <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                                <div>
+                                  <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">ID: {sub.id}</p>
+                                    {sub.subcategories && sub.subcategories.length > 0 && (
+                                      <span className="text-[8px] font-black bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{sub.subcategories.length} nested</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex flex-col gap-0.5 mr-1">
+                                  <button
+                                    disabled={busy || subIndex === 0}
+                                    onClick={() => moveSubcategory(cat.id, subIndex, 'up')}
+                                    className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Move up"
+                                  >
+                                    <ArrowUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    disabled={busy || subIndex === (cat.subcategories?.length || 0) - 1}
+                                    onClick={() => moveSubcategory(cat.id, subIndex, 'down')}
+                                    className="p-0.5 bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Move down"
+                                  >
+                                    <ArrowDown className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => startEditSubcategory(cat.id, sub)}
+                                  className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => {
+                                    if (activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id) {
+                                      setActiveAddNestedId(null);
+                                    } else {
+                                      setActiveAddNestedId({ catId: cat.id, subId: sub.id });
+                                    }
+                                  }}
+                                  className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-black flex items-center gap-1 text-[10px] font-bold"
+                                >
+                                  <Plus className="w-3 h-3" /> Nested
+                                </button>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => deleteSubcategory(cat.id, sub.id)}
+                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/30"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
+                          {activeAddNestedId?.catId === cat.id && activeAddNestedId?.subId === sub.id && (
+                            <motion.form
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              onSubmit={(e) => addNestedSubcategory(e, cat.id, sub.id)}
+                              className="bg-white p-3 rounded-lg border border-gray-100 space-y-3 mt-2"
+                            >
+                              <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Add Nested Subcategory to {sub.name}</h5>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Name</label>
+                                  <input
+                                    required
+                                    type="text"
+                                    value={newNestedName}
+                                    onChange={(e) => setNewNestedName(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                                    placeholder="e.g. Android"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                                    <span>Image</span>
+                                    <label className="text-[8px] font-black text-primary hover:underline cursor-pointer flex items-center gap-0.5">
+                                      <Upload className="w-2 h-2" /> Upload
+                                      <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (!file) return;
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => {
+                                            const dataUrl = ev.target?.result as string;
+                                            if (dataUrl) setNewNestedImage(dataUrl);
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }}
+                                      />
+                                    </label>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={newNestedImage.startsWith('data:') ? 'Local Uploaded File' : newNestedImage}
+                                    onChange={(e) => setNewNestedImage(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-primary text-xs font-semibold"
+                                    placeholder="Image URL"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveAddNestedId(null)}
+                                  className="px-2.5 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={busy}
+                                  className="px-2.5 py-1 bg-primary text-white rounded text-[10px] font-bold hover:bg-primary-hover shadow-sm"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </motion.form>
+                          )}
+
+                          {sub.subcategories && sub.subcategories.length > 0 && (
+                            <AnimatePresence>
+                              {expandedSubs.includes(`${cat.id}-${sub.id}`) && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="pl-4 border-l border-gray-200 space-y-2 mt-2">
+                                    <h5 className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Nested Subcategories</h5>
+                                    <div className="space-y-1.5">
+                                      {sub.subcategories.map((nested, nestedIndex) => (
+                                        <div key={nested.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-100">
+
+                                          {editingNestedId?.catId === cat.id && editingNestedId?.subId === sub.id && editingNestedId?.nestedId === nested.id ? (
+                                            <div className="flex-grow flex flex-col gap-2">
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div className="space-y-0.5">
+                                                  <label className="text-[7px] font-black uppercase text-gray-400">Nested Name</label>
+                                                  <input
+                                                    type="text"
+                                                    value={editNestedName}
+                                                    onChange={(e) => setEditNestedName(e.target.value)}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                                  />
+                                                </div>
+                                                <div className="space-y-0.5">
+                                                  <label className="text-[7px] font-black uppercase text-gray-400">Image URL</label>
+                                                  <input
+                                                    type="text"
+                                                    value={editNestedImage}
+                                                    onChange={(e) => setEditNestedImage(e.target.value)}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none text-xs font-semibold"
+                                                  />
+                                                </div>
+                                              </div>
+                                              <div className="flex justify-end gap-1">
+                                                <button
+                                                  onClick={() => setEditingNestedId(null)}
+                                                  className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-bold"
+                                                >
+                                                  Cancel
+                                                </button>
+                                                <button
+                                                  onClick={() => saveEditNestedSubcategory(cat.id, sub.id, nested.id)}
+                                                  disabled={busy}
+                                                  className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[9px] font-bold"
+                                                >
+                                                  Save
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <div className="flex items-center gap-2">
+                                                <img src={nested.image} alt={nested.name} className="w-8 h-8 rounded object-cover border border-gray-100" />
+                                                <div>
+                                                  <span className="font-semibold text-gray-700 text-xs">{nested.name}</span>
+                                                  <span className="text-[7px] font-bold text-gray-400 block uppercase tracking-wider">ID: {nested.id}</span>
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <div className="flex flex-col gap-0.5 mr-0.5">
+                                                  <button
+                                                    disabled={busy || nestedIndex === 0}
+                                                    onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'up')}
+                                                    className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    title="Move up"
+                                                  >
+                                                    <ArrowUp className="w-2.5 h-2.5" />
+                                                  </button>
+                                                  <button
+                                                    disabled={busy || nestedIndex === (sub.subcategories?.length || 0) - 1}
+                                                    onClick={() => moveNestedSubcategory(cat.id, sub.id, nestedIndex, 'down')}
+                                                    className="p-0.5 bg-gray-50 border border-gray-150 rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    title="Move down"
+                                                  >
+                                                    <ArrowDown className="w-2.5 h-2.5" />
+                                                  </button>
+                                                </div>
+                                                <button
+                                                  disabled={busy}
+                                                  onClick={() => startEditNestedSubcategory(cat.id, sub.id, nested)}
+                                                  className="p-1 bg-gray-50 border border-gray-150 rounded text-gray-500 hover:bg-gray-100"
+                                                >
+                                                  <Edit3 className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                  disabled={busy}
+                                                  onClick={() => deleteNestedSubcategory(cat.id, sub.id, nested.id)}
+                                                  className="p-1 bg-rose-50 text-rose-500 rounded hover:bg-rose-100"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                </button>
+                                              </div>
+                                            </>
+                                          )}
+
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          )}
+
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium mt-4">No subcategories created yet.</div>
-          )}
+                ) : (
+                  <div className="ml-0 sm:ml-8 pl-0 sm:pl-8 text-xs text-gray-400 italic font-medium mt-4">No subcategories created yet.</div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -6823,7 +6801,7 @@ function ReviewsManagementView() {
                 </button>
               </div>
               <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${review.status === 'approved' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                  review.status === 'rejected' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+                review.status === 'rejected' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'
                 }`}>
                 {review.status || 'pending'}
               </span>
@@ -6997,14 +6975,14 @@ function AnnouncementsManagementView() {
         ) : filteredAnnouncements.map(ann => (
           <div key={ann.id} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-100 transition-all duration-500 overflow-hidden relative group">
             <div className={`absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-1000 ${ann.type === 'sale' ? 'bg-blue-500' :
-                ann.type === 'critical' ? 'bg-red-500' : 'bg-blue-500'
+              ann.type === 'critical' ? 'bg-red-500' : 'bg-blue-500'
               }`} />
 
             <div className="flex items-start justify-between relative z-10">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg ${ann.type === 'sale' ? 'bg-blue-50 text-blue-600' :
-                      ann.type === 'critical' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                    ann.type === 'critical' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
                     }`}>
                     {ann.type}
                   </span>
@@ -7113,12 +7091,12 @@ function ReturnManagementView() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReturnRequest));
-      
+
       let filteredData = data;
       if (filter !== 'all') {
         filteredData = data.filter(r => r.status === filter);
       }
-      
+
       filteredData.sort((a, b) => {
         const timeA = new Date(a.createdAt || (a as any).createdDate || 0).getTime();
         const timeB = new Date(b.createdAt || (b as any).createdDate || 0).getTime();

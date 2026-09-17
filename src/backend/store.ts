@@ -4,6 +4,8 @@ import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS, D
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
+import { sanitizeAndUploadCategoryDoc } from "./services/categoryStorageService";
 
 
 interface AuthState {
@@ -293,7 +295,8 @@ export const useCategoryStore = create<CategoryState>((set) => ({
             const exists = fetchedCategories.some(c => c.id === initialCat.id);
             if (!exists) {
               try {
-                await setDoc(doc(db, 'categories', initialCat.id), initialCat);
+                const sanitized = await sanitizeAndUploadCategoryDoc(initialCat);
+                await setDoc(doc(db, 'categories', initialCat.id), sanitized);
               } catch (e) {
                 console.error("Failed to seed missing category:", initialCat.id, e);
               }
@@ -309,7 +312,8 @@ export const useCategoryStore = create<CategoryState>((set) => ({
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           INITIAL_CATEGORIES.forEach(async (cat) => {
             try {
-              await setDoc(doc(db, 'categories', cat.id), cat);
+              const sanitized = await sanitizeAndUploadCategoryDoc(cat);
+              await setDoc(doc(db, 'categories', cat.id), sanitized);
             } catch (e) {
               console.error("Failed to seed category", e);
             }
