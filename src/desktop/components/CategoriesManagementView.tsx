@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
+import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -215,26 +216,26 @@ export default function CategoriesManagementView() {
         const catId = editingId || generateId(formData.name);
         const catRef = doc(db, 'categories', catId);
         
-        const payload = {
+        const payload = cleanForFirestore({
           ...formData,
           name: formData.name.trim(),
           image: finalLogo || '',
           icon: finalIcon || '',
-        };
+        });
 
         if (editingId) {
-          await updateDoc(catRef, payload);
+          await setDoc(catRef, payload, { merge: true });
         } else {
-          await setDoc(catRef, {
+          await setDoc(catRef, cleanForFirestore({
             id: catId,
             ...payload,
             order: categories.length,
             subcategories: []
-          });
+          }), { merge: true });
         }
       } else if (modalType === 'subcategory' && activeParentCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
-        if (!parentCat) throw new Error("Parent not found");
+        if (!parentCat) throw new Error("Parent category not found");
         
         if (!editingId && (parentCat.subcategories || []).length >= 30) {
           toast.error('Maximum limit of 30 subcategories per category reached.');
@@ -259,10 +260,14 @@ export default function CategoriesManagementView() {
           setExpandedCats(prev => prev.includes(activeParentCatId) ? prev : [...prev, activeParentCatId]);
         }
         
-        await updateDoc(doc(db, 'categories', activeParentCatId), { subcategories: updatedSubs });
+        const catRef = doc(db, 'categories', activeParentCatId);
+        await setDoc(catRef, cleanForFirestore({
+          ...parentCat,
+          subcategories: updatedSubs
+        }), { merge: true });
       } else if (modalType === 'nested' && activeParentCatId && activeSubCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
-        if (!parentCat) throw new Error("Parent not found");
+        if (!parentCat) throw new Error("Parent category not found");
         
         const parentSub = parentCat.subcategories?.find(s => s.id === activeSubCatId);
         if (!editingId && (parentSub?.subcategories || []).length >= 30) {
@@ -293,14 +298,18 @@ export default function CategoriesManagementView() {
           return sub;
         });
         
-        await updateDoc(doc(db, 'categories', activeParentCatId), { subcategories: updatedSubs });
+        const catRef = doc(db, 'categories', activeParentCatId);
+        await setDoc(catRef, cleanForFirestore({
+          ...parentCat,
+          subcategories: updatedSubs
+        }), { merge: true });
       }
 
       toast.success('Saved successfully');
       setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving:', error);
-      toast.error('Failed to save');
+    } catch (error: any) {
+      console.error('Error saving category/subcategory:', error);
+      toast.error(error?.message ? `Failed to save: ${error.message}` : 'Failed to save');
     } finally {
       setIsSaving(false);
     }

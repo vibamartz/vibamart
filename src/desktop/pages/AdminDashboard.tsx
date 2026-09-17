@@ -38,6 +38,7 @@ import AdminNotificationsManagementView from '../components/AdminNotificationsMa
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
+import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 
 
 const STATS = [
@@ -5172,7 +5173,7 @@ function CategoriesManagementView() {
   const addSubcategory = async (e: React.FormEvent, catId: string) => {
     e.preventDefault();
     if (!newSubName.trim()) return;
-    const subId = newSubName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const subId = newSubName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || Date.now().toString();
     setBusy(true);
     try {
       const cat = categories.find(c => c.id === catId);
@@ -5184,13 +5185,13 @@ function CategoriesManagementView() {
         subcategories: []
       };
       const subcategories = cat.subcategories ? [...cat.subcategories, newSub] : [newSub];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Subcategory added successfully');
       setNewSubName('');
       setNewSubImage('');
       setActiveAddSubCatId(null);
-    } catch (e) {
-      toast.error('Failed to add subcategory');
+    } catch (e: any) {
+      toast.error('Failed to add subcategory: ' + (e?.message || e));
     } finally {
       setBusy(false);
     }
@@ -5221,7 +5222,7 @@ function CategoriesManagementView() {
         }
         return s;
       }) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Subcategory updated successfully');
       setEditingSubId(null);
     } catch (e: any) {
@@ -5264,7 +5265,7 @@ function CategoriesManagementView() {
   const addNestedSubcategory = async (e: React.FormEvent, catId: string, subId: string) => {
     e.preventDefault();
     if (!newNestedName.trim()) return;
-    const nestedId = newNestedName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const nestedId = newNestedName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') || Date.now().toString();
     setBusy(true);
     try {
       const cat = categories.find(c => c.id === catId);
@@ -5284,7 +5285,7 @@ function CategoriesManagementView() {
         }
         return s;
       }) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Nested subcategory added successfully');
       setNewNestedName('');
       setNewNestedImage('');
@@ -5327,7 +5328,7 @@ function CategoriesManagementView() {
         }
         return s;
       }) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Nested subcategory updated successfully');
       setEditingNestedId(null);
     } catch (e: any) {
