@@ -543,36 +543,38 @@ export default function Home() {
         </section>
       )}
 
-      {/* Still Looking For These? Section (Desktop - Compact & Horizontally Scrollable) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400 shrink-0" />
-            <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
-              {personalizedTitle}
-            </h2>
+      {/* Still Looking For These? Section (Desktop - Visible ONLY in For You category) */}
+      {activeCategorySlug === 'for-you' && (
+        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400 shrink-0" />
+              <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+                {personalizedTitle}
+              </h2>
+            </div>
+            <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
+              Explore All <ChevronRightIcon className="w-4 h-4" />
+            </Link>
           </div>
-          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-            Explore All <ChevronRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
 
-        {loading ? (
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar py-1">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-[165px] sm:w-[185px] h-[240px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse shrink-0" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-            {filteredProducts.slice(0, 8).map((product) => (
-              <div key={`still-looking-${product.id}`} className="w-[165px] sm:w-[185px] shrink-0 snap-start flex flex-col">
-                <ProductCard product={product} hideButtons={true} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+          {loading ? (
+            <div className="flex gap-4 overflow-x-auto hide-scrollbar py-1">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="w-[165px] sm:w-[185px] h-[240px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse shrink-0" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+              {filteredProducts.slice(0, 8).map((product) => (
+                <div key={`still-looking-${product.id}`} className="w-[165px] sm:w-[185px] shrink-0 snap-start flex flex-col">
+                  <ProductCard product={product} hideButtons={true} />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Trending / Recommended Products Grid */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">

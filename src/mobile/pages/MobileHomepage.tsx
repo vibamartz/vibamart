@@ -760,44 +760,46 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. RECOMMENDED / STILL LOOKING FOR THESE PRODUCTS                         */}
+      {/* 6. RECOMMENDED / STILL LOOKING FOR THESE PRODUCTS (Visible ONLY in For You category) */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3 sm:p-3.5 text-white border border-emerald-700/50 shadow-md space-y-2.5">
-        <div className="flex items-center justify-between px-0.5">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-xs sm:text-base font-black text-white tracking-tight flex items-center gap-1.5 truncate">
-              <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300 shrink-0" />
-              <span className="truncate">{personalizedTitle}</span>
-            </h3>
-            <p className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium truncate">Tailored to your preferences</p>
+      {activeCategorySlug === 'for-you' && (
+        <section className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3 sm:p-3.5 text-white border border-emerald-700/50 shadow-md space-y-2.5">
+          <div className="flex items-center justify-between px-0.5">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs sm:text-base font-black text-white tracking-tight flex items-center gap-1.5 truncate">
+                <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300 shrink-0" />
+                <span className="truncate">{personalizedTitle}</span>
+              </h3>
+              <p className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium truncate">Tailored to your preferences</p>
+            </div>
+            <Link to="/products" className="text-xs font-black text-emerald-200 hover:text-white uppercase tracking-wider shrink-0 ml-2">
+              SEE ALL
+            </Link>
           </div>
-          <Link to="/products" className="text-xs font-black text-emerald-200 hover:text-white uppercase tracking-wider shrink-0 ml-2">
-            SEE ALL
-          </Link>
-        </div>
 
-        {/* Horizontal Carousel: Recommended items */}
-        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
-          {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div
-                key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[145px]' : 'w-[145px] sm:w-[165px] h-[195px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
-              />
-            ))
-          ) : (
-            filteredProducts.slice(0, 8).map((product) => (
-              <MobileProductCardItem
-                key={`personalized-${product.id}`}
-                product={product}
-                is3CardLayout={activeCategorySlug === 'for-you'}
-                cardRadius="rounded-[16px]"
-                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
-              />
-            ))
-          )}
-        </div>
-      </section>
+          {/* Horizontal Carousel: Recommended items */}
+          <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
+            {loading ? (
+              Array(3).fill(0).map((_, i) => (
+                <div
+                  key={i}
+                  className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[145px]' : 'w-[145px] sm:w-[165px] h-[195px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
+                />
+              ))
+            ) : (
+              filteredProducts.slice(0, 8).map((product) => (
+                <MobileProductCardItem
+                  key={`personalized-${product.id}`}
+                  product={product}
+                  is3CardLayout={activeCategorySlug === 'for-you'}
+                  cardRadius="rounded-[16px]"
+                  onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ========================================================================= */}
       {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
