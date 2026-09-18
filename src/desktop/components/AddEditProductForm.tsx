@@ -16,6 +16,8 @@ import ProductLocationManager from './ProductLocationManager';
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
 import { query, orderBy, getDocs } from 'firebase/firestore';
+import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
+import { processAllProductImages } from '../../backend/services/productStorageService';
 
 export default function AddEditProductForm({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
@@ -192,7 +194,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
     }
 
     setBusy(true);
-    const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Initializing new product record...');
+    const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
       const pid = product?.id || `prod_${Date.now()}`;
@@ -202,10 +204,17 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const generatedSlug = createSlug(formData.name || '') || `product-${pid}`;
       const finalProductCode = formatProductCode(codeToValidate);
 
+      // Upload or compress image files (main images, primary image, variant images) to avoid Firestore payload limits
+      const { images: processedImages, primaryImage: processedPrimaryImage, variants: processedVariants } =
+        await processAllProductImages(formData);
+
       const rawData = {
         ...formData,
         id: pid,
         productCode: finalProductCode,
+        images: processedImages,
+        primaryImage: processedPrimaryImage,
+        variants: processedVariants,
         slug: product?.slug || generatedSlug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
@@ -214,14 +223,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         updatedAt: new Date().toISOString()
       };
 
-      // Clean undefined values
-      const productData: any = {};
-      Object.keys(rawData).forEach(key => {
-        const value = (rawData as any)[key];
-        if (value !== undefined) {
-          productData[key] = value;
-        }
-      });
+      // Clean undefined values recursively
+      const productData = cleanForFirestore(rawData);
 
       await setDoc(doc(db, 'products', pid), productData, { merge: true });
       await logAdminAction(
@@ -234,6 +237,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       toast.success(product ? 'Systems Updated' : 'Product Deployed', { id: toastId });
       onClose();
     } catch (err) {
+      console.error('Product deployment error:', err);
       toast.error('Deployment Failed', { id: toastId });
       handleFirestoreError(err, OperationType.WRITE, 'products');
     } finally {

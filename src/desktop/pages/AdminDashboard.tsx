@@ -39,6 +39,7 @@ import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
+import { processAllProductImages } from '../../backend/services/productStorageService';
 
 
 const STATS = [
@@ -4410,7 +4411,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
     }
 
     setBusy(true);
-    const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Initializing new product record...');
+    const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
       const pid = product?.id || `prod_${Date.now()}`;
@@ -4418,9 +4419,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
 
+      // Upload or compress image files (main images, primary image, variant images) to avoid Firestore payload limits
+      const { images: processedImages, primaryImage: processedPrimaryImage, variants: processedVariants } =
+        await processAllProductImages(formData);
+
       const rawData = {
         ...formData,
         id: pid,
+        images: processedImages,
+        primaryImage: processedPrimaryImage,
+        variants: processedVariants,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
         mrp: mrp || price,
@@ -4428,14 +4436,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
         updatedAt: new Date().toISOString()
       };
 
-      // Clean undefined values
-      const productData: any = {};
-      Object.keys(rawData).forEach(key => {
-        const value = (rawData as any)[key];
-        if (value !== undefined) {
-          productData[key] = value;
-        }
-      });
+      // Clean undefined values recursively
+      const productData = cleanForFirestore(rawData);
 
       await setDoc(doc(db, 'products', pid), productData, { merge: true });
       await logAdminAction(
@@ -4448,6 +4450,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
       toast.success(product ? 'Systems Updated' : 'Product Deployed', { id: toastId });
       onClose();
     } catch (err) {
+      console.error('Product deployment error:', err);
       toast.error('Deployment Failed', { id: toastId });
       handleFirestoreError(err, OperationType.WRITE, 'products');
     } finally {
