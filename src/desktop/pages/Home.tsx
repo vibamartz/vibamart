@@ -37,6 +37,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const userName = user?.displayName
+    ? user.displayName.split(' ')[0]
+    : (user?.email ? user.email.split('@')[0] : '');
+
+  const personalizedTitle = userName
+    ? `${userName}, still looking for these?`
+    : 'Still Looking For These?';
+
   const [selectedSubCatId, setSelectedSubCatId] = useState<string | null>(null);
   const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
 
@@ -534,6 +542,37 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Still Looking For These? Section (Desktop - Compact & Horizontally Scrollable) */}
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400 shrink-0" />
+            <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+              {personalizedTitle}
+            </h2>
+          </div>
+          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
+            Explore All <ChevronRightIcon className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar py-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="w-[190px] sm:w-[210px] h-[280px] bg-white rounded-2xl p-4 border border-gray-100 animate-pulse shrink-0" />
+            ))}
+          </div>
+        ) : (
+          <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+            {filteredProducts.slice(0, 8).map((product) => (
+              <div key={`still-looking-${product.id}`} className="w-[190px] sm:w-[210px] shrink-0 snap-start">
+                <ProductCard product={product} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Trending / Recommended Products Grid */}
       <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">

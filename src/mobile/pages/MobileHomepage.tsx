@@ -760,9 +760,9 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. RECOMMENDED PRODUCTS (Card w: 185-215px, h: 275-320px)                  */}
+      {/* 6. RECOMMENDED / STILL LOOKING FOR THESE PRODUCTS                         */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3.5 sm:p-4 text-white border border-emerald-700/50 shadow-md space-y-3">
+      <section className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3 sm:p-3.5 text-white border border-emerald-700/50 shadow-md space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="min-w-0 flex-1">
             <h3 className="text-xs sm:text-base font-black text-white tracking-tight flex items-center gap-1.5 truncate">
@@ -777,13 +777,12 @@ export default function MobileHomepage() {
         </div>
 
         {/* Horizontal Carousel: Recommended items */}
-        <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
           {loading ? (
-            Array(4).fill(0).map((_, i) => (
+            Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white/10 rounded-[20px] animate-pulse shrink-0"
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
               />
             ))
           ) : (
@@ -791,7 +790,8 @@ export default function MobileHomepage() {
               <MobileProductCardItem
                 key={`personalized-${product.id}`}
                 product={product}
-                cardRadius="rounded-[20px]"
+                is3CardLayout={activeCategorySlug === 'for-you'}
+                cardRadius="rounded-[16px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
@@ -801,12 +801,10 @@ export default function MobileHomepage() {
         </div>
       </section>
 
-
-
       {/* ========================================================================= */}
       {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-3">
+      <section className="w-full min-w-0 space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
@@ -819,13 +817,12 @@ export default function MobileHomepage() {
           </Link>
         </div>
 
-        <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
           {loading ? (
-            Array(4).fill(0).map((_, i) => (
+            Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0"
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
               />
             ))
           ) : (
@@ -833,7 +830,8 @@ export default function MobileHomepage() {
               <MobileProductCardItem
                 key={`trending-${product.id}`}
                 product={product}
-                cardRadius="rounded-[20px]"
+                is3CardLayout={activeCategorySlug === 'for-you'}
+                cardRadius="rounded-[16px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
@@ -846,7 +844,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 9. RECENTLY VIEWED & POPULAR CAROUSEL                                     */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-3">
+      <section className="w-full min-w-0 space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -859,13 +857,12 @@ export default function MobileHomepage() {
           </Link>
         </div>
 
-        <div className="flex overflow-x-auto gap-[clamp(10px,3vw,16px)] hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
           {loading ? (
-            Array(4).fill(0).map((_, i) => (
+            Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                style={{ width: 'clamp(185px, 52vw, 215px)', height: 'clamp(275px, 75vw, 320px)' }}
-                className="bg-white rounded-[20px] animate-pulse border border-gray-100 shrink-0"
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
               />
             ))
           ) : (
@@ -873,7 +870,8 @@ export default function MobileHomepage() {
               <MobileProductCardItem
                 key={`recent-${product.id}`}
                 product={product}
-                cardRadius="rounded-[20px]"
+                is3CardLayout={activeCategorySlug === 'for-you'}
+                cardRadius="rounded-[16px]"
                 onAddToCart={(e) => handleAddToCart(e, product)}
                 onBuyNow={(e) => handleBuyNow(e, product)}
                 onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
@@ -916,6 +914,7 @@ interface MobileProductCardItemProps {
   key?: React.Key;
   product: Product;
   cardRadius?: string;
+  is3CardLayout?: boolean;
   onAddToCart: (e: React.MouseEvent) => void;
   onBuyNow: (e: React.MouseEvent) => void;
   onCardClick: () => void | Promise<void>;
@@ -923,7 +922,8 @@ interface MobileProductCardItemProps {
 
 function MobileProductCardItem({
   product,
-  cardRadius = "rounded-[20px]",
+  cardRadius = "rounded-[16px]",
+  is3CardLayout = false,
   onAddToCart,
   onBuyNow,
   onCardClick
@@ -936,6 +936,86 @@ function MobileProductCardItem({
     ? Math.round((discountAmount / product.price) * 100)
     : (product.discountPercentage || 0);
 
+  if (is3CardLayout) {
+    return (
+      <motion.div
+        whileTap={{ scale: 0.97 }}
+        onClick={onCardClick}
+        className={`w-[calc((100%-12px)/3)] bg-white ${cardRadius} p-1.5 shadow-xs border border-orange-100 flex flex-col justify-between snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0 h-[215px]`}
+      >
+        {/* Product Image (Clear aspect-contain) */}
+        <div className="relative w-full h-[90px] rounded-[10px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center shrink-0 mb-1">
+          <img
+            src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
+            alt={product.name}
+            loading="lazy"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          />
+
+          {discountPercentage > 0 && (
+            <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[7px] font-black px-1 py-0.2 rounded shadow-xs z-10 leading-tight">
+              {discountPercentage}% OFF
+            </span>
+          )}
+        </div>
+
+        {/* Brand & Name */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <span className="text-[8px] font-black text-gray-400 uppercase tracking-wider truncate leading-none">
+            {product.brand || 'ViBa Select'}
+          </span>
+          <h4 className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-[1.25] mt-0.5 min-h-[25px]">
+            {product.name}
+          </h4>
+        </div>
+
+        {/* Pricing & Actions */}
+        <div className="mt-auto space-y-1 pt-1 border-t border-gray-100 min-w-0">
+          <div className="flex items-baseline gap-1 flex-wrap min-w-0">
+            <span className="text-[11px] font-black text-gray-900 leading-tight">
+              ₹{(product.discountPrice || product.price || 0).toLocaleString()}
+            </span>
+            {product.discountPrice && product.price && product.discountPrice < product.price && (
+              <span className="text-[8px] text-gray-400 line-through leading-tight">
+                ₹{product.price.toLocaleString()}
+              </span>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1 min-w-0">
+            {isInCart ? (
+              <button
+                onClick={onAddToCart}
+                className="w-full py-1 px-1 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-lg text-[8px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-0.5 border border-blue-200 active:scale-95"
+              >
+                <ShoppingCart className="w-3 h-3 text-blue-600 shrink-0" />
+                Cart
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onAddToCart}
+                  aria-label="Add to Cart"
+                  className="p-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-lg transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
+                >
+                  <ShoppingCart className="w-3 h-3" />
+                </button>
+
+                <button
+                  onClick={onBuyNow}
+                  className="flex-1 py-1 px-1 bg-gradient-to-r from-emerald-600 to-orange-500 text-white rounded-lg text-[8px] font-black uppercase tracking-wider shadow-xs active:scale-95 transition-all text-center truncate"
+                >
+                  Buy Now
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       whileTap={{ scale: 0.97 }}
@@ -946,16 +1026,16 @@ function MobileProductCardItem({
       }}
       className={`bg-white ${cardRadius} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
-      {/* Product Image (Responsive clamp height) */}
+      {/* Product Image (Clear object-contain) */}
       <div
         style={{ height: 'clamp(120px, 34vw, 145px)' }}
-        className="relative w-full rounded-[14px] overflow-hidden bg-gray-50 mb-2 shrink-0"
+        className="relative w-full rounded-[14px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-2 shrink-0"
       >
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
         />
 
         {discountPercentage > 0 && (

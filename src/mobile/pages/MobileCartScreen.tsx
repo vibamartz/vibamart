@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin 
+import {
+  Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -70,8 +70,8 @@ function MobileRecentlyViewedSection() {
                 className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
-                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
                   <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
                   <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
@@ -87,9 +87,8 @@ function MobileRecentlyViewedSection() {
                       else toast.error("Could not add to cart");
                     }
                   }}
-                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
-                    isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
-                  }`}
+                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
+                    }`}
                 >
                   {isInCart ? 'In Cart' : 'Add to Cart'}
                 </button>
@@ -159,8 +158,8 @@ function MobileWishlistSection() {
                 className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white">
-                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-cover" />
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
                   <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
                   <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
@@ -176,9 +175,8 @@ function MobileWishlistSection() {
                       else toast.error("Could not add to cart");
                     }
                   }}
-                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
-                    isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
-                  }`}
+                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
+                    }`}
                 >
                   {isInCart ? 'In Cart' : 'Add to Cart'}
                 </button>
@@ -250,7 +248,7 @@ export default function MobileCartScreen() {
 
   return (
     <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-3">
-      
+
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
@@ -354,14 +352,14 @@ export default function MobileCartScreen() {
                 >
                   <div className="flex gap-3">
                     {/* Product Image */}
-                    <div 
+                    <div
                       onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                       className="w-20 h-20 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 cursor-pointer"
                     >
-                      <img 
-                        src={variant?.image || product.images?.[0] || 'https://via.placeholder.com/150'} 
-                        alt={product.name} 
-                        className="w-full h-full object-cover" 
+                      <img
+                        src={variant?.image || product.images?.[0] || 'https://via.placeholder.com/150'}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
                       />
                     </div>
 
@@ -371,7 +369,7 @@ export default function MobileCartScreen() {
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block truncate">
                           {product.brand || 'ViBa Select'}
                         </span>
-                        <h4 
+                        <h4
                           onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                           className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight cursor-pointer"
                         >
@@ -431,7 +429,7 @@ export default function MobileCartScreen() {
                     >
                       <Heart className="w-3 h-3 text-rose-500" /> Move to Wishlist
                     </button>
-                    
+
                     <button
                       onClick={() => handleBuyNow(product.id, item.variantId)}
                       className="flex-1 py-1.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl shadow-xs flex items-center justify-center gap-1 active:scale-95 transition-transform"
@@ -509,9 +507,9 @@ export default function MobileCartScreen() {
         </div>
       )}
 
-      <LocationPickerModal 
-        isOpen={showLocationModal} 
-        onClose={() => setShowLocationModal(false)} 
+      <LocationPickerModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
       />
     </div>
   );
