@@ -150,7 +150,7 @@ export default function MobileCategoriesScreen() {
   };
 
   return (
-    <div className="min-h-0 bg-[#FFFDF5] pb-2 font-sans select-none flex flex-col">
+    <div className="min-h-0 bg-white pb-2 font-sans select-none flex flex-col">
       {/* Top Header Banner */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 p-4 text-white shadow-md">
         <div className="flex items-center justify-between">

@@ -72,7 +72,7 @@ export default function MobileProfileScreen() {
 
   if (!user) {
     return (
-      <div className="min-h-0 bg-[#FFF3EB] pb-6 font-sans select-none flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-0 bg-white pb-6 font-sans select-none flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 rounded-3xl bg-blue-50 border border-blue-200 flex items-center justify-center mb-4 text-blue-600 shadow-sm">
           <User className="w-10 h-10" />
         </div>
@@ -114,7 +114,7 @@ export default function MobileProfileScreen() {
   ];
 
   return (
-    <div className="min-h-0 bg-[#FFFDF5] pb-2 font-sans select-none p-3 space-y-3">
+    <div className="min-h-0 bg-white pb-2 font-sans select-none p-3 space-y-3">
       {/* Profile Header Card */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 rounded-3xl p-5 text-white shadow-md relative overflow-hidden">
         <div className="flex items-center gap-4 relative z-10">

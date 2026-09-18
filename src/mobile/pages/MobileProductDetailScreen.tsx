@@ -256,7 +256,7 @@ export default function MobileProductDetailScreen() {
 
   if (loading || !product) {
     return (
-      <div className="min-h-screen bg-[#FFF3EB] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-bold text-gray-500">Loading Product...</span>
@@ -297,7 +297,7 @@ export default function MobileProductDetailScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none space-y-3">
+    <div className="min-h-screen bg-white pb-44 font-sans select-none space-y-3">
       {/* Top Gallery */}
       <div className="bg-white relative">
         <div className="aspect-square w-full relative overflow-hidden bg-gray-50">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCartStore, useAuthStore } from '../../backend/store';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Heart, Clock, Truck, Zap, MapPin } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, ShoppingBag, ArrowRight, Heart, Clock, Truck, Zap, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -178,7 +178,7 @@ export default function Cart() {
         {items.length === 0 ? (
           <div className="bg-white p-12 rounded-3xl shadow-xl text-center max-w-md mx-auto border border-gray-100">
             <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShoppingBag className="w-10 h-10 text-primary" />
+              <ShoppingCart className="w-10 h-10 text-primary" />
             </div>
             <h2 className="text-3xl font-black text-gray-900 mb-2">Your cart is empty</h2>
             <p className="text-gray-500 mb-8 font-medium">Looks like you haven't added anything to your cart yet. Let's find something amazing for you!</p>

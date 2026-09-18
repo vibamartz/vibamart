@@ -111,7 +111,7 @@ function MainAppRoutes() {
 
   if (isMobile) {
     return (
-      <div className="min-h-screen flex flex-col font-sans bg-[#FFF3EB] selection:bg-primary selection:text-white overflow-x-hidden w-full">
+      <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
         <MobileHeader />
         <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-20 sm:pb-24">
           <Routes>
@@ -215,7 +215,7 @@ function SplashScreen({ isVisible }: { isVisible: boolean }) {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5, ease: 'easeInOut' }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#FFF3EB] select-none pointer-events-none"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-white select-none pointer-events-none"
         >
           <motion.div
             initial={{ scale: 0.92, opacity: 0.8 }}

@@ -12,7 +12,7 @@ export default function MobileOrderSuccessScreen() {
   const customId = stateData.customId || `VBM-${Date.now().toString().slice(-6)}`;
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center space-y-4">
+    <div className="min-h-screen bg-white pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center space-y-4">
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}

@@ -268,7 +268,7 @@ export default function MobileCheckoutScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-4">
+    <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-4">
       {/* Checkout Title Header */}
       <div className="py-2 flex items-center justify-between border-b border-gray-200/60">
         <div>

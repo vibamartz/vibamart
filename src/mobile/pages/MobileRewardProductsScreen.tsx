@@ -200,7 +200,7 @@ export default function MobileRewardProductsScreen() {
 
   if (loading && !rewardCard) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF3EB]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
       </div>
     );
@@ -208,7 +208,7 @@ export default function MobileRewardProductsScreen() {
 
   if (!rewardCard) {
     return (
-      <div className="p-6 text-center space-y-4 font-sans min-h-screen bg-[#FFF3EB] flex flex-col items-center justify-center">
+      <div className="p-6 text-center space-y-4 font-sans min-h-screen bg-white flex flex-col items-center justify-center">
         <Lock className="w-10 h-10 text-amber-500 mx-auto" />
         <h2 className="text-xl font-bold text-gray-900">Reward Card Unavailable</h2>
         <p className="text-xs text-gray-500 max-w-xs">This reward card may have expired or been disabled.</p>
@@ -227,7 +227,7 @@ export default function MobileRewardProductsScreen() {
     : `₹${rewardCard.discountValue} OFF`;
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] font-sans pb-24">
+    <div className="min-h-screen bg-white font-sans pb-24">
       {/* Mobile Top Header Bar */}
       <div className="sticky top-0 z-40 bg-white border-b border-amber-100 px-4 py-3 flex items-center justify-between shadow-sm">
         <button

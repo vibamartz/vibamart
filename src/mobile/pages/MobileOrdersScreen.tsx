@@ -132,7 +132,7 @@ export default function MobileOrdersScreen() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#FFF3EB] pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-white pb-24 font-sans select-none flex flex-col items-center justify-center p-6 text-center">
         <Package className="w-12 h-12 text-gray-400 mb-3" />
         <h2 className="text-base font-black text-gray-900">Please Login</h2>
         <p className="text-xs text-gray-500 font-medium mt-1 mb-4">Login to see your order history and track live shipments.</p>

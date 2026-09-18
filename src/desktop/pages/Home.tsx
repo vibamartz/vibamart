@@ -567,7 +567,7 @@ export default function Home() {
           <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
             {filteredProducts.slice(0, 8).map((product) => (
               <div key={`still-looking-${product.id}`} className="w-[190px] sm:w-[210px] shrink-0 snap-start">
-                <ProductCard product={product} />
+                <ProductCard product={product} showActionsAlways={true} />
               </div>
             ))}
           </div>

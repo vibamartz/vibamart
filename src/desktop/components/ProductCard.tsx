@@ -12,9 +12,10 @@ import { getProductSlug } from '../../shared/utilities/slug';
 interface ProductCardProps {
   product: Product;
   key?: any;
+  showActionsAlways?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, showActionsAlways = false }: ProductCardProps) {
   const { addItem, items } = useCartStore();
   const { user } = useAuthStore();
 
@@ -104,7 +105,9 @@ export default function ProductCard({ product }: ProductCardProps) {
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           
-          <div className="absolute inset-x-0 bottom-0 p-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
+          <div className={`absolute inset-x-0 bottom-0 p-2.5 transition-transform duration-300 z-10 flex gap-2 ${
+            showActionsAlways ? 'translate-y-0' : 'translate-y-full group-hover:translate-y-0'
+          }`}>
             {isInCart ? (
               <button 
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); navigate('/cart'); }}

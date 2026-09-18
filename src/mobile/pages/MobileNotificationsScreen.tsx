@@ -115,7 +115,7 @@ export default function MobileNotificationsScreen() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-36 sm:pb-40 font-sans select-none p-3 space-y-3 text-left">
+    <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none p-3 space-y-3 text-left">
       {/* Top Header Card */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100 flex items-center justify-between">
         <div>

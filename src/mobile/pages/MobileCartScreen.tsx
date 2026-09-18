@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin
+  Trash2, Plus, Minus, ShoppingCart, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -247,13 +247,13 @@ export default function MobileCartScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF3EB] pb-44 font-sans select-none p-3 space-y-3">
+    <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-3">
 
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mb-3 text-amber-700">
-            <ShoppingBag className="w-8 h-8" />
+            <ShoppingCart className="w-8 h-8" />
           </div>
           <h2 className="text-base font-black text-gray-900">Your Cart is Empty</h2>
           <p className="text-xs text-gray-500 font-medium max-w-xs mt-1 mb-4">
