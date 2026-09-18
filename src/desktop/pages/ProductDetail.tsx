@@ -448,8 +448,8 @@ export default function ProductDetail() {
               )
             )}
             {currentStock > 0 && currentStock <= 5 && (
-              <span className="text-xs font-black text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-1 rounded-full uppercase tracking-wider">
-                Only {currentStock} left in stock
+              <span className="text-xs font-black text-red-800 bg-red-50 border border-red-200 px-3.5 py-1 rounded-full uppercase tracking-wider">
+                Only Left {currentStock}
               </span>
             )}
           </div>
@@ -492,13 +492,12 @@ export default function ProductDetail() {
                           key={v.id}
                           onClick={() => setSelectedVariant(v.id)}
                           disabled={v.stock === 0}
-                          className={`px-3.5 py-2.5 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${
-                            isSelected
+                          className={`px-3.5 py-2.5 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${isSelected
                               ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
                               : v.stock === 0
-                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-50 cursor-not-allowed'
-                              : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                          }`}
+                                ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-50 cursor-not-allowed'
+                                : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                            }`}
                         >
                           {v.image ? (
                             <img src={v.image} alt={v.color || v.colorName} className="w-7 h-7 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
@@ -544,13 +543,12 @@ export default function ProductDetail() {
                           key={v.id}
                           onClick={() => setSelectedVariant(v.id)}
                           disabled={v.stock === 0}
-                          className={`min-w-[48px] px-4 py-3 rounded-xl border-2 text-xs font-black transition-all ${
-                            isSelected
+                          className={`min-w-[48px] px-4 py-3 rounded-xl border-2 text-xs font-black transition-all ${isSelected
                               ? 'border-green-600 bg-green-600 text-white shadow-md'
                               : v.stock === 0
-                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
-                              : 'border-gray-200 text-gray-800 hover:border-gray-300'
-                          }`}
+                                ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
+                                : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                            }`}
                         >
                           {displaySize}
                         </button>
@@ -574,13 +572,12 @@ export default function ProductDetail() {
                           key={v.id}
                           onClick={() => setSelectedVariant(v.id)}
                           disabled={v.stock === 0}
-                          className={`px-4 py-3 rounded-xl border-2 text-xs font-bold transition-all ${
-                            isSelected
+                          className={`px-4 py-3 rounded-xl border-2 text-xs font-bold transition-all ${isSelected
                               ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
                               : v.stock === 0
-                              ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
-                              : 'border-gray-200 text-gray-800 hover:border-gray-300'
-                          }`}
+                                ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
+                                : 'border-gray-200 text-gray-800 hover:border-gray-300'
+                            }`}
                         >
                           {label}
                           {v.stock === 0 && <span className="block text-[8px] uppercase text-rose-500">Out of Stock</span>}
@@ -611,13 +608,12 @@ export default function ProductDetail() {
                         key={v.id}
                         onClick={() => setSelectedVariant(v.id)}
                         disabled={v.stock === 0}
-                        className={`flex-shrink-0 min-w-[140px] p-3 rounded-2xl border-2 text-left transition-all snap-start flex flex-col justify-between gap-2 ${
-                          isSelected
+                        className={`flex-shrink-0 min-w-[140px] p-3 rounded-2xl border-2 text-left transition-all snap-start flex flex-col justify-between gap-2 ${isSelected
                             ? 'border-green-600 bg-green-50/80 shadow-md scale-[1.02]'
                             : v.stock === 0
-                            ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-50 cursor-not-allowed'
-                            : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
-                        }`}
+                              ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-50 cursor-not-allowed'
+                              : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           {v.image ? (
@@ -659,22 +655,20 @@ export default function ProductDetail() {
                       }
                     }}
                     disabled={!isLocationAvailable}
-                    className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
-                      !isLocationAvailable
+                    className={`flex-1 flex touch-target min-h-[44px] items-center justify-center gap-2 py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${!isLocationAvailable
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                         : 'bg-yellow-400 text-gray-950 shadow-yellow-100 hover:bg-yellow-300 active:scale-95'
-                    }`}
+                      }`}
                   >
                     <ShoppingCart className="w-5 h-5" /> {isInCart ? 'Go to Cart' : 'Add to Cart'}
                   </button>
                   <button
                     onClick={handleBuyNow}
                     disabled={!isLocationAvailable}
-                    className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${
-                      !isLocationAvailable
+                    className={`flex-1 touch-target min-h-[44px] py-5 rounded-xl font-black uppercase tracking-widest shadow-xl transition-all ${!isLocationAvailable
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                         : 'bg-amber-500 text-gray-950 shadow-amber-200 hover:bg-amber-400 active:scale-95'
-                    }`}
+                      }`}
                   >
                     Buy Now
                   </button>
@@ -683,9 +677,8 @@ export default function ProductDetail() {
                 <button
                   onClick={isOnWaitlist ? undefined : handleJoinWaitlist}
                   disabled={isOnWaitlist}
-                  className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
-                    isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
-                  }`}
+                  className={`w-full flex items-center justify-center gap-2 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all active:scale-95 ${isOnWaitlist ? 'bg-green-50 text-green-600 border-2 border-green-100 cursor-default shadow-none' : 'bg-green-600 text-white shadow-green-100 hover:bg-green-700'
+                    }`}
                 >
                   {isOnWaitlist ? <><Bell className="w-5 h-5" /> On Waitlist</> : <><Bell className="w-5 h-5" /> Notify Me When Available</>}
                 </button>
