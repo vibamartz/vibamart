@@ -274,14 +274,14 @@ export default function MobileWishlistScreen() {
               )}
 
               <div>
-                <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 p-1.5 flex items-center justify-center mb-1.5">
+                <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                   <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-contain" />
                 </div>
-                <h4 className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-tight min-h-[28px]">{product.name}</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-tight min-h-0">{product.name}</h4>
               </div>
 
               {/* Price */}
-              <div className="space-y-1.5 mt-2 pt-1 border-t border-gray-100">
+              <div className="space-y-1 mt-1 pt-1 border-t border-gray-100">
                 <div className="flex items-baseline gap-1">
                   <span className="text-xs font-black text-gray-900">₹{sellingPrice.toLocaleString()}</span>
                   {product.discountPrice && product.price > product.discountPrice && (
@@ -290,7 +290,7 @@ export default function MobileWishlistScreen() {
                 </div>
 
                 {/* Action Row: Add to Cart + Direct Delete Icon */}
-                <div className="flex items-center gap-1 pt-1">
+                <div className="flex items-center gap-1 pt-0.5">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -302,7 +302,7 @@ export default function MobileWishlistScreen() {
                         else navigate('/cart');
                       }
                     }}
-                    className={`flex-1 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1 ${
+                    className={`flex-1 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1 ${
                       isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
                     }`}
                   >
@@ -317,7 +317,7 @@ export default function MobileWishlistScreen() {
                     }}
                     title="Remove from wishlist"
                     aria-label="Remove from wishlist"
-                    className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 shrink-0"
+                    className="p-1 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 shrink-0"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

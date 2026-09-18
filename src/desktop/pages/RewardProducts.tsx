@@ -343,7 +343,7 @@ export default function RewardProducts() {
               >
                 <div>
                   {/* Product Image */}
-                  <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square overflow-hidden bg-gray-50/80 flex items-center justify-center p-3">
+                  <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square overflow-hidden bg-gray-50/80 flex items-center justify-center p-2">
                     <img
                       src={product.images?.[0] || 'https://via.placeholder.com/400?text=No+Image'}
                       alt={product.name}
@@ -352,14 +352,14 @@ export default function RewardProducts() {
 
                     {/* Discount % Badge */}
                     {discountPercent > 0 && (
-                      <span className="absolute top-3 left-3 px-2.5 py-1 bg-rose-500 text-white font-black text-[10px] rounded-lg shadow-sm">
+                      <span className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-lg shadow-sm">
                         {discountPercent}% OFF
                       </span>
                     )}
 
                     {/* Availability Tag */}
-                    <div className="absolute top-3 right-3">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shadow-sm ${
+                    <div className="absolute top-2.5 right-2.5">
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black shadow-sm ${
                         isOutOfStock ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-500 text-white'
                       }`}>
                         {isOutOfStock ? 'OUT OF STOCK' : `IN STOCK (${product.stock})`}
@@ -368,7 +368,7 @@ export default function RewardProducts() {
                   </Link>
 
                   {/* Body Content */}
-                  <div className="p-4 space-y-2">
+                  <div className="p-2.5 space-y-1">
                     <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
                       {product.brand || rewardCard.brandName}
                     </div>
@@ -380,7 +380,7 @@ export default function RewardProducts() {
                     </Link>
 
                     {/* Price Block */}
-                    <div className="flex items-baseline gap-2 pt-1">
+                    <div className="flex items-baseline gap-2 pt-0.5">
                       <span className="text-lg font-black text-gray-900">₹{sellingPrice}</span>
                       {mrpPrice && mrpPrice > sellingPrice && (
                         <span className="text-xs text-gray-400 line-through font-medium">₹{mrpPrice}</span>
@@ -390,11 +390,11 @@ export default function RewardProducts() {
                 </div>
 
                 {/* Actions */}
-                <div className="p-4 bg-gray-50/60 border-t border-gray-100 flex gap-2">
+                <div className="p-2.5 bg-gray-50/60 border-t border-gray-100 flex gap-2">
                   <button
                     onClick={(e) => handleAddToCart(product, e)}
                     disabled={isOutOfStock}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                       isOutOfStock
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : isInCart
@@ -409,7 +409,7 @@ export default function RewardProducts() {
                   <button
                     onClick={(e) => handleBuyNow(product, e)}
                     disabled={isOutOfStock}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
                       isOutOfStock
                         ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
                         : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'

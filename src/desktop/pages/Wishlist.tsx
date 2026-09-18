@@ -266,7 +266,7 @@ export default function Wishlist() {
                   )}
 
                   <Link to={`/products/${getProductSlug(product)}`} className="block group">
-                    <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 p-2 flex items-center justify-center mb-3">
+                    <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1.5 flex items-center justify-center mb-1.5">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300'}
                         alt={product.name}
@@ -274,13 +274,13 @@ export default function Wishlist() {
                       />
                     </div>
 
-                    <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors min-h-[40px]">
+                    <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors min-h-0">
                       {product.name}
                     </h3>
                   </Link>
 
                   {/* Price Info */}
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-1.5 space-y-1">
                     <div className="flex items-baseline gap-2">
                       <span className="text-lg font-black text-gray-900">₹{sellingPrice.toLocaleString()}</span>
                       {product.discountPrice && product.price > product.discountPrice && (

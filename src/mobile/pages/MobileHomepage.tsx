@@ -782,7 +782,7 @@ export default function MobileHomepage() {
             Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[175px]' : 'w-[clamp(185px,52vw,215px)] h-[225px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
               />
             ))
           ) : (
@@ -822,7 +822,7 @@ export default function MobileHomepage() {
             Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[175px]' : 'w-[clamp(185px,52vw,215px)] h-[225px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
               />
             ))
           ) : (
@@ -862,7 +862,7 @@ export default function MobileHomepage() {
             Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[215px]' : 'w-[clamp(185px,52vw,215px)] h-[275px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[175px]' : 'w-[clamp(185px,52vw,215px)] h-[225px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
               />
             ))
           ) : (
@@ -941,10 +941,10 @@ function MobileProductCardItem({
       <motion.div
         whileTap={{ scale: 0.97 }}
         onClick={onCardClick}
-        className={`w-[calc((100%-12px)/3)] bg-white ${cardRadius} p-1.5 shadow-xs border border-orange-100 flex flex-col justify-between snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0 h-[215px]`}
+        className={`w-[calc((100%-12px)/3)] bg-white ${cardRadius} p-1 shadow-xs border border-orange-100 flex flex-col justify-between snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0 h-[175px]`}
       >
         {/* Product Image (Clear aspect-contain) */}
-        <div className="relative w-full h-[90px] rounded-[10px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center shrink-0 mb-1">
+        <div className="relative w-full h-[72px] rounded-[10px] overflow-hidden bg-gray-50/80 p-0.5 flex items-center justify-center shrink-0 mb-0.5">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
             alt={product.name}
@@ -964,13 +964,13 @@ function MobileProductCardItem({
           <span className="text-[8px] font-black text-gray-400 uppercase tracking-wider truncate leading-none">
             {product.brand || 'ViBa Select'}
           </span>
-          <h4 className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-[1.25] mt-0.5 min-h-[25px]">
+          <h4 className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-[1.2] mt-0.5 min-h-0">
             {product.name}
           </h4>
         </div>
 
         {/* Pricing & Actions */}
-        <div className="mt-auto space-y-1 pt-1 border-t border-gray-100 min-w-0">
+        <div className="mt-auto space-y-0.5 pt-0.5 border-t border-gray-100 min-w-0">
           <div className="flex items-baseline gap-1 flex-wrap min-w-0">
             <span className="text-[11px] font-black text-gray-900 leading-tight">
               ₹{(product.discountPrice || product.price || 0).toLocaleString()}
@@ -1022,14 +1022,14 @@ function MobileProductCardItem({
       onClick={onCardClick}
       style={{
         width: 'clamp(185px, 52vw, 215px)',
-        height: 'clamp(275px, 75vw, 320px)'
+        height: 'clamp(210px, 56vw, 245px)'
       }}
-      className={`bg-white ${cardRadius} p-3 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
+      className={`bg-white ${cardRadius} p-2 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Clear object-contain) */}
       <div
-        style={{ height: 'clamp(120px, 34vw, 145px)' }}
-        className="relative w-full rounded-[14px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-2 shrink-0"
+        style={{ height: 'clamp(95px, 26vw, 115px)' }}
+        className="relative w-full rounded-[12px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0"
       >
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
@@ -1039,7 +1039,7 @@ function MobileProductCardItem({
         />
 
         {discountPercentage > 0 && (
-          <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm z-10">
+          <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm z-10">
             {discountPercentage}% OFF
           </span>
         )}
@@ -1057,7 +1057,7 @@ function MobileProductCardItem({
       </div>
 
       {/* Pricing & Actions */}
-      <div className="mt-auto space-y-2 pt-1 border-t border-gray-100 min-w-0">
+      <div className="mt-auto space-y-1 pt-1 border-t border-gray-100 min-w-0">
         <div className="flex items-baseline gap-1.5 flex-wrap">
           <span className="text-xs sm:text-sm font-black text-gray-900">
             ₹{(product.discountPrice || product.price || 0).toLocaleString()}
@@ -1074,7 +1074,7 @@ function MobileProductCardItem({
           {isInCart ? (
             <button
               onClick={onAddToCart}
-              className="w-full py-2 px-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 border border-blue-200 active:scale-95"
+              className="w-full py-1.5 px-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 border border-blue-200 active:scale-95"
             >
               <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
               Go to Cart
@@ -1084,14 +1084,14 @@ function MobileProductCardItem({
               <button
                 onClick={onAddToCart}
                 aria-label="Add to Cart"
-                className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
+                className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl transition-all flex items-center justify-center shrink-0 border border-emerald-200/60 active:scale-95"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
               </button>
 
               <button
                 onClick={onBuyNow}
-                className="flex-1 py-2 px-2 bg-gradient-to-r from-emerald-600 to-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-sm active:scale-95 transition-all text-center truncate"
+                className="flex-1 py-1.5 px-2 bg-gradient-to-r from-emerald-600 to-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider shadow-sm active:scale-95 transition-all text-center truncate"
               >
                 Buy Now
               </button>

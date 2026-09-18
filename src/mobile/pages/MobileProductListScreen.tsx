@@ -495,13 +495,13 @@ export default function MobileProductListScreen() {
                   key={product.id}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                  className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex gap-3 cursor-pointer group hover:shadow-md transition-all"
+                  className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex gap-2.5 cursor-pointer group hover:shadow-md transition-all"
                 >
-                  <div className="w-24 h-24 rounded-xl bg-gray-50 overflow-hidden relative shrink-0">
+                  <div className="w-20 h-20 rounded-xl bg-gray-50/80 p-1 overflow-hidden relative shrink-0 flex items-center justify-center">
                     <img 
                       src={product.images?.[0] || 'https://via.placeholder.com/150'} 
                       alt={product.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
                     />
                     {discountPct > 0 && (
                       <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[8px] font-black px-1 py-0.5 rounded">
@@ -518,10 +518,9 @@ export default function MobileProductListScreen() {
                       <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
                         {product.name}
                       </h4>
-
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-gray-100">
+                    <div className="flex items-center justify-between gap-2 mt-1 pt-0.5 border-t border-gray-100">
                       <div className="flex items-baseline gap-1">
                         <span className="text-sm font-black text-gray-900">
                           ₹{(product.discountPrice || product.price).toLocaleString()}
@@ -536,7 +535,7 @@ export default function MobileProductListScreen() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => handleAddToCart(e, product)}
-                          className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${
+                          className={`px-2 py-1 rounded-xl text-[9px] font-black uppercase transition-all ${
                             isInCart
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -546,7 +545,7 @@ export default function MobileProductListScreen() {
                         </button>
                         <button
                           onClick={(e) => handleBuyNow(e, product)}
-                          className="px-2.5 py-1.5 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
+                          className="px-2 py-1 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
                         >
                           Buy
                         </button>
@@ -562,32 +561,31 @@ export default function MobileProductListScreen() {
                 key={product.id}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
+                className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
               >
-                <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                   <img 
                     src={product.images?.[0] || 'https://via.placeholder.com/300'} 
                     alt={product.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
                   />
                   {discountPct > 0 && (
-                    <span className="absolute top-2 left-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                    <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
                       {discountPct}% OFF
                     </span>
                   )}
-
                 </div>
 
-                <div className="flex flex-col flex-1 min-w-0 mb-2">
+                <div className="flex flex-col flex-1 min-w-0 mb-1">
                   <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
                     {product.brand || 'ViBa Select'}
                   </span>
-                  <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5 min-h-[32px]">
+                  <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
                     {product.name}
                   </h4>
                 </div>
 
-                <div className="space-y-2 pt-1 border-t border-gray-100">
+                <div className="space-y-1 pt-1 border-t border-gray-100">
                   <div className="flex items-baseline gap-1">
                     <span className="text-sm font-black text-gray-900">
                       ₹{(product.discountPrice || product.price).toLocaleString()}
@@ -602,7 +600,7 @@ export default function MobileProductListScreen() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => handleAddToCart(e, product)}
-                      className={`flex-1 py-1.5 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider text-center transition-all ${
+                      className={`flex-1 py-1 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider text-center transition-all ${
                         isInCart
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -612,7 +610,7 @@ export default function MobileProductListScreen() {
                     </button>
                     <button
                       onClick={(e) => handleBuyNow(e, product)}
-                      className="py-1.5 px-2 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
+                      className="py-1 px-2 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
                     >
                       Buy Now
                     </button>

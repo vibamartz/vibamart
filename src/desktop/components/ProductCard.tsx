@@ -97,18 +97,18 @@ export default function ProductCard({ product }: ProductCardProps) {
         whileHover={{ y: -5, scale: 1.02 }}
         className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
       >
-        <div className="block relative aspect-[4/5] overflow-hidden bg-gray-50/80 p-2 flex items-center justify-center">
+        <div className="block relative aspect-square overflow-hidden bg-gray-50/80 p-1.5 flex items-center justify-center">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           
-          <div className="absolute inset-x-0 bottom-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
+          <div className="absolute inset-x-0 bottom-0 p-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-10 flex gap-2">
             {isInCart ? (
               <button 
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); navigate('/cart'); }}
-                className="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl"
+                className="flex-1 bg-green-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
                 Go to Cart
@@ -118,14 +118,14 @@ export default function ProductCard({ product }: ProductCardProps) {
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleAddToCart(e); }}
                   aria-label="Add to cart"
-                  className="p-2.5 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
+                  className="p-2 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
                 >
                   <ShoppingCart className="w-4 h-4" />
                 </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleBuyNow(e); }}
                   aria-label="Buy now"
-                  className="flex-1 min-h-[44px] bg-primary text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
+                  className="flex-1 min-h-[40px] bg-primary text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
                 >
                   Buy Now
                 </button>
@@ -134,14 +134,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {discountPercentage > 0 && (
-            <span className="absolute top-3 left-3 bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded">
+            <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
               {discountPercentage}% OFF
             </span>
           )}
           <button 
             onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
             aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-            className={`absolute top-3 right-3 p-2.5 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
+            className={`absolute top-2.5 right-2.5 p-2 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
               isWishlisted 
                 ? 'bg-rose-500 text-white' 
                 : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'
@@ -151,13 +151,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           </button>
         </div>
 
-        <div className="p-4 flex flex-col flex-1">
-          <span className="text-base font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-3">
+        <div className="p-2.5 flex flex-col flex-1">
+          <span className="text-sm font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
             {product.name}
           </span>
 
           {product.variants && product.variants.length > 0 ? (
-            <div className="mb-4 space-y-2" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 space-y-1" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
               </div>
@@ -166,7 +166,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                   value={selectedVariantId}
                   onChange={(e) => setSelectedVariantId(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full text-xs border-2 border-gray-100 rounded-xl py-2.5 px-4 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-black appearance-none cursor-pointer pr-10"
+                  className="w-full text-xs border-2 border-gray-100 rounded-xl py-1.5 px-3 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-black appearance-none cursor-pointer pr-8"
                 >
                   {product.variants.map((v) => (
                     <option key={v.id} value={v.id} disabled={v.stock === 0}>
@@ -174,24 +174,24 @@ export default function ProductCard({ product }: ProductCardProps) {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </div>
             </div>
           ) : null}
 
-          <div className="mt-auto flex items-end justify-between">
+          <div className="mt-auto flex items-end justify-between pt-1 border-t border-gray-50">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-gray-900">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base font-bold text-gray-900">
                   ₹{((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)).toLocaleString()}
                 </span>
                 {product.discountPrice && product.price && (
                   <span className="text-xs text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
                 {product.discountPrice && product.price && (
                   <span className="text-[10px] text-green-600 font-black">

@@ -351,26 +351,26 @@ export default function MobileRewardProductsScreen() {
                 >
                   <div>
                     {/* Image */}
-                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square bg-gray-50 overflow-hidden">
+                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square bg-gray-50/80 p-1 flex items-center justify-center overflow-hidden">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300?text=No+Image'}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                       {discountPercent > 0 && (
-                        <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-rose-500 text-white font-black text-[9px] rounded-md">
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-rose-500 text-white font-black text-[9px] rounded-md">
                           {discountPercent}% OFF
                         </span>
                       )}
                       {isOutOfStock && (
-                        <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black rounded-md border border-rose-200">
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black rounded-md border border-rose-200">
                           OUT OF STOCK
                         </span>
                       )}
                     </Link>
 
                     {/* Content */}
-                    <div className="p-3 space-y-1.5">
+                    <div className="p-2 space-y-1">
                       <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider block">
                         {product.brand || rewardCard.brandName}
                       </span>
@@ -390,11 +390,11 @@ export default function MobileRewardProductsScreen() {
                   </div>
 
                   {/* Actions */}
-                  <div className="p-2 bg-gray-50 border-t border-amber-100 flex flex-col gap-1.5">
+                  <div className="p-1.5 bg-gray-50 border-t border-amber-100 flex flex-col gap-1">
                     <button
                       onClick={(e) => handleAddToCart(product, e)}
                       disabled={isOutOfStock}
-                      className={`w-full py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 ${
+                      className={`w-full py-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 ${
                         isOutOfStock
                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : isInCart
@@ -409,7 +409,7 @@ export default function MobileRewardProductsScreen() {
                     <button
                       onClick={(e) => handleBuyNow(product, e)}
                       disabled={isOutOfStock}
-                      className={`w-full py-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 ${
+                      className={`w-full py-1 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 ${
                         isOutOfStock
                           ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
                           : 'bg-amber-500 text-white shadow'
