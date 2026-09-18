@@ -106,57 +106,22 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           
-          {!hideButtons && (
-            <div className={`absolute inset-x-0 bottom-0 p-2.5 transition-transform duration-300 z-10 flex gap-2 ${
-              showActionsAlways ? 'translate-y-0' : 'translate-y-full group-hover:translate-y-0'
-            }`}>
-              {isInCart ? (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); navigate('/cart'); }}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-green-700 transition-all shadow-xl"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" />
-                  Go to Cart
-                </button>
-              ) : (
-                <>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleAddToCart(e); }}
-                    aria-label="Add to cart"
-                    className="p-2 touch-target bg-white text-gray-900 rounded-xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleBuyNow(e); }}
-                    aria-label="Buy now"
-                    className="flex-1 min-h-[40px] bg-primary text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-hover transition-all shadow-xl"
-                  >
-                    Buy Now
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
           {discountPercentage > 0 && (
             <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
               {discountPercentage}% OFF
             </span>
           )}
-          {!hideButtons && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
-              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-              className={`absolute top-2.5 right-2.5 p-2 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
-                isWishlisted 
-                  ? 'bg-rose-500 text-white' 
-                  : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'
-              }`}
-            >
-              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
-            </button>
-          )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
+            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            className={`absolute top-2.5 right-2.5 p-2 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
+              isWishlisted 
+                ? 'bg-rose-500 text-white' 
+                : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+          </button>
         </div>
 
         <div className="p-2.5 flex flex-col flex-1">

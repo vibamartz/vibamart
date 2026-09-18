@@ -560,13 +560,13 @@ export default function Home() {
         {loading ? (
           <div className="flex gap-4 overflow-x-auto hide-scrollbar py-1">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-[190px] sm:w-[210px] h-[280px] bg-white rounded-2xl p-4 border border-gray-100 animate-pulse shrink-0" />
+              <div key={i} className="w-[165px] sm:w-[185px] h-[240px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse shrink-0" />
             ))}
           </div>
         ) : (
           <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
             {filteredProducts.slice(0, 8).map((product) => (
-              <div key={`still-looking-${product.id}`} className="w-[190px] sm:w-[210px] shrink-0 snap-start">
+              <div key={`still-looking-${product.id}`} className="w-[165px] sm:w-[185px] shrink-0 snap-start flex flex-col">
                 <ProductCard product={product} hideButtons={true} />
               </div>
             ))}

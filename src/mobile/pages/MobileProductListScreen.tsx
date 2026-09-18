@@ -531,25 +531,6 @@ export default function MobileProductListScreen() {
                           </span>
                         )}
                       </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => handleAddToCart(e, product)}
-                          className={`px-2 py-1 rounded-xl text-[9px] font-black uppercase transition-all ${
-                            isInCart
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}
-                        >
-                          {isInCart ? 'Go to Cart' : 'Add'}
-                        </button>
-                        <button
-                          onClick={(e) => handleBuyNow(e, product)}
-                          className="px-2 py-1 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
-                        >
-                          Buy
-                        </button>
-                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -585,7 +566,7 @@ export default function MobileProductListScreen() {
                   </h4>
                 </div>
 
-                <div className="space-y-1 pt-1 border-t border-gray-100">
+                <div className="pt-1 border-t border-gray-100">
                   <div className="flex items-baseline gap-1">
                     <span className="text-sm font-black text-gray-900">
                       ₹{(product.discountPrice || product.price).toLocaleString()}
@@ -595,25 +576,6 @@ export default function MobileProductListScreen() {
                         ₹{product.price.toLocaleString()}
                       </span>
                     )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={(e) => handleAddToCart(e, product)}
-                      className={`flex-1 py-1 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider text-center transition-all ${
-                        isInCart
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
-                      {isInCart ? 'Go to Cart' : 'Add'}
-                    </button>
-                    <button
-                      onClick={(e) => handleBuyNow(e, product)}
-                      className="py-1 px-2 bg-yellow-500 text-gray-950 rounded-xl text-[9px] font-black uppercase tracking-wider"
-                    >
-                      Buy Now
-                    </button>
                   </div>
                 </div>
               </motion.div>
