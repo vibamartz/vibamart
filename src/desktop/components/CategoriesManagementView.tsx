@@ -209,10 +209,10 @@ export default function CategoriesManagementView() {
       return;
     }
 
-    // Ensure category logo is present (Auto-generate if missing)
+    // Ensure category/subcategory logo is present (Auto-generate if missing)
     let finalLogo = formData.image;
     let finalIcon = formData.icon;
-    if (!finalLogo && modalType === 'category') {
+    if (!finalLogo) {
       const generated = generateCategoryLogo(formData.name, categories);
       finalLogo = generated.image;
       finalIcon = generated.icon;
@@ -244,6 +244,7 @@ export default function CategoriesManagementView() {
         
         if (!editingId && (parentCat.subcategories || []).length >= 30) {
           toast.error('Maximum limit of 30 subcategories per category reached.');
+          setIsSaving(false);
           return;
         }
 
@@ -279,6 +280,7 @@ export default function CategoriesManagementView() {
         const parentSub = parentCat.subcategories?.find(s => s.id === activeSubCatId);
         if (!editingId && (parentSub?.subcategories || []).length >= 30) {
           toast.error('Maximum limit of 30 nested subcategories per subcategory reached.');
+          setIsSaving(false);
           return;
         }
 

@@ -5217,7 +5217,7 @@ function CategoriesManagementView() {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
       const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories: newSubs }), { merge: true });
       toast.success('Subcategory image updated');
     } catch (e: any) {
       toast.error(`Failed to update image: ${e?.message || e}`);
@@ -5231,7 +5231,7 @@ function CategoriesManagementView() {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
       const newSubs = cat.subcategories?.filter(s => s.id !== subId) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories: newSubs });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories: newSubs }), { merge: true });
       toast.success('Subcategory deleted');
     } catch (e) {
       toast.error('Failed to delete subcategory');

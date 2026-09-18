@@ -12,6 +12,15 @@ export function isBase64OrDataUrl(str?: string | null): boolean {
   return str.startsWith('data:') || str.startsWith('blob:') || (str.length > 500 && !str.startsWith('http://') && !str.startsWith('https://'));
 }
 
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 8000): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Storage operation timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+};
+
 /**
  * Uploads a base64 data URL, Blob, or File to Firebase Storage and returns the download URL.
  * If it's already an HTTP/HTTPS URL, returns it as-is.
@@ -28,6 +37,23 @@ export async function uploadCategoryImageToStorage(
       return imageInput;
     }
 
+    // Handle Blob URL (blob:http...)
+    if (imageInput.startsWith('blob:')) {
+      try {
+        const res = await fetch(imageInput);
+        const blob = await res.blob();
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 8);
+        const ext = blob.type ? blob.type.split('/')[1] || 'png' : 'png';
+        const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.${ext}`);
+        await withTimeout(uploadBytes(storageRef, blob));
+        return await withTimeout(getDownloadURL(storageRef));
+      } catch (blobErr) {
+        console.warn('Failed to upload blob URL to Firebase Storage, using fallback:', blobErr);
+        return imageInput;
+      }
+    }
+
     // Handle Data URL (data:image/...)
     if (imageInput.startsWith('data:')) {
       try {
@@ -37,11 +63,11 @@ export async function uploadCategoryImageToStorage(
         const ext = formatMatch ? formatMatch[1] : 'png';
         const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.${ext}`);
         
-        await uploadString(storageRef, imageInput, 'data_url');
-        return await getDownloadURL(storageRef);
+        await withTimeout(uploadString(storageRef, imageInput, 'data_url'));
+        return await withTimeout(getDownloadURL(storageRef));
       } catch (err) {
-        console.error('Failed to upload base64 image to Firebase Storage:', err);
-        return '';
+        console.warn('Failed to upload base64 image to Firebase Storage, falling back to data URL:', err);
+        return imageInput;
       }
     }
 
@@ -52,15 +78,15 @@ export async function uploadCategoryImageToStorage(
         const randomStr = Math.random().toString(36).substring(2, 8);
         const dataUrl = imageInput.includes(';base64,') ? imageInput : `data:image/png;base64,${imageInput}`;
         const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.png`);
-        await uploadString(storageRef, dataUrl, 'data_url');
-        return await getDownloadURL(storageRef);
+        await withTimeout(uploadString(storageRef, dataUrl, 'data_url'));
+        return await withTimeout(getDownloadURL(storageRef));
       } catch (err) {
-        console.error('Failed to upload raw base64 to Firebase Storage:', err);
-        return '';
+        console.warn('Failed to upload raw base64 to Firebase Storage, falling back:', err);
+        return imageInput;
       }
     }
 
-    return imageInput.length < 500 ? imageInput : '';
+    return imageInput;
   }
 
   // Handle File or Blob object
@@ -70,10 +96,10 @@ export async function uploadCategoryImageToStorage(
       const randomStr = Math.random().toString(36).substring(2, 8);
       const ext = (imageInput as File).name ? (imageInput as File).name.split('.').pop() || 'png' : 'png';
       const storageRef = ref(storage, `${folderPath}/file_${timestamp}_${randomStr}.${ext}`);
-      await uploadBytes(storageRef, imageInput);
-      return await getDownloadURL(storageRef);
+      await withTimeout(uploadBytes(storageRef, imageInput));
+      return await withTimeout(getDownloadURL(storageRef));
     } catch (err) {
-      console.error('Failed to upload image file to Firebase Storage:', err);
+      console.warn('Failed to upload image file to Firebase Storage:', err);
       return '';
     }
   }
