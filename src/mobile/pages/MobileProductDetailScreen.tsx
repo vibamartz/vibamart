@@ -32,6 +32,38 @@ export default function MobileProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
+  const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMobileGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const width = e.currentTarget.clientWidth;
+    if (width > 0) {
+      const idx = Math.round(e.currentTarget.scrollLeft / width);
+      if (idx >= 0 && idx !== activeImageIndex) {
+        setActiveImageIndex(idx);
+      }
+    }
+  };
+
+  const scrollToMobileImage = (idx: number) => {
+    setActiveImageIndex(idx);
+    if (mobileGalleryRef.current) {
+      const width = mobileGalleryRef.current.clientWidth;
+      mobileGalleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+    }
+  };
+
+  const getComboLabel = (v: ProductVariant) => {
+    if (v.name && v.name.trim()) return v.name.trim();
+    const parts: string[] = [];
+    if (v.storage) parts.push(v.storage);
+    if (v.ram) parts.push(v.ram);
+    if (v.size || v.shoeSize) parts.push(v.size || v.shoeSize || '');
+    if (v.shade) parts.push(v.shade);
+    if (v.volume) parts.push(v.volume);
+    if (v.material) parts.push(v.material);
+    if (v.model) parts.push(v.model);
+    return parts.length > 0 ? parts.join(' + ') : `Variant ${v.id}`;
+  };
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
@@ -269,13 +301,24 @@ export default function MobileProductDetailScreen() {
       {/* Top Gallery */}
       <div className="bg-white relative">
         <div className="aspect-square w-full relative overflow-hidden bg-gray-50">
-          <img
-            src={activeImageSrc}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
+          <div
+            ref={mobileGalleryRef}
+            onScroll={handleMobileGalleryScroll}
+            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {images.map((img, idx) => (
+              <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1">
+                <img
+                  src={selectedVariant?.image && idx === activeImageIndex ? selectedVariant.image : img}
+                  alt={`${product.name} - ${idx + 1}`}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ))}
+          </div>
 
-          <div className="absolute top-3 right-3 flex items-center gap-2">
+          <div className="absolute top-3 right-3 flex items-center gap-2 z-10 pointer-events-auto">
             <button
               onClick={handleShare}
               aria-label="Share product"
@@ -293,22 +336,22 @@ export default function MobileProductDetailScreen() {
           </div>
 
           {discountPct > 0 && (
-            <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow">
+            <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow z-10">
               {discountPct}% OFF
             </span>
           )}
         </div>
 
         {images.length > 1 && (
-          <div className="flex justify-center gap-2 p-3 overflow-x-auto">
+          <div className="flex justify-center gap-2 p-3 overflow-x-auto scrollbar-none snap-x touch-pan-x">
             {images.map((img, idx) => (
               <button
                 key={idx}
-                onClick={() => setActiveImageIndex(idx)}
-                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImageIndex === idx && !selectedVariant?.image ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
+                onClick={() => scrollToMobileImage(idx)}
+                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start ${activeImageIndex === idx && !selectedVariant?.image ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
                   }`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <img src={img} alt="" className="w-full h-full object-contain" />
               </button>
             ))}
           </div>
@@ -328,7 +371,7 @@ export default function MobileProductDetailScreen() {
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100">
+          <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100 flex-wrap">
             <span className="text-2xl font-black text-gray-900">
               ₹{finalPrice.toLocaleString()}
             </span>
@@ -344,6 +387,11 @@ export default function MobileProductDetailScreen() {
             )}
           </div>
 
+          {currentStock > 0 && currentStock <= 5 && (
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black">
+              Only {currentStock} left in stock
+            </div>
+          )}
         </div>
 
         {/* Product Variants (Requirement 1 & 2) */}
@@ -387,12 +435,14 @@ export default function MobileProductDetailScreen() {
                             : 'bg-gray-50 text-gray-800 border-gray-200'
                         }`}
                       >
-                        {v.colorHex && (
+                        {v.image ? (
+                          <img src={v.image} alt={v.color || v.colorName} className="w-5 h-5 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
+                        ) : v.colorHex ? (
                           <span
                             className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block shrink-0"
                             style={{ backgroundColor: v.colorHex }}
                           />
-                        )}
+                        ) : null}
                         <span>{v.color || v.colorName}</span>
                       </button>
                     );
@@ -439,7 +489,7 @@ export default function MobileProductDetailScreen() {
                 <span className="text-[10px] font-black uppercase text-gray-500">Configuration</span>
                 <div className="flex flex-wrap gap-2">
                   {activeVariants.map((v) => {
-                    const label = [v.name, v.storage, v.ram, v.shade, v.volume, v.material, v.model].filter(Boolean).join(' • ');
+                    const label = getComboLabel(v);
                     if (!label) return null;
                     const isSelected = selectedVariantId === v.id;
                     return (
@@ -462,6 +512,58 @@ export default function MobileProductDetailScreen() {
                 </div>
               </div>
             )}
+
+            {/* Variant Prices - Scrollable Cards */}
+            <div className="space-y-1.5 pt-3 border-t border-gray-100">
+              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
+                Variant Prices & Options
+              </span>
+              <div
+                className="flex gap-2.5 overflow-x-auto pb-2 pt-1 scrollbar-none snap-x scroll-smooth touch-pan-x w-full"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+              >
+                {activeVariants.map((v) => {
+                  const isSelected = selectedVariantId === v.id;
+                  const vBasePrice = (v.price && v.price > 0) ? v.price : (product.discountPrice || product.price);
+                  const vTotalPrice = vBasePrice + (v.extraPrice || 0);
+                  const label = v.color || v.colorName || getComboLabel(v);
+
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVariantId(v.id)}
+                      disabled={v.stock === 0}
+                      className={`flex-shrink-0 min-w-[125px] p-2.5 rounded-xl border text-left transition-all snap-start flex flex-col justify-between gap-1.5 ${
+                        isSelected
+                          ? 'border-emerald-600 bg-emerald-50/80 shadow-xs ring-1 ring-emerald-600'
+                          : v.stock === 0
+                          ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
+                          : 'border-gray-200 bg-white text-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {v.image ? (
+                          <img src={v.image} alt={label} className="w-6 h-6 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
+                        ) : v.colorHex ? (
+                          <span className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0" style={{ backgroundColor: v.colorHex }} />
+                        ) : null}
+                        <span className="text-xs font-bold truncate max-w-[85px]">{label}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs font-black text-gray-900 block">₹{vTotalPrice.toLocaleString()}</span>
+                        {v.stock === 0 ? (
+                          <span className="text-[8px] font-extrabold text-rose-500 uppercase">Out of Stock</span>
+                        ) : v.stock <= 5 ? (
+                          <span className="text-[8px] font-extrabold text-amber-700 uppercase">{v.stock} Left</span>
+                        ) : (
+                          <span className="text-[8px] font-extrabold text-emerald-600 uppercase">In Stock</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
 

@@ -33,11 +33,43 @@ export default function ProductDetail() {
   const { selectedAddress } = useLocationStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
+  const galleryRef = React.useRef<HTMLDivElement>(null);
   const [notFound, setNotFound] = useState(false);
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(true);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
+
+  const handleGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const width = e.currentTarget.clientWidth;
+    if (width > 0) {
+      const idx = Math.round(e.currentTarget.scrollLeft / width);
+      if (idx >= 0 && idx !== selectedImage) {
+        setSelectedImage(idx);
+      }
+    }
+  };
+
+  const scrollToImage = (idx: number) => {
+    setSelectedImage(idx);
+    if (galleryRef.current) {
+      const width = galleryRef.current.clientWidth;
+      galleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+    }
+  };
+
+  const getComboLabel = (v: ProductVariant) => {
+    if (v.name && v.name.trim()) return v.name.trim();
+    const parts: string[] = [];
+    if (v.storage) parts.push(v.storage);
+    if (v.ram) parts.push(v.ram);
+    if (v.size || v.shoeSize) parts.push(v.size || v.shoeSize || '');
+    if (v.shade) parts.push(v.shade);
+    if (v.volume) parts.push(v.volume);
+    if (v.material) parts.push(v.material);
+    if (v.model) parts.push(v.model);
+    return parts.length > 0 ? parts.join(' + ') : `Variant ${v.id}`;
+  };
 
   // Evaluate location availability when product or selectedAddress changes
   useEffect(() => {
@@ -326,13 +358,24 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-white sm:rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-12">
         {/* Left: Image Gallery */}
         <div className="w-full lg:flex-1 space-y-4">
-          <div className="relative aspect-[1/1] sm:aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50/80 border border-gray-100 lg:sticky lg:top-24 flex items-center justify-center p-3 sm:p-4">
-            <img
-              src={activeImageSrc}
-              alt={product.name}
-              className="w-full h-full object-contain drop-shadow-sm"
-            />
-            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+          <div className="relative aspect-square sm:aspect-[4/5] max-h-[520px] w-full overflow-hidden rounded-2xl bg-gray-50/80 border border-gray-100 lg:sticky lg:top-24 flex items-center justify-center p-3 sm:p-4">
+            <div
+              ref={galleryRef}
+              onScroll={handleGalleryScroll}
+              className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {(product.images && product.images.length > 0 ? product.images : [activeImageSrc]).map((img, idx) => (
+                <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-2">
+                  <img
+                    src={currentVariant?.image && idx === selectedImage ? currentVariant.image : img}
+                    alt={`${product.name} - ${idx + 1}`}
+                    className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-sm transition-all duration-200"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 pointer-events-auto">
               <button
                 onClick={handleToggleWishlist}
                 aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
@@ -351,17 +394,19 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
-            {(product.images || []).map((img, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedImage(idx)}
-                className={`aspect-square rounded-xl overflow-hidden border-2 transition-all bg-gray-50/50 p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600' : 'border-transparent opacity-60'}`}
-              >
-                <img src={img} alt="" className="w-full h-full object-contain" />
-              </button>
-            ))}
-          </div>
+          {(product.images || []).length > 1 && (
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x touch-pan-x">
+              {(product.images || []).map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => scrollToImage(idx)}
+                  className={`w-20 h-20 shrink-0 snap-start rounded-xl overflow-hidden border-2 transition-all bg-gray-50/50 p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600 scale-105' : 'border-gray-200 opacity-60 hover:opacity-100'}`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-contain" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right: Info & Variants */}
@@ -394,13 +439,18 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6 mt-6">
+          <div className="flex items-center gap-4 mt-6 flex-wrap">
             {product.isStockVisible !== false && (
               currentStock > 0 ? (
                 <span className="text-[10px] font-black text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wider">In Stock</span>
               ) : (
                 <span className="text-[10px] font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">Out of Stock</span>
               )
+            )}
+            {currentStock > 0 && currentStock <= 5 && (
+              <span className="text-xs font-black text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-1 rounded-full uppercase tracking-wider">
+                Only {currentStock} left in stock
+              </span>
             )}
           </div>
 
@@ -411,7 +461,7 @@ export default function ProductDetail() {
               {currentVariant && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                    Selected Variant: <span className="text-gray-900 font-extrabold">{currentVariant.name || currentVariant.color || currentVariant.size || 'Default'}</span>
+                    Selected Variant: <span className="text-gray-900 font-extrabold">{currentVariant.name || currentVariant.color || getComboLabel(currentVariant)}</span>
                   </span>
                   {product.sizeChart && (
                     <button
@@ -442,7 +492,7 @@ export default function ProductDetail() {
                           key={v.id}
                           onClick={() => setSelectedVariant(v.id)}
                           disabled={v.stock === 0}
-                          className={`px-4 py-2.5 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${
+                          className={`px-3.5 py-2.5 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${
                             isSelected
                               ? 'border-green-600 bg-green-50 text-green-700 shadow-sm'
                               : v.stock === 0
@@ -450,12 +500,14 @@ export default function ProductDetail() {
                               : 'border-gray-200 text-gray-700 hover:border-gray-300'
                           }`}
                         >
-                          {v.colorHex && (
+                          {v.image ? (
+                            <img src={v.image} alt={v.color || v.colorName} className="w-7 h-7 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
+                          ) : v.colorHex ? (
                             <span
                               className="w-4 h-4 rounded-full border border-gray-300 inline-block shrink-0 shadow-xs"
                               style={{ backgroundColor: v.colorHex }}
                             />
-                          )}
+                          ) : null}
                           <span>{v.color || v.colorName}</span>
                           {v.stock === 0 && <span className="text-[8px] text-rose-500 uppercase">(Out of stock)</span>}
                         </button>
@@ -514,7 +566,7 @@ export default function ProductDetail() {
                   <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Options & Configuration</span>
                   <div className="flex flex-wrap gap-2">
                     {activeVariants.map((v) => {
-                      const label = [v.name, v.storage, v.ram, v.shade, v.volume, v.material, v.model].filter(Boolean).join(' • ');
+                      const label = getComboLabel(v);
                       if (!label) return null;
                       const isSelected = selectedVariant === v.id;
                       return (
@@ -538,6 +590,58 @@ export default function ProductDetail() {
                   </div>
                 </div>
               )}
+
+              {/* Variant Prices - Scrollable Cards */}
+              <div className="space-y-2 pt-4 border-t border-gray-100">
+                <span className="text-xs font-black text-gray-500 uppercase tracking-widest block">
+                  Variant Pricing & Options
+                </span>
+                <div
+                  className="flex gap-3 overflow-x-auto pb-3 pt-1 scrollbar-none snap-x scroll-smooth touch-pan-x w-full"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+                >
+                  {activeVariants.map((v) => {
+                    const isSelected = selectedVariant === v.id;
+                    const vBasePrice = (v.price && v.price > 0) ? v.price : (product.discountPrice || product.price);
+                    const vTotalPrice = vBasePrice + (v.extraPrice || 0);
+                    const label = v.color || v.colorName || getComboLabel(v);
+
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v.id)}
+                        disabled={v.stock === 0}
+                        className={`flex-shrink-0 min-w-[140px] p-3 rounded-2xl border-2 text-left transition-all snap-start flex flex-col justify-between gap-2 ${
+                          isSelected
+                            ? 'border-green-600 bg-green-50/80 shadow-md scale-[1.02]'
+                            : v.stock === 0
+                            ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-50 cursor-not-allowed'
+                            : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {v.image ? (
+                            <img src={v.image} alt={label} className="w-8 h-8 object-contain rounded-lg border border-gray-200 bg-white shrink-0" />
+                          ) : v.colorHex ? (
+                            <span className="w-4 h-4 rounded-full border border-gray-300 shrink-0" style={{ backgroundColor: v.colorHex }} />
+                          ) : null}
+                          <span className="text-xs font-black truncate max-w-[100px]">{label}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-black text-gray-900 block">₹{vTotalPrice.toLocaleString()}</span>
+                          {v.stock === 0 ? (
+                            <span className="text-[9px] font-extrabold text-rose-500 uppercase">Out of Stock</span>
+                          ) : v.stock <= 5 ? (
+                            <span className="text-[9px] font-extrabold text-amber-700 uppercase">{v.stock} Left</span>
+                          ) : (
+                            <span className="text-[9px] font-extrabold text-green-600 uppercase">In Stock</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
