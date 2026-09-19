@@ -361,7 +361,7 @@ export default function MobileCategoriesScreen() {
                             onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                             className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
                           >
-                            <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                            <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                               <img
                                 src={product.images?.[0] || 'https://via.placeholder.com/200'}
                                 alt={product.name}
@@ -378,7 +378,7 @@ export default function MobileCategoriesScreen() {
                               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
                                 {product.brand || 'ViBa Select'}
                               </span>
-                              <h5 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
+                              <h5 className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
                                 {product.name}
                               </h5>
                             </div>

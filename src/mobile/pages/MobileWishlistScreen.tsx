@@ -274,10 +274,10 @@ export default function MobileWishlistScreen() {
               )}
 
               <div>
-                <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                   <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-contain" />
                 </div>
-                <h4 className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-tight min-h-0">{product.name}</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate leading-tight min-h-0">{product.name}</h4>
               </div>
 
               {/* Price */}

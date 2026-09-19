@@ -70,10 +70,10 @@ function MobileRecentlyViewedSection() {
                 className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                  <div className="w-full aspect-[4/5] rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
                     <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
-                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
+                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>
                   <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
                 </div>
                 <button
@@ -158,10 +158,10 @@ function MobileWishlistSection() {
                 className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                  <div className="w-full aspect-[4/5] rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
                     <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
-                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 mt-1">{product.name}</p>
+                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>
                   <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
                 </div>
                 <button
@@ -371,7 +371,7 @@ export default function MobileCartScreen() {
                         </span>
                         <h4
                           onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                          className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight cursor-pointer"
+                          className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight cursor-pointer"
                         >
                           {product.name}
                         </h4>

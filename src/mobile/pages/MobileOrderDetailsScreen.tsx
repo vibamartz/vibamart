@@ -726,7 +726,7 @@ export default function MobileOrderDetailsScreen() {
           <div className="grid grid-cols-2 gap-3">
             {recommendedProducts.map((p) => (
               <Link key={p.id} to={`/products/${p.slug || p.id}`} className="py-2 flex flex-col justify-between group">
-                <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden mb-2 border border-gray-100 group-hover:opacity-90 transition-opacity">
+                <div className="aspect-[4/5] bg-gray-50 rounded-lg overflow-hidden mb-2 border border-gray-100 group-hover:opacity-90 transition-opacity">
                   <img src={p.image || p.images?.[0]} alt={p.name} className="w-full h-full object-cover" />
                 </div>
                 <div>

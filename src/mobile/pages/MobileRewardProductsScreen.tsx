@@ -351,7 +351,7 @@ export default function MobileRewardProductsScreen() {
                 >
                   <div>
                     {/* Image */}
-                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square bg-gray-50/80 p-1 flex items-center justify-center overflow-hidden">
+                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-[4/5] bg-gray-50/80 p-1 flex items-center justify-center overflow-hidden">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300?text=No+Image'}
                         alt={product.name}
@@ -375,7 +375,7 @@ export default function MobileRewardProductsScreen() {
                         {product.brand || rewardCard.brandName}
                       </span>
                       <Link to={`/products/${getProductSlug(product)}`} className="block">
-                        <h4 className="font-bold text-gray-900 text-xs line-clamp-2 leading-tight">
+                        <h4 className="font-bold text-gray-900 text-xs line-clamp-1 truncate leading-tight">
                           {product.name}
                         </h4>
                       </Link>

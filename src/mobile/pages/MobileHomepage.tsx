@@ -936,7 +936,7 @@ function MobileProductCardItem({
         className={`w-[calc((100%-12px)/3)] bg-white ${cardRadius} p-1 shadow-xs border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
       >
         {/* Product Image (Clear aspect-contain) */}
-        <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-gray-50/80 p-0.5 flex items-center justify-center shrink-0 mb-0.5">
+        <div className="relative w-full aspect-[4/5] rounded-[10px] overflow-hidden bg-gray-50/80 p-0.5 flex items-center justify-center shrink-0 mb-0.5">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
             alt={product.name}
@@ -956,7 +956,7 @@ function MobileProductCardItem({
           <span className="text-[8px] font-black text-gray-400 uppercase tracking-wider truncate leading-none">
             {product.brand || 'ViBa Select'}
           </span>
-          <h4 className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-[1.2] mt-0.5 min-h-0">
+          <h4 className="text-[10px] font-bold text-gray-900 line-clamp-1 truncate leading-[1.2] mt-0.5 min-h-0">
             {product.name}
           </h4>
         </div>
@@ -985,7 +985,7 @@ function MobileProductCardItem({
       className={`w-[145px] sm:w-[165px] bg-white ${cardRadius} p-2 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Clear object-contain) */}
-      <div className="relative w-full aspect-square rounded-[12px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0">
+      <div className="relative w-full aspect-[4/5] rounded-[12px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
@@ -1000,12 +1000,12 @@ function MobileProductCardItem({
         )}
       </div>
 
-      {/* Brand & Name (Max 2 lines) */}
+      {/* Brand & Name (Max 1 line) */}
       <div className="flex flex-col flex-1 min-w-0 mb-1">
         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
           {product.brand || 'ViBa Select'}
         </span>
-        <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mt-0.5">
+        <h4 className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
           {product.name}
         </h4>
       </div>

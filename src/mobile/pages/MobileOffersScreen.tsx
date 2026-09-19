@@ -98,13 +98,13 @@ export default function MobileOffersScreen() {
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                 className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group"
               >
-                <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50 mb-2">
+                <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 mb-2">
                   <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" />
                   <span className="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded">
                     {discountPct}% OFF
                   </span>
                 </div>
-                <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight">{product.name}</h4>
+                <h4 className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight">{product.name}</h4>
                 <div className="flex items-baseline gap-1 mt-2 pt-1 border-t border-gray-100">
                   <span className="text-sm font-black text-gray-900">₹{(product.discountPrice || product.price).toLocaleString()}</span>
                   <span className="text-[10px] text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
