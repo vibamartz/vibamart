@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
       'process.env.RAZORPAY_KEY_ID': JSON.stringify(env.RAZORPAY_KEY_ID || ''),
       'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(env.GOOGLE_MAPS_PLATFORM_KEY || env.VITE_GOOGLE_MAPS_PLATFORM_KEY || ''),
       'process.env.FIREBASE_CONFIG': JSON.stringify(getFirebaseConfig(env)),
+      'process.env.FIREBASE_VAPID_KEY': JSON.stringify(env.VITE_FIREBASE_VAPID_KEY || env.FIREBASE_VAPID_KEY || 'BI5XgN7vW8KlbVFVtIB_Wq4ncDE0aqbbWMGllCIKRIbeO2fCoNQP6DnCAJ6ZuFGO9sHulaJrwGP5C_VvSJ9xDgY'),
     },
     resolve: {
       alias: {

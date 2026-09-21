@@ -86,12 +86,12 @@ export class PushService {
       const reg = swRegistration || (await this.registerServiceWorker());
       if (!reg) return null;
 
-      // VAPID key from environment variables if provided
+      // VAPID key (Web Push Certificate Key)
       // @ts-ignore
-      const vapidKey = process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || undefined;
+      const vapidKey = process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || 'BI5XgN7vW8KlbVFVtIB_Wq4ncDE0aqbbWMGllCIKRIbeO2fCoNQP6DnCAJ6ZuFGO9sHulaJrwGP5C_VvSJ9xDgY';
 
       const token = await getToken(messaging, {
-        vapidKey: vapidKey || undefined,
+        vapidKey,
         serviceWorkerRegistration: reg,
       });
 
