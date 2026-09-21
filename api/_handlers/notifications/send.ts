@@ -98,36 +98,31 @@ export default async function handler(req: any, res: any) {
         provider: 'fcm_web_push',
       });
 
-      // Try sending FCM push notification if device tokens exist for this user
-      if (uid !== 'all') {
-        try {
-          const deviceSnaps = await db.collection('notification_devices')
-            .where('userId', '==', uid)
-            .where('isEnabled', '==', true)
-            .get();
-
-          const tokens = deviceSnaps.docs
-            .map((d: any) => d.data()?.token)
-            .filter((t: string) => t && !t.startsWith('viba_web_'));
-
-          if (tokens.length > 0) {
-            await messaging.sendEachForMulticast({
-              tokens,
-              notification: {
-                title,
-                body: message,
-                imageUrl: image || undefined,
-              },
-              data: {
-                destinationSlug,
-                category,
-                notificationId: notifRef.id,
-              },
-            });
-          }
-        } catch (fcmErr) {
-          console.warn(`FCM multicast warn for user ${uid}:`, fcmErr);
+      // Try sending FCM push notification if device tokens exist for this user or target='all'
+      try {
+        let deviceQuery: any = db.collection('notification_devices').where('isEnabled', '==', true);
+        if (uid !== 'all') {
+          deviceQuery = deviceQuery.where('userId', '==', uid);
         }
+
+        const deviceSnaps = await deviceQuery.get();
+        const deviceDocs = deviceSnaps.docs
+          .map((d: any) => ({ docId: d.id, userId: d.data()?.userId, token: d.data()?.token }))
+          .filter((item: any) => item.token && typeof item.token === 'string');
+
+        if (deviceDocs.length > 0) {
+          const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, deviceDocs, {
+            title,
+            message,
+            image,
+            destinationSlug,
+            category,
+            notificationId: notifRef.id,
+          });
+          console.log(`FCM Multicast result for ${uid}: ${fcmRes.successCount} succeeded, ${fcmRes.failureCount} failed.`);
+        }
+      } catch (fcmErr) {
+        console.warn(`FCM multicast warn for user ${uid}:`, fcmErr);
       }
     }
 
@@ -144,3 +139,74 @@ export default async function handler(req: any, res: any) {
     });
   }
 }
+
+export async function sendFcmMulticastWithCleanup(
+  db: admin.firestore.Firestore,
+  messaging: admin.messaging.Messaging,
+  deviceDocs: Array<{ docId: string; token: string; userId?: string }>,
+  payload: { title: string; message: string; image?: string; destinationSlug: string; category: string; notificationId: string }
+) {
+  if (deviceDocs.length === 0) return { successCount: 0, failureCount: 0 };
+
+  const tokenList = deviceDocs.map(d => d.token);
+  try {
+    const batchResponse = await messaging.sendEachForMulticast({
+      tokens: tokenList,
+      notification: {
+        title: payload.title,
+        body: payload.message,
+        imageUrl: payload.image || undefined,
+      },
+      data: {
+        destinationSlug: payload.destinationSlug || '/',
+        category: payload.category || 'offers',
+        notificationId: payload.notificationId,
+        title: payload.title,
+        message: payload.message,
+      },
+      webpush: {
+        fcmOptions: {
+          link: payload.destinationSlug || '/',
+        },
+        notification: {
+          title: payload.title,
+          body: payload.message,
+          icon: '/favicon.ico',
+          image: payload.image || undefined,
+        },
+      },
+    });
+
+    let successCount = batchResponse.successCount;
+    let failureCount = batchResponse.failureCount;
+
+    if (batchResponse.responses && batchResponse.responses.length > 0) {
+      for (let i = 0; i < batchResponse.responses.length; i++) {
+        const resp = batchResponse.responses[i];
+        if (!resp.success) {
+          const item = deviceDocs[i];
+          const errCode = resp.error?.code || 'unknown';
+          const errMsg = resp.error?.message || String(resp.error);
+
+          console.error(`[FCM Delivery Failure] User: ${item.userId || 'unknown'} | Token: ${item.token.slice(0, 15)}... | Error: ${errCode} - ${errMsg}`);
+
+          if (
+            errCode === 'messaging/invalid-registration-token' ||
+            errCode === 'messaging/registration-token-not-registered' ||
+            errMsg.includes('not-registered') ||
+            errMsg.includes('invalid')
+          ) {
+            console.log(`[FCM Cleanup] Removing invalid FCM token document: ${item.docId}`);
+            await db.collection('notification_devices').doc(item.docId).delete().catch(() => {});
+          }
+        }
+      }
+    }
+
+    return { successCount, failureCount };
+  } catch (err: any) {
+    console.error('[FCM Multicast Execution Error]', err);
+    return { successCount: 0, failureCount: deviceDocs.length };
+  }
+}
+

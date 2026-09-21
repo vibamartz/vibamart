@@ -12,6 +12,7 @@ import cancelHandler from "./api/_handlers/orders/cancel";
 import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
+import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
 
 
@@ -865,6 +866,9 @@ async function startServer() {
       res.status(500).json({ success: false, error: err.message || "Registration failed" });
     }
   });
+
+  // Send FCM Push Notification API
+  app.post(["/api/notifications/send", "/notifications/send"], sendNotificationHandler);
 
   // Campaigns API
   app.all(["/api/campaigns/manage", "/api/campaigns/create"], async (req, res) => {

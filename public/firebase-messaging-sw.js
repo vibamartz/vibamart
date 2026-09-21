@@ -3,8 +3,27 @@
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
-// Initialize Firebase App in Service Worker
-const firebaseConfig = {
+// Parse firebase config from service worker script URL parameters if provided
+function getConfigFromUrl() {
+  try {
+    const urlParams = new URLSearchParams(self.location.search);
+    const apiKey = urlParams.get('apiKey');
+    const projectId = urlParams.get('projectId');
+    if (apiKey && projectId) {
+      return {
+        apiKey: apiKey,
+        authDomain: urlParams.get('authDomain') || `${projectId}.firebaseapp.com`,
+        projectId: projectId,
+        storageBucket: urlParams.get('storageBucket') || `${projectId}.appspot.com`,
+        messagingSenderId: urlParams.get('messagingSenderId') || '',
+        appId: urlParams.get('appId') || '',
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+const defaultConfig = {
   apiKey: "AIzaSyDummyApiKeyForViBaMartConfig",
   authDomain: "viba-mart.firebaseapp.com",
   projectId: "viba-mart",
@@ -13,9 +32,13 @@ const firebaseConfig = {
   appId: "1:1083492847291:web:viba1234567890"
 };
 
+const firebaseConfig = getConfigFromUrl() || defaultConfig;
+
 try {
   if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
     const messaging = firebase.messaging();
 
     messaging.onBackgroundMessage((payload) => {
@@ -23,20 +46,21 @@ try {
 
       const notificationTitle = payload.notification?.title || payload.data?.title || 'ViBa Mart Alert';
       const notificationOptions = {
-        body: payload.notification?.body || payload.data?.message || 'Check out latest deals on ViBa Mart!',
+        body: payload.notification?.body || payload.data?.message || payload.data?.body || 'Check out latest deals on ViBa Mart!',
         icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
         badge: '/favicon.ico',
-        image: payload.notification?.image || payload.data?.image || undefined,
-        tag: payload.data?.tag || 'viba-push-alert',
+        image: payload.notification?.image || payload.notification?.imageUrl || payload.data?.image || undefined,
+        tag: payload.data?.tag || payload.data?.notificationId || 'viba-push-alert',
         data: {
           url: payload.data?.destinationSlug || payload.data?.url || '/',
           orderId: payload.data?.orderId,
           productId: payload.data?.productId,
           campaignId: payload.data?.campaignId,
+          notificationId: payload.data?.notificationId,
         }
       };
 
-      self.registration.showNotification(notificationTitle, notificationOptions);
+      return self.registration.showNotification(notificationTitle, notificationOptions);
     });
   }
 } catch (err) {

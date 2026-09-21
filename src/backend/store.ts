@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, d
 import { onAuthStateChanged, User } from "firebase/auth";
 import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
 import { sanitizeAndUploadCategoryDoc } from "./services/categoryStorageService";
+import { PushService } from "./services/pushService";
 
 
 interface AuthState {
@@ -108,6 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (lastUid) {
           // Completely clear the local session data for the previous account to prevent leakage
           localStorage.removeItem(`viba_cart_${lastUid}`);
+          PushService.handleLogout(lastUid);
         }
         localStorage.removeItem("viba_last_uid");
         useCartStore.getState().setUid(null);

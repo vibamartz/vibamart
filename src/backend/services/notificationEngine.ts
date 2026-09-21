@@ -219,13 +219,40 @@ export class NotificationEngine {
       const docRef = await addDoc(collection(db, 'user_notifications'), sanitizeFirestoreData(notifData));
       const notificationId = docRef.id;
 
-      // Step 4: Dispatch Web Push if supported and current user matches
+      // Step 4: Local Notification & Backend FCM Push Dispatch
       PushService.showLocalPush(params.title, {
         body: params.message,
         image: params.image,
         destinationSlug: params.destinationSlug,
         tag: `viba_${params.category}_${notificationId.slice(-6)}`,
       });
+
+      // Dispatch to Backend FCM Web Push endpoint so background & offline mobile devices receive push tray alerts
+      try {
+        await fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: params.userId,
+            target: params.userId === 'all' ? 'all' : 'user',
+            category: params.category,
+            title: params.title,
+            message: params.message,
+            image: params.image,
+            destinationSlug: params.destinationSlug || '/',
+            ctaText: params.ctaText || 'View Details',
+            priority: params.priority || 'high',
+            campaignId: params.campaignId,
+            templateId: params.templateId,
+            productId: params.productId,
+            categoryId: params.categoryId,
+            orderId: params.orderId,
+            couponCode: params.couponCode,
+          }),
+        });
+      } catch (fcmApiErr) {
+        console.warn('Backend FCM push API dispatch error:', fcmApiErr);
+      }
 
       // Step 5: Log to notification audit logs
       const logRecord: NotificationLog = {

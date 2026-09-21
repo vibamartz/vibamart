@@ -18,10 +18,31 @@ export default function GlobalPushNotificationListener() {
   const seenNotifIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
 
-  // Initialize Push System on Startup
+  // Initialize Push System on Startup & attach FCM Foreground message listener
   useEffect(() => {
     const uid = user?.uid || 'guest';
     PushService.initializePushSystem(uid);
+
+    // Attach FCM Foreground listener
+    let unsubFcm: (() => void) | null = null;
+    PushService.onForegroundMessage((payload) => {
+      const notif: CustomerNotification = {
+        id: payload.data?.notificationId || `fcm_${Date.now()}`,
+        userId: user?.uid || 'guest',
+        category: (payload.data?.category as any) || 'offers',
+        title: payload.notification?.title || payload.data?.title || 'ViBa Mart Alert',
+        message: payload.notification?.body || payload.data?.message || 'New update received!',
+        image: payload.notification?.image || payload.data?.image || '',
+        destinationSlug: payload.data?.destinationSlug || payload.data?.url || '/',
+        ctaText: 'View Details',
+        priority: 'high',
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+      setActiveBannerNotif(notif);
+    }).then(unsub => {
+      if (typeof unsub === 'function') unsubFcm = unsub;
+    });
 
     // Check permission state
     const perm = PushService.getPermission();
@@ -32,7 +53,12 @@ export default function GlobalPushNotificationListener() {
         setShowPromptBar(true);
       }
     }
+
+    return () => {
+      if (unsubFcm) unsubFcm();
+    };
   }, [user]);
+
 
   // Listen for live push notifications targeting user or 'all'
   useEffect(() => {

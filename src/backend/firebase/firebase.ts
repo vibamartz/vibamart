@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getMessaging, isSupported, Messaging } from "firebase/messaging";
 
 // @ts-ignore
 const firebaseConfig = process.env.FIREBASE_CONFIG || {};
@@ -18,6 +19,25 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+export let messaging: Messaging | null = null;
+
+export const getFcmMessaging = async (): Promise<Messaging | null> => {
+  if (messaging) return messaging;
+  if (typeof window !== 'undefined') {
+    try {
+      const supported = await isSupported();
+      if (supported) {
+        messaging = getMessaging(app);
+        return messaging;
+      }
+    } catch (e) {
+      console.warn("FCM messaging is not supported in this environment:", e);
+    }
+  }
+  return null;
+};
+
 
 // Connectivity check
 async function testConnection() {
