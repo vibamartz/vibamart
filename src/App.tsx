@@ -8,6 +8,7 @@ import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useR
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
+import GlobalPushNotificationListener from './shared/components/GlobalPushNotificationListener';
 
 // Desktop UI (Isolated Desktop Fronted)
 import Navbar from './desktop/components/Navbar';
@@ -282,6 +283,7 @@ export default function App() {
       <SplashScreen isVisible={showSplash} />
       <Router>
         <ScrollToTop />
+        <GlobalPushNotificationListener />
         <MainAppRoutes />
         <Toaster 
           position="bottom-right"

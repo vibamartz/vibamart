@@ -35,10 +35,36 @@ export class PushService {
   }
 
   /**
-   * Register or update the current device in Firestore
+   * Register Service Worker for FCM Web Push Notifications
+   */
+  public static async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        console.log('FCM Push Service Worker registered successfully:', registration.scope);
+        return registration;
+      } catch (err) {
+        console.warn('Service worker registration failed:', err);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Initialize full push system on startup
+   */
+  public static async initializePushSystem(userId?: string): Promise<void> {
+    await this.registerServiceWorker();
+    if (userId) {
+      await this.registerDevice(userId);
+    }
+  }
+
+  /**
+   * Register or update the current device in Firestore and Backend API
    */
   public static async registerDevice(userId: string): Promise<NotificationDevice | null> {
-    if (!this.isSupported() || !userId) return null;
+    if (!userId) return null;
 
     try {
       const permission = this.getPermission();
@@ -50,9 +76,9 @@ export class PushService {
         localStorage.setItem(DEVICE_STORAGE_KEY, deviceToken);
       }
 
-      const platform: 'web' | 'android' | 'ios' = /android/i.test(navigator.userAgent)
+      const platform: 'web' | 'android' | 'ios' = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
         ? 'android'
-        : /iphone|ipad|ipod/i.test(navigator.userAgent)
+        : typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
         ? 'ios'
         : 'web';
 
@@ -60,8 +86,8 @@ export class PushService {
         userId,
         token: deviceToken,
         platform,
-        userAgent: navigator.userAgent.slice(0, 200),
-        deviceModel: navigator.platform || 'Browser',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : 'Web',
+        deviceModel: typeof navigator !== 'undefined' ? (navigator.platform || 'Mobile Device') : 'Mobile Device',
         isEnabled: permission === 'granted',
         permissionState: permission,
         createdAt: new Date().toISOString(),
@@ -70,6 +96,17 @@ export class PushService {
 
       const docId = `${userId}_${deviceToken.slice(-12)}`;
       await setDoc(doc(db, 'notification_devices', docId), deviceData, { merge: true });
+
+      // Sync with backend API
+      try {
+        await fetch('/api/push/register-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(deviceData),
+        });
+      } catch (apiErr) {
+        console.warn('Failed syncing push token to backend API:', apiErr);
+      }
 
       return deviceData;
     } catch (err) {

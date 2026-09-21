@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   MessageSquare, 
@@ -11,6 +11,8 @@ import {
   ShieldCheck, 
   X 
 } from 'lucide-react';
+import { PushService } from '../../backend/services/pushService';
+import { useAuthStore } from '../../backend/store';
 
 interface PermissionModalProps {
   isOpen: boolean;
@@ -108,10 +110,15 @@ export default function PermissionModal({ isOpen, onClose, onAccept }: Permissio
               onClick={async () => {
                 if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
                   try {
-                    await Notification.requestPermission();
+                    const res = await Notification.requestPermission();
+                    if (res === 'granted') {
+                      await PushService.registerDevice(useAuthStore.getState().user?.uid || 'guest');
+                    }
                   } catch (e) {
                     console.error('Notification permission request error:', e);
                   }
+                } else {
+                  await PushService.registerDevice(useAuthStore.getState().user?.uid || 'guest');
                 }
                 onAccept();
               }}
