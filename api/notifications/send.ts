@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { setCorsHeaders, initializeFirebaseAdmin } from "../utils.js";
+import { setCorsHeaders, initializeFirebaseAdmin } from "../_utils";
 
 initializeFirebaseAdmin();
 

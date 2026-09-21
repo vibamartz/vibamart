@@ -12,7 +12,7 @@ import cancelHandler from "./api/orders/cancel";
 import returnRequestHandler from "./api/returns/request";
 import refundRequestHandler from "./api/refunds/request";
 import updateStatusHandler from "./api/requests/update-status";
-import { getErrorLocation } from "./api/utils";
+import { getErrorLocation } from "./api/_utils";
 
 
 dotenv.config();

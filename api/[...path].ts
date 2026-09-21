@@ -1,20 +1,20 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import cancelHandler from "./orders/cancel.js";
-import returnRequestHandler from "./returns/request.js";
-import refundRequestHandler from "./refunds/request.js";
-import updateStatusHandler from "./requests/update-status.js";
-import sendEmailOtpHandler from "./auth/send-email-otp.js";
-import verifyEmailOtpHandler from "./auth/verify-email-otp.js";
-import deliveryNotificationHandler from "./notifications/delivery.js";
-import registerTokenHandler from "./push/register-token.js";
-import sendNotificationHandler from "./notifications/send.js";
-import campaignsHandler from "./campaigns/manage.js";
-import trackNotificationHandler from "./notifications/track.js";
-import segmentsHandler from "./segments/index.js";
-import createPaymentOrderHandler from "./payment/create-order.js";
-import verifyPaymentHandler from "./payment/verify.js";
-import { initializeFirebaseAdmin } from "./utils.js";
+import cancelHandler from "./orders/cancel";
+import returnRequestHandler from "./returns/request";
+import refundRequestHandler from "./refunds/request";
+import updateStatusHandler from "./requests/update-status";
+import sendEmailOtpHandler from "./auth/send-email-otp";
+import verifyEmailOtpHandler from "./auth/verify-email-otp";
+import deliveryNotificationHandler from "./notifications/delivery";
+import registerTokenHandler from "./push/register-token";
+import sendNotificationHandler from "./notifications/send";
+import campaignsHandler from "./campaigns/manage";
+import trackNotificationHandler from "./notifications/track";
+import segmentsHandler from "./segments/index";
+import createPaymentOrderHandler from "./payment/create-order";
+import verifyPaymentHandler from "./payment/verify";
+import { initializeFirebaseAdmin } from "./_utils";
 
 initializeFirebaseAdmin();
 
