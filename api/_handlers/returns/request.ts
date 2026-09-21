@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../_utils";
+import { initializeFirebaseAdmin, verifyAuth, setCorsHeaders, createNotification, sendEmailNotification, getErrorLocation } from "../../_utils";
 
 initializeFirebaseAdmin();
 
@@ -14,7 +14,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     console.log("Request received");
-    const { orderId, customOrderId, reason, comments } = req.body || {};
+    const { orderId, customOrderId, reason, comments, images, productIds } = req.body || {};
     const targetOrderId = customOrderId || orderId;
 
     // 1. Validate fields exist before database operations
@@ -22,10 +22,16 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, message: "Order ID/Custom Order ID missing" });
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
-      return res.status(400).json({ success: false, message: "Refund reason missing" });
+      return res.status(400).json({ success: false, message: "Return reason missing" });
+    }
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one proof image is required" });
+    }
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one product must be selected for return" });
     }
 
-    // 2. Perform token authentication and validate customer
+    // 2. Perform token authentication
     let user;
     try {
       user = await verifyAuth(req);
@@ -82,23 +88,38 @@ export default async function handler(req: any, res: any) {
     const isOwner = userEmail && orderData.contactEmail && userEmail.toLowerCase() === orderData.contactEmail.toLowerCase();
 
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ success: false, message: "Unauthorized to request refund for this order" });
+      return res.status(403).json({ success: false, message: "Unauthorized to request return for this order" });
     }
 
-    // Allow refund if cancelled or returned but not yet refunded
-    if (orderData.status !== "cancelled" && orderData.status !== "returned") {
-      return res.status(400).json({ success: false, message: "Only cancelled or returned orders are eligible for refund" });
+    if (orderData.status !== "delivered") {
+      return res.status(400).json({ success: false, message: "Can only return delivered orders" });
     }
 
-    if (orderData.paymentStatus === "refunded") {
-      return res.status(400).json({ success: false, message: "Order is already refunded" });
-    }
-
-    // Check duplicate refund requests in the refund_requests collection
-    console.log(`[FIRESTORE READ] Checking duplicate refunds. Querying 'refund_requests' where 'customOrderId' == ${targetOrderId}`);
-    let existingRefunds;
+    let settingsDoc;
     try {
-      existingRefunds = await db.collection("refund_requests")
+      console.log("[FIRESTORE READ] Fetching settings document from 'settings' collection with ID 'storeConfig'");
+      settingsDoc = await db.collection("settings").doc("storeConfig").get();
+    } catch (error: any) {
+      console.error("FULL ERROR:", error);
+      console.error(error.stack);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
+    const returnWindowDays = settingsDoc.exists && settingsDoc.data()?.returnWindowDays ? settingsDoc.data()?.returnWindowDays : 7;
+    
+    const deliveredStatus = orderData.statusHistory?.find((s: any) => s.status === "delivered");
+    const deliveryDate = orderData.deliveryDate ? new Date(orderData.deliveryDate) : (deliveredStatus ? new Date(deliveredStatus.timestamp) : new Date(orderData.createdAt)); 
+    
+    const windowMs = returnWindowDays * 24 * 60 * 60 * 1000;
+    if (Date.now() - deliveryDate.getTime() > windowMs) {
+      return res.status(400).json({ success: false, message: "Return window has expired" });
+    }
+
+    // Check for duplicate return requests in the return_requests collection
+    console.log(`[FIRESTORE READ] Checking duplicate returns. Querying 'return_requests' where 'customOrderId' == ${targetOrderId}`);
+    let existingReturns;
+    try {
+      existingReturns = await db.collection("return_requests")
         .where("customOrderId", "==", targetOrderId)
         .get();
     } catch (error: any) {
@@ -106,9 +127,26 @@ export default async function handler(req: any, res: any) {
       console.error(error.stack);
       return res.status(500).json({ success: false, message: error.message });
     }
+      
+    const newProducts = productIds;
+    let overlap = false;
+    existingReturns.forEach((doc: any) => {
+      const existingProducts = doc.data().productIds || [];
+      if (existingProducts.some((id: string) => newProducts.includes(id))) {
+        overlap = true;
+      }
+    });
+    if (overlap) {
+      return res.status(400).json({ success: false, message: "A return request already exists for one or more selected items" });
+    }
 
-    if (!existingRefunds.empty) {
-      return res.status(400).json({ success: false, message: "A refund request already exists for this order." });
+    let calculatedRefund = 0;
+    if (orderData.items && Array.isArray(orderData.items)) {
+      orderData.items.forEach((item: any) => {
+        if (newProducts.includes(item.productId)) {
+          calculatedRefund += (item.price * item.quantity);
+        }
+      });
     }
 
     // Add detailed logging
@@ -117,22 +155,24 @@ export default async function handler(req: any, res: any) {
     console.log("contactEmail:", orderData.contactEmail);
     console.log("Reason:", reason);
 
-    // 3. Save request data in Firestore (refund_requests) with the required fields
-    const refundReqData = {
+    // 3. Save request data in Firestore (return_requests) with the required fields
+    const returnReqData = {
       customOrderId: orderData.customOrderId || targetOrderId,
       contactEmail: (orderData.contactEmail || userEmail || "").toLowerCase(),
       userId: uid,
       reason: reason,
       status: "Pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      productIds: newProducts,
       comments: comments || "",
-      refundAmount: orderData.total || 0
+      images,
+      refundAmount: calculatedRefund
     };
 
     let docRef;
     try {
-      console.log("[FIRESTORE WRITE] Creating refund request document in 'refund_requests' collection. Data:", JSON.stringify(refundReqData));
-      docRef = await db.collection("refund_requests").add(refundReqData);
+      console.log("[FIRESTORE WRITE] Creating return request document in 'return_requests' collection. Data:", JSON.stringify(returnReqData));
+      docRef = await db.collection("return_requests").add(returnReqData);
     } catch (error: any) {
       console.error("FULL ERROR:", error);
       console.error(error.stack);
@@ -142,13 +182,13 @@ export default async function handler(req: any, res: any) {
     const requestId = docRef.id;
 
     const orderUpdates = {
-      status: "refund_requested",
-      hasRefundRequest: true,
-      refundRequestId: requestId,
+      status: "return_requested",
+      hasReturnRequest: true,
+      returnRequestId: requestId,
       statusHistory: admin.firestore.FieldValue.arrayUnion({
-        status: "refund_requested",
+        status: "return_requested",
         timestamp: new Date().toISOString(),
-        message: "Refund requested by customer"
+        message: "Return requested by customer"
       })
     };
     try {
@@ -169,8 +209,8 @@ export default async function handler(req: any, res: any) {
 
       notificationPromises.push(createNotification(
         uid,
-        "Refund Request Submitted",
-        `Your refund request for order #${targetOrderId} has been submitted successfully.`,
+        "Return Request Submitted",
+        `Your return request for order #${targetOrderId} has been submitted successfully.`,
         targetOrderId
       ).catch(e => console.error("createNotification error:", e)));
 
@@ -178,15 +218,15 @@ export default async function handler(req: any, res: any) {
         notificationPromises.push(sendEmailNotification(
           customerEmail,
           customerName,
-          "Refund Request Received",
-          `We have received your refund request for order #${targetOrderId}. Our team will review the request and get back to you within 48 hours.`
+          "Return Request Received",
+          `We have received your return request for order #${targetOrderId}. Our team will review the details and images provided within 48 hours.`
         ).catch(e => console.error("sendEmailNotification error:", e)));
       }
 
       notificationPromises.push(createNotification(
         "admin",
-        "New Refund Request",
-        `A new refund request has been submitted for order #${targetOrderId}.`,
+        "New Return Request",
+        `A new return request has been submitted for order #${targetOrderId}.`,
         targetOrderId
       ).catch(e => console.error("admin createNotification error:", e)));
 
@@ -197,7 +237,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ success: true, message: "Request submitted successfully", requestId });
   } catch (error: any) {
-    console.error("Refund Request Error:", error);
+    console.error("Return Request Error:", error);
     const errorMessage = error?.message || String(error) || "Internal Server Error";
     if (res && typeof res.status === 'function') {
       return res.status(500).json({

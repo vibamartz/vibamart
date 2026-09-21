@@ -1,4 +1,4 @@
-import { setCorsHeaders } from "../_utils";
+import { setCorsHeaders } from "../../_utils";
 
 export default async function handler(req: any, res: any) {
   setCorsHeaders(req, res);

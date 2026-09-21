@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import { initializeFirebaseAdmin } from "../_utils";
+import { initializeFirebaseAdmin } from "../../_utils";
 
 initializeFirebaseAdmin();
 

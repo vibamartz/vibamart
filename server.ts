@@ -8,10 +8,10 @@ import rateLimit from "express-rate-limit";
 import axios from "axios";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-import cancelHandler from "./api/orders/cancel";
-import returnRequestHandler from "./api/returns/request";
-import refundRequestHandler from "./api/refunds/request";
-import updateStatusHandler from "./api/requests/update-status";
+import cancelHandler from "./api/_handlers/orders/cancel";
+import returnRequestHandler from "./api/_handlers/returns/request";
+import refundRequestHandler from "./api/_handlers/refunds/request";
+import updateStatusHandler from "./api/_handlers/requests/update-status";
 import { getErrorLocation } from "./api/_utils";
 
 

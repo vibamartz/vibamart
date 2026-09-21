@@ -1,5 +1,5 @@
 import Razorpay from "razorpay";
-import { setCorsHeaders, initializeFirebaseAdmin } from "../_utils";
+import { setCorsHeaders, initializeFirebaseAdmin } from "../../_utils";
 
 export default async function handler(req: any, res: any) {
   setCorsHeaders(req, res);
