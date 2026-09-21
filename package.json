@@ -52,5 +52,24 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "allowScripts": {
+    "@firebase/util": true,
+    "@google/genai": true,
+    "core-js": true,
+    "esbuild": true,
+    "protobufjs": true,
+    "tesseract.js": true
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@google/genai#1.52.0": true,
+      "@google/genai>protobufjs#7.6.0": true,
+      "firebase>@firebase/util#1.15.1": true,
+      "jspdf>core-js#3.29.1": true,
+      "tesseract.js#7.0.0": true,
+      "tsx>esbuild#0.27.7": true,
+      "vite>esbuild#0.25.12": true
+    }
   }
 }
