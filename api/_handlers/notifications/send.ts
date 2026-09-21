@@ -56,6 +56,7 @@ export default async function handler(req: any, res: any) {
     let dispatchedCount = 0;
     const nowIso = new Date().toISOString();
 
+    // 1. Create In-App Notification Records
     for (const uid of targetUserIds) {
       const notifRef = db.collection('user_notifications').doc();
       const notifData = {
@@ -97,33 +98,37 @@ export default async function handler(req: any, res: any) {
         status: 'delivered',
         provider: 'fcm_web_push',
       });
+    }
 
-      // Try sending FCM push notification if device tokens exist for this user or target='all'
-      try {
-        let deviceQuery: any = db.collection('notification_devices').where('isEnabled', '==', true);
-        if (uid !== 'all') {
-          deviceQuery = deviceQuery.where('userId', '==', uid);
+    // 2. Dispatch FCM Push Notifications to Device Tokens
+    try {
+      let deviceQuery: any = db.collection('notification_devices').where('isEnabled', '==', true);
+      if (target !== 'all' && userId) {
+        if (target === 'segment' && segmentUserIds.length > 0) {
+          deviceQuery = deviceQuery.where('userId', 'in', segmentUserIds.slice(0, 30));
+        } else {
+          deviceQuery = deviceQuery.where('userId', '==', userId);
         }
-
-        const deviceSnaps = await deviceQuery.get();
-        const deviceDocs = deviceSnaps.docs
-          .map((d: any) => ({ docId: d.id, userId: d.data()?.userId, token: d.data()?.token }))
-          .filter((item: any) => item.token && typeof item.token === 'string');
-
-        if (deviceDocs.length > 0) {
-          const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, deviceDocs, {
-            title,
-            message,
-            image,
-            destinationSlug,
-            category,
-            notificationId: notifRef.id,
-          });
-          console.log(`FCM Multicast result for ${uid}: ${fcmRes.successCount} succeeded, ${fcmRes.failureCount} failed.`);
-        }
-      } catch (fcmErr) {
-        console.warn(`FCM multicast warn for user ${uid}:`, fcmErr);
       }
+
+      const deviceSnaps = await deviceQuery.get();
+      const deviceDocs = deviceSnaps.docs
+        .map((d: any) => ({ docId: d.id, userId: d.data()?.userId, token: d.data()?.token }))
+        .filter((item: any) => item.token && typeof item.token === 'string');
+
+      if (deviceDocs.length > 0) {
+        const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, deviceDocs, {
+          title,
+          message,
+          image,
+          destinationSlug,
+          category,
+          notificationId: `fcm_${Date.now()}`,
+        });
+        console.log(`FCM Multicast result for target='${target}': ${fcmRes.successCount} succeeded, ${fcmRes.failureCount} failed.`);
+      }
+    } catch (fcmErr) {
+      console.warn(`FCM multicast warn for target='${target}':`, fcmErr);
     }
 
     return res.status(200).json({
@@ -165,14 +170,28 @@ export async function sendFcmMulticastWithCleanup(
         message: payload.message,
       },
       webpush: {
-        fcmOptions: {
-          link: payload.destinationSlug || '/',
+        headers: {
+          Urgency: 'high',
+          TTL: '86400',
         },
         notification: {
           title: payload.title,
           body: payload.message,
-          icon: '/favicon.ico',
+          icon: payload.image || '/favicon.ico',
+          badge: '/favicon.ico',
           image: payload.image || undefined,
+          tag: payload.notificationId,
+          renotify: true,
+          requireInteraction: true,
+          data: {
+            url: payload.destinationSlug || '/',
+            destinationSlug: payload.destinationSlug || '/',
+            notificationId: payload.notificationId,
+            category: payload.category,
+          },
+        },
+        fcmOptions: {
+          link: payload.destinationSlug || '/',
         },
       },
     });
@@ -209,4 +228,3 @@ export async function sendFcmMulticastWithCleanup(
     return { successCount: 0, failureCount: deviceDocs.length };
   }
 }
-

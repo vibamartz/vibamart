@@ -25,9 +25,9 @@ function getConfigFromUrl() {
 
 const defaultConfig = {
   apiKey: "AIzaSyDummyApiKeyForViBaMartConfig",
-  authDomain: "viba-mart.firebaseapp.com",
-  projectId: "viba-mart",
-  storageBucket: "viba-mart.appspot.com",
+  authDomain: "viba-mart-f46a4.firebaseapp.com",
+  projectId: "viba-mart-f46a4",
+  storageBucket: "viba-mart-f46a4.appspot.com",
   messagingSenderId: "1083492847291",
   appId: "1:1083492847291:web:viba1234567890"
 };
@@ -42,15 +42,18 @@ try {
     const messaging = firebase.messaging();
 
     messaging.onBackgroundMessage((payload) => {
-      console.log('[ViBa Mart SW] Received background push message: ', payload);
+      console.log('[ViBa Mart SW] Received FCM background push message:', payload);
 
       const notificationTitle = payload.notification?.title || payload.data?.title || 'ViBa Mart Alert';
+      const origin = self.location.origin || '';
       const notificationOptions = {
         body: payload.notification?.body || payload.data?.message || payload.data?.body || 'Check out latest deals on ViBa Mart!',
-        icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: payload.notification?.icon || payload.data?.icon || (origin ? `${origin}/favicon.ico` : '/favicon.ico'),
+        badge: origin ? `${origin}/favicon.ico` : '/favicon.ico',
         image: payload.notification?.image || payload.notification?.imageUrl || payload.data?.image || undefined,
         tag: payload.data?.tag || payload.data?.notificationId || 'viba-push-alert',
+        renotify: true,
+        requireInteraction: true,
         data: {
           url: payload.data?.destinationSlug || payload.data?.url || '/',
           orderId: payload.data?.orderId,
@@ -67,6 +70,45 @@ try {
   console.warn('[ViBa Mart SW] Firebase SW initialization fallback mode active:', err);
 }
 
+// Direct Service Worker Push Event Listener to guarantee mobile notification tray popups
+self.addEventListener('push', (event) => {
+  console.log('[ViBa Mart SW] Native Push event received in Service Worker');
+  const origin = self.location.origin || '';
+
+  let title = 'ViBa Mart Notification';
+  let options = {
+    body: 'Check out the latest deals & updates on ViBa Mart!',
+    icon: origin ? `${origin}/favicon.ico` : '/favicon.ico',
+    badge: origin ? `${origin}/favicon.ico` : '/favicon.ico',
+    renotify: true,
+    requireInteraction: true,
+    data: { url: '/' }
+  };
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      console.log('[ViBa Mart SW] Push payload json:', payload);
+
+      const notif = payload.notification || payload.data || {};
+      if (notif.title || payload.title) title = notif.title || payload.title;
+      if (notif.body || notif.message || payload.body) options.body = notif.body || notif.message || payload.body;
+      if (notif.image || notif.imageUrl) options.image = notif.image || notif.imageUrl;
+      if (notif.tag || notif.notificationId) options.tag = notif.tag || notif.notificationId;
+
+      const destUrl = payload.data?.destinationSlug || payload.data?.url || payload.fcmOptions?.link || '/';
+      options.data = { url: destUrl, ...payload.data };
+    } catch (e) {
+      try {
+        const text = event.data.text();
+        if (text) options.body = text;
+      } catch (err) {}
+    }
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 // Handle notification click event for deep linking
 self.addEventListener('notificationclick', (event) => {
   console.log('[ViBa Mart SW] Notification click received:', event);
@@ -80,7 +122,7 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if ('focus' in client) {
           client.focus();
-          if (client.url) {
+          if (client.url && 'navigate' in client) {
             client.navigate(destinationUrl);
           }
           return;
