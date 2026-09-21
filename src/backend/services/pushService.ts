@@ -11,29 +11,42 @@ export class PushService {
    * Check if web notifications are supported in the current environment
    */
   public static isSupported(): boolean {
-    return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator;
+    if (typeof window === 'undefined') return false;
+    const hasSW = 'serviceWorker' in navigator;
+    const hasNotification = 'Notification' in window;
+    const hasPushManager = 'PushManager' in window;
+    return hasSW && (hasNotification || hasPushManager);
   }
 
   /**
    * Get current browser notification permission
    */
   public static getPermission(): NotificationPermission {
-    if (!this.isSupported()) return 'denied';
+    if (!this.isSupported() || typeof Notification === 'undefined') return 'denied';
     return Notification.permission;
   }
 
   /**
-   * Request notification permission from the user
+   * Request notification permission from the user (with mobile Safari/Chrome compatibility fallback)
    */
   public static async requestPermission(): Promise<NotificationPermission> {
     if (!this.isSupported()) return 'denied';
     try {
-      const permission = await Notification.requestPermission();
-      return permission;
+      if (typeof Notification !== 'undefined' && typeof Notification.requestPermission === 'function') {
+        const permission = await Notification.requestPermission();
+        if (permission) return permission;
+      }
     } catch (e) {
-      console.warn('Error requesting notification permission:', e);
-      return 'denied';
+      // Fallback for older mobile Safari/WebKit
+      return new Promise((resolve) => {
+        try {
+          Notification.requestPermission((perm) => resolve(perm));
+        } catch (err) {
+          resolve('denied');
+        }
+      });
     }
+    return 'denied';
   }
 
   /**
@@ -65,6 +78,11 @@ export class PushService {
 
         const registration = await navigator.serviceWorker.register(swUrl, { scope: '/' });
         console.log('FCM Push Service Worker registered successfully:', registration.scope);
+        
+        if (navigator.serviceWorker.ready) {
+          await navigator.serviceWorker.ready;
+        }
+
         return registration;
       } catch (err) {
         console.warn('Service worker registration failed:', err);
@@ -83,7 +101,13 @@ export class PushService {
       const messaging = await getFcmMessaging();
       if (!messaging) return null;
 
-      const reg = swRegistration || (await this.registerServiceWorker());
+      let reg = swRegistration || (await this.registerServiceWorker());
+      if (reg && navigator.serviceWorker && navigator.serviceWorker.ready) {
+        try {
+          reg = await navigator.serviceWorker.ready;
+        } catch (rErr) {}
+      }
+
       if (!reg) return null;
 
       // VAPID key (Web Push Certificate Key)
@@ -96,11 +120,12 @@ export class PushService {
       });
 
       if (token) {
+        console.log('Successfully acquired FCM Web Push Token for device');
         localStorage.setItem(DEVICE_STORAGE_KEY, token);
         return token;
       }
     } catch (err) {
-      console.warn('FCM getToken failed:', err);
+      console.warn('FCM getToken failed on device:', err);
     }
     return null;
   }
