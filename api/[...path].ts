@@ -7,6 +7,11 @@ import updateStatusHandler from "./requests/update-status.js";
 import sendEmailOtpHandler from "./auth/send-email-otp.js";
 import verifyEmailOtpHandler from "./auth/verify-email-otp.js";
 import deliveryNotificationHandler from "./notifications/delivery.js";
+import registerTokenHandler from "./push/register-token.js";
+import sendNotificationHandler from "./notifications/send.js";
+import campaignsHandler from "./campaigns/manage.js";
+import trackNotificationHandler from "./notifications/track.js";
+import segmentsHandler from "./segments/index.js";
 import createPaymentOrderHandler from "./payment/create-order.js";
 import verifyPaymentHandler from "./payment/verify.js";
 import { initializeFirebaseAdmin } from "./utils.js";
@@ -46,5 +51,12 @@ app.post(["/api/returns/request", "/returns/request"], returnRequestHandler);
 app.post(["/api/refunds/request", "/refunds/request"], refundRequestHandler);
 app.post(["/api/requests/update-status", "/requests/update-status"], updateStatusHandler);
 app.post(["/api/notifications/delivery", "/notifications/delivery"], deliveryNotificationHandler);
+
+// Push Notifications & AI Engagement Engine APIs
+app.post(["/api/push/register", "/api/push/register-token", "/push/register-token"], registerTokenHandler);
+app.post(["/api/notifications/send", "/notifications/send"], sendNotificationHandler);
+app.all(["/api/campaigns/manage", "/campaigns/manage", "/api/campaigns/create"], campaignsHandler);
+app.post(["/api/notifications/track", "/notifications/track"], trackNotificationHandler);
+app.get(["/api/segments", "/segments"], segmentsHandler);
 
 export default app;

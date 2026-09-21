@@ -839,6 +839,97 @@ async function startServer() {
     }
   });
 
+  // Push Token Registration Endpoint Alias
+  app.post(["/api/push/register", "/api/push/register-token"], async (req, res) => {
+    try {
+      const { userId, token, platform, userAgent, deviceModel } = req.body;
+      if (!userId || !token) {
+        return res.status(400).json({ success: false, error: "Missing userId or token" });
+      }
+      const db = admin.firestore();
+      const docId = `${userId}_${token.slice(-12)}`;
+      const deviceRecord = {
+        userId,
+        token,
+        platform: platform || "web",
+        userAgent: userAgent || "Browser",
+        deviceModel: deviceModel || "Web Browser",
+        isEnabled: true,
+        permissionState: "granted",
+        createdAt: new Date().toISOString(),
+        lastActive: new Date().toISOString(),
+      };
+      await db.collection("notification_devices").doc(docId).set(deviceRecord, { merge: true });
+      res.json({ success: true, message: "Device registered", device: deviceRecord });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message || "Registration failed" });
+    }
+  });
+
+  // Campaigns API
+  app.all(["/api/campaigns/manage", "/api/campaigns/create"], async (req, res) => {
+    try {
+      const db = admin.firestore();
+      if (req.method === 'GET') {
+        const snap = await db.collection("notification_campaigns").orderBy("createdAt", "desc").get();
+        const campaigns = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        return res.json({ success: true, campaigns });
+      }
+      if (req.method === 'POST') {
+        const campaignData = req.body;
+        const campaignRef = campaignData.id
+          ? db.collection("notification_campaigns").doc(campaignData.id)
+          : db.collection("notification_campaigns").doc();
+
+        const record = {
+          id: campaignRef.id,
+          ...campaignData,
+          createdAt: campaignData.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        await campaignRef.set(record, { merge: true });
+        return res.json({ success: true, campaign: record });
+      }
+      if (req.method === 'DELETE') {
+        const id = req.query.id || req.body?.id;
+        if (id) await db.collection("notification_campaigns").doc(String(id)).delete();
+        return res.json({ success: true });
+      }
+      res.status(405).json({ error: "Method not allowed" });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Segments API
+  app.get("/api/segments", async (req, res) => {
+    try {
+      const db = admin.firestore();
+      const usersSnap = await db.collection("users").get();
+      const ordersSnap = await db.collection("orders").get();
+      const users = usersSnap.docs.map((d: any) => ({ uid: d.id, ...d.data() }));
+      const orders = ordersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+
+      const cartAbandoners = users.filter((u: any) => Array.isArray(u.cart) && u.cart.length > 0);
+      const wishlistUsers = users.filter((u: any) => Array.isArray(u.wishlist) && u.wishlist.length > 0);
+      const frequentBuyers = users.filter((u: any) => {
+        const uOrders = orders.filter((o: any) => o.customerId === u.uid || o.contactEmail === u.email);
+        return uOrders.length >= 3;
+      });
+
+      const segments = [
+        { id: 'all', name: 'All Customers', estimatedCustomerCount: users.length },
+        { id: 'cart_abandoners', name: 'Cart Abandoners', estimatedCustomerCount: cartAbandoners.length, userUids: cartAbandoners.map((u: any) => u.uid) },
+        { id: 'wishlist_users', name: 'Wishlist Users', estimatedCustomerCount: wishlistUsers.length, userUids: wishlistUsers.map((u: any) => u.uid) },
+        { id: 'frequent_buyers', name: 'Frequent Buyers', estimatedCustomerCount: frequentBuyers.length, userUids: frequentBuyers.map((u: any) => u.uid) }
+      ];
+
+      res.json({ success: true, segments });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Catch-all for undefined API routes to return 404 JSON instead of falling through to Vite (which may cause infinite proxy loops)
   app.all("/api/*", (req, res) => {
     res.status(404).json({ success: false, error: `API route not found: ${req.method} ${req.url}` });
