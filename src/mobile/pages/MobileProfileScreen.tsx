@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Package, Heart, MapPin, RefreshCcw, HelpCircle,
+  User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle,
   LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders,
   CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard
 } from 'lucide-react';
+import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { useAuthStore } from '../../backend/store';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -20,6 +21,7 @@ export default function MobileProfileScreen() {
   const [editedPhone, setEditedPhone] = useState(user?.phone || '');
   const [ordersCount, setOrdersCount] = useState<number>(0);
   const [showOverview, setShowOverview] = useState<boolean>(false);
+  const [showPreferencesModal, setShowPreferencesModal] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -109,6 +111,7 @@ export default function MobileProfileScreen() {
     { title: 'My Orders', icon: Package, path: '/orders', badge: ordersCount > 0 ? ordersCount : null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
+    { title: 'Notification Preferences', icon: Bell, badge: null, color: 'text-purple-600 bg-purple-50', action: () => setShowPreferencesModal(true) },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];
 
@@ -291,6 +294,11 @@ export default function MobileProfileScreen() {
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </motion.button>
       </div>
+
+      <CustomerNotificationPreferencesModal
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+      />
     </div>
   );
 }
