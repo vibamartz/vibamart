@@ -363,33 +363,66 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3.5 bg-gradient-to-b from-emerald-100 via-emerald-50/50 to-transparent space-y-3 min-w-0">
         <header className="w-full min-w-0 space-y-3">
-          {/* 1. VIBA + REWARDS (2 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
+          {/* 1. VIBA + DEAL 259 + REWARDS (3 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
           <section className="w-full min-w-0">
-            <div className="grid grid-cols-2 gap-[clamp(10px,3.5vw,16px)] w-full min-w-0">
+            <div className="grid grid-cols-3 gap-[clamp(6px,2vw,12px)] w-full min-w-0">
               {/* Card 1: VIBA */}
               <motion.div
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/')}
                 style={{ height: 'clamp(74px, 20vw, 95px)' }}
-                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-[clamp(6px,1.8vw,12px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
               >
-                <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+                <div className="w-[clamp(32px,7.5vw,40px)] h-[clamp(32px,7.5vw,40px)] flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-75 sm:scale-85" />
                 </div>
-                <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                <span className="text-[clamp(11px,3.2vw,14px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
                   VIBA
                 </span>
               </motion.div>
 
-              {/* Card 2: REWARDS */}
+              {/* Card 2: Deal 259 */}
+              <motion.div
+                whileTap={{ scale: 0.96 }}
+                onClick={() => navigate('/deal259')}
+                style={{ height: 'clamp(74px, 20vw, 95px)' }}
+                className="w-full bg-white rounded-[22px] p-[clamp(6px,1.8vw,12px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+              >
+                <div className="w-[clamp(32px,7.5vw,40px)] h-[clamp(32px,7.5vw,40px)] flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-full h-full shrink-0 drop-shadow-xs"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient id="deal259GradMobile" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#EF4444" />
+                        <stop offset="50%" stopColor="#F59E0B" />
+                        <stop offset="100%" stopColor="#10B981" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M17.657 16.657L13.414 20.9A1.998 1.998 0 0110.586 20.9L3.172 13.486A2 2 0 012.586 12.072V5A2 2 0 014.586 3H11.657A2 2 0 0113.071 3.586L20.485 11A2 2 0 0120.485 13.828L17.657 16.657Z"
+                      fill="url(#deal259GradMobile)"
+                    />
+                    <circle cx="7.5" cy="7.5" r="1.5" fill="white" />
+                  </svg>
+                </div>
+
+                <span className="text-[clamp(11px,3.2vw,14px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+                  DEAL 259
+                </span>
+              </motion.div>
+
+              {/* Card 3: REWARDS */}
               <motion.div
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
                 style={{ height: 'clamp(74px, 20vw, 95px)' }}
-                className="w-full bg-white rounded-[22px] p-[clamp(8px,2.5vw,14px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+                className="w-full bg-white rounded-[22px] p-[clamp(6px,1.8vw,12px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 sm:gap-1.5 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
               >
-                {/* Colorful Gift Logo (increased size, no shadow circle) */}
-                <div className="w-[clamp(36px,8.5vw,42px)] h-[clamp(36px,8.5vw,42px)] flex items-center justify-center shrink-0">
+                <div className="w-[clamp(32px,7.5vw,40px)] h-[clamp(32px,7.5vw,40px)] flex items-center justify-center shrink-0">
                   <svg
                     className="w-full h-full shrink-0 drop-shadow-xs"
                     viewBox="0 0 24 24"
@@ -423,7 +456,7 @@ export default function MobileHomepage() {
                   </svg>
                 </div>
 
-                <span className="text-[clamp(13px,3.8vw,15px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+                <span className="text-[clamp(11px,3.2vw,14px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
                   REWARDS
                 </span>
               </motion.div>
