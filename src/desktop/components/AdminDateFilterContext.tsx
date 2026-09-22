@@ -25,11 +25,11 @@ export const DEFAULT_ADMIN_DATE_PRESET: DateRangePreset = 'last-30-days';
 
 export const AdminDateFilterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedPreset, setSelectedPreset] = useState<DateRangePreset>(DEFAULT_ADMIN_DATE_PRESET);
-  
+
   // Stored as ISO YYYY-MM-DD for convenient input[type="date"] binding
   const todayIso = new Date().toISOString().split('T')[0];
   const thirtyDaysAgoIso = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
+
   const [customStartDate, setCustomStartDate] = useState<string>(thirtyDaysAgoIso);
   const [customEndDate, setCustomEndDate] = useState<string>(todayIso);
 
@@ -95,8 +95,8 @@ export function useAdminDateFilter(): AdminDateFilterContextType {
       dateRange: bounds,
       customStartDate: '',
       customEndDate: '',
-      setPreset: () => {},
-      resetFilter: () => {},
+      setPreset: () => { },
+      resetFilter: () => { },
       isDateInRange: () => true,
       filterList: <T,>(items: T[]) => items,
     };
