@@ -141,65 +141,45 @@ export class PushService {
   }
 
   /**
-   * Register or update the current device token in Firestore and Backend API
+   * Register device token to Firestore
    */
-  public static async registerDevice(userId: string, swReg?: ServiceWorkerRegistration | null): Promise<NotificationDevice | null> {
-    if (!userId) return null;
-
+  public static async registerDevice(userId: string, swRegistration?: ServiceWorkerRegistration | null): Promise<string | null> {
+    if (!userId || !this.isSupported()) return null;
     try {
-      const permission = this.getPermission();
-      let deviceToken: string | null = null;
-
-      if (permission === 'granted') {
-        deviceToken = await this.getFcmToken(swReg);
+      const permission = await this.getPermission();
+      if (permission !== 'granted') {
+        const req = await this.requestPermission();
+        if (req !== 'granted') return null;
       }
 
-      // Fallback or cached token
-      if (!deviceToken) {
-        deviceToken = localStorage.getItem(DEVICE_STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-      }
+      const token = await this.getFcmToken(swRegistration);
+      if (!token) return null;
 
-      if (!deviceToken) {
-        // If permission is denied or FCM token unavailable, create a fallback identifier
-        deviceToken = `viba_web_${userId.slice(0, 6)}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        localStorage.setItem(LEGACY_STORAGE_KEY, deviceToken);
-      }
-
-      const platform: 'web' | 'android' | 'ios' = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)
-        ? 'android'
-        : typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
-        ? 'ios'
-        : 'web';
+      const docId = `${userId}_${token.slice(-12)}`;
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
+      let platform = 'web';
+      if (/android/i.test(userAgent)) platform = 'android';
+      else if (/iphone|ipad|ipod/i.test(userAgent)) platform = 'ios';
+      else if (/mac/i.test(userAgent)) platform = 'macos';
+      else if (/win/i.test(userAgent)) platform = 'windows';
 
       const deviceData: NotificationDevice = {
+        id: docId,
         userId,
-        token: deviceToken,
-        platform,
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : 'Web',
-        deviceModel: typeof navigator !== 'undefined' ? (navigator.platform || 'Mobile Device') : 'Mobile Device',
-        isEnabled: permission === 'granted',
-        permissionState: permission,
+        token,
+        platform: platform as any,
+        userAgent,
+        isEnabled: true,
+        permissionState: 'granted',
         createdAt: new Date().toISOString(),
         lastActive: new Date().toISOString(),
       };
 
-      const docId = `${userId}_${deviceToken.slice(-12)}`;
       await setDoc(doc(db, 'notification_devices', docId), deviceData, { merge: true });
-
-      // Sync with backend API
-      try {
-        await fetch('/api/push/register-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(deviceData),
-        });
-      } catch (apiErr) {
-        console.warn('Failed syncing push token to backend API:', apiErr);
-      }
-
-      return deviceData;
+      console.log('Device registered successfully for push notifications');
+      return token;
     } catch (err) {
-      console.error('Failed to register push device:', err);
+      console.warn('Failed to register device for push:', err);
       return null;
     }
   }

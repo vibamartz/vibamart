@@ -703,65 +703,7 @@ async function startServer() {
     }
   });
 
-  // Send Direct / Transactional Notification
-  app.post("/api/notifications/send", async (req, res) => {
-    try {
-      const {
-        userId,
-        title,
-        message,
-        category = 'system_alert',
-        channel = 'in_app',
-        priority = 'high',
-        actionUrl,
-        imageUrl,
-        orderId,
-        productId,
-        metadata = {}
-      } = req.body;
 
-      if (!title || !message) {
-        return res.status(400).json({ success: false, error: "Title and message are required" });
-      }
-
-      const db = admin.firestore();
-      const notificationDoc = {
-        userId: userId || 'all',
-        title,
-        message,
-        body: message,
-        category,
-        channel,
-        priority,
-        actionUrl: actionUrl || null,
-        imageUrl: imageUrl || null,
-        orderId: orderId || null,
-        productId: productId || null,
-        read: false,
-        isRead: false,
-        metadata,
-        createdAt: new Date().toISOString()
-      };
-
-      const docRef = await db.collection("user_notifications").add(notificationDoc);
-
-      // Audit log
-      await db.collection("notificationLogs").add({
-        notificationId: docRef.id,
-        recipientId: userId || 'all',
-        category,
-        channel,
-        title,
-        status: 'delivered',
-        dispatchedAt: new Date().toISOString()
-      });
-
-      res.json({ success: true, notificationId: docRef.id });
-    } catch (error: any) {
-      console.error("Direct notification dispatch error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to send notification" });
-    }
-  });
 
   // AI Copy Generator for Marketing Campaigns
   app.post("/api/notifications/generate-copy", async (req, res) => {

@@ -114,7 +114,7 @@ export default async function handler(req: any, res: any) {
       const deviceSnaps = await deviceQuery.get();
       const deviceDocs = deviceSnaps.docs
         .map((d: any) => ({ docId: d.id, userId: d.data()?.userId, token: d.data()?.token }))
-        .filter((item: any) => item.token && typeof item.token === 'string');
+        .filter((item: any) => item.token && typeof item.token === 'string' && !item.token.startsWith('viba_web_'));
 
       if (deviceDocs.length > 0) {
         const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, deviceDocs, {
@@ -177,8 +177,8 @@ export async function sendFcmMulticastWithCleanup(
         notification: {
           title: payload.title,
           body: payload.message,
-          icon: payload.image || '/favicon.ico',
-          badge: '/favicon.ico',
+          icon: payload.image || '/favicon.svg',
+          badge: '/favicon.svg',
           image: payload.image || undefined,
           tag: payload.notificationId,
           renotify: true,

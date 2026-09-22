@@ -48,12 +48,11 @@ try {
       const origin = self.location.origin || '';
       const notificationOptions = {
         body: payload.notification?.body || payload.data?.message || payload.data?.body || 'Check out latest deals on ViBa Mart!',
-        icon: payload.notification?.icon || payload.data?.icon || (origin ? `${origin}/favicon.ico` : '/favicon.ico'),
-        badge: origin ? `${origin}/favicon.ico` : '/favicon.ico',
+        icon: payload.notification?.icon || payload.data?.icon || (origin ? `${origin}/favicon.svg` : '/favicon.svg'),
+        badge: origin ? `${origin}/favicon.svg` : '/favicon.svg',
         image: payload.notification?.image || payload.notification?.imageUrl || payload.data?.image || undefined,
         tag: payload.data?.tag || payload.data?.notificationId || 'viba-push-alert',
         renotify: true,
-        requireInteraction: true,
         data: {
           url: payload.data?.destinationSlug || payload.data?.url || '/',
           orderId: payload.data?.orderId,
@@ -69,45 +68,6 @@ try {
 } catch (err) {
   console.warn('[ViBa Mart SW] Firebase SW initialization fallback mode active:', err);
 }
-
-// Direct Service Worker Push Event Listener to guarantee mobile notification tray popups
-self.addEventListener('push', (event) => {
-  console.log('[ViBa Mart SW] Native Push event received in Service Worker');
-  const origin = self.location.origin || '';
-
-  let title = 'ViBa Mart Notification';
-  let options = {
-    body: 'Check out the latest deals & updates on ViBa Mart!',
-    icon: origin ? `${origin}/favicon.ico` : '/favicon.ico',
-    badge: origin ? `${origin}/favicon.ico` : '/favicon.ico',
-    renotify: true,
-    requireInteraction: true,
-    data: { url: '/' }
-  };
-
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      console.log('[ViBa Mart SW] Push payload json:', payload);
-
-      const notif = payload.notification || payload.data || {};
-      if (notif.title || payload.title) title = notif.title || payload.title;
-      if (notif.body || notif.message || payload.body) options.body = notif.body || notif.message || payload.body;
-      if (notif.image || notif.imageUrl) options.image = notif.image || notif.imageUrl;
-      if (notif.tag || notif.notificationId) options.tag = notif.tag || notif.notificationId;
-
-      const destUrl = payload.data?.destinationSlug || payload.data?.url || payload.fcmOptions?.link || '/';
-      options.data = { url: destUrl, ...payload.data };
-    } catch (e) {
-      try {
-        const text = event.data.text();
-        if (text) options.body = text;
-      } catch (err) {}
-    }
-  }
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
 
 // Handle notification click event for deep linking
 self.addEventListener('notificationclick', (event) => {
