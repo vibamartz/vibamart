@@ -541,7 +541,6 @@ export default function Profile() {
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'rewards', label: 'ViBa Rewards', icon: Gift },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
-    { id: 'waitlist', label: 'Waitlist', icon: Bell },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -943,59 +942,6 @@ export default function Profile() {
                     }
                   }}
                 />
-              )}
-
-              {activeTab === 'waitlist' && (
-                <motion.div
-                  key="waitlist"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
-                >
-                  <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-                    <div className="mb-8">
-                      <h2 className="text-2xl font-black text-gray-900 tracking-tight">Active Waitlist</h2>
-                      <p className="text-sm text-gray-500 mt-1">We'll notify you the moment these items are back in stock!</p>
-                    </div>
-
-                    {waitlist.length === 0 ? (
-                      <div className="py-20 text-center space-y-4">
-                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto">
-                          <Bell className="w-10 h-10 text-gray-200" />
-                        </div>
-                        <p className="text-gray-400 font-medium">Your waitlist is empty.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {waitlist.map(item => (
-                          <div key={item.id} className="group p-5 bg-gray-50 rounded-3xl border border-transparent hover:border-primary/20 transition-all flex gap-4">
-                            <div className="w-20 h-20 rounded-2xl bg-white p-1 border border-gray-100 overflow-hidden flex-shrink-0 group-hover:scale-105 transition-transform">
-                              {item.product?.images[0] && <img src={item.product.images[0]} className="w-full h-full object-contain" alt="" />}
-                            </div>
-                            <div className="flex-1 flex flex-col justify-between">
-                              <div>
-                                <h4 className="text-sm font-black text-gray-900 line-clamp-1">{item.product?.name || 'Product'}</h4>
-                                <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">Added on {new Date(item.createdAt).toLocaleDateString()}</p>
-                              </div>
-                              <div className="flex items-center justify-between mt-4">
-                                <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500">
-                                  <Clock className="w-3 h-3" /> Pending Notification
-                                </span>
-                                <button
-                                  onClick={() => handleRemoveFromWaitlist(item.id)}
-                                  className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
               )}
 
               {activeTab === 'addresses' && (

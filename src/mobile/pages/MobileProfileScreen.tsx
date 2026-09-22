@@ -111,7 +111,7 @@ export default function MobileProfileScreen() {
     { title: 'My Orders', icon: Package, path: '/orders', badge: ordersCount > 0 ? ordersCount : null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
-    { title: 'Notification Preferences', icon: Bell, badge: null, color: 'text-purple-600 bg-purple-50', action: () => setShowPreferencesModal(true) },
+    { title: 'Notification Settings', icon: Bell, badge: null, color: 'text-purple-600 bg-purple-50', action: () => setShowPreferencesModal(true) },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];
 
