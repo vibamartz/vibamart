@@ -45,7 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           localStorage.removeItem(`viba_cart_${lastUid}`);
         }
         localStorage.setItem("viba_last_uid", firebaseUser.uid);
-        
+
         useCartStore.getState().setUid(firebaseUser.uid);
         // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
@@ -804,7 +804,7 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
       const orderRef = doc(db, 'reward_orders', orderId);
       const existing = get().rewardOrders.find(o => o.id === orderId);
       const coupon = get().offers.find(o => o.id === existing?.couponId);
-      
+
       const unlockedCode = coupon?.code || existing?.unlockedCode || `REWARD-${Math.floor(100000 + Math.random() * 900000)}`;
 
       await updateDoc(orderRef, {
