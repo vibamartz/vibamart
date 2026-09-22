@@ -623,7 +623,7 @@ export default function Profile() {
                 <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-75 sm:scale-85" />
                 </div>
-                <span className="text-xs sm:text-sm font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
                   VIBA MART
                 </span>
               </motion.div>

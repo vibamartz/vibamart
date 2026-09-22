@@ -376,7 +376,7 @@ export default function MobileHomepage() {
                 <div className="w-[clamp(24px,5.5vw,30px)] h-[clamp(24px,5.5vw,30px)] flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-65 sm:scale-75" />
                 </div>
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
                   VIBA MART
                 </span>
               </motion.div>
