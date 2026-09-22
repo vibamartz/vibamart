@@ -62,8 +62,8 @@ export default function AdminCancellationManagementView() {
       const res = await fetch('/api/requests/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ 
-          requestId: selectedRequest.id, 
+        body: JSON.stringify({
+          requestId: selectedRequest.id,
           status: statusValue,
           adminNotes,
           refundAmount: refundAmount !== '' ? Number(refundAmount) : undefined,
@@ -91,7 +91,7 @@ export default function AdminCancellationManagementView() {
     if (filter !== 'all' && r.status !== filter) return false;
     if (searchTerm) {
       return (
-        (r.customOrderId || r.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (r.customOrderId || r.orderId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.contactEmail || r.userId || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -116,9 +116,9 @@ export default function AdminCancellationManagementView() {
           </div>
           <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Search by Order, User or Request ID..." 
+              <input
+                type="text"
+                placeholder="Search by Order, User or Request ID..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-3 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary/20 w-full"
@@ -171,17 +171,16 @@ export default function AdminCancellationManagementView() {
                     <p className="text-[11px] text-gray-550 max-w-[200px] truncate" title={req.reason}>{req.reason}</p>
                   </td>
                   <td className="px-4 py-6">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${
-                      req.status === 'Approved' ? 'bg-green-100 text-green-600' :
-                      req.status === 'Rejected' ? 'bg-red-100 text-red-600' :
-                      req.status === 'Processed' ? 'bg-blue-100 text-blue-600' :
-                      'bg-amber-100 text-amber-600'
-                    }`}>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${req.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                        req.status === 'Rejected' ? 'bg-red-100 text-red-600' :
+                          req.status === 'Processed' ? 'bg-blue-100 text-blue-600' :
+                            'bg-amber-100 text-amber-600'
+                      }`}>
                       {req.status}
                     </span>
                   </td>
                   <td className="px-4 py-6 text-right">
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedRequest(req);
                         setAdminNotes(req.adminNotes || '');
@@ -189,7 +188,7 @@ export default function AdminCancellationManagementView() {
                         setRefundMethod(req.refundMethod || '');
                         setRefundTransactionId(req.refundTransactionId || '');
                         setEstimatedCompletionDate(req.estimatedCompletionDate || '');
-                      }} 
+                      }}
                       className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-primary hover:text-white transition-all shadow-sm"
                     >
                       <Eye className="w-4 h-4" />
@@ -223,7 +222,7 @@ export default function AdminCancellationManagementView() {
                 <div className="space-y-6">
                   <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                      <Clock className="w-3 h-3"/> Request Information
+                      <Clock className="w-3 h-3" /> Request Information
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
@@ -250,7 +249,7 @@ export default function AdminCancellationManagementView() {
                   {/* Refund Status */}
                   <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                      <CreditCard className="w-3 h-3"/> Refund Information
+                      <CreditCard className="w-3 h-3" /> Refund Information
                     </h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
@@ -283,13 +282,13 @@ export default function AdminCancellationManagementView() {
                 <div className="space-y-4">
                   <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Update Action</h4>
-                    
+
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Admin Note</label>
-                      <textarea 
-                        value={adminNotes} 
-                        onChange={e => setAdminNotes(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs outline-none focus:border-primary transition-all" 
+                      <textarea
+                        value={adminNotes}
+                        onChange={e => setAdminNotes(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs outline-none focus:border-primary transition-all"
                         placeholder="Internal or client-facing notes..."
                         rows={2}
                       />
@@ -297,11 +296,11 @@ export default function AdminCancellationManagementView() {
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Refund Amount (₹)</label>
-                      <input 
+                      <input
                         type="number"
-                        value={refundAmount} 
-                        onChange={e => setRefundAmount(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all font-bold" 
+                        value={refundAmount}
+                        onChange={e => setRefundAmount(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all font-bold"
                         placeholder="e.g. 599"
                       />
                     </div>
@@ -309,8 +308,8 @@ export default function AdminCancellationManagementView() {
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Refund Method</label>
                       <select
-                        value={refundMethod} 
-                        onChange={e => setRefundMethod(e.target.value)} 
+                        value={refundMethod}
+                        onChange={e => setRefundMethod(e.target.value)}
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all"
                       >
                         <option value="">Select Method (Optional)</option>
@@ -322,22 +321,22 @@ export default function AdminCancellationManagementView() {
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Transaction ID</label>
-                      <input 
+                      <input
                         type="text"
-                        value={refundTransactionId} 
-                        onChange={e => setRefundTransactionId(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all italic" 
+                        value={refundTransactionId}
+                        onChange={e => setRefundTransactionId(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all italic"
                         placeholder="e.g. TXN100239209"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Est. Completion Date</label>
-                      <input 
+                      <input
                         type="date"
-                        value={estimatedCompletionDate} 
-                        onChange={e => setEstimatedCompletionDate(e.target.value)} 
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all" 
+                        value={estimatedCompletionDate}
+                        onChange={e => setEstimatedCompletionDate(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary transition-all"
                       />
                     </div>
 

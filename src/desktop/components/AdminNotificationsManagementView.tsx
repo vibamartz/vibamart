@@ -113,25 +113,25 @@ export default function AdminNotificationsManagementView() {
     const qNotifs = query(collection(db, 'user_notifications'), orderBy('createdAt', 'desc'), limit(100));
     const unsubNotifs = onSnapshot(qNotifs, snap => {
       setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerNotification)));
-    }, () => {});
+    }, () => { });
 
     // 2. Campaigns
     const qCamps = query(collection(db, 'notification_campaigns'), orderBy('createdAt', 'desc'));
     const unsubCamps = onSnapshot(qCamps, snap => {
       setCampaigns(snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationCampaign)));
-    }, () => {});
+    }, () => { });
 
     // 3. Templates
     const qTemps = query(collection(db, 'notification_templates'), orderBy('createdAt', 'desc'));
     const unsubTemps = onSnapshot(qTemps, snap => {
       setTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationTemplate)));
-    }, () => {});
+    }, () => { });
 
     // 4. Logs
     const qLogs = query(collection(db, 'notificationLogs'), orderBy('sentAt', 'desc'), limit(150));
     const unsubLogs = onSnapshot(qLogs, snap => {
       setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as NotificationLog)));
-    }, () => {});
+    }, () => { });
 
     // 5. Users
     const qUsers = query(collection(db, 'users'), limit(200));
@@ -141,32 +141,32 @@ export default function AdminNotificationsManagementView() {
       if (uDocs.length > 0 && !selectedUserForProfile) {
         setSelectedUserForProfile(uDocs[0]);
       }
-    }, () => {});
+    }, () => { });
 
     // 6. Orders
     const qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(200));
     const unsubOrders = onSnapshot(qOrders, snap => {
       setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() } as Order)));
-    }, () => {});
+    }, () => { });
 
     // 7. Products
     const qProds = query(collection(db, 'products'), limit(200));
     const unsubProds = onSnapshot(qProds, snap => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-    }, () => {});
+    }, () => { });
 
     // 8. Events
     const qEvents = query(collection(db, 'notification_events'), orderBy('timestamp', 'desc'), limit(300));
     const unsubEvents = onSnapshot(qEvents, snap => {
       setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, () => {});
+    }, () => { });
 
     // 9. Settings
     const unsubSettings = onSnapshot(doc(db, 'settings', 'notification_ml_config'), snap => {
       if (snap.exists()) {
         setSettings(snap.data() as NotificationSystemSettings);
       }
-    }, () => {});
+    }, () => { });
 
     return () => {
       unsubNotifs();
@@ -329,11 +329,10 @@ export default function AdminNotificationsManagementView() {
               <button
                 key={sec.id}
                 onClick={() => setActiveTab(sec.id)}
-                className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${
-                  isActive
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${isActive
                     ? 'bg-primary text-white shadow-md shadow-primary/25'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-400'}`} />
                 <span>{sec.label}</span>
@@ -507,12 +506,11 @@ export default function AdminNotificationsManagementView() {
                       {notifications.slice(0, 10).map((n) => (
                         <tr key={n.id} className="hover:bg-gray-50/80 transition-colors">
                           <td className="px-4 py-3 text-xs font-black">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider ${
-                              n.category === 'orders' ? 'bg-blue-100 text-blue-700' :
-                              n.category === 'price_drops' ? 'bg-rose-100 text-rose-700' :
-                              n.category === 'cart' ? 'bg-amber-100 text-amber-700' :
-                              'bg-purple-100 text-purple-700'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider ${n.category === 'orders' ? 'bg-blue-100 text-blue-700' :
+                                n.category === 'price_drops' ? 'bg-rose-100 text-rose-700' :
+                                  n.category === 'cart' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-purple-100 text-purple-700'
+                              }`}>
                               {n.category}
                             </span>
                           </td>
@@ -944,11 +942,10 @@ function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEdi
             <div key={c.id} className="p-5 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                    c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
-                    c.status === 'paused' ? 'bg-amber-100 text-amber-700' :
-                    'bg-gray-200 text-gray-700'
-                  }`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                      c.status === 'paused' ? 'bg-amber-100 text-amber-700' :
+                        'bg-gray-200 text-gray-700'
+                    }`}>
                     {c.status}
                   </span>
                   {c.isAbTest && (
@@ -978,9 +975,8 @@ function CampaignsSection({ campaigns, templates, products, onNewCampaign, onEdi
               <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
                 <button
                   onClick={() => handleToggleStatus(c)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                    c.status === 'active' ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  }`}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${c.status === 'active' ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
                 >
                   {c.status === 'active' ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                   {c.status === 'active' ? 'Pause' : 'Activate'}
@@ -1124,10 +1120,9 @@ function PersonalizedPreviewSection({ users, profiles, products, selectedUser, o
               </div>
               <div className="flex justify-between py-1.5 border-b border-gray-200">
                 <span className="text-gray-500 font-bold">Churn Risk</span>
-                <span className={`font-black uppercase text-[10px] px-2 py-0.5 rounded ${
-                  profile.churnRisk === 'high' ? 'bg-rose-100 text-rose-700' :
-                  profile.churnRisk === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                }`}>{profile.churnRisk}</span>
+                <span className={`font-black uppercase text-[10px] px-2 py-0.5 rounded ${profile.churnRisk === 'high' ? 'bg-rose-100 text-rose-700' :
+                    profile.churnRisk === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>{profile.churnRisk}</span>
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-gray-500 font-bold">Optimal Send Hour</span>
@@ -1240,9 +1235,8 @@ function ProductBasedSection({ products, users }: any) {
                 <button
                   key={type}
                   onClick={() => setTriggerType(type)}
-                  className={`p-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                    triggerType === type ? 'bg-primary text-white shadow' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className={`p-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${triggerType === type ? 'bg-primary text-white shadow' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
                 >
                   {type.replace('_', ' ')}
                 </button>
@@ -2273,7 +2267,7 @@ function DirectPushComposerModal({
     <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClose} />
       <div className="bg-white rounded-[2rem] p-6 lg:p-8 max-w-4xl w-full relative z-10 shadow-2xl border border-gray-100 max-h-[92vh] overflow-y-auto text-left space-y-6">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 pb-4">
           <div className="space-y-0.5">
@@ -2289,10 +2283,10 @@ function DirectPushComposerModal({
         </div>
 
         <form onSubmit={handlePushSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs">
-          
+
           {/* Left: Configuration Form (7 cols) */}
           <div className="lg:col-span-7 space-y-5">
-            
+
             {/* 1. Target Audience Selector */}
             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
               <div className="flex items-center justify-between">
@@ -2314,11 +2308,10 @@ function DirectPushComposerModal({
                     key={t.id}
                     type="button"
                     onClick={() => setTarget(t.id as any)}
-                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border text-center flex flex-col items-center gap-1 ${
-                      target === t.id
+                    className={`py-2.5 px-2 rounded-xl font-black text-xs transition-all border text-center flex flex-col items-center gap-1 ${target === t.id
                         ? 'bg-primary text-white border-primary shadow-sm'
                         : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
+                      }`}
                   >
                     <span>{t.icon}</span>
                     <span>{t.label}</span>
@@ -2363,9 +2356,8 @@ function DirectPushComposerModal({
                       <div
                         key={u.uid}
                         onClick={() => setSelectedUser(u)}
-                        className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition-all ${
-                          selectedUser?.uid === u.uid ? 'bg-primary/10 border border-primary/30 font-bold' : 'hover:bg-gray-50 font-medium'
-                        }`}
+                        className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition-all ${selectedUser?.uid === u.uid ? 'bg-primary/10 border border-primary/30 font-bold' : 'hover:bg-gray-50 font-medium'
+                          }`}
                       >
                         <div className="min-w-0">
                           <p className="text-xs text-gray-900 truncate">{u.displayName || u.email?.split('@')[0] || 'User'}</p>
