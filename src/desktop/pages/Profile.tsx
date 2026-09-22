@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProductSlug } from '../../shared/utilities/slug';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
+import Logo from '../components/Logo';
 
 export default function Profile() {
   const { user, setUser } = useAuthStore();
@@ -609,7 +610,96 @@ export default function Profile() {
           </div>
 
           {/* Main Content */}
-          <div className="lg:col-span-9">
+          <div className="lg:col-span-9 space-y-6">
+            {/* 3 Equal-Sized Cards (VIBA, Deal 259, REWARDS) */}
+            <div className="grid grid-cols-3 gap-4 w-full min-w-0">
+              {/* Card 1: VIBA */}
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.01 }}
+                onClick={() => navigate('/')}
+                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-2xl p-3 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+                  <Logo iconOnly className="scale-75 sm:scale-85" />
+                </div>
+                <span className="text-xs sm:text-sm font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                  VIBA
+                </span>
+              </motion.div>
+
+              {/* Card 2: Deal 259 */}
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.01 }}
+                onClick={() => navigate('/deal259')}
+                className="w-full bg-white rounded-2xl p-3 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:border-emerald-300 hover:shadow-md"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-full h-full shrink-0 drop-shadow-xs"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient id="deal259GradProfile" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#EF4444" />
+                        <stop offset="50%" stopColor="#F59E0B" />
+                        <stop offset="100%" stopColor="#10B981" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M17.657 16.657L13.414 20.9A1.998 1.998 0 0110.586 20.9L3.172 13.486A2 2 0 012.586 12.072V5A2 2 0 014.586 3H11.657A2 2 0 0113.071 3.586L20.485 11A2 2 0 0120.485 13.828L17.657 16.657Z"
+                      fill="url(#deal259GradProfile)"
+                    />
+                    <circle cx="7.5" cy="7.5" r="1.5" fill="white" />
+                  </svg>
+                </div>
+                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+                  DEAL 259
+                </span>
+              </motion.div>
+
+              {/* Card 3: REWARDS */}
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.01 }}
+                onClick={() => navigate('/rewards')}
+                className="w-full bg-white rounded-2xl p-3 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:border-emerald-300 hover:shadow-md"
+              >
+                <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+                  <svg
+                    className="w-full h-full shrink-0 drop-shadow-xs"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient id="rewardsGiftGradProfile" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#F59E0B" />
+                        <stop offset="30%" stopColor="#EF4444" />
+                        <stop offset="70%" stopColor="#EC4899" />
+                        <stop offset="100%" stopColor="#8B5CF6" />
+                      </linearGradient>
+                      <linearGradient id="rewardsRibbonGradProfile" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FCD34D" />
+                        <stop offset="100%" stopColor="#F59E0B" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="3" y="8.5" width="18" height="11.5" rx="2" fill="url(#rewardsGiftGradProfile)" />
+                    <rect x="2" y="5" width="20" height="4" rx="1.5" fill="url(#rewardsGiftGradProfile)" filter="brightness(1.15)" />
+                    <rect x="10.5" y="5" width="3" height="15" fill="url(#rewardsRibbonGradProfile)" />
+                    <rect x="2" y="6.2" width="20" height="1.6" fill="url(#rewardsRibbonGradProfile)" opacity="0.85" />
+                    <path d="M12 5.2C10.2 2.2 6.5 1.8 6.5 3.8C6.5 5.5 10.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGradProfile)" />
+                    <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGradProfile)" />
+                  </svg>
+                </div>
+                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+                  REWARDS
+                </span>
+              </motion.div>
+            </div>
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
                 <motion.div
