@@ -240,6 +240,18 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    // Immediately hide native Capacitor/Android launch splash screen on app mount
+    if (typeof window !== 'undefined') {
+      const win = window as any;
+      if (win.Capacitor?.Plugins?.SplashScreen) {
+        try {
+          win.Capacitor.Plugins.SplashScreen.hide();
+        } catch (e) {
+          // ignore if splashscreen plugin not initialized
+        }
+      }
+    }
+
     initAuth();
     initCategories();
     initSettings();
