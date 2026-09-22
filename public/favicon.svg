@@ -10,8 +10,8 @@
     </linearGradient>
   </defs>
 
-  <!-- Centered Official ViBa VB Logo Mark with Safe Notification Margin -->
-  <g transform="translate(5, 5)">
+  <!-- Centered Official ViBa VB Logo Mark (Scaled for maximum favicon visibility) -->
+  <g transform="translate(60, 60) scale(1.32) translate(-55, -55)">
     <!-- Stylized V -->
     <path
       d="M10 25 L38 85 L48 85 L32 25 Z"
