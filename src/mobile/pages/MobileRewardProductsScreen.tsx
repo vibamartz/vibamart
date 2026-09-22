@@ -78,7 +78,7 @@ export default function MobileRewardProductsScreen() {
           if (snap.exists()) {
             matched = { id: snap.id, ...snap.data() } as BrandCoupon;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (!matched) {
@@ -91,7 +91,7 @@ export default function MobileRewardProductsScreen() {
           if (foundDoc) {
             matched = { id: foundDoc.id, ...foundDoc.data() } as BrandCoupon;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (matched) {
@@ -394,13 +394,12 @@ export default function MobileRewardProductsScreen() {
                     <button
                       onClick={(e) => handleAddToCart(product, e)}
                       disabled={isOutOfStock}
-                      className={`w-full py-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 ${
-                        isOutOfStock
+                      className={`w-full py-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 ${isOutOfStock
                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : isInCart
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-white border border-gray-300 text-gray-800'
-                      }`}
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-white border border-gray-300 text-gray-800'
+                        }`}
                     >
                       <ShoppingCart className="w-3 h-3" />
                       {isOutOfStock ? 'Unavailable' : isInCart ? 'In Cart' : 'Add to Cart'}
@@ -409,11 +408,10 @@ export default function MobileRewardProductsScreen() {
                     <button
                       onClick={(e) => handleBuyNow(product, e)}
                       disabled={isOutOfStock}
-                      className={`w-full py-1 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 ${
-                        isOutOfStock
+                      className={`w-full py-1 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 ${isOutOfStock
                           ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
                           : 'bg-amber-500 text-white shadow'
-                      }`}
+                        }`}
                     >
                       <ShoppingBag className="w-3 h-3" />
                       {isOutOfStock ? 'Out of Stock' : 'Buy Now'}
