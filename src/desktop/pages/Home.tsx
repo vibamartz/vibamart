@@ -326,12 +326,12 @@ export default function Home() {
             whileTap={{ scale: 0.97 }}
             whileHover={{ scale: 1.01 }}
             onClick={() => navigate('/')}
-            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[22px] p-3 sm:p-4 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1.5 cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-20 sm:h-24"
+            className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-xl sm:rounded-[20px] p-2 sm:p-2.5 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-14 sm:h-16"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
-              <Logo iconOnly className="scale-75 sm:scale-90" />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shrink-0">
+              <Logo iconOnly className="scale-65 sm:scale-75" />
             </div>
-            <span className="text-xs sm:text-sm font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
               VIBA
             </span>
           </motion.div>
@@ -341,9 +341,9 @@ export default function Home() {
             whileTap={{ scale: 0.97 }}
             whileHover={{ scale: 1.01 }}
             onClick={() => navigate('/deal259')}
-            className="w-full bg-white rounded-[22px] p-3 sm:p-4 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-20 sm:h-24 hover:border-emerald-300 hover:shadow-md"
+            className="w-full bg-white rounded-xl sm:rounded-[20px] p-2 sm:p-2.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-14 sm:h-16 hover:border-emerald-300 hover:shadow-md"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shrink-0">
               <svg
                 className="w-full h-full shrink-0 drop-shadow-xs"
                 viewBox="0 0 24 24"
@@ -364,7 +364,7 @@ export default function Home() {
                 <circle cx="7.5" cy="7.5" r="1.5" fill="white" />
               </svg>
             </div>
-            <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
               DEAL 259
             </span>
           </motion.div>
@@ -374,9 +374,9 @@ export default function Home() {
             whileTap={{ scale: 0.97 }}
             whileHover={{ scale: 1.01 }}
             onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
-            className="w-full bg-white rounded-[22px] p-3 sm:p-4 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-20 sm:h-24 hover:border-emerald-300 hover:shadow-md"
+            className="w-full bg-white rounded-xl sm:rounded-[20px] p-2 sm:p-2.5 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-14 sm:h-16 hover:border-emerald-300 hover:shadow-md"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shrink-0">
               <svg
                 className="w-full h-full shrink-0 drop-shadow-xs"
                 viewBox="0 0 24 24"
@@ -403,7 +403,7 @@ export default function Home() {
                 <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGradDesk)" />
               </svg>
             </div>
-            <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
+            <span className="text-[11px] sm:text-xs font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
               REWARDS
             </span>
           </motion.div>
