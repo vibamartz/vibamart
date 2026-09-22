@@ -174,7 +174,7 @@ export default function Navbar() {
         const snap = await getDocs(collection(db, 'products'));
         const rewardIds = await getRewardProductIds();
         const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)), rewardIds);
-        const exactMatch = prods.find(p => 
+        const exactMatch = prods.find(p =>
           (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
           (p.productCode && p.productCode.toLowerCase() === queryStr.toLowerCase()) ||
           p.id === queryStr
@@ -299,381 +299,381 @@ export default function Navbar() {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-          <div className={`${isMenuOpen ? 'hidden' : 'flex'} sm:flex transition-all duration-300`}>
-            <Link to="/" className="hover:opacity-80 transition-opacity">
-              <Logo className="scale-75 sm:scale-100 origin-left" />
-            </Link>
-          </div>
-
-          {/* Search Bar & Address Selector Container */}
-          <div className="flex flex-1 max-w-4xl mx-2 sm:mx-4 lg:mx-8 items-center gap-2 sm:gap-3 min-w-0">
-            {/* Search Bar - Responsive and Wide */}
-            <div className="flex-1 relative group items-center min-w-0">
-              <form onSubmit={handleSearch} className="w-full relative flex items-center">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className={`h-4 w-4 transition-colors ${isSearchFocused ? 'text-primary' : 'text-gray-400'}`} />
-              </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search products, brands & more"
-                className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-11 pr-12 sm:pr-24 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
-                  }`}
-                value={searchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="absolute right-12 sm:right-[114px] p-2.5 touch-target text-gray-400 hover:text-red-500 transition-colors z-10"
-                  aria-label="Clear search"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <div className="absolute right-12 top-0 bottom-0 flex items-center gap-1 bg-white pl-2">
-                {settings.enableVoiceSearch && (
-                  <button
-                    type="button"
-                    onClick={startVoiceSearch}
-                    className={`p-2.5 touch-target transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
-                    title="Voice Search"
-                    aria-label="Voice Search"
-                  >
-                    <Mic className="w-4 h-4" />
-                  </button>
-                )}
-                {settings.enableVisualSearch && (
-                  <button 
-                    type="button" 
-                    onClick={() => setIsCameraSearchOpen(true)}
-                    className="p-2.5 touch-target text-gray-400 hover:text-primary transition-colors"
-                    title="Visual Search"
-                    aria-label="Visual Search"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="absolute right-1.5 p-2.5 touch-target bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
-                aria-label="Submit search"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </form>
-
-            {/* Search Suggestions Dropdown */}
-            <AnimatePresence>
-              {isSearchFocused && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
-                >
-                  <div className="flex flex-col gap-5">
-                    {/* Category Suggestions */}
-                    {suggestedCategories.length > 0 && searchQuery.length > 0 && (
-                      <div className="bg-gray-50/50 rounded-2xl p-3">
-                        <div className="flex items-center gap-2 mb-3 px-1">
-                          <Sparkles className="w-4 h-4 text-amber-500" />
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Categories</span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-1">
-                          {suggestedCategories.map(cat => (
-                            <Link
-                              key={cat.id}
-                              to={`/categories/${getCategorySlug(cat)}`}
-                              onClick={() => setIsSearchFocused(false)}
-                              className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
-                                  {getCategoryIcon(cat.icon || '')}
-                                </div>
-                                <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
-                              </div>
-                              <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {recentSearches.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3 px-2">
-                          <div className="flex items-center gap-2">
-                            <History className="w-4 h-4 text-primary" />
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Searches</span>
-                          </div>
-                          <button
-                            onClick={clearRecentHistory}
-                            className="text-[9px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest"
-                          >
-                            Clear All
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          {recentSearches.map((s, i) => (
-                            <button
-                              key={i}
-                              onClick={() => {
-                                setSearchQuery(s);
-                                navigate(`/products?q=${s}`);
-                                setIsSearchFocused(false);
-                              }}
-                              className="flex items-center justify-between group/item p-3 hover:bg-gray-50 rounded-xl transition-all"
-                            >
-                              <div className="flex items-center gap-3">
-                                <History className="w-3.5 h-3.5 text-gray-300 group-hover/item:text-primary" />
-                                <span className="text-sm font-medium text-gray-600 group-hover/item:text-gray-900">{s}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={(e) => removeRecentSearch(e, s)}
-                                  className="p-1 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors opacity-0 group-hover/item:opacity-100"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                                <ArrowRight className="w-3 h-3 text-gray-300 opacity-0 group-hover/item:opacity-100 transition-all -translate-x-2 group-hover/item:translate-x-0" />
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <div className="flex items-center gap-2 mb-3 px-2">
-                        <TrendingUp className="w-4 h-4 text-blue-500" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trending Now</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 px-1">
-                        {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
-                          <button
-                            key={trend}
-                            onClick={() => {
-                              setSearchQuery(trend);
-                              navigate(`/products?q=${trend}`);
-                              setIsSearchFocused(false);
-                            }}
-                            className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95"
-                          >
-                            {trend}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-gray-100 pt-4">
-                      <div className="flex items-center gap-2 mb-4 px-2">
-                        <History className="w-4 h-4 text-gray-400" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Categories</span>
-                      </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        {CATEGORIES.filter(c => c.isVisible ?? true).slice(0, 4).map(cat => (
-                          <Link
-                            key={cat.id}
-                            to={`/categories/${getCategorySlug(cat)}`}
-                            onClick={() => setIsSearchFocused(false)}
-                            className="flex flex-col items-center gap-2 p-3 hover:bg-emerald-50/50 rounded-2xl transition-all group border border-gray-50"
-                          >
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform">
-                              <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
-                            </div>
-                            <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-emerald-700">{cat.name}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Desktop Delivery Address Selector NEXT TO Search Bar */}
-          <button
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs cursor-pointer"
-            title={formatHeaderAddress(selectedAddress)}
-          >
-            <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
-            <div className="flex flex-col min-w-0 leading-tight">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
-              <span className="text-xs font-bold text-gray-800 truncate">
-                {formatHeaderAddress(selectedAddress)}
-              </span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
-          </button>
-        </div>
-
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-6">
-            {(user?.role === 'admin' || user?.role === 'super_admin') && (
-              <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors p-2 touch-target" aria-label="Admin Dashboard">
-                <LayoutDashboard className="w-5 h-5" />
-                <span className="text-sm font-medium">Admin</span>
+            <div className={`${isMenuOpen ? 'hidden' : 'flex'} sm:flex transition-all duration-300`}>
+              <Link to="/" className="hover:opacity-80 transition-opacity">
+                <Logo className="scale-75 sm:scale-100 origin-left" />
               </Link>
-            )}
-            <Link to="/wishlist" className="text-gray-600 hover:text-rose-600 transition-colors relative p-2 touch-target flex items-center" aria-label="Wishlist">
-              <Heart className="w-6 h-6" />
-              {user?.wishlist && user.wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
-                  {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
-                </span>
-              )}
-            </Link>
-            <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Cart">
-              <ShoppingCart className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+            </div>
 
-            {/* Desktop Notifications Dropdown */}
-            {user && notifications.length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
-                  className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center"
-                  aria-label="Notifications"
-                >
-                  <Bell className="w-6 h-6" />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {isNotificationsOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 flex flex-col max-h-[400px]"
+            {/* Search Bar & Address Selector Container */}
+            <div className="flex flex-1 max-w-4xl mx-2 sm:mx-4 lg:mx-8 items-center gap-2 sm:gap-3 min-w-0">
+              {/* Search Bar - Responsive and Wide */}
+              <div className="flex-1 relative group items-center min-w-0">
+                <form onSubmit={handleSearch} className="w-full relative flex items-center">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Search className={`h-4 w-4 transition-colors ${isSearchFocused ? 'text-primary' : 'text-gray-400'}`} />
+                  </div>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search products, brands & more"
+                    className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-11 pr-12 sm:pr-24 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
+                      }`}
+                    value={searchQuery}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-12 sm:right-[114px] p-2.5 touch-target text-gray-400 hover:text-red-500 transition-colors z-10"
+                      aria-label="Clear search"
                     >
-                      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <h3 className="font-black text-gray-900 text-sm">Notifications</h3>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setIsNotificationsOpen(false);
-                              setShowPreferencesModal(true);
-                            }}
-                            className="text-[10px] font-bold text-gray-500 hover:text-primary uppercase tracking-wider"
-                          >
-                            Settings
-                          </button>
-                          {notifications.filter(n => !n.read).length > 0 && (
-                            <button onClick={markAllAsRead} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest">
-                              Mark all read
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="overflow-y-auto flex-1 p-2">
-                        {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-gray-400 font-medium text-sm">No new notifications.</div>
-                        ) : (
-                          notifications.map((notif) => (
-                            <div 
-                              key={notif.id} 
-                              onClick={() => {
-                                markNotificationAsRead(notif.id);
-                                setIsNotificationsOpen(false);
-                                if (notif.destinationSlug) {
-                                  navigate(notif.destinationSlug);
-                                } else if (notif.orderId) {
-                                  navigate(`/track-order/${notif.orderId}`);
-                                } else if (notif.productId) {
-                                  navigate(`/products/${notif.productId}`);
-                                }
-                              }}
-                              className={`p-3 rounded-xl mb-1 cursor-pointer transition-all border border-transparent ${notif.read ? 'bg-white hover:bg-gray-50' : 'bg-primary/5 hover:border-primary/20 hover:bg-primary/10'}`}
-                            >
-                              <div className="flex justify-between items-start gap-2 mb-1">
-                                <span className={`text-xs font-bold ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>{notif.title}</span>
-                                {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
-                              </div>
-                              <p className={`text-xs ${notif.read ? 'text-gray-500' : 'text-gray-600 font-medium'}`}>{notif.message}</p>
-                              <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
-                                {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </p>
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="absolute right-12 top-0 bottom-0 flex items-center gap-1 bg-white pl-2">
+                    {settings.enableVoiceSearch && (
+                      <button
+                        type="button"
+                        onClick={startVoiceSearch}
+                        className={`p-2.5 touch-target transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
+                        title="Voice Search"
+                        aria-label="Voice Search"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    )}
+                    {settings.enableVisualSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCameraSearchOpen(true)}
+                        className="p-2.5 touch-target text-gray-400 hover:text-primary transition-colors"
+                        title="Visual Search"
+                        aria-label="Visual Search"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="absolute right-1.5 p-2.5 touch-target bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
+                    aria-label="Submit search"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                </form>
+
+                {/* Search Suggestions Dropdown */}
+                <AnimatePresence>
+                  {isSearchFocused && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
+                    >
+                      <div className="flex flex-col gap-5">
+                        {/* Category Suggestions */}
+                        {suggestedCategories.length > 0 && searchQuery.length > 0 && (
+                          <div className="bg-gray-50/50 rounded-2xl p-3">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                              <Sparkles className="w-4 h-4 text-amber-500" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Categories</span>
                             </div>
-                          ))
+                            <div className="grid grid-cols-1 gap-1">
+                              {suggestedCategories.map(cat => (
+                                <Link
+                                  key={cat.id}
+                                  to={`/categories/${getCategorySlug(cat)}`}
+                                  onClick={() => setIsSearchFocused(false)}
+                                  className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
+                                      {getCategoryIcon(cat.icon || '')}
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
+                                  </div>
+                                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
                         )}
+
+                        {recentSearches.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3 px-2">
+                              <div className="flex items-center gap-2">
+                                <History className="w-4 h-4 text-primary" />
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Searches</span>
+                              </div>
+                              <button
+                                onClick={clearRecentHistory}
+                                className="text-[9px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest"
+                              >
+                                Clear All
+                              </button>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {recentSearches.map((s, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setSearchQuery(s);
+                                    navigate(`/products?q=${s}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="flex items-center justify-between group/item p-3 hover:bg-gray-50 rounded-xl transition-all"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <History className="w-3.5 h-3.5 text-gray-300 group-hover/item:text-primary" />
+                                    <span className="text-sm font-medium text-gray-600 group-hover/item:text-gray-900">{s}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => removeRecentSearch(e, s)}
+                                      className="p-1 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors opacity-0 group-hover/item:opacity-100"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                    <ArrowRight className="w-3 h-3 text-gray-300 opacity-0 group-hover/item:opacity-100 transition-all -translate-x-2 group-hover/item:translate-x-0" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-3 px-2">
+                            <TrendingUp className="w-4 h-4 text-blue-500" />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trending Now</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 px-1">
+                            {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
+                              <button
+                                key={trend}
+                                onClick={() => {
+                                  setSearchQuery(trend);
+                                  navigate(`/products?q=${trend}`);
+                                  setIsSearchFocused(false);
+                                }}
+                                className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95"
+                              >
+                                {trend}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="border-t border-gray-100 pt-4">
+                          <div className="flex items-center gap-2 mb-4 px-2">
+                            <History className="w-4 h-4 text-gray-400" />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Categories</span>
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            {CATEGORIES.filter(c => c.isVisible ?? true).slice(0, 4).map(cat => (
+                              <Link
+                                key={cat.id}
+                                to={`/categories/${getCategorySlug(cat)}`}
+                                onClick={() => setIsSearchFocused(false)}
+                                className="flex flex-col items-center gap-2 p-3 hover:bg-emerald-50/50 rounded-2xl transition-all group border border-gray-50"
+                              >
+                                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform">
+                                  <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
+                                </div>
+                                <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-emerald-700">{cat.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            )}
-            {user ? (
-              <Link to="/profile" className="relative group">
-                <div className="w-10 h-10 rounded-full border-2 border-gray-100 p-0.5 overflow-hidden transition-all group-hover:border-primary">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} alt={user.displayName} className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                      {user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ) : (
-              <Link
-                to="/login"
-                className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-lg shadow-blue-500/20"
-              >
-                Login
-              </Link>
-            )}
-          </div>
 
-          {/* Mobile Actions (Always Visible) */}
-          <div className="flex md:hidden items-center gap-1 sm:gap-3">
-            {notifications.length > 0 && (
-              <button 
-                onClick={() => setIsNotificationsOpen(true)} 
-                className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" 
-                aria-label="Notifications"
+              {/* Desktop Delivery Address Selector NEXT TO Search Bar */}
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(true)}
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50/70 border border-gray-200 hover:border-emerald-300 rounded-full transition-all text-left shrink-0 max-w-[170px] md:max-w-[200px] lg:max-w-[230px] group shadow-2xs cursor-pointer"
+                title={formatHeaderAddress(selectedAddress)}
               >
-                <Bell className="w-6 h-6" />
-                {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
-                )}
+                <MapPin className="w-4 h-4 text-emerald-600 shrink-0 fill-emerald-100 group-hover:scale-105 transition-transform" />
+                <div className="flex flex-col min-w-0 leading-tight">
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider truncate">Deliver to</span>
+                  <span className="text-xs font-bold text-gray-800 truncate">
+                    {formatHeaderAddress(selectedAddress)}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-emerald-600 shrink-0 ml-auto transition-colors" />
               </button>
-            )}
-            <Link to="/cart" className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" aria-label="Cart">
-              <ShoppingCart className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {cartCount}
-                </span>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-6">
+              {(user?.role === 'admin' || user?.role === 'super_admin') && (
+                <Link to="/admin" className="text-gray-600 hover:text-primary flex items-center gap-1 transition-colors p-2 touch-target" aria-label="Admin Dashboard">
+                  <LayoutDashboard className="w-5 h-5" />
+                  <span className="text-sm font-medium">Admin</span>
+                </Link>
               )}
-            </Link>
-            <button
-              className="p-2.5 touch-target text-gray-600 transition-transform active:scale-95 flex items-center justify-center"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label={isMenuOpen ? "Close Menu" : "Open Menu"}
-              aria-expanded={isMenuOpen}
-            >
-              {isMenuOpen ? <X className="w-7 h-7 text-primary" /> : <Menu className="w-7 h-7" />}
-            </button>
+              <Link to="/wishlist" className="text-gray-600 hover:text-rose-600 transition-colors relative p-2 touch-target flex items-center" aria-label="Wishlist">
+                <Heart className="w-6 h-6" />
+                {user?.wishlist && user.wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                    {user.wishlist.length > 99 ? '99+' : user.wishlist.length}
+                  </span>
+                )}
+              </Link>
+              <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center" aria-label="Cart">
+                <ShoppingCart className="w-6 h-6" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Desktop Notifications Dropdown */}
+              {user && notifications.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    className="text-gray-600 hover:text-primary transition-colors relative p-2 touch-target flex items-center"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="w-6 h-6" />
+                    {notifications.filter(n => !n.read).length > 0 && (
+                      <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                    )}
+                  </button>
+                  <AnimatePresence>
+                    {isNotificationsOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 flex flex-col max-h-[400px]"
+                      >
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                          <h3 className="font-black text-gray-900 text-sm">Notifications</h3>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setIsNotificationsOpen(false);
+                                setShowPreferencesModal(true);
+                              }}
+                              className="text-[10px] font-bold text-gray-500 hover:text-primary uppercase tracking-wider"
+                            >
+                              Settings
+                            </button>
+                            {notifications.filter(n => !n.read).length > 0 && (
+                              <button onClick={markAllAsRead} className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest">
+                                Mark all read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-2">
+                          {notifications.length === 0 ? (
+                            <div className="p-6 text-center text-gray-400 font-medium text-sm">No new notifications.</div>
+                          ) : (
+                            notifications.map((notif) => (
+                              <div
+                                key={notif.id}
+                                onClick={() => {
+                                  markNotificationAsRead(notif.id);
+                                  setIsNotificationsOpen(false);
+                                  if (notif.destinationSlug) {
+                                    navigate(notif.destinationSlug);
+                                  } else if (notif.orderId) {
+                                    navigate(`/track-order/${notif.orderId}`);
+                                  } else if (notif.productId) {
+                                    navigate(`/products/${notif.productId}`);
+                                  }
+                                }}
+                                className={`p-3 rounded-xl mb-1 cursor-pointer transition-all border border-transparent ${notif.read ? 'bg-white hover:bg-gray-50' : 'bg-primary/5 hover:border-primary/20 hover:bg-primary/10'}`}
+                              >
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                  <span className={`text-xs font-bold ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>{notif.title}</span>
+                                  {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
+                                </div>
+                                <p className={`text-xs ${notif.read ? 'text-gray-500' : 'text-gray-600 font-medium'}`}>{notif.message}</p>
+                                <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wider">
+                                  {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+              {user ? (
+                <Link to="/profile" className="relative group">
+                  <div className="w-10 h-10 rounded-full border-2 border-gray-100 p-0.5 overflow-hidden transition-all group-hover:border-primary">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName} className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                        {user.displayName?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-hover transition-colors shadow-lg shadow-blue-500/20"
+                >
+                  Login
+                </Link>
+              )}
+            </div>
+
+            {/* Mobile Actions (Always Visible) */}
+            <div className="flex md:hidden items-center gap-1 sm:gap-3">
+              {notifications.length > 0 && (
+                <button
+                  onClick={() => setIsNotificationsOpen(true)}
+                  className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-6 h-6" />
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                  )}
+                </button>
+              )}
+              <Link to="/cart" className="text-gray-600 relative p-2.5 touch-target flex items-center justify-center" aria-label="Cart">
+                <ShoppingCart className="w-6 h-6" />
+                {cartCount > 0 && (
+                  <span className="absolute top-1 right-1 bg-primary text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+              <button
+                className="p-2.5 touch-target text-gray-600 transition-transform active:scale-95 flex items-center justify-center"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label={isMenuOpen ? "Close Menu" : "Open Menu"}
+                aria-expanded={isMenuOpen}
+              >
+                {isMenuOpen ? <X className="w-7 h-7 text-primary" /> : <Menu className="w-7 h-7" />}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Secondary Category Nav (Top Category Section) */}
@@ -688,7 +688,7 @@ export default function Navbar() {
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          
+
           <div
             ref={navCategoryScrollRef}
             className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto scroll-smooth hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest min-w-0 w-full"
@@ -858,7 +858,7 @@ export default function Navbar() {
                             ) : (
                               <span className="text-lg">{cat.iconImage}</span>
                             )
-                          ) : cat.icon && !['smartphone','shirt','laptop','home','sparkles','tv'].includes(cat.icon) ? (
+                          ) : cat.icon && !['smartphone', 'shirt', 'laptop', 'home', 'sparkles', 'tv'].includes(cat.icon) ? (
                             <span className="text-lg">{cat.icon}</span>
                           ) : (
                             getCategoryIcon(cat)
@@ -911,7 +911,7 @@ export default function Navbar() {
                     <X className="w-6 h-6" />
                   </button>
                 </div>
-                
+
                 {notifications.filter(n => !n.read).length > 0 && (
                   <button onClick={markAllAsRead} className="text-xs font-bold text-primary hover:underline uppercase tracking-widest mb-4 self-start">
                     Mark all as read
@@ -923,8 +923,8 @@ export default function Navbar() {
                     <div className="py-12 text-center text-gray-400 font-medium">No new notifications.</div>
                   ) : (
                     notifications.map((notif) => (
-                      <div 
-                        key={notif.id} 
+                      <div
+                        key={notif.id}
                         onClick={() => {
                           markNotificationAsRead(notif.id);
                           if (notif.orderId) navigate(`/track-request/${notif.orderId}`);

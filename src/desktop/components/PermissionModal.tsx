@@ -1,15 +1,15 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  MessageSquare, 
-  Mic, 
-  Bell, 
-  MapPin, 
-  Smartphone, 
-  Camera, 
-  User, 
-  ShieldCheck, 
-  X 
+import {
+  MessageSquare,
+  Mic,
+  Bell,
+  MapPin,
+  Smartphone,
+  Camera,
+  User,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { PushService } from '../../backend/services/pushService';
 import { useAuthStore } from '../../backend/store';
@@ -63,13 +63,13 @@ export default function PermissionModal({ isOpen, onClose, onAccept }: Permissio
 
   return (
     <AnimatePresence>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       >
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
@@ -100,13 +100,13 @@ export default function PermissionModal({ isOpen, onClose, onAccept }: Permissio
           </div>
 
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={onClose}
               className="flex-1 py-4 font-black border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
-            <button 
+            <button
               onClick={async () => {
                 if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
                   try {

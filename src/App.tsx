@@ -224,7 +224,7 @@ function SplashScreen({ isVisible }: { isVisible: boolean }) {
             transition={{ duration: 0.4, ease: 'easeOut' }}
             className="flex items-center justify-center p-6"
           >
-            <Logo showTextOnMobile={true} className="scale-125 sm:scale-150 transform transition-transform" />
+            <Logo textOnly={true} showTextOnMobile={true} className="scale-125 sm:scale-150 transform transition-transform" />
           </motion.div>
         </motion.div>
       )}
