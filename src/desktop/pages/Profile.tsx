@@ -613,16 +613,19 @@ export default function Profile() {
           <div className="lg:col-span-9 space-y-6">
             {/* 3 Equal-Sized Cards (VIBA, Deal 259, REWARDS) */}
             <div className="grid grid-cols-3 gap-4 w-full min-w-0">
-              {/* Card 1: VIBA */}
+              {/* Card 1: VIBA MART */}
               <motion.div
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.01 }}
                 onClick={() => navigate('/')}
-                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-2xl p-3 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20"
+                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-2xl p-3 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20"
               >
                 <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-75 sm:scale-85" />
                 </div>
+                <span className="text-xs sm:text-sm font-black tracking-wider text-white drop-shadow-sm uppercase text-center truncate max-w-full leading-none">
+                  VIBA MART
+                </span>
               </motion.div>
 
               {/* Card 2: Deal 259 */}
