@@ -46,15 +46,17 @@ try {
 
       const notificationTitle = payload.notification?.title || payload.data?.title || 'ViBa Mart Alert';
       const origin = self.location.origin || '';
+      const defaultIcon = origin ? `${origin}/icon-192.png` : '/icon-192.png';
+
       const notificationOptions = {
         body: payload.notification?.body || payload.data?.message || payload.data?.body || 'Check out latest deals on ViBa Mart!',
-        icon: payload.notification?.icon || payload.data?.icon || (origin ? `${origin}/favicon.svg` : '/favicon.svg'),
-        badge: origin ? `${origin}/favicon.svg` : '/favicon.svg',
+        icon: payload.data?.icon || payload.notification?.icon || defaultIcon,
+        badge: payload.data?.badge || defaultIcon,
         image: payload.notification?.image || payload.notification?.imageUrl || payload.data?.image || undefined,
-        tag: payload.data?.tag || payload.data?.notificationId || 'viba-push-alert',
+        tag: payload.data?.notificationId || payload.data?.tag || `viba_push_${Date.now()}`,
         renotify: true,
         data: {
-          url: payload.data?.destinationSlug || payload.data?.url || '/',
+          url: payload.data?.destinationSlug || payload.data?.url || payload.notification?.click_action || '/',
           orderId: payload.data?.orderId,
           productId: payload.data?.productId,
           campaignId: payload.data?.campaignId,

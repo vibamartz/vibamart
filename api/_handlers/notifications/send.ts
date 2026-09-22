@@ -168,6 +168,10 @@ export async function sendFcmMulticastWithCleanup(
         notificationId: payload.notificationId,
         title: payload.title,
         message: payload.message,
+        body: payload.message,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        image: payload.image || '',
       },
       webpush: {
         headers: {
@@ -177,8 +181,8 @@ export async function sendFcmMulticastWithCleanup(
         notification: {
           title: payload.title,
           body: payload.message,
-          icon: payload.image || '/favicon.svg',
-          badge: '/favicon.svg',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
           image: payload.image || undefined,
           tag: payload.notificationId,
           renotify: true,

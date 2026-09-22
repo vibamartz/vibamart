@@ -143,13 +143,14 @@ export class PushService {
   /**
    * Register device token to Firestore
    */
-  public static async registerDevice(userId: string, swRegistration?: ServiceWorkerRegistration | null): Promise<string | null> {
+  public static async registerDevice(userId: string, swRegistration?: ServiceWorkerRegistration | null, autoPrompt: boolean = false): Promise<string | null> {
     if (!userId || !this.isSupported()) return null;
     try {
-      const permission = await this.getPermission();
+      let permission = this.getPermission();
       if (permission !== 'granted') {
-        const req = await this.requestPermission();
-        if (req !== 'granted') return null;
+        if (!autoPrompt) return null;
+        permission = await this.requestPermission();
+        if (permission !== 'granted') return null;
       }
 
       const token = await this.getFcmToken(swRegistration);
@@ -273,9 +274,9 @@ export class PushService {
   }
 
   /**
-   * Show a local in-browser notification when permission is granted
+   * Show a local in-browser notification when permission is granted (Android & Desktop compatible)
    */
-  public static showLocalPush(
+  public static async showLocalPush(
     title: string,
     options?: {
       body?: string;
@@ -285,26 +286,55 @@ export class PushService {
       destinationSlug?: string;
       data?: any;
     }
-  ): void {
+  ): Promise<void> {
     if (!this.isSupported() || Notification.permission !== 'granted') return;
 
+    const iconUrl = options?.icon || '/icon-192.png';
+    const badgeUrl = '/icon-192.png';
+    const tag = options?.tag || `viba_alert_${Date.now()}`;
+    const destinationUrl = options?.destinationSlug || '/';
+
     try {
-      const notif = new Notification(title, {
+      if ('serviceWorker' in navigator) {
+        const reg = (await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')) || (await navigator.serviceWorker.ready);
+        if (reg && 'showNotification' in reg) {
+          const swNotifOptions: any = {
+            body: options?.body,
+            icon: iconUrl,
+            badge: badgeUrl,
+            image: options?.image,
+            tag,
+            renotify: true,
+            data: {
+              url: destinationUrl,
+              ...(options?.data || {}),
+            },
+          };
+          await reg.showNotification(title, swNotifOptions);
+          return;
+        }
+      }
+
+      // Fallback for desktop browsers supporting new Notification() constructor
+      const notifOptions: any = {
         body: options?.body,
-        icon: options?.icon || '/favicon.ico',
-        tag: options?.tag || 'viba-mart-alert',
-        badge: '/favicon.ico',
+        icon: iconUrl,
+        tag,
+        badge: badgeUrl,
+        image: options?.image,
         data: {
-          url: options?.destinationSlug || '/',
+          url: destinationUrl,
           ...(options?.data || {}),
         },
-      });
+      };
+
+      const notif = new Notification(title, notifOptions);
 
       notif.onclick = (e) => {
         e.preventDefault();
         window.focus();
-        if (options?.destinationSlug) {
-          window.location.href = options.destinationSlug;
+        if (destinationUrl) {
+          window.location.href = destinationUrl;
         }
         notif.close();
       };
