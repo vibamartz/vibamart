@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle,
+  User, Package, Heart, MapPin, RefreshCcw, HelpCircle,
   LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders,
   CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard
 } from 'lucide-react';
@@ -109,7 +109,6 @@ export default function MobileProfileScreen() {
     { title: 'My Orders', icon: Package, path: '/orders', badge: ordersCount > 0 ? ordersCount : null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
-    { title: 'Notifications', icon: Bell, path: '/notifications', badge: null, color: 'text-purple-600 bg-purple-50' },
     { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
   ];
 
