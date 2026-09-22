@@ -34,7 +34,10 @@
   }
 
   body {
-    @apply text-gray-900 antialiased bg-gray-50;
+    color: #111827;
+    background-color: #f9fafb;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   @media (min-width: 1024px) {
@@ -47,7 +50,12 @@
 
   /* Global Accessibility: Ensure standard focus rings for keyboard navigation */
   *:focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-white transition-shadow;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--color-primary, #15803d);
+    transition-property: box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
   }
 
   /* Accessibility: Screen Reader Only */
@@ -68,7 +76,8 @@
 
   /* WCAG 2.1 Touch Target minimum size */
   .touch-target {
-    @apply min-h-[44px] min-w-[44px];
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
