@@ -19,7 +19,7 @@ function getConfigFromUrl() {
         appId: urlParams.get('appId') || '',
       };
     }
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 
