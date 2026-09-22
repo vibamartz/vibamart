@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-  RefreshCcw, XCircle, Clock, Upload, CheckCircle2, AlertTriangle, ShieldCheck, Image as ImageIcon 
+import {
+  RefreshCcw, XCircle, Clock, Upload, CheckCircle2, AlertTriangle, ShieldCheck, Image as ImageIcon
 } from 'lucide-react';
 import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -174,21 +174,19 @@ export default function MobileRequestScreens() {
         <div className="flex gap-1.5">
           <button
             onClick={() => setActiveTab('create')}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-              activeTab === 'create'
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === 'create'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             New Request
           </button>
           <button
             onClick={() => setActiveTab('list')}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-              activeTab === 'list'
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeTab === 'list'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             My Requests ({myRequests.length})
           </button>
@@ -211,11 +209,10 @@ export default function MobileRequestScreens() {
                   key={t.type}
                   type="button"
                   onClick={() => setRequestType(t.type as any)}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    requestType === t.type
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${requestType === t.type
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow'
                       : 'bg-gray-50 text-gray-700 border-gray-200'
-                  }`}
+                    }`}
                 >
                   {t.label}
                 </button>

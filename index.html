@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
+  <meta name="color-scheme" content="light" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="ViBa Mart" />
@@ -12,44 +13,16 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/favicon.svg" />
   <link rel="manifest" href="/manifest.json" />
+  <style>
+    html, body {
+      background-color: #ffffff !important;
+      color-scheme: light;
+    }
+  </style>
 </head>
 
-<body>
-  <div id="root">
-    <div style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background-color:#ffffff;user-select:none;">
-      <div style="display:flex;align-items:center;justify-content:center;padding:1.5rem;">
-        <svg viewBox="0 0 120 120" style="width:56px;height:56px;" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="vGradHtml" x1="100%" y1="100%" x2="100%" y2="100%">
-              <stop offset="100%" stop-color="#15803d" />
-            </linearGradient>
-            <linearGradient id="bGradHtml" x1="100%" y1="100%" x2="100%" y2="100%">
-              <stop offset="100%" stop-color="#eab308" />
-            </linearGradient>
-          </defs>
-          <g transform="translate(5, 5)">
-            <path d="M10 25 L38 85 L48 85 L32 25 Z" fill="url(#vGradHtml)" />
-            <path d="M45 25 L65 85 H70 L50 25 Z" fill="url(#vGradHtml)" opacity="0.9" />
-            <path d="M55 25 L75 85 H80 L60 25 Z" fill="url(#bGradHtml)" opacity="0.9" />
-            <path d="M65 25 L88 25 C95 25 100 30 100 38 C100 45 95 50 88 52 C95 54 100 59 100 68 C100 77 95 85 85 85 H70 L90 25 Z" fill="url(#bGradHtml)" />
-            <path d="M82 42 H88 C90 42 92 40 92 38 C92 36 90 34 88 34 H84 L82 42 Z" fill="#ffffff" opacity="0.1" />
-            <path d="M78 75 H85 C88 75 90 73 90 68 C90 63 88 61 85 61 H82 L78 75 Z" fill="#ffffff" opacity="0.1" />
-          </g>
-        </svg>
-        <div style="display:flex;flex-direction:column;justify-content:center;margin-left:12px;line-height:1;">
-          <div style="display:flex;align-items:baseline;">
-            <span style="font-size:24px;font-weight:900;font-style:italic;color:#15803d;font-family:sans-serif;">Vi</span>
-            <span style="font-size:24px;font-weight:900;font-style:italic;color:#eab308;font-family:sans-serif;">Ba</span>
-            <span style="font-size:18px;font-weight:900;font-style:italic;color:#1f2937;margin-left:2px;font-family:sans-serif;">Mart</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-            <div style="height:1.5px;width:14px;background-color:#15803d;"></div>
-            <span style="font-size:8px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:0.25em;font-family:sans-serif;">Online Grocery & Shopping</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+<body style="background-color: #ffffff;">
+  <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

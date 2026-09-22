@@ -395,10 +395,10 @@ export default function MobileRewardProductsScreen() {
                       onClick={(e) => handleAddToCart(product, e)}
                       disabled={isOutOfStock}
                       className={`w-full py-1 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 ${isOutOfStock
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : isInCart
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-white border border-gray-300 text-gray-800'
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : isInCart
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-white border border-gray-300 text-gray-800'
                         }`}
                     >
                       <ShoppingCart className="w-3 h-3" />
@@ -409,8 +409,8 @@ export default function MobileRewardProductsScreen() {
                       onClick={(e) => handleBuyNow(product, e)}
                       disabled={isOutOfStock}
                       className={`w-full py-1 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 ${isOutOfStock
-                          ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
-                          : 'bg-amber-500 text-white shadow'
+                        ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
+                        : 'bg-amber-500 text-white shadow'
                         }`}
                     >
                       <ShoppingBag className="w-3 h-3" />

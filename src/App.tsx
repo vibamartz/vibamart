@@ -255,17 +255,20 @@ export default function App() {
   useEffect(() => {
     const isStoreLoading = loading || catsLoading || settingsLoading;
     
-    if (!isStoreLoading) {
-      setShowSplash(false);
-      return;
-    }
+    // Minimum 700ms display for smooth feel, hide when stores finish
+    const minTimer = setTimeout(() => {
+      if (!isStoreLoading) {
+        setShowSplash(false);
+      }
+    }, 700);
 
-    // Hard fallback safety timer (1.2s) so app never hangs permanently
+    // Hard fallback safety timer (2.5s) so app never hangs permanently
     const maxSafetyTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 1200);
+    }, 2500);
 
     return () => {
+      clearTimeout(minTimer);
       clearTimeout(maxSafetyTimer);
     };
   }, [loading, catsLoading, settingsLoading]);
