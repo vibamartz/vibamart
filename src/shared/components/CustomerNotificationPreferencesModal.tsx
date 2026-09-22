@@ -164,7 +164,7 @@ export default function CustomerNotificationPreferencesModal({ isOpen, onClose }
                   <Bell className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-gray-900 leading-tight">Notification Preferences</h3>
+                  <h3 className="text-base font-black text-gray-900 leading-tight">Notification Settings</h3>
                   <p className="text-xs text-gray-500 font-medium">Choose what alerts you want to receive</p>
                 </div>
               </div>
@@ -208,16 +208,14 @@ export default function CustomerNotificationPreferencesModal({ isOpen, onClose }
 
                     {/* Toggle Switch */}
                     <div
-                      className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                        isEnabled ? 'bg-primary' : 'bg-gray-300'
-                      }`}
+                      className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${isEnabled ? 'bg-primary' : 'bg-gray-300'
+                        }`}
                     >
                       <motion.div
                         layout
                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        className={`bg-white w-4 h-4 rounded-full shadow-md transform ${
-                          isEnabled ? 'translate-x-5' : 'translate-x-0'
-                        }`}
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform ${isEnabled ? 'translate-x-5' : 'translate-x-0'
+                          }`}
                       />
                     </div>
                   </div>
