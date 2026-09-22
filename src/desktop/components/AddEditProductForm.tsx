@@ -594,9 +594,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 return (
                   <div
                     key={v.id}
-                    className={`p-8 rounded-[32px] border-2 transition-all relative space-y-6 ${
-                      v.disabled ? 'bg-gray-100/60 border-gray-200 opacity-70' : 'bg-gray-50 border-gray-100'
-                    }`}
+                    className={`p-8 rounded-[32px] border-2 transition-all relative space-y-6 ${v.disabled ? 'bg-gray-100/60 border-gray-200 opacity-70' : 'bg-gray-50 border-gray-100'
+                      }`}
                   >
                     {/* Top Action Header */}
                     <div className="flex items-center justify-between border-b border-gray-200/60 pb-4">
@@ -634,9 +633,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                         <button
                           type="button"
                           onClick={() => toggleVariantDisabled(v.id)}
-                          className={`p-2 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 ${
-                            v.disabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-                          }`}
+                          className={`p-2 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 ${v.disabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
                         >
                           {v.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                           {v.disabled ? 'Enable' : 'Disable'}
@@ -1166,11 +1164,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                     key={attr.id}
                     type="button"
                     onClick={() => toggleVariantAttribute(attr.id)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border-2 ${
-                      isChecked
+                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border-2 ${isChecked
                         ? 'bg-green-600 text-white border-green-600 shadow-md'
                         : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-gray-200'
-                    }`}
+                      }`}
                   >
                     {isChecked && <Check className="w-3.5 h-3.5" />}
                     {attr.label}
@@ -1179,7 +1176,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               })}
             </div>
           </div>
- 
+
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
             <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
@@ -1222,7 +1219,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               </div>
               <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Optional — if added, minimum {settings.minKeywords}.</p>
             </div>
-            
+
             {formData.tags && formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-50">
                 {formData.tags.map(tag => (
@@ -1257,7 +1254,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               </div>
             )}
           </div>
- 
+
         </div>
       </form>
     </motion.div>
