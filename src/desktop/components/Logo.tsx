@@ -3,12 +3,11 @@ import React from 'react';
 interface LogoProps {
   className?: string;
   iconOnly?: boolean;
-  textOnly?: boolean;
   variant?: 'light' | 'dark';
   showTextOnMobile?: boolean;
 }
 
-export default function Logo({ className = '', iconOnly = false, textOnly = false, variant = 'light', showTextOnMobile = false }: LogoProps) {
+export default function Logo({ className = '', iconOnly = false, variant = 'light', showTextOnMobile = false }: LogoProps) {
   const textColor = variant === 'light' ? 'text-gray-900' : 'text-white';
   const martColor = variant === 'light' ? 'text-gray-800' : 'text-gray-200';
   const subTextColor = variant === 'light' ? 'text-gray-400' : 'text-gray-500';
@@ -17,8 +16,7 @@ export default function Logo({ className = '', iconOnly = false, textOnly = fals
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {!textOnly && (
-        <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center">
         {/* custom SVG Logo Mark - Refined 'VB' minimal style */}
         <div className="relative w-14 h-14 flex items-center justify-center group select-none">
           <svg
@@ -67,7 +65,6 @@ export default function Logo({ className = '', iconOnly = false, textOnly = fals
           </svg>
         </div>
       </div>
-      )}
 
       {!iconOnly && (
         <div className={`${showTextOnMobile ? 'flex' : 'hidden sm:flex'} flex-col justify-center leading-none`}>
