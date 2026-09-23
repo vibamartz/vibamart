@@ -371,13 +371,13 @@ export default function MobileHomepage() {
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/')}
                 style={{ height: 'clamp(54px, 14vw, 68px)' }}
-                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer border border-amber-300/40 active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
               >
                 <div className="w-[clamp(24px,5.5vw,30px)] h-[clamp(24px,5.5vw,30px)] flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-65 sm:scale-75" />
                 </div>
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
-                  VIBA MART
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                  Viba Mart
                 </span>
               </motion.div>
 
@@ -386,7 +386,7 @@ export default function MobileHomepage() {
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/deal259')}
                 style={{ height: 'clamp(54px, 14vw, 68px)' }}
-                className="w-full bg-white rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+                className="w-full bg-white rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-sm flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
               >
                 <div className="w-[clamp(24px,5.5vw,30px)] h-[clamp(24px,5.5vw,30px)] flex items-center justify-center shrink-0">
                   <svg
@@ -410,8 +410,8 @@ export default function MobileHomepage() {
                   </svg>
                 </div>
 
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
-                  DEAL 259
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                  Deal 259
                 </span>
               </motion.div>
 
@@ -420,7 +420,7 @@ export default function MobileHomepage() {
                 whileTap={{ scale: 0.96 }}
                 onClick={() => navigate(user ? (rewardsConfig.targetLink || '/rewards') : '/login')}
                 style={{ height: 'clamp(54px, 14vw, 68px)' }}
-                className="w-full bg-white rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
+                className="w-full bg-white rounded-[18px] sm:rounded-[22px] p-[clamp(4px,1.2vw,8px)] shadow-sm flex flex-col items-center justify-center gap-0.5 sm:gap-1 cursor-pointer active:scale-95 transition-transform overflow-hidden min-w-0 text-center"
               >
                 <div className="w-[clamp(24px,5.5vw,30px)] h-[clamp(24px,5.5vw,30px)] flex items-center justify-center shrink-0">
                   <svg
@@ -456,8 +456,8 @@ export default function MobileHomepage() {
                   </svg>
                 </div>
 
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 uppercase text-center truncate max-w-full leading-none">
-                  REWARDS
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                  Rewards
                 </span>
               </motion.div>
             </div>
