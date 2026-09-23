@@ -376,8 +376,8 @@ export default function MobileHomepage() {
                 <div className="w-[clamp(24px,5.5vw,30px)] h-[clamp(24px,5.5vw,30px)] flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-65 sm:scale-75" />
                 </div>
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
-                  Viba Mart
+                <span style={{ fontStyle: 'italic' }} className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                  ViBa Mart
                 </span>
               </motion.div>
 
@@ -410,7 +410,7 @@ export default function MobileHomepage() {
                   </svg>
                 </div>
 
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                <span style={{ fontStyle: 'italic' }} className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
                   Deal 259
                 </span>
               </motion.div>
@@ -456,7 +456,7 @@ export default function MobileHomepage() {
                   </svg>
                 </div>
 
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
+                <span style={{ fontStyle: 'italic' }} className="text-[clamp(10px,2.8vw,12px)] font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
                   Rewards
                 </span>
               </motion.div>

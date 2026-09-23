@@ -618,12 +618,12 @@ export default function Profile() {
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.01 }}
                 onClick={() => navigate('/')}
-                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-2xl p-3 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 cursor-pointer border border-amber-300/40 transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20"
+                className="w-full bg-gradient-to-r from-emerald-500 via-emerald-500 to-yellow-500 rounded-2xl p-3 shadow-md shadow-emerald-400/5 text-white flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20"
               >
                 <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
                   <Logo iconOnly className="scale-75 sm:scale-85" />
                 </div>
-                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 text-center truncate max-w-full leading-none">
+                <span style={{ fontStyle: 'italic' }} className="text-xs sm:text-sm font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
                   ViBa Mart
                 </span>
               </motion.div>
@@ -633,7 +633,7 @@ export default function Profile() {
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.01 }}
                 onClick={() => navigate('/deal259')}
-                className="w-full bg-white rounded-2xl p-3 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:border-emerald-300 hover:shadow-md"
+                className="w-full bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:shadow-md"
               >
                 <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
                   <svg
@@ -656,7 +656,7 @@ export default function Profile() {
                     <circle cx="7.5" cy="7.5" r="1.5" fill="white" />
                   </svg>
                 </div>
-                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 text-center truncate max-w-full leading-none">
+                <span style={{ fontStyle: 'italic' }} className="text-xs sm:text-sm font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
                   Deal 259
                 </span>
               </motion.div>
@@ -666,7 +666,7 @@ export default function Profile() {
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.01 }}
                 onClick={() => navigate('/rewards')}
-                className="w-full bg-white rounded-2xl p-3 shadow-sm border border-emerald-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:border-emerald-300 hover:shadow-md"
+                className="w-full bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center gap-1 cursor-pointer transition-transform overflow-hidden min-w-0 text-center h-16 sm:h-20 hover:shadow-md"
               >
                 <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
                   <svg
@@ -695,7 +695,7 @@ export default function Profile() {
                     <path d="M12 5.2C13.8 2.2 17.5 1.8 17.5 3.8C17.5 5.5 13.5 5.2 12 5.2Z" fill="url(#rewardsRibbonGradProfile)" />
                   </svg>
                 </div>
-                <span className="text-xs sm:text-sm font-black tracking-wider text-gray-900 text-center truncate max-w-full leading-none">
+                <span style={{ fontStyle: 'italic' }} className="text-xs sm:text-sm font-black tracking-wider text-gray-900 italic text-center truncate max-w-full leading-none">
                   Rewards
                 </span>
               </motion.div>
