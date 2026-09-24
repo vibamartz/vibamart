@@ -53,10 +53,9 @@ export default function MobileHomepage() {
 
   // Scroll and dynamic status-bar / header color state
   const [isSticky, setIsSticky] = useState(false);
-  const [stickyBgColor, setStickyBgColor] = useState<string>('rgba(254, 240, 138, 0.95)'); // default soft yellow
   const [statusBarColor, setStatusBarColor] = useState<string>('#dcfce7'); // default light green status bar
 
-  // Section references for dynamic section-based status bar theme colors
+  // Section references
   const topHeaderRef = useRef<HTMLDivElement>(null);
   const bannerSectionRef = useRef<HTMLElement>(null);
   const recommendedSectionRef = useRef<HTMLElement>(null);
@@ -74,33 +73,11 @@ export default function MobileHomepage() {
         setIsSticky(false);
       }
 
-      // Dynamic header & status-bar color transition based on currently visible section
+      // Smooth status-bar color handling
       if (scrollY < 40) {
         setStatusBarColor('#dcfce7');
-        setStickyBgColor('rgba(254, 240, 138, 0.95)');
       } else {
-        const viewportHeaderLine = 130;
-        const recEl = recommendedSectionRef.current;
-        const trendEl = trendingSectionRef.current;
-        const recentEl = recentSectionRef.current;
-
-        if (recEl && recEl.getBoundingClientRect().top <= viewportHeaderLine && recEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
-          // Recommended section active (Dark emerald green block)
-          setStatusBarColor('#065f46');
-          setStickyBgColor('rgba(6, 95, 70, 0.96)');
-        } else if (trendEl && trendEl.getBoundingClientRect().top <= viewportHeaderLine && trendEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
-          // Trending section active
-          setStatusBarColor('#ffffff');
-          setStickyBgColor('rgba(255, 255, 255, 0.96)');
-        } else if (recentEl && recentEl.getBoundingClientRect().top <= viewportHeaderLine && recentEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
-          // Recently viewed section active
-          setStatusBarColor('#ffffff');
-          setStickyBgColor('rgba(255, 255, 255, 0.96)');
-        } else {
-          // Default sticky color below header (soft yellow / light emerald)
-          setStatusBarColor('#fef08a');
-          setStickyBgColor('rgba(254, 240, 138, 0.95)');
-        }
+        setStatusBarColor('#fef08a');
       }
     };
 
@@ -584,15 +561,12 @@ export default function MobileHomepage() {
 
         {/* Sticky Container: Search Bar & Category Section */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${
+          className={`sticky top-0 z-30 transition-colors duration-200 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${
             isSticky 
-              ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
+              ? 'bg-[#fef9c3]/95 backdrop-blur-md shadow-sm border-b border-yellow-200/50' 
               : 'bg-transparent'
           }`}
-          style={{
-            backgroundColor: isSticky ? stickyBgColor : 'transparent',
-            top: 0
-          }}
+          style={{ top: 0 }}
         >
           {/* 3. SEARCH BAR */}
           <section className="relative w-full min-w-0">
