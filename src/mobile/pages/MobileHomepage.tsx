@@ -437,14 +437,13 @@ export default function MobileHomepage() {
     >
 
       {/* ========================================================================= */}
-      {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
+      {/* 1. TOP HEADER NON-STICKY AREA (Background gradient: Light Green -> Yellow) */}
       {/* ========================================================================= */}
-      {/* 1 & 2. TOP HEADER (3 Cards + Location/Work Bar) */}
       <div 
         ref={topHeaderRef}
-        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] to-[#fef08a] min-w-0 transition-colors duration-300"
+        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-40% to-[#fef9c3] px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-2 min-w-0 transition-colors duration-300"
       >
-        <header className="w-full min-w-0 space-y-3 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3">
+        <header className="w-full min-w-0 space-y-3">
           {/* 1. VIBA + DEAL 259 + REWARDS (3 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
           <section className="w-full min-w-0">
             <div className="grid grid-cols-3 gap-[clamp(6px,2vw,12px)] w-full min-w-0">
@@ -583,15 +582,17 @@ export default function MobileHomepage() {
         </header>
       </div>
 
-      {/* 3 & 4. STICKY SEARCH BAR & CATEGORY SECTION (Stays visible across whole page on scroll) */}
+      {/* ========================================================================= */}
+      {/* 2. STICKY TOP HEADER CONTAINER: SEARCH BAR & CATEGORY SECTION            */}
+      {/* ========================================================================= */}
       <div 
-        className={`sticky top-0 z-30 transition-all duration-300 -mx-3.5 xs:-mx-4 sm:-mx-5 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 ${
+        className={`sticky top-0 z-40 -mx-3.5 xs:-mx-4 sm:-mx-5 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 transition-all duration-300 ${
           isSticky 
             ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
-            : 'bg-[#fef08a]'
+            : 'bg-gradient-to-b from-[#fef9c3] to-[#fef08a]'
         }`}
         style={{
-          backgroundColor: isSticky ? stickyBgColor : '#fef08a',
+          backgroundColor: isSticky ? stickyBgColor : undefined,
           top: 0
         }}
       >
@@ -752,6 +753,10 @@ export default function MobileHomepage() {
           </div>
         </section>
       </div>
+
+      {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
+      <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 h-6 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
+
 
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
