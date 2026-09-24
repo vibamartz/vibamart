@@ -432,7 +432,7 @@ export default function MobileHomepage() {
 
   return (
     <div
-      className="min-h-screen bg-white w-full max-w-[768px] mx-auto font-sans select-none overflow-x-hidden space-y-3 sm:space-y-4 px-3.5 xs:px-4 sm:px-5 pt-3 sm:pt-4 min-w-0"
+      className="min-h-screen bg-white w-full max-w-[768px] mx-auto font-sans select-none overflow-x-hidden space-y-2 sm:space-y-3 px-3.5 xs:px-4 sm:px-5 pt-2 sm:pt-2.5 min-w-0"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
     >
 
@@ -441,10 +441,10 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       <div 
         ref={topHeaderRef}
-        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-30% to-[#fef08a] pb-1 min-w-0 transition-colors duration-300"
+        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-2 sm:-mt-2.5 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-30% to-[#fef08a] pb-0.5 min-w-0 transition-colors duration-300"
       >
         {/* Top Header Non-Sticky Section (3 Cards + Location/Work Bar) */}
-        <header className="w-full min-w-0 space-y-3 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-2">
+        <header className="w-full min-w-0 space-y-1.5 px-3.5 xs:px-4 sm:px-5 pt-1.5 sm:pt-2 pb-1">
           {/* 1. VIBA + DEAL 259 + REWARDS (3 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
           <section className="w-full min-w-0">
             <div className="grid grid-cols-3 gap-[clamp(6px,2vw,12px)] w-full min-w-0">
@@ -584,7 +584,7 @@ export default function MobileHomepage() {
 
         {/* Sticky Container: Search Bar & Category Section */}
         <div 
-          className={`sticky top-0 z-30 transition-all duration-300 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 ${
+          className={`sticky top-0 z-30 transition-all duration-300 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${
             isSticky 
               ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
               : 'bg-transparent'
@@ -705,7 +705,7 @@ export default function MobileHomepage() {
           </section>
 
           {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section) */}
-          <section className="w-full min-w-0 space-y-2 pt-1">
+          <section className="w-full min-w-0 space-y-1 pt-0">
             <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
               {navCategoriesList.map((cat) => {
                 const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
@@ -753,7 +753,7 @@ export default function MobileHomepage() {
         </div>
 
         {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
-        <div className="h-6 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
+        <div className="h-2 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
       </div>
 
       {/* ========================================================================= */}
