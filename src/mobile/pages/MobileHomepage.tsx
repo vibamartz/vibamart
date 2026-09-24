@@ -753,10 +753,6 @@ export default function MobileHomepage() {
         </section>
       </div>
 
-      {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
-      <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 h-6 bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
-
-
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
