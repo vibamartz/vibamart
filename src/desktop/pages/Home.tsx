@@ -373,7 +373,7 @@ export default function Home() {
       </section>
 
       {/* 2. Category Banners Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden -mt-4 sm:-mt-6">
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}

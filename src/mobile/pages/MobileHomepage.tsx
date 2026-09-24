@@ -753,14 +753,14 @@ export default function MobileHomepage() {
         </div>
 
         {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
-        <div className="h-2 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
+        <div className="h-0 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
       </div>
 
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
-        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden">
+        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden -mt-2 sm:-mt-3">
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
