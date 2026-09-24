@@ -439,12 +439,12 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
       {/* ========================================================================= */}
+      {/* 1 & 2. TOP HEADER (3 Cards + Location/Work Bar) */}
       <div 
         ref={topHeaderRef}
-        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-30% to-[#fef08a] pb-1 min-w-0 transition-colors duration-300"
+        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] to-[#fef08a] min-w-0 transition-colors duration-300"
       >
-        {/* Top Header Non-Sticky Section (3 Cards + Location/Work Bar) */}
-        <header className="w-full min-w-0 space-y-3 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-2">
+        <header className="w-full min-w-0 space-y-3 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3">
           {/* 1. VIBA + DEAL 259 + REWARDS (3 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
           <section className="w-full min-w-0">
             <div className="grid grid-cols-3 gap-[clamp(6px,2vw,12px)] w-full min-w-0">
@@ -581,180 +581,181 @@ export default function MobileHomepage() {
             </div>
           </section>
         </header>
+      </div>
 
-        {/* Sticky Container: Search Bar & Category Section */}
-        <div 
-          className={`sticky top-0 z-30 transition-all duration-300 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 ${
-            isSticky 
-              ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
-              : 'bg-transparent'
-          }`}
-          style={{
-            backgroundColor: isSticky ? stickyBgColor : 'transparent',
-            top: 0
-          }}
-        >
-          {/* 3. SEARCH BAR */}
-          <section className="relative w-full min-w-0">
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full min-w-0" style={{ height: 'clamp(48px, 12vw, 56px)' }}>
-              <div className="absolute left-3.5 sm:left-4 z-10 flex items-center pointer-events-none text-gray-400">
-                <Search className="w-4 h-4 text-emerald-600" />
-              </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search products"
-                value={searchQuery}
-                onFocus={() => setIsSearchFocused(true)}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white h-full rounded-[18px] pl-10 pr-20 sm:pr-24 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
-              />
+      {/* 3 & 4. STICKY SEARCH BAR & CATEGORY SECTION (Stays visible across whole page on scroll) */}
+      <div 
+        className={`sticky top-0 z-30 transition-all duration-300 -mx-3.5 xs:-mx-4 sm:-mx-5 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 ${
+          isSticky 
+            ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
+            : 'bg-[#fef08a]'
+        }`}
+        style={{
+          backgroundColor: isSticky ? stickyBgColor : '#fef08a',
+          top: 0
+        }}
+      >
+        {/* 3. SEARCH BAR */}
+        <section className="relative w-full min-w-0">
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full min-w-0" style={{ height: 'clamp(48px, 12vw, 56px)' }}>
+            <div className="absolute left-3.5 sm:left-4 z-10 flex items-center pointer-events-none text-gray-400">
+              <Search className="w-4 h-4 text-emerald-600" />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products"
+              value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white h-full rounded-[18px] pl-10 pr-20 sm:pr-24 text-xs sm:text-sm font-semibold text-gray-900 placeholder-gray-400 shadow-sm border border-orange-200/80 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white transition-all min-w-0"
+            />
 
-              <div className="absolute right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-white pl-1 rounded-r-[18px]">
-                {settings.enableVoiceSearch && (
-                  <button
-                    type="button"
-                    onClick={startVoiceSearch}
-                    aria-label="Voice Search"
-                    className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
-                      }`}
-                  >
-                    <Mic className="w-4 h-4" />
-                  </button>
-                )}
-                {settings.enableVisualSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setIsCameraModalOpen(true)}
-                    aria-label="Camera Search"
-                    className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </form>
-
-            {/* Search Suggestions Overlay */}
-            <AnimatePresence>
-              {isSearchFocused && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
+            <div className="absolute right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1 bg-white pl-1 rounded-r-[18px]">
+              {settings.enableVoiceSearch && (
+                <button
+                  type="button"
+                  onClick={startVoiceSearch}
+                  aria-label="Voice Search"
+                  className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all ${isListening ? 'text-rose-500 animate-pulse bg-rose-50' : 'text-gray-400 hover:text-emerald-600'
+                    }`}
                 >
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
-                    <button
-                      onClick={() => setIsSearchFocused(false)}
-                      className="text-xs font-bold text-emerald-600"
-                    >
-                      Close
-                    </button>
-                  </div>
+                  <Mic className="w-4 h-4" />
+                </button>
+              )}
+              {settings.enableVisualSearch && (
+                <button
+                  type="button"
+                  onClick={() => setIsCameraModalOpen(true)}
+                  aria-label="Camera Search"
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all rounded-full"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </form>
 
-                  {recentSearches.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <History className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Recent Searches</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {recentSearches.map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              setSearchQuery(s);
-                              navigate(`/products?q=${s}`);
-                              setIsSearchFocused(false);
-                            }}
-                            className="bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+          {/* Search Suggestions Overlay */}
+          <AnimatePresence>
+            {isSearchFocused && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-[20px] shadow-2xl border border-orange-100 p-4 z-40 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Search Insights</span>
+                  <button
+                    onClick={() => setIsSearchFocused(false)}
+                    className="text-xs font-bold text-emerald-600"
+                  >
+                    Close
+                  </button>
+                </div>
 
+                {recentSearches.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
-                      <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
-                      <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Trending Searches</span>
+                      <History className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Recent Searches</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {trendingSearches.map((t, i) => (
+                      {recentSearches.map((s, i) => (
                         <button
                           key={i}
                           onClick={() => {
-                            setSearchQuery(t);
-                            navigate(`/products?q=${t}`);
+                            setSearchQuery(s);
+                            navigate(`/products?q=${s}`);
                             setIsSearchFocused(false);
                           }}
-                          className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+                          className="bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
                         >
-                          🔥 {t}
+                          {s}
                         </button>
                       ))}
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
+                )}
 
-          {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section) */}
-          <section className="w-full min-w-0 space-y-2 pt-1">
-            <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
-              {navCategoriesList.map((cat) => {
-                const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider">Trending Searches</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {trendingSearches.map((t, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setSearchQuery(t);
+                          navigate(`/products?q=${t}`);
+                          setIsSearchFocused(false);
+                        }}
+                        className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+                      >
+                        🔥 {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
 
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => {
-                      if (cat.slug === 'for-you' || cat.id === 'for-you') {
-                        navigate('/for-you');
-                      } else {
-                        navigate(`/category/${cat.slug}`);
-                      }
-                    }}
-                    style={{
-                      width: 'clamp(62px, 16vw, 70px)',
-                      height: 'clamp(60px, 16vw, 66px)'
-                    }}
-                    className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
-                      : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
-                      }`}
-                  >
-                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                      {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
-                    </div>
-                    <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
-                      {cat.name}
-                    </span>
+        {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section) */}
+        <section className="w-full min-w-0 space-y-2 pt-1">
+          <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
+            {navCategoriesList.map((cat) => {
+              const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
-                    {/* Active indicator bar */}
-                    {isSelected ? (
-                      <motion.div
-                        layoutId="activeCategoryDot"
-                        className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
-                      />
-                    ) : (
-                      <div className="h-0.5 shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        </div>
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                      navigate('/for-you');
+                    } else {
+                      navigate(`/category/${cat.slug}`);
+                    }
+                  }}
+                  style={{
+                    width: 'clamp(62px, 16vw, 70px)',
+                    height: 'clamp(60px, 16vw, 66px)'
+                  }}
+                  className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
+                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                    : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
+                    }`}
+                >
+                  <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                    {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
+                  </div>
+                  <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                    {cat.name}
+                  </span>
 
-        {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
-        <div className="h-6 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
+                  {/* Active indicator bar */}
+                  {isSelected ? (
+                    <motion.div
+                      layoutId="activeCategoryDot"
+                      className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
+                    />
+                  ) : (
+                    <div className="h-0.5 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
+
+      {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
+      <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 h-6 bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
+
 
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
