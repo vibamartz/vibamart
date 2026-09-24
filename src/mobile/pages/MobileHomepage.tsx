@@ -760,7 +760,7 @@ export default function MobileHomepage() {
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
-        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden -mt-3 sm:-mt-4">
+        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden -mt-1 sm:-mt-2">
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
