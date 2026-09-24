@@ -51,6 +51,84 @@ export default function MobileHomepage() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Scroll and dynamic status-bar / header color state
+  const [isSticky, setIsSticky] = useState(false);
+  const [stickyBgColor, setStickyBgColor] = useState<string>('rgba(254, 240, 138, 0.95)'); // default soft yellow
+  const [statusBarColor, setStatusBarColor] = useState<string>('#dcfce7'); // default light green status bar
+
+  // Section references for dynamic section-based status bar theme colors
+  const topHeaderRef = useRef<HTMLDivElement>(null);
+  const bannerSectionRef = useRef<HTMLElement>(null);
+  const recommendedSectionRef = useRef<HTMLElement>(null);
+  const trendingSectionRef = useRef<HTMLElement>(null);
+  const recentSectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+
+      // Sticky Search + Category section trigger (~95px past top cards)
+      if (scrollY > 95) {
+        setIsSticky(true);
+      } else {
+        setIsSticky(false);
+      }
+
+      // Dynamic header & status-bar color transition based on currently visible section
+      if (scrollY < 40) {
+        setStatusBarColor('#dcfce7');
+        setStickyBgColor('rgba(254, 240, 138, 0.95)');
+      } else {
+        const viewportHeaderLine = 130;
+        const recEl = recommendedSectionRef.current;
+        const trendEl = trendingSectionRef.current;
+        const recentEl = recentSectionRef.current;
+
+        if (recEl && recEl.getBoundingClientRect().top <= viewportHeaderLine && recEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
+          // Recommended section active (Dark emerald green block)
+          setStatusBarColor('#065f46');
+          setStickyBgColor('rgba(6, 95, 70, 0.96)');
+        } else if (trendEl && trendEl.getBoundingClientRect().top <= viewportHeaderLine && trendEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
+          // Trending section active
+          setStatusBarColor('#ffffff');
+          setStickyBgColor('rgba(255, 255, 255, 0.96)');
+        } else if (recentEl && recentEl.getBoundingClientRect().top <= viewportHeaderLine && recentEl.getBoundingClientRect().bottom >= viewportHeaderLine) {
+          // Recently viewed section active
+          setStatusBarColor('#ffffff');
+          setStickyBgColor('rgba(255, 255, 255, 0.96)');
+        } else {
+          // Default sticky color below header (soft yellow / light emerald)
+          setStatusBarColor('#fef08a');
+          setStickyBgColor('rgba(254, 240, 138, 0.95)');
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Update meta theme-color tag dynamically whenever statusBarColor changes
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', statusBarColor);
+
+    return () => {
+      if (meta) {
+        meta.setAttribute('content', '#ffffff');
+      }
+    };
+  }, [statusBarColor]);
+
   // Active Category filter from URL route
   const activeCategorySlug = useMemo(() => {
     if (location.pathname === '/' || location.pathname === '/for-you' || location.pathname === '/mobile' || location.pathname === '/mobile-home') {
@@ -361,8 +439,12 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
       {/* ========================================================================= */}
-      <div className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-3.5 bg-gradient-to-b from-emerald-100 via-emerald-50/50 to-transparent space-y-3 min-w-0">
-        <header className="w-full min-w-0 space-y-3">
+      <div 
+        ref={topHeaderRef}
+        className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-3 sm:-mt-4 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-30% to-[#fef08a] pb-1 min-w-0 transition-colors duration-300"
+      >
+        {/* Top Header Non-Sticky Section (3 Cards + Location/Work Bar) */}
+        <header className="w-full min-w-0 space-y-3 px-3.5 xs:px-4 sm:px-5 pt-3.5 sm:pt-4 pb-2">
           {/* 1. VIBA + DEAL 259 + REWARDS (3 equal cards in 1 row, ratio ~2.1:1, radius 22px) */}
           <section className="w-full min-w-0">
             <div className="grid grid-cols-3 gap-[clamp(6px,2vw,12px)] w-full min-w-0">
@@ -463,14 +545,14 @@ export default function MobileHomepage() {
             </div>
           </section>
 
-          {/* 2. DELIVERY ADDRESS CARD & SEPARATE WISHLIST BUTTON */}
+          {/* 2. DELIVERY ADDRESS CARD & SEPARATE WISHLIST BUTTON (Location/Work bar) */}
           <section className="w-full min-w-0">
             <div className="flex items-center gap-2 w-full min-w-0">
-              {/* Delivery Address Card */}
+              {/* Delivery Address Card - Blends with middle gradient */}
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsLocationModalOpen(true)}
-                className="flex-1 bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between cursor-pointer transition-all overflow-hidden h-9 sm:h-10 min-w-0"
+                className="flex-1 bg-white/40 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xs flex items-center justify-between cursor-pointer transition-all overflow-hidden h-9 sm:h-10 min-w-0 border border-emerald-900/10 hover:bg-white/50"
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                   <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 fill-emerald-100" />
@@ -481,12 +563,12 @@ export default function MobileHomepage() {
                 <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1" />
               </motion.button>
 
-              {/* Separate Wishlist Button */}
+              {/* Separate Wishlist Button - Blends with middle gradient */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/wishlist')}
                 aria-label="Wishlist"
-                className="relative bg-white/95 backdrop-blur-md rounded-2xl px-3 h-9 sm:h-10 flex items-center justify-center gap-1.5 text-rose-600 hover:text-rose-700 font-bold text-xs shadow-xs shrink-0 cursor-pointer transition-all border border-rose-100/60"
+                className="relative bg-white/40 backdrop-blur-md rounded-2xl px-3 h-9 sm:h-10 flex items-center justify-center gap-1.5 text-rose-600 hover:text-rose-700 font-bold text-xs shadow-xs shrink-0 cursor-pointer transition-all border border-emerald-900/10 hover:bg-white/50"
               >
                 <Heart className="w-4 h-4 text-rose-500 fill-rose-500/20 stroke-[2.2]" />
                 <span className="text-xs font-extrabold text-gray-800">Wishlist</span>
@@ -498,7 +580,20 @@ export default function MobileHomepage() {
               </motion.button>
             </div>
           </section>
+        </header>
 
+        {/* Sticky Container: Search Bar & Category Section */}
+        <div 
+          className={`sticky top-0 z-30 transition-all duration-300 px-3.5 xs:px-4 sm:px-5 py-2 space-y-2.5 ${
+            isSticky 
+              ? 'shadow-md border-b border-yellow-200/50 backdrop-blur-md' 
+              : 'bg-transparent'
+          }`}
+          style={{
+            backgroundColor: isSticky ? stickyBgColor : 'transparent',
+            top: 0
+          }}
+        >
           {/* 3. SEARCH BAR */}
           <section className="relative w-full min-w-0">
             <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full min-w-0" style={{ height: 'clamp(48px, 12vw, 56px)' }}>
@@ -608,63 +703,64 @@ export default function MobileHomepage() {
               )}
             </AnimatePresence>
           </section>
-        </header>
 
-        {/* ========================================================================= */}
-        {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section)                       */}
-        {/* ========================================================================= */}
-        <section className="w-full min-w-0 space-y-2 pt-1">
-          <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
-            {navCategoriesList.map((cat) => {
-              const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
+          {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section) */}
+          <section className="w-full min-w-0 space-y-2 pt-1">
+            <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
+              {navCategoriesList.map((cat) => {
+                const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
 
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    if (cat.slug === 'for-you' || cat.id === 'for-you') {
-                      navigate('/for-you');
-                    } else {
-                      navigate(`/category/${cat.slug}`);
-                    }
-                  }}
-                  style={{
-                    width: 'clamp(62px, 16vw, 70px)',
-                    height: 'clamp(60px, 16vw, 66px)'
-                  }}
-                  className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
-                    : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
-                    }`}
-                >
-                  <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                    {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
-                  </div>
-                  <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
-                    {cat.name}
-                  </span>
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                        navigate('/for-you');
+                      } else {
+                        navigate(`/category/${cat.slug}`);
+                      }
+                    }}
+                    style={{
+                      width: 'clamp(62px, 16vw, 70px)',
+                      height: 'clamp(60px, 16vw, 66px)'
+                    }}
+                    className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
+                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                      : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
+                      }`}
+                  >
+                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
+                    </div>
+                    <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                      {cat.name}
+                    </span>
 
-                  {/* Active indicator bar */}
-                  {isSelected ? (
-                    <motion.div
-                      layoutId="activeCategoryDot"
-                      className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
-                    />
-                  ) : (
-                    <div className="h-0.5 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                    {/* Active indicator bar */}
+                    {isSelected ? (
+                      <motion.div
+                        layoutId="activeCategoryDot"
+                        className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
+                      />
+                    ) : (
+                      <div className="h-0.5 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* Smooth Gradient Transition to White below Category section - No hard color boundary */}
+        <div className="h-6 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
       </div>
 
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
-        <section className="w-full min-w-0 space-y-2 overflow-hidden">
+        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden">
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
@@ -790,7 +886,7 @@ export default function MobileHomepage() {
       {/* 6. RECOMMENDED / STILL LOOKING FOR THESE PRODUCTS (Visible ONLY in For You category) */}
       {/* ========================================================================= */}
       {activeCategorySlug === 'for-you' && (
-        <section className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3 sm:p-3.5 text-white border border-emerald-700/50 shadow-md space-y-2.5">
+        <section ref={recommendedSectionRef} className="w-full min-w-0 bg-emerald-800/95 backdrop-blur-md rounded-[22px] p-3 sm:p-3.5 text-white border border-emerald-700/50 shadow-md space-y-2.5">
           <div className="flex items-center justify-between px-0.5">
             <div className="min-w-0 flex-1">
               <h3 className="text-xs sm:text-base font-black text-white tracking-tight flex items-center gap-1.5 truncate">
@@ -831,7 +927,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-2.5">
+      <section ref={trendingSectionRef} className="w-full min-w-0 space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
@@ -869,7 +965,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 9. RECENTLY VIEWED & POPULAR CAROUSEL                                     */}
       {/* ========================================================================= */}
-      <section className="w-full min-w-0 space-y-2.5">
+      <section ref={recentSectionRef} className="w-full min-w-0 space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
