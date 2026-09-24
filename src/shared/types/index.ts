@@ -98,7 +98,36 @@ export interface Product {
   estimatedDelivery?: string;
   isCodAllowed?: boolean; // Admin toggle for COD availability (default true)
   isStockVisible?: boolean; // Admin toggle for stock visibility (default true)
+  isDeal259?: boolean; // Tagged as assigned to Deal 259
+  deal259Price?: number; // Custom Deal 259 price
+  deal259SubDealId?: string; // ID of Sub-Deal under Deal 259
+  deal259Order?: number; // Sorting/Display order position in Deal 259
+  deal259Status?: 'active' | 'disabled'; // Status specifically for Deal 259
+  showInGeneralStore?: boolean; // Admin explicit toggle to also display this product on standard non-Deal259 store pages
   createdAt: string;
+}
+
+export interface Deal259SubDeal {
+  id: string;
+  title: string;
+  subtitle?: string;
+  badgeText?: string;
+  price?: number; // e.g. 259
+  icon?: string;
+  active: boolean;
+  order: number;
+}
+
+export interface Deal259PageConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  bannerImage?: string;
+  badgeText?: string;
+  countdownEnd?: string;
+  subDeals?: Deal259SubDeal[];
+  categories?: string[];
+  updatedAt?: string;
 }
 
 export interface ProductVariant {

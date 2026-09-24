@@ -30,6 +30,7 @@ import FAQ from './desktop/pages/FAQ';
 import ProductNotFound from './desktop/pages/ProductNotFound';
 import Rewards from './desktop/pages/Rewards';
 import RewardProducts from './desktop/pages/RewardProducts';
+import Deal259Page from './desktop/pages/Deal259Page';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -143,7 +144,7 @@ function MainAppRoutes() {
             <Route path="/addresses" element={<MobileAddressScreen />} />
             <Route path="/notifications" element={<MobileNotificationsScreen />} />
             <Route path="/offers" element={<MobileOffersScreen />} />
-            <Route path="/deal259" element={<MobileOffersScreen />} />
+            <Route path="/deal259" element={<Deal259Page />} />
             <Route path="/offers/:offerSlug" element={<MobileProductListScreen />} />
             <Route path="/offer/:offerSlug" element={<MobileProductListScreen />} />
             <Route path="/banner/:offerSlug" element={<MobileProductListScreen />} />
@@ -181,7 +182,7 @@ function MainAppRoutes() {
           <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<ProductList />} />
           <Route path="/brands/:brandSlug" element={<ProductList />} />
           <Route path="/offers" element={<ProductList />} />
-          <Route path="/deal259" element={<MobileOffersScreen />} />
+          <Route path="/deal259" element={<Deal259Page />} />
           <Route path="/offers/:offerSlug" element={<ProductList />} />
           <Route path="/offer/:offerSlug" element={<ProductList />} />
           <Route path="/banner/:offerSlug" element={<ProductList />} />

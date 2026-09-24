@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -33,6 +33,7 @@ import AdminCancellationManagementView from '../components/AdminCancellationMana
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 import FeatureRegistryManagementView from '../components/FeatureRegistryManagementView';
 import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
+import Deal259AdminManagementView from '../components/Deal259AdminManagementView';
 import { VariantImageInput, VariantMultiImageInput } from '../components/VariantImageInput';
 import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
@@ -603,6 +604,7 @@ function AdminDashboardContent() {
         <nav className="flex-1 p-4 space-y-2">
           <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
@@ -1110,6 +1112,7 @@ function AdminDashboardContent() {
           {activeTab === 'activity-logs' && <ActivityLogsView />}
           {activeTab === 'user-roles' && <UserManagementView />}
           {activeTab === 'products' && <NewProductManagementView />}
+          {activeTab === 'deal-259' && <Deal259AdminManagementView />}
 
           {activeTab === 'orders' && (
             <OrdersManagementView

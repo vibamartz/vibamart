@@ -28,9 +28,15 @@ export async function getRewardProductIds(): Promise<Set<string>> {
  * Helper to filter out reward products from general product arrays
  * (Home, Categories, Subcategories, Search, Recommendations, etc.)
  */
-export function filterOutRewardProducts(products: Product[], rewardProductIds: Set<string>): Product[] {
-  if (!rewardProductIds || rewardProductIds.size === 0) return products;
-  return products.filter(p => !rewardProductIds.has(p.id) && !(p as any).isRewardProduct);
+export function filterOutRewardProducts(products: Product[], rewardProductIds?: Set<string>): Product[] {
+  if (!products || !Array.isArray(products)) return [];
+  return products.filter(p => {
+    if (rewardProductIds && rewardProductIds.has(p.id)) return false;
+    if ((p as any).isRewardProduct) return false;
+    // Deal 259 products must NOT appear on general store pages unless explicitly enabled by Admin via showInGeneralStore
+    if (p.isDeal259 && !p.showInGeneralStore) return false;
+    return true;
+  });
 }
 
 /**
