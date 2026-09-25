@@ -12,6 +12,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import ProductCard from '../components/ProductCard';
 import LocationPickerModal from '../components/LocationPickerModal';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
+import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
 import toast from 'react-hot-toast';
 
 function RecentlyViewedCartSection() {
@@ -167,7 +168,7 @@ export default function Cart() {
     return acc + (origPrice + extra) * item.quantity;
   }, 0);
   const discount = Math.max(0, totalMRP - subtotal);
-  const shipping = subtotal < 600 && items.length > 0 ? 49 : 0;
+  const shipping = calculateShippingFee(items, subtotal);
   const grandTotal = subtotal + shipping;
 
   return (

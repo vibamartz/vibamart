@@ -14,6 +14,7 @@ import PermissionPromptModal from '../../shared/components/PermissionPromptModal
 import { processPayment } from '../../shared/utils/razorpay';
 import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
 import LocationPickerModal from '../components/LocationPickerModal';
+import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
 
 
 declare global {
@@ -219,7 +220,7 @@ export default function Checkout() {
     return acc + (origPrice + extra) * item.quantity;
   }, 0);
   const discount = Math.max(0, totalMRP - subtotal);
-  const shipping = subtotal < 600 && items.length > 0 ? 49 : 0;
+  const shipping = calculateShippingFee(items, subtotal);
   const codFee = paymentMethod === 'cod' ? 9 : 0;
   const grandTotal = subtotal + shipping + codFee;
 

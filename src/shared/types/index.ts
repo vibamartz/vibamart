@@ -98,6 +98,7 @@ export interface Product {
   estimatedDelivery?: string;
   isCodAllowed?: boolean; // Admin toggle for COD availability (default true)
   isStockVisible?: boolean; // Admin toggle for stock visibility (default true)
+  isFreeDelivery?: boolean; // Admin toggle for free delivery eligibility on this product (default true)
   isDeal259?: boolean; // Tagged as assigned to Deal 259
   deal259Price?: number; // Custom Deal 259 price
   deal259SubDealId?: string; // ID of Sub-Deal under Deal 259

@@ -629,11 +629,23 @@ export default function MobileProductDetailScreen() {
               <span className="text-xs font-black text-gray-900">7-day return</span>
             </div>
 
-            {product.isCodAllowed !== false && (
-              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase tracking-wider">
-                Cash on Delivery
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {product.isFreeDelivery !== false ? (
+                <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase tracking-wider">
+                  Free Delivery
+                </span>
+              ) : (
+                <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 uppercase tracking-wider">
+                  Standard Shipping
+                </span>
+              )}
+
+              {product.isCodAllowed !== false && (
+                <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 uppercase tracking-wider">
+                  COD Available
+                </span>
+              )}
+            </div>
           </div>
           <div className="pt-1 flex items-center justify-between">
             <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>

@@ -165,7 +165,11 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                 )}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
+                {product.isFreeDelivery !== false ? (
+                  <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
+                ) : (
+                  <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Standard Delivery</p>
+                )}
                 {product.discountPrice && product.price && (
                   <span className="text-[10px] text-green-600 font-black">
                     • Save ₹{(product.price - product.discountPrice).toLocaleString()}

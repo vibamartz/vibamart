@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { processPayment } from '../../shared/utils/razorpay';
 import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
+import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
 
 
 
@@ -51,7 +52,7 @@ export default function MobileCheckoutScreen() {
     return acc + (origPrice + extra) * item.quantity;
   }, 0);
   const discount = Math.max(0, totalMRP - cartTotal);
-  const deliveryCharge = cartTotal < 600 && items.length > 0 ? 49 : 0;
+  const deliveryCharge = calculateShippingFee(items, cartTotal);
   const codFee = paymentMethod === 'cod' ? 9 : 0;
   const grandTotal = cartTotal + deliveryCharge + codFee;
 

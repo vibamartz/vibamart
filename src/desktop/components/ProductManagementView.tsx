@@ -189,6 +189,29 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     }
   };
 
+  const handleToggleFreeDelivery = async (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const currentEnabled = product.isFreeDelivery !== false;
+    const nextEnabled = !currentEnabled;
+
+    const toastId = toast.loading(`${nextEnabled ? 'Enabling' : 'Disabling'} Free Delivery for ${product.name}...`);
+    try {
+      await updateDoc(doc(db, 'products', product.id), {
+        isFreeDelivery: nextEnabled,
+      });
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `${nextEnabled ? 'Enabled' : 'Disabled'} Free Delivery for product: ${product.name}`,
+        product.id,
+        'products'
+      );
+      toast.success(`Free Delivery ${nextEnabled ? 'enabled' : 'disabled'} for ${product.name}`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update Free Delivery setting', { id: toastId });
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -247,14 +270,15 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 <th className="px-6 py-4">Total Stock</th>
                 <th className="px-6 py-4">Variants Count</th>
                 <th className="px-6 py-4">GST Tax</th>
+                <th className="px-6 py-4">Delivery</th>
                 <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
               ) : filteredProducts.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-500">No products found matching your search.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No products found matching your search.</td></tr>
               ) : filteredProducts.map(product => {
                 const isExpanded = expandedProducts.includes(product.id);
                 return (
@@ -333,6 +357,23 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             <><span>✅</span> GST {product.gst}%</>
                           ) : (
                             <><span>🚫</span> GST Off</>
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={(e) => handleToggleFreeDelivery(e, product)}
+                          title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
+                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                            product.isFreeDelivery !== false
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                              : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
+                          }`}
+                        >
+                          {product.isFreeDelivery !== false ? (
+                            <><span>🚚</span> Free Delivery</>
+                          ) : (
+                            <><span>📦</span> Paid Delivery</>
                           )}
                         </button>
                       </td>

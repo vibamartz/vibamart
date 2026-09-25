@@ -56,6 +56,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       size: '',
       isCodAllowed: true,
       isStockVisible: true,
+      isFreeDelivery: true,
       createdAt: new Date().toISOString(),
     };
     if (product) {
@@ -79,6 +80,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         nestedSubCategoryId: product.nestedSubCategoryId || '',
         isCodAllowed: product.isCodAllowed !== false,
         isStockVisible: product.isStockVisible !== false,
+        isFreeDelivery: product.isFreeDelivery !== false,
         variants: (product.variants || []).map(v => {
           const vImages = Array.isArray(v.images) && v.images.length > 0
             ? v.images.slice(0, 8)
@@ -950,11 +952,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Cash on Delivery (COD)</span>
-                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable COD for checkout</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Cash on Delivery</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable COD</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
@@ -970,7 +972,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Stock Visibility</span>
-                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Display stock status to customers</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Display stock status</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
@@ -980,6 +982,22 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Free Delivery</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable free shipping</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.isFreeDelivery !== false}
+                      onChange={e => setFormData(p => ({ ...p, isFreeDelivery: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
               </div>

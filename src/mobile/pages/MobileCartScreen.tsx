@@ -12,6 +12,7 @@ import { Product } from '../../shared/types';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
+import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../shared/utilities/shippingUtils';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -205,7 +206,7 @@ export default function MobileCartScreen() {
   }, 0);
   const discount = Math.max(0, totalMRP - cartTotal);
 
-  const deliveryCharge = cartTotal < 600 && items.length > 0 ? 49 : 0;
+  const deliveryCharge = calculateShippingFee(items, cartTotal);
   const grandTotal = cartTotal + deliveryCharge;
 
   const handleDecreaseQuantity = (productId: string, currentQty: number, variantId?: string) => {

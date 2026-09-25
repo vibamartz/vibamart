@@ -1109,14 +1109,19 @@ function MobileProductCardItem({
 
       {/* Pricing */}
       <div className="mt-auto pt-1 border-t border-gray-100 min-w-0">
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-xs sm:text-sm font-black text-gray-900">
-            ₹{(product.discountPrice || product.price || 0).toLocaleString()}
-          </span>
-          {product.discountPrice && product.price && product.discountPrice < product.price && (
-            <span className="text-[10px] text-gray-400 line-through">
-              ₹{product.price.toLocaleString()}
+        <div className="flex items-baseline justify-between gap-1.5 flex-wrap">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-xs sm:text-sm font-black text-gray-900">
+              ₹{(product.discountPrice || product.price || 0).toLocaleString()}
             </span>
+            {product.discountPrice && product.price && product.discountPrice < product.price && (
+              <span className="text-[10px] text-gray-400 line-through">
+                ₹{product.price.toLocaleString()}
+              </span>
+            )}
+          </div>
+          {product.isFreeDelivery !== false && (
+            <span className="text-[8px] text-green-600 font-extrabold uppercase tracking-tight">Free Delivery</span>
           )}
         </div>
       </div>

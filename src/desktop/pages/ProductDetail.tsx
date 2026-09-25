@@ -719,11 +719,22 @@ export default function ProductDetail() {
                     Change
                   </button>
                 </div>
-                <div className="pt-2 border-t border-gray-200/60 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-green-600" />
-                  <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
-                    {getShortDeliveryText()}
-                  </span>
+                <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
+                      {getShortDeliveryText()}
+                    </span>
+                  </div>
+                  {product.isFreeDelivery !== false ? (
+                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
+                      Free Delivery
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
+                      Standard Delivery
+                    </span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -750,11 +761,11 @@ export default function ProductDetail() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
             <ServiceIcon icon={ShieldCheck} title="Warranty" desc="1 Year Brand Warranty" />
             <ServiceIcon icon={RefreshCcw} title="Return Benefit" desc="7-day return" />
-            {product.isCodAllowed !== false ? (
-              <ServiceIcon icon={PackageCheck} title="Payment Option" desc="Cash on Delivery" />
-            ) : (
-              <ServiceIcon icon={Truck} title="Delivery" desc="Free Home Delivery" />
-            )}
+            <ServiceIcon
+              icon={Truck}
+              title="Delivery Mode"
+              desc={product.isFreeDelivery !== false ? "Free Home Delivery" : "Standard Shipping Charge"}
+            />
           </div>
         </div>
       </div>
