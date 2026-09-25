@@ -86,15 +86,15 @@ export default function Deal259Page() {
       }
 
       // Max price filter
-      const effectivePrice = p.deal259Price || p.discountPrice || p.price;
+      const effectivePrice = p.discountPrice || p.price;
       if (effectivePrice > maxPrice) {
         return false;
       }
 
       return true;
     }).sort((a, b) => {
-      const priceA = a.deal259Price || a.discountPrice || a.price;
-      const priceB = b.deal259Price || b.discountPrice || b.price;
+      const priceA = a.discountPrice || a.price;
+      const priceB = b.discountPrice || b.price;
 
       if (sortBy === 'price-low') return priceA - priceB;
       if (sortBy === 'price-high') return priceB - priceA;
@@ -282,24 +282,12 @@ export default function Deal259Page() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-            {filteredProducts.map((product) => {
-              // Override display price with deal259Price if explicitly set by Admin, otherwise use product's configured price
-              const displayDiscountPrice = product.deal259Price !== undefined && product.deal259Price !== null
-                ? product.deal259Price
-                : product.discountPrice;
-
-              const productWithDealPrice = {
-                ...product,
-                discountPrice: displayDiscountPrice
-              };
-
-              return (
-                <ProductCard
-                  key={product.id}
-                  product={productWithDealPrice}
-                />
-              );
-            })}
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+              />
+            ))}
           </div>
         )}
       </div>
