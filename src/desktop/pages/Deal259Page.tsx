@@ -55,10 +55,18 @@ export default function Deal259Page() {
   // Compute sub-deals list
   const subDeals = config.subDeals && config.subDeals.length > 0 ? config.subDeals : DEFAULT_DEAL259_SUBDEALS;
 
+  // Helper to compute effective product price configured by Admin
+  const getEffectivePrice = (p: Product) => {
+    if (typeof p.deal259Price === 'number' && p.deal259Price !== 259) {
+      return p.deal259Price;
+    }
+    return p.discountPrice || p.price;
+  };
+
   // Filtered & Sorted products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      // Must be Deal 259 product
+      // Must be Deal product
       if (!p.isDeal259 || p.deal259Status === 'disabled') return false;
 
       // Search filter
@@ -86,15 +94,15 @@ export default function Deal259Page() {
       }
 
       // Max price filter
-      const effectivePrice = p.deal259Price || p.discountPrice || p.price;
+      const effectivePrice = getEffectivePrice(p);
       if (effectivePrice > maxPrice) {
         return false;
       }
 
       return true;
     }).sort((a, b) => {
-      const priceA = a.deal259Price || a.discountPrice || a.price;
-      const priceB = b.deal259Price || b.discountPrice || b.price;
+      const priceA = getEffectivePrice(a);
+      const priceB = getEffectivePrice(b);
 
       if (sortBy === 'price-low') return priceA - priceB;
       if (sortBy === 'price-high') return priceB - priceA;
@@ -111,7 +119,7 @@ export default function Deal259Page() {
     });
   }, [products, searchQuery, activeSubDealId, selectedCategory, onlyInStock, maxPrice, sortBy]);
 
-  // Categories present in Deal 259 products
+  // Categories present in Deal products
   const availableCategories = useMemo(() => {
     const catIds = new Set(products.map(p => p.categoryId).filter(Boolean));
     return categories.filter(c => catIds.has(c.id));
@@ -122,7 +130,7 @@ export default function Deal259Page() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="w-8 h-8 text-rose-600 animate-spin" />
-          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Loading Deal 259 Store...</p>
+          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Loading Deal Store...</p>
         </div>
       </div>
     );
@@ -139,22 +147,22 @@ export default function Deal259Page() {
           <div className="text-center md:text-left space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-amber-200 border border-white/20 shadow-sm">
               <Flame className="w-4 h-4 text-amber-300 animate-bounce" />
-              {config.badgeText || 'OFFICIAL DEAL 259 STORE'}
+              {config.badgeText || 'OFFICIAL DEAL STORE'}
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight drop-shadow-sm">
-              {config.title || 'Deal 259 Super Store'}
+              {config.title || 'Deal Super Store'}
             </h1>
             <p className="text-white/90 text-sm sm:text-base font-medium max-w-xl leading-relaxed">
-              {config.subtitle || 'Exclusive deals, mega savings, and budget picks starting at ₹259!'}
+              {config.subtitle || 'Exclusive deals, mega savings, and budget picks!'}
             </p>
           </div>
 
-          {/* Quick Search on Deal 259 */}
+          {/* Quick Search on Deal Store */}
           <div className="w-full md:w-80 bg-white/15 backdrop-blur-xl p-3 rounded-2xl border border-white/25 shadow-lg">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search Deal 259 products..."
+                placeholder="Search Deal products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs font-bold rounded-xl pl-9 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-amber-400 shadow-inner"
@@ -182,7 +190,7 @@ export default function Deal259Page() {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            All Deal 259 Items ({products.length})
+            All Deal Items ({products.length})
           </button>
           {subDeals.map((sd) => {
             const count = products.filter(p => p.deal259SubDealId === sd.id).length;
@@ -264,9 +272,9 @@ export default function Deal259Page() {
         {filteredProducts.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm space-y-3">
             <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
-            <h3 className="text-base font-bold text-gray-800">No Deal 259 products match your selection</h3>
+            <h3 className="text-base font-bold text-gray-800">No Deal products match your selection</h3>
             <p className="text-xs text-gray-500 max-w-md mx-auto">
-              Try adjusting your search keywords, sub-deal filter, or category selection to find products in Deal 259.
+              Try adjusting your search keywords, sub-deal filter, or category selection to find products in Deal Store.
             </p>
             <button
               onClick={() => {
@@ -283,10 +291,10 @@ export default function Deal259Page() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {filteredProducts.map((product) => {
-              // Override display price with deal259Price if present
+              const effPrice = getEffectivePrice(product);
               const productWithDealPrice = {
                 ...product,
-                discountPrice: product.deal259Price || product.discountPrice || product.price
+                discountPrice: effPrice !== product.price ? effPrice : product.discountPrice
               };
 
               return (
