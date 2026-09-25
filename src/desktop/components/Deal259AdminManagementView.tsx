@@ -31,7 +31,7 @@ export default function Deal259AdminManagementView() {
   const [newSubDeal, setNewSubDeal] = useState<Partial<Deal259SubDeal>>({
     title: '',
     subtitle: '',
-    badgeText: 'DEAL',
+    badgeText: 'HOT DEAL',
     icon: '⚡',
     active: true
   });
@@ -44,7 +44,7 @@ export default function Deal259AdminManagementView() {
   const [configForm, setConfigForm] = useState<Deal259PageConfig>(DEFAULT_DEAL259_CONFIG);
   const [savingConfig, setSavingConfig] = useState(false);
 
-  // Load products and Deal settings from Firestore
+  // Load products and Deal 259 settings from Firestore
   useEffect(() => {
     const qProds = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubProds = onSnapshot(qProds, (snapshot) => {
@@ -101,35 +101,39 @@ export default function Deal259AdminManagementView() {
       p.productCode?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  // Assign product to Deal Store
-  const handleAssignToDeal259 = async (productId: string) => {
-    const toastId = toast.loading('Assigning to Deal Store...');
+  // Assign product to Deal 259
+  const handleAssignToDeal259 = async (productId: string, customPrice?: number) => {
+    const toastId = toast.loading('Assigning to Deal 259...');
     try {
-      await updateDoc(doc(db, 'products', productId), {
+      const updateData: Record<string, any> = {
         isDeal259: true,
         deal259Status: 'active',
         deal259Order: assignedProducts.length + 1,
-        showInGeneralStore: false // Explicitly isolated to Deal Store unless changed by Admin
-      });
-      await logAdminAction(AdminAction.PRODUCT_UPDATE, `Assigned product to Deal Store`, productId, 'products');
-      toast.success('Assigned to Deal Store successfully', { id: toastId });
+        showInGeneralStore: false // Explicitly isolated to Deal 259 unless changed by Admin
+      };
+      if (customPrice !== undefined && customPrice !== null) {
+        updateData.deal259Price = customPrice;
+      }
+      await updateDoc(doc(db, 'products', productId), updateData);
+      await logAdminAction(AdminAction.PRODUCT_UPDATE, `Assigned product to Deal 259`, productId, 'products');
+      toast.success('Assigned to Deal 259 successfully', { id: toastId });
     } catch (err) {
       console.error(err);
       toast.error('Failed to assign product', { id: toastId });
     }
   };
 
-  // Remove product from Deal Store
+  // Remove product from Deal 259
   const handleRemoveFromDeal259 = async (productId: string) => {
-    if (!window.confirm('Remove this product from Deal Store?')) return;
-    const toastId = toast.loading('Removing from Deal Store...');
+    if (!window.confirm('Remove this product from Deal 259?')) return;
+    const toastId = toast.loading('Removing from Deal 259...');
     try {
       await updateDoc(doc(db, 'products', productId), {
         isDeal259: false,
         deal259Status: 'disabled'
       });
-      await logAdminAction(AdminAction.PRODUCT_UPDATE, `Removed product from Deal Store`, productId, 'products');
-      toast.success('Removed from Deal Store', { id: toastId });
+      await logAdminAction(AdminAction.PRODUCT_UPDATE, `Removed product from Deal 259`, productId, 'products');
+      toast.success('Removed from Deal 259', { id: toastId });
     } catch (err) {
       console.error(err);
       toast.error('Failed to remove product', { id: toastId });
@@ -150,7 +154,7 @@ export default function Deal259AdminManagementView() {
   // Bulk assign selected inventory products
   const handleBulkAssign = async () => {
     if (selectedInventoryIds.length === 0) return;
-    const toastId = toast.loading(`Assigning ${selectedInventoryIds.length} products to Deal Store...`);
+    const toastId = toast.loading(`Assigning ${selectedInventoryIds.length} products to Deal 259...`);
     try {
       const promises = selectedInventoryIds.map(id => 
         updateDoc(doc(db, 'products', id), {
@@ -160,7 +164,7 @@ export default function Deal259AdminManagementView() {
         })
       );
       await Promise.all(promises);
-      toast.success(`Assigned ${selectedInventoryIds.length} products to Deal Store!`, { id: toastId });
+      toast.success(`Assigned ${selectedInventoryIds.length} products to Deal 259!`, { id: toastId });
       setSelectedInventoryIds([]);
     } catch (err) {
       console.error(err);
@@ -171,15 +175,15 @@ export default function Deal259AdminManagementView() {
   // Save Page Config
   const handleSaveConfig = async () => {
     setSavingConfig(true);
-    const toastId = toast.loading('Saving Deal settings...');
+    const toastId = toast.loading('Saving Deal 259 settings...');
     try {
       const updatedConfig = {
         ...configForm,
         updatedAt: new Date().toISOString()
       };
       await setDoc(doc(db, 'settings', 'deal259'), updatedConfig, { merge: true });
-      await logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated Deal settings', 'deal259', 'settings');
-      toast.success('Deal settings saved!', { id: toastId });
+      await logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated Deal 259 settings', 'deal259', 'settings');
+      toast.success('Deal 259 settings saved!', { id: toastId });
     } catch (err) {
       console.error(err);
       toast.error('Failed to save settings', { id: toastId });
@@ -199,16 +203,19 @@ export default function Deal259AdminManagementView() {
       id: `sd_${Date.now()}`,
       title: newSubDeal.title,
       subtitle: newSubDeal.subtitle || '',
-      badgeText: newSubDeal.badgeText || 'DEAL',
+      badgeText: newSubDeal.badgeText || 'HOT DEAL',
       icon: newSubDeal.icon || '⚡',
       active: newSubDeal.active !== false,
       order: subDeals.length + 1
     };
+    if (newSubDeal.price !== undefined && newSubDeal.price !== null) {
+      item.price = Number(newSubDeal.price);
+    }
 
     const updatedSubDeals = [...subDeals, item];
     const newConf = { ...configForm, subDeals: updatedSubDeals };
     setConfigForm(newConf);
-    setNewSubDeal({ title: '', subtitle: '', badgeText: 'DEAL', icon: '⚡', active: true });
+    setNewSubDeal({ title: '', subtitle: '', badgeText: 'HOT DEAL', icon: '⚡', active: true });
 
     try {
       await setDoc(doc(db, 'settings', 'deal259'), newConf, { merge: true });
@@ -259,13 +266,13 @@ export default function Deal259AdminManagementView() {
             <div className="flex items-center gap-2 mb-2">
               <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
                 <Tag className="w-3.5 h-3.5" />
-                Deal Center
+                Deal 259 Center
               </span>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${config.enabled ? 'bg-emerald-400 text-emerald-950' : 'bg-red-400 text-red-950'}`}>
                 {config.enabled ? 'PAGE ACTIVE' : 'PAGE DISABLED'}
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">{config.title || 'Deal Super Store'}</h2>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">{config.title || 'Deal 259 Super Store'}</h2>
             <p className="text-white/80 text-xs sm:text-sm font-medium mt-1 max-w-xl">{config.subtitle}</p>
           </div>
 
@@ -278,7 +285,7 @@ export default function Deal259AdminManagementView() {
               className="bg-white text-rose-700 hover:bg-rose-50 font-black px-4 py-2.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              Create New Deal Product
+              Create New Deal 259 Product
             </button>
           </div>
         </div>
@@ -381,9 +388,9 @@ export default function Deal259AdminManagementView() {
           {filteredAssignedProducts.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm space-y-3">
               <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
-              <h3 className="text-base font-bold text-gray-800">No Deal products found</h3>
+              <h3 className="text-base font-bold text-gray-800">No Deal 259 products found</h3>
               <p className="text-xs text-gray-500 max-w-md mx-auto">
-                No products are assigned to Deal Store matching your filters. Click "Assign Store Inventory" to add existing products or create a new Deal product.
+                No products are assigned to Deal 259 matching your filters. Click "Assign Store Inventory" to add existing products or create a new Deal 259 product.
               </p>
               <button
                 onClick={() => setActiveTab('inventory')}
@@ -400,8 +407,7 @@ export default function Deal259AdminManagementView() {
                   <thead>
                     <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-black text-gray-500 uppercase tracking-wider">
                       <th className="p-4">Product</th>
-                      <th className="p-4">Custom Deal Price (₹)</th>
-                      <th className="p-4">Admin Price (₹)</th>
+                      <th className="p-4">Deal Price Override (₹)</th>
                       <th className="p-4">Original MRP (₹)</th>
                       <th className="p-4">Sub-Deal</th>
                       <th className="p-4">Order Pos</th>
@@ -415,8 +421,6 @@ export default function Deal259AdminManagementView() {
                       const discountPct = p.price > 0 && p.discountPrice
                         ? Math.round(((p.price - p.discountPrice) / p.price) * 100)
                         : (p.discountPercentage || 0);
-
-                      const adminSellingPrice = p.discountPrice || p.price;
 
                       return (
                         <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
@@ -441,14 +445,14 @@ export default function Deal259AdminManagementView() {
                           <td className="p-4">
                             <input
                               type="number"
-                              placeholder={String(adminSellingPrice)}
-                              defaultValue={p.deal259Price && p.deal259Price !== 259 ? p.deal259Price : ''}
-                              onBlur={(e) => handleUpdateProductField(p.id, { deal259Price: e.target.value ? Number(e.target.value) : (null as any) })}
+                              placeholder={String(p.discountPrice || p.price)}
+                              value={p.deal259Price ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? null : Number(e.target.value);
+                                handleUpdateProductField(p.id, { deal259Price: val as any });
+                              }}
                               className="w-24 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-xs font-bold text-gray-900 focus:bg-white focus:border-rose-500 outline-none"
                             />
-                          </td>
-                          <td className="p-4 font-bold text-rose-600">
-                            ₹{adminSellingPrice.toLocaleString()}
                           </td>
                           <td className="p-4 text-gray-600 font-medium">
                             ₹{p.price.toLocaleString()}
@@ -459,7 +463,7 @@ export default function Deal259AdminManagementView() {
                               onChange={(e) => handleUpdateProductField(p.id, { deal259SubDealId: e.target.value })}
                               className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-xs font-medium text-gray-800 focus:bg-white outline-none cursor-pointer"
                             >
-                              <option value="">General Deal</option>
+                              <option value="">General Deal 259</option>
                               {(config.subDeals || DEFAULT_DEAL259_SUBDEALS).map(sd => (
                                 <option key={sd.id} value={sd.id}>{sd.title}</option>
                               ))}
@@ -482,7 +486,7 @@ export default function Deal259AdminManagementView() {
                                 className="w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500"
                               />
                               <span className="text-[11px] font-medium text-gray-600">
-                                {p.showInGeneralStore ? 'Shown Everywhere' : 'Deal Exclusive'}
+                                {p.showInGeneralStore ? 'Shown Everywhere' : 'Deal 259 Exclusive'}
                               </span>
                             </label>
                           </td>
@@ -510,7 +514,7 @@ export default function Deal259AdminManagementView() {
                               </button>
                               <button
                                 onClick={() => handleRemoveFromDeal259(p.id)}
-                                title="Unassign from Deal Store"
+                                title="Unassign from Deal 259"
                                 className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                               >
                                 <X className="w-4 h-4" />
@@ -534,7 +538,7 @@ export default function Deal259AdminManagementView() {
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Select Existing Inventory Products</h3>
-              <p className="text-xs text-gray-500">Pick any product from your store inventory to assign it to Deal Store.</p>
+              <p className="text-xs text-gray-500">Pick any product from your store inventory to assign it to Deal 259.</p>
             </div>
             {selectedInventoryIds.length > 0 && (
               <button
@@ -542,7 +546,7 @@ export default function Deal259AdminManagementView() {
                 className="bg-rose-600 text-white font-black text-xs uppercase px-4 py-2 rounded-xl hover:bg-rose-700 transition-all flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <Plus className="w-4 h-4" />
-                Assign Selected ({selectedInventoryIds.length}) to Deal Store
+                Assign Selected ({selectedInventoryIds.length}) to Deal 259
               </button>
             )}
           </div>
@@ -566,7 +570,7 @@ export default function Deal259AdminManagementView() {
                     <div className="min-w-0 flex-1">
                       <h4 className="font-bold text-xs text-gray-900 line-clamp-2 leading-tight">{p.name}</h4>
                       <p className="text-[10px] text-gray-400 mt-0.5">{p.brand || 'No Brand'}</p>
-                      <p className="text-xs font-black text-gray-900 mt-1">₹{(p.discountPrice || p.price).toLocaleString()}</p>
+                      <p className="text-xs font-black text-gray-900 mt-1">₹{p.price.toLocaleString()}</p>
                     </div>
                   </div>
 
@@ -612,7 +616,7 @@ export default function Deal259AdminManagementView() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Sub-Deal Title</label>
                 <input
                   type="text"
-                  placeholder="e.g. Flat Store Deals"
+                  placeholder="e.g. Featured Store"
                   value={newSubDeal.title}
                   onChange={(e) => setNewSubDeal({ ...newSubDeal, title: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-rose-500"
@@ -622,7 +626,7 @@ export default function Deal259AdminManagementView() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Subtitle</label>
                 <input
                   type="text"
-                  placeholder="e.g. Products at special offer"
+                  placeholder="e.g. Exclusive offers & picks"
                   value={newSubDeal.subtitle}
                   onChange={(e) => setNewSubDeal({ ...newSubDeal, subtitle: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:bg-white focus:border-rose-500"
@@ -632,7 +636,7 @@ export default function Deal259AdminManagementView() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Badge Text</label>
                 <input
                   type="text"
-                  placeholder="FLAT DEAL"
+                  placeholder="HOT DEAL"
                   value={newSubDeal.badgeText}
                   onChange={(e) => setNewSubDeal({ ...newSubDeal, badgeText: e.target.value })}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-rose-500"
@@ -657,7 +661,7 @@ export default function Deal259AdminManagementView() {
                   <div className="flex justify-between items-start">
                     <span className="text-xl">{sd.icon || '⚡'}</span>
                     <span className="bg-rose-100 text-rose-700 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
-                      {sd.badgeText || 'DEAL'}
+                      {sd.badgeText || 'DEAL 259'}
                     </span>
                   </div>
                   <h4 className="font-black text-sm text-gray-900 mt-2">{sd.title}</h4>
@@ -684,12 +688,12 @@ export default function Deal259AdminManagementView() {
       {/* TAB 4: PAGE CONFIGURATION */}
       {activeTab === 'config' && (
         <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6 max-w-3xl">
-          <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3">Deal Page Display Settings</h3>
+          <h3 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3">Deal 259 Page Display Settings</h3>
           
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
               <div>
-                <h4 className="text-xs font-bold text-gray-900">Enable Deal Page</h4>
+                <h4 className="text-xs font-bold text-gray-900">Enable Deal 259 Page</h4>
                 <p className="text-[11px] text-gray-500">Toggle whether visitors can access /deal259 on website & app.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
