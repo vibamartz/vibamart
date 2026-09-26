@@ -155,9 +155,9 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
   if (cards.length === 0) return null;
 
   return (
-    <div className="w-full mt-2.5 pt-2 border-t border-gray-100">
+    <div className="w-full mt-1.5 pt-1.5 border-t border-gray-100">
       <div
-        className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory flex-nowrap w-full touch-pan-x"
+        className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none snap-x snap-mandatory flex-nowrap w-full touch-pan-x"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {cards.map((card) => {
@@ -165,12 +165,12 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
           return (
             <div
               key={card.key}
-              className={`flex-shrink-0 flex-grow-0 w-[calc(33.333%-5.5px)] sm:w-[125px] md:w-[135px] lg:w-[145px] min-w-[98px] h-[44px] px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-2 snap-start overflow-hidden ${card.borderClass}`}
+              className={`flex-shrink-0 w-auto h-[38px] px-2.5 py-1 rounded-xl border transition-all flex items-center gap-1.5 snap-start ${card.borderClass}`}
             >
               <div className={`p-1 rounded-md shrink-0 ${card.iconClass}`}>
                 <Icon className="w-3.5 h-3.5" />
               </div>
-              <span className="text-[10px] sm:text-[11px] font-black text-gray-900 truncate leading-none">
+              <span className="text-[11px] sm:text-xs font-normal text-gray-800 whitespace-nowrap leading-none">
                 {card.text}
               </span>
             </div>
