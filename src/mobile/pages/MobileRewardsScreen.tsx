@@ -89,7 +89,7 @@ export default function MobileRewardsScreen() {
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Rewards Temporarily Offline</h2>
         <p className="text-sm text-gray-600 mb-6 max-w-xs">
-          The Rewards & Loyalty program is currently disabled by the store admin. Check back soon!
+          The Rewards & Loyalty program is currently unavailable. Check back soon!
         </p>
         <button
           onClick={() => navigate('/')}
@@ -506,7 +506,7 @@ export default function MobileRewardsScreen() {
             <h3 className="font-black text-gray-900 text-sm">Security & Unlocking Flow</h3>
             <p>1. Order reward coupon by selecting payment method.</p>
             <p>2. Status remains Pending Payment (code hidden as XXX-XXX-XXX-XXX).</p>
-            <p>3. Admin verifies payment and unlocks the official brand code.</p>
+            <p>3. Store verifies payment and unlocks the official brand code.</p>
             <p>4. Unlocked coupon code appears instantly in My Orders with 1-click copy.</p>
           </div>
         )}

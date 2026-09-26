@@ -9,7 +9,7 @@ export const DEFAULT_REWARDS_CONFIG: RewardsSectionConfig = {
   headerIconUrl: '',
   bannerImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=400&fit=crop',
   cardImage: '',
-  cardText: 'Unlock up to 50% Off top partner brands. Code unlocked instantly after admin payment confirmation!',
+  cardText: 'Unlock up to 50% Off top partner brands. Code unlocked instantly after payment confirmation!',
   buttonText: 'Buy Reward Coupon',
   targetLink: '/rewards',
   nonRefundableNotice: '⚠️ NON REFUNDABLE',
@@ -17,7 +17,7 @@ export const DEFAULT_REWARDS_CONFIG: RewardsSectionConfig = {
   welcomeBonusPoints: 250,
   minRedeemPoints: 100,
   earningRules: 'Earn 1 point for every ₹10 spent on completed store orders. Points credited upon order delivery.',
-  redemptionRules: 'Buy brand coupons directly or redeem points balance. Coupon codes remain locked (XXX-XXX-XXX-XXX) until payment is confirmed by Admin.',
+  redemptionRules: 'Buy brand coupons directly or redeem points balance. Coupon codes remain locked (XXX-XXX-XXX-XXX) until payment is confirmed.',
   termsAndConditions: 'All brand coupon purchases are strictly NON-REFUNDABLE. Coupon codes are valid until specified expiry date.',
 };
 

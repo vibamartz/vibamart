@@ -10,7 +10,7 @@ import { motion } from 'motion/react';
 
 // Status styling and labelling maps
 const CANCELLATION_STEPS = [
-  { status: 'requested', label: 'Pending Review', icon: Clock, color: 'text-amber-500', desc: 'Admin is reviewing your cancellation request.' },
+  { status: 'requested', label: 'Pending Review', icon: Clock, color: 'text-amber-500', desc: 'Support team is reviewing your cancellation request.' },
   { status: 'approved', label: 'Canceled', icon: ShieldCheck, color: 'text-rose-500', desc: 'Cancellation confirmed.' },
   { status: 'cancelled', label: 'Canceled', icon: CheckCircle2, color: 'text-gray-600', desc: 'The order has been cancelled successfully.' },
   { status: 'refund_initiated', label: 'Refund Initiated', icon: RefreshCw, color: 'text-indigo-500', desc: 'Refund has been initiated by the bank.' },
@@ -279,7 +279,7 @@ export default function RequestTracking() {
               <div>
                 <h3 className="text-base font-bold text-red-900">Request Rejected</h3>
                 <p className="text-sm text-red-700 mt-1">
-                  Your request was reviewed and rejected. Admin Notes: {request.adminNotes || "No notes provided."}
+                  Your request was reviewed and rejected. Review Notes: {request.adminNotes || "No notes provided."}
                 </p>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function RequestTracking() {
 
                 {request.adminNotes && (
                   <div className="pt-4 border-t border-gray-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Admin Notes</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Support Notes</p>
                     <p className="text-xs text-gray-600 font-semibold italic">"{request.adminNotes}"</p>
                   </div>
                 )}

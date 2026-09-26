@@ -134,7 +134,7 @@ export default function MobileRequestScreens() {
 
     try {
       await addDoc(collection(db, 'return_requests'), newRequest);
-      toast.success(`${requestType.toUpperCase()} request submitted! Admin will verify.`, { icon: '📝' });
+      toast.success(`${requestType.toUpperCase()} request submitted! We will verify.`, { icon: '📝' });
       setComments('');
       setImageUrls([]);
       setActiveTab('list');

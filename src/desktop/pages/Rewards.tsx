@@ -95,7 +95,7 @@ export default function Rewards() {
         </div>
         <h2 className="text-2xl font-black text-gray-900">Rewards & Brand Coupons Currently Offline</h2>
         <p className="text-sm text-gray-500 max-w-md mx-auto">
-          The Rewards program is temporarily disabled by the store admin. Please check back later.
+          The Rewards program is temporarily unavailable. Please check back later.
         </p>
         <button
           onClick={() => navigate('/')}
@@ -336,7 +336,7 @@ export default function Rewards() {
             <div className="space-y-2 pt-4 border-t border-white/10 text-xs text-slate-300 font-medium">
               <div className="flex justify-between">
                 <span>Verification Flow:</span>
-                <span className="text-amber-400 font-bold">Secure Admin Unlocked</span>
+                <span className="text-amber-400 font-bold">Secure Verified Unlocked</span>
               </div>
               <div className="flex justify-between">
                 <span>Pre-Confirmation Code:</span>
@@ -737,7 +737,7 @@ export default function Rewards() {
               <h3 className="font-bold text-emerald-900 text-sm flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" /> Security Flow
               </h3>
-              <p>Coupon codes remain strictly encrypted as XXX-XXX-XXX-XXX until payment verification is approved by Admin. Upon confirmation, actual codes unlock instantly.</p>
+              <p>Coupon codes remain strictly encrypted as XXX-XXX-XXX-XXX until payment verification is confirmed. Upon confirmation, actual codes unlock instantly.</p>
             </div>
           </div>
         </div>
@@ -888,7 +888,7 @@ export default function Rewards() {
 
                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-[11px] text-gray-500 space-y-1">
                   <p className="font-bold text-amber-700">⚠️ Code Security notice:</p>
-                  <p>Upon submitting payment, code remains <strong className="font-mono text-gray-800">XXX-XXX-XXX-XXX</strong> until Admin verifies payment. Actual code will unlock in your Rewards Order History.</p>
+                  <p>Upon submitting payment, code remains <strong className="font-mono text-gray-800">XXX-XXX-XXX-XXX</strong> until payment is verified. Actual code will unlock in your Rewards Order History.</p>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-3">

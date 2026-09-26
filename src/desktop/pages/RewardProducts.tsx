@@ -321,7 +321,7 @@ export default function RewardProducts() {
         <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 space-y-3">
           <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto" />
           <h3 className="text-lg font-bold text-gray-900">No products available for this Reward Card</h3>
-          <p className="text-xs text-gray-500">Check back later as new products are assigned by the store admin.</p>
+          <p className="text-xs text-gray-500">Check back later for new reward products.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
