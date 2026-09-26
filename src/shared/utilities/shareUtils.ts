@@ -1,4 +1,4 @@
-import { Product, BrandCoupon } from '../types';
+import { Product, BrandCoupon, Deal259PageConfig } from '../types';
 import { getProductSlug, getRewardSlug } from './slug';
 import toast from 'react-hot-toast';
 
@@ -102,7 +102,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(url);
-      toast.success('Link copied to clipboard!');
+      toast.success('Deal 259 Store link copied to clipboard!');
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -114,7 +114,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      toast.success('Link copied to clipboard!');
+      toast.success('Deal 259 Store link copied to clipboard!');
     }
   } catch (err) {
     toast.error('Failed to copy share link.');
@@ -175,3 +175,23 @@ export async function shareReward(reward: BrandCoupon): Promise<void> {
     imageUrl: image,
   });
 }
+
+/**
+ * Shares the Deal 259 Super Store page with title, description, and link.
+ * Allows anyone (visitors/customers) to share the Deal 259 store.
+ */
+export async function shareDeal259Store(config?: Deal259PageConfig): Promise<void> {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const shareUrl = `${origin}/deal259`;
+  const title = config?.title ? `${config.title} | ViBa Mart` : 'Deal 259 Super Store | ViBa Mart';
+  const text = config?.subtitle || 'Check out Deal 259 Super Store for exclusive deals, mega savings, and unbeatable budget picks on ViBa Mart!';
+
+  updateOpenGraphTags(title, text, undefined, shareUrl);
+
+  await shareItem({
+    title,
+    text,
+    url: shareUrl,
+  });
+}
+

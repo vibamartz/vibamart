@@ -4,11 +4,12 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, Deal259PageConfig, Deal259SubDeal } from '../../shared/types';
 import { DEFAULT_DEAL259_CONFIG, DEFAULT_DEAL259_SUBDEALS } from '../../shared/utilities/deal259Utils';
+import { shareDeal259Store } from '../../shared/utilities/shareUtils';
 import AddEditProductForm from './AddEditProductForm';
 import toast from 'react-hot-toast';
 import {
   Tag, Plus, Trash2, Edit2, Check, X, Search, Layers, RefreshCw, Eye, EyeOff, Save,
-  ArrowUp, ArrowDown, ChevronRight, Image as ImageIcon, Sliders, AlertCircle, ShoppingBag, Sparkles
+  ArrowUp, ArrowDown, ChevronRight, Image as ImageIcon, Sliders, AlertCircle, ShoppingBag, Sparkles, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -276,7 +277,15 @@ export default function Deal259AdminManagementView() {
             <p className="text-white/80 text-xs sm:text-sm font-medium mt-1 max-w-xl">{config.subtitle}</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <button
+              onClick={() => shareDeal259Store(config)}
+              className="bg-white/20 hover:bg-white/30 text-white font-black px-3.5 py-2.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-1.5 border border-white/30 cursor-pointer"
+              title="Share Deal 259 Store Link"
+            >
+              <Share2 className="w-4 h-4" />
+              Share Store
+            </button>
             <button
               onClick={() => {
                 setEditingProduct(null);

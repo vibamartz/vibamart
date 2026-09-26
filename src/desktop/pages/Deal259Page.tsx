@@ -3,11 +3,12 @@ import { collection, query, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Deal259PageConfig, Deal259SubDeal } from '../../shared/types';
 import { getDeal259Products, DEFAULT_DEAL259_CONFIG, DEFAULT_DEAL259_SUBDEALS } from '../../shared/utilities/deal259Utils';
+import { shareDeal259Store } from '../../shared/utilities/shareUtils';
 import ProductCard from '../components/ProductCard';
 import { useCategoryStore } from '../../backend/store';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Tag, Search, Filter, ArrowUpDown, ChevronDown, Check, Sparkles, RefreshCw, X, ShoppingBag, Flame
+  Tag, Search, Filter, ArrowUpDown, ChevronDown, Check, Sparkles, RefreshCw, X, ShoppingBag, Flame, Share2
 } from 'lucide-react';
 
 export default function Deal259Page() {
@@ -149,22 +150,37 @@ export default function Deal259Page() {
             </p>
           </div>
 
-          {/* Quick Search on Deal 259 */}
-          <div className="w-full md:w-80 bg-white/15 backdrop-blur-xl p-3 rounded-2xl border border-white/25 shadow-lg">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search Deal 259 products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs font-bold rounded-xl pl-9 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-amber-400 shadow-inner"
-              />
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+          {/* Controls: Share & Quick Search on Deal 259 */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {/* Share Deal 259 Store Button - Anyone can share */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => shareDeal259Store(config)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-rose-700 hover:bg-rose-50 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg border border-white/40 cursor-pointer shrink-0"
+              title="Share Deal 259 Store link"
+            >
+              <Share2 className="w-4 h-4 text-rose-600" />
+              Share Store
+            </motion.button>
+
+            {/* Quick Search on Deal 259 */}
+            <div className="w-full sm:w-72 bg-white/15 backdrop-blur-xl p-2 rounded-2xl border border-white/25 shadow-lg">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search Deal 259 products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white text-gray-900 placeholder:text-gray-400 text-xs font-bold rounded-xl pl-9 pr-8 py-2 outline-none focus:ring-2 focus:ring-amber-400 shadow-inner"
+                />
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
