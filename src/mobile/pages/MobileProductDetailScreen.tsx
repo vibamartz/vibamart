@@ -233,11 +233,15 @@ export default function MobileProductDetailScreen() {
 
   const handleAddToCart = () => {
     if (!product) return;
+    if (isInCart) {
+      navigate('/cart');
+      return;
+    }
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
-      toast.success(result.updated ? "Cart quantity updated!" : "Added to Cart!", { icon: '🛒' });
-    } else if (result.stockLimit) {
-      toast.error("Maximum available stock already in cart");
+      toast.success("Added to Cart!", { icon: '🛒' });
+    } else if (result.exists) {
+      navigate('/cart');
     } else if (result.limitReached) {
       toast.error("Cart limit reached (100 items max)");
     } else {
@@ -247,11 +251,12 @@ export default function MobileProductDetailScreen() {
 
   const handleBuyNow = () => {
     if (!product) return;
+    if (isInCart) {
+      navigate('/checkout');
+      return;
+    }
     const result = addItem(product, 1, selectedVariantId);
     if (result.success || result.exists) {
-      navigate('/checkout');
-    } else if (result.stockLimit) {
-      toast.error("Maximum available stock already in cart");
       navigate('/checkout');
     } else {
       toast.error("Could not proceed to checkout. Out of stock.");

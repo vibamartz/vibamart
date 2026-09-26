@@ -245,21 +245,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     const existingIndex = items.findIndex(i => i.productId === product.id && (i.variantId || undefined) === normVariantId);
 
     if (existingIndex >= 0) {
-      const existingItem = items[existingIndex];
-      const newQuantity = Math.min(existingItem.quantity + quantity, availableStock);
-      if (newQuantity === existingItem.quantity && existingItem.quantity >= availableStock) {
-        return { success: false, exists: true, stockLimit: true };
-      }
-      const newItems = [...items];
-      newItems[existingIndex] = {
-        ...existingItem,
-        quantity: newQuantity,
-        product: { ...existingItem.product, ...product }
-      };
-      set({ items: newItems });
-      localStorage.setItem(getCartKey(), JSON.stringify(newItems));
-      syncCartToFirebase(newItems);
-      return { success: true, updated: true };
+      return { success: false, exists: true };
     }
 
     if (items.length >= MAX_CART_ITEMS) {
