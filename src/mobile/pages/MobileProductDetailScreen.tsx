@@ -623,46 +623,18 @@ export default function MobileProductDetailScreen() {
           )}
         </div>
 
-        {/* Delivery & Service Details System */}
-        <DeliveryAndServiceDetails product={product} settings={settings} isMobile={true} />
+        {/* Service Cards directly below Delivery Details */}
+        <DeliveryAndServiceDetails product={product} settings={settings} />
 
-        {/* Return Notice & Services */}
-        <div className="pb-4 border-b border-gray-100 space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-50 text-amber-700 rounded-xl shrink-0 border border-amber-200">
-                <RefreshCcw className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-black text-gray-900">7-day return</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              {product.isFreeDelivery !== false ? (
-                <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase tracking-wider">
-                  Free Delivery
-                </span>
-              ) : (
-                <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 uppercase tracking-wider">
-                  Standard Shipping
-                </span>
-              )}
-
-              {product.isCodAllowed !== false && (
-                <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 uppercase tracking-wider">
-                  COD Available
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="pt-1 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
-            <button
-              onClick={() => navigate('/faq')}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
-            </button>
-          </div>
+        {/* Questions FAQ link */}
+        <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
+          <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
+          <button
+            onClick={() => navigate('/faq')}
+            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
+          </button>
         </div>
 
         {/* Similar Products Section (Requirement 6) */}

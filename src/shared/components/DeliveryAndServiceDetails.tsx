@@ -10,17 +10,15 @@ import {
   Sparkles,
   Ban,
   CheckCircle2,
-  XCircle,
-  Truck
+  XCircle
 } from 'lucide-react';
 
 interface DeliveryAndServiceDetailsProps {
   product: Product;
   settings: StoreSettings;
-  isMobile?: boolean;
 }
 
-export default function DeliveryAndServiceDetails({ product, settings, isMobile = false }: DeliveryAndServiceDetailsProps) {
+export default function DeliveryAndServiceDetails({ product, settings }: DeliveryAndServiceDetailsProps) {
   if (!product || !settings) return null;
 
   // 1. Customer Support
@@ -34,7 +32,7 @@ export default function DeliveryAndServiceDetails({ product, settings, isMobile 
     ? product.enableReturnPeriod
     : (settings.enableReturnPeriod !== false);
   const returnPeriodDays = (product as any).returnDays || product.returnPeriodDays || settings.returnPeriodDays || settings.returnWindowDays || 7;
-  const returnPeriodText = product.returnPeriodText || settings.returnPeriodText || `${returnPeriodDays} Days Easy Return & Replacement`;
+  const returnPeriodText = product.returnPeriodText || settings.returnPeriodText || `${returnPeriodDays} Days Return`;
 
   // 3. Doorstep Cancellation
   const isDoorstepCancellationEnabled = product.enableDoorstepCancellation !== undefined
@@ -72,161 +70,121 @@ export default function DeliveryAndServiceDetails({ product, settings, isMobile 
   const isBrandSupportEnabled = product.enableBrandSupport !== undefined
     ? product.enableBrandSupport
     : (settings.enableBrandSupport !== false);
-  const brandSupportText = product.brandSupportText || settings.brandSupportText || 'Official Brand Support & Service Available';
+  const brandSupportText = product.brandSupportText || settings.brandSupportText || 'Official Brand Support';
 
   const cards = [];
 
-  // 1. Customer Support Card
   if (isCustomerSupportEnabled) {
     cards.push({
-      key: 'customer-support',
+      key: 'support',
       icon: Headphones,
       title: 'Customer Support',
       desc: customerSupportText,
-      badge: '24/7 Service',
-      containerClass: 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950',
-      iconClass: 'bg-emerald-100 text-emerald-700',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      iconClass: 'text-emerald-700 bg-emerald-100/90',
+      borderClass: 'border-emerald-200/80 bg-emerald-50/50'
     });
   }
 
-  // 2. Return Period Card
   if (isReturnPeriodEnabled) {
     cards.push({
       key: 'return-period',
       icon: RotateCcw,
       title: 'Return Period',
       desc: returnPeriodText,
-      badge: `${returnPeriodDays} Days`,
-      containerClass: 'bg-blue-50/70 border-blue-200/80 text-blue-950',
-      iconClass: 'bg-blue-100 text-blue-700',
-      badgeClass: 'bg-blue-100 text-blue-800 border-blue-200'
+      iconClass: 'text-blue-700 bg-blue-100/90',
+      borderClass: 'border-blue-200/80 bg-blue-50/50'
     });
   }
 
-  // 3. Doorstep Cancellation Card
-  cards.push({
-    key: 'doorstep-cancellation',
-    icon: isDoorstepCancellationEnabled ? CheckCircle2 : Ban,
-    title: 'Doorstep Cancellation',
-    desc: isDoorstepCancellationEnabled ? 'Doorstep Cancellation Available' : 'No Doorstep Cancellation',
-    badge: isDoorstepCancellationEnabled ? 'Allowed' : 'Disabled',
-    containerClass: isDoorstepCancellationEnabled ? 'bg-indigo-50/70 border-indigo-200/80 text-indigo-950' : 'bg-rose-50/70 border-rose-200/80 text-rose-950',
-    iconClass: isDoorstepCancellationEnabled ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700',
-    badgeClass: isDoorstepCancellationEnabled ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-rose-100 text-rose-800 border-rose-200'
-  });
+  if (isDoorstepCancellationEnabled !== undefined) {
+    cards.push({
+      key: 'doorstep-cancel',
+      icon: isDoorstepCancellationEnabled ? CheckCircle2 : Ban,
+      title: 'Doorstep Cancel',
+      desc: isDoorstepCancellationEnabled ? 'Cancellation Available' : 'No Cancellation',
+      iconClass: isDoorstepCancellationEnabled ? 'text-indigo-700 bg-indigo-100/90' : 'text-rose-700 bg-rose-100/90',
+      borderClass: isDoorstepCancellationEnabled ? 'border-indigo-200/80 bg-indigo-50/50' : 'border-rose-200/80 bg-rose-50/50'
+    });
+  }
 
-  // 4. Returns Card
-  cards.push({
-    key: 'returns',
-    icon: isReturnsEnabled ? PackageCheck : XCircle,
-    title: 'Returns',
-    desc: returnsText,
-    badge: isReturnsEnabled ? 'Returnable' : 'Non-Returnable',
-    containerClass: isReturnsEnabled ? 'bg-teal-50/70 border-teal-200/80 text-teal-950' : 'bg-amber-50/70 border-amber-200/80 text-amber-950',
-    iconClass: isReturnsEnabled ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700',
-    badgeClass: isReturnsEnabled ? 'bg-teal-100 text-teal-800 border-teal-200' : 'bg-amber-100 text-amber-800 border-amber-200'
-  });
+  if (isReturnsEnabled !== undefined) {
+    cards.push({
+      key: 'returns',
+      icon: isReturnsEnabled ? PackageCheck : XCircle,
+      title: 'Returns',
+      desc: returnsText,
+      iconClass: isReturnsEnabled ? 'text-teal-700 bg-teal-100/90' : 'text-amber-700 bg-amber-100/90',
+      borderClass: isReturnsEnabled ? 'border-teal-200/80 bg-teal-50/50' : 'border-amber-200/80 bg-amber-50/50'
+    });
+  }
 
-  // 5. COD Card
   cards.push({
     key: 'cod',
     icon: Banknote,
     title: 'Cash on Delivery',
     desc: codText,
-    badge: isCodEnabled ? 'COD Active' : 'No COD',
-    containerClass: isCodEnabled ? 'bg-cyan-50/70 border-cyan-200/80 text-cyan-950' : 'bg-slate-50/70 border-slate-200/80 text-slate-900',
-    iconClass: isCodEnabled ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-200 text-slate-600',
-    badgeClass: isCodEnabled ? 'bg-cyan-100 text-cyan-800 border-cyan-200' : 'bg-slate-200 text-slate-700 border-slate-300'
+    iconClass: isCodEnabled ? 'text-cyan-700 bg-cyan-100/90' : 'text-slate-600 bg-slate-200/90',
+    borderClass: isCodEnabled ? 'border-cyan-200/80 bg-cyan-50/50' : 'border-slate-200/80 bg-slate-50/50'
   });
 
-  // 6. Free Delivery Card (Hide when disabled)
   if (isFreeDeliveryEnabled) {
     cards.push({
       key: 'free-delivery',
       icon: Sparkles,
       title: 'Free Delivery',
       desc: 'Free Delivery Available',
-      badge: 'Free',
-      containerClass: 'bg-emerald-50/70 border-emerald-200/80 text-emerald-950',
-      iconClass: 'bg-emerald-100 text-emerald-700',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      iconClass: 'text-emerald-700 bg-emerald-100/90',
+      borderClass: 'border-emerald-200/80 bg-emerald-50/50'
     });
   }
 
-  // 7. Warranty Card
   if (isWarrantyEnabled) {
     cards.push({
       key: 'warranty',
       icon: ShieldCheck,
       title: 'Warranty',
       desc: warrantyPeriod,
-      badge: 'Covered',
-      containerClass: 'bg-purple-50/70 border-purple-200/80 text-purple-950',
-      iconClass: 'bg-purple-100 text-purple-700',
-      badgeClass: 'bg-purple-100 text-purple-800 border-purple-200'
+      iconClass: 'text-purple-700 bg-purple-100/90',
+      borderClass: 'border-purple-200/80 bg-purple-50/50'
     });
   }
 
-  // 8. Brand Support Card
   if (isBrandSupportEnabled) {
     cards.push({
       key: 'brand-support',
       icon: Shield,
       title: 'Brand Support',
       desc: brandSupportText,
-      badge: 'Official',
-      containerClass: 'bg-sky-50/70 border-sky-200/80 text-sky-950',
-      iconClass: 'bg-sky-100 text-sky-700',
-      badgeClass: 'bg-sky-100 text-sky-800 border-sky-200'
+      iconClass: 'text-sky-700 bg-sky-100/90',
+      borderClass: 'border-sky-200/80 bg-sky-50/50'
     });
   }
 
-  return (
-    <div className="space-y-3.5 pt-6 border-t border-gray-100 w-full overflow-hidden">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg shrink-0">
-            <Shield className="w-4 h-4" />
-          </div>
-          <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">
-            Delivery & Service Details
-          </h3>
-        </div>
-        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80 uppercase tracking-widest">
-          ViBa Verified
-        </span>
-      </div>
+  if (cards.length === 0) return null;
 
+  return (
+    <div className="w-full pt-4 border-t border-gray-100">
       <div
-        className={
-          isMobile
-            ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full"
-            : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full"
-        }
+        className="flex gap-2 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory flex-nowrap w-full touch-pan-x"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {cards.map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.key}
-              className={`p-3 rounded-2xl border transition-all flex items-start gap-3 w-full overflow-hidden ${card.containerClass}`}
+              className={`flex-shrink-0 flex-grow-0 w-[calc(33.333%-5.5px)] sm:w-[130px] md:w-[145px] lg:w-[155px] min-w-[100px] h-[92px] p-2.5 rounded-2xl border transition-all flex flex-col justify-between snap-start overflow-hidden ${card.borderClass}`}
             >
-              <div className={`p-2 rounded-xl shrink-0 ${card.iconClass}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                  <span className="text-xs font-extrabold truncate text-gray-900">
-                    {card.title}
-                  </span>
-                  <span
-                    className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider shrink-0 ${card.badgeClass}`}
-                  >
-                    {card.badge}
-                  </span>
+              <div className="flex items-center justify-between">
+                <div className={`p-1.5 rounded-lg shrink-0 ${card.iconClass}`}>
+                  <Icon className="w-3.5 h-3.5" />
                 </div>
-                <p className="text-[11px] font-semibold text-gray-600 leading-snug line-clamp-2 break-words">
+              </div>
+              <div>
+                <span className="text-[11px] font-black text-gray-900 block truncate leading-tight">
+                  {card.title}
+                </span>
+                <p className="text-[10px] font-semibold text-gray-600 line-clamp-2 leading-tight mt-0.5">
                   {card.desc}
                 </p>
               </div>

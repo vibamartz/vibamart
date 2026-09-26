@@ -762,19 +762,8 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Delivery & Service Details Section */}
+          {/* Service Cards directly below Delivery Details */}
           <DeliveryAndServiceDetails product={product} settings={settings} />
-
-          {/* Offers & Warranties */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
-            <ServiceIcon icon={ShieldCheck} title="Warranty" desc="1 Year Brand Warranty" />
-            <ServiceIcon icon={RefreshCcw} title="Return Benefit" desc="7-day return" />
-            <ServiceIcon
-              icon={Truck}
-              title="Delivery Mode"
-              desc={product.isFreeDelivery !== false ? "Free Home Delivery" : "Standard Shipping Charge"}
-            />
-          </div>
         </div>
       </div>
 
