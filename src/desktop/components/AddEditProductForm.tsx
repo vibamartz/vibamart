@@ -57,6 +57,19 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       isCodAllowed: true,
       isStockVisible: true,
       isFreeDelivery: true,
+      enableCustomerSupport: true,
+      customerSupportText: '24/7 Customer Support',
+      enableReturnPeriod: true,
+      returnPeriodDays: 7,
+      returnPolicy: '7-Day Return',
+      noReturnsText: 'Non-Returnable',
+      enableDoorstepCancellation: true,
+      isReturnable: true,
+      enableReturns: true,
+      enableWarranty: true,
+      warrantyPeriod: '1 Year Warranty',
+      enableBrandSupport: true,
+      brandSupportText: '7-Day Brand Support',
       createdAt: new Date().toISOString(),
     };
     if (product) {
@@ -81,6 +94,19 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         isCodAllowed: product.isCodAllowed !== false,
         isStockVisible: product.isStockVisible !== false,
         isFreeDelivery: product.isFreeDelivery !== false,
+        enableCustomerSupport: product.enableCustomerSupport !== undefined ? product.enableCustomerSupport : true,
+        customerSupportText: product.customerSupportText || '24/7 Customer Support',
+        enableReturnPeriod: product.enableReturnPeriod !== undefined ? product.enableReturnPeriod : true,
+        returnPeriodDays: (product as any).returnDays || product.returnPeriodDays || 7,
+        returnPolicy: product.returnPolicy || '7-Day Return',
+        noReturnsText: product.noReturnsText || 'Non-Returnable',
+        enableDoorstepCancellation: product.enableDoorstepCancellation !== undefined ? product.enableDoorstepCancellation : true,
+        isReturnable: product.isReturnable !== undefined ? product.isReturnable : (product.enableReturns !== undefined ? product.enableReturns : true),
+        enableReturns: product.enableReturns !== undefined ? product.enableReturns : true,
+        enableWarranty: product.enableWarranty !== undefined ? product.enableWarranty : true,
+        warrantyPeriod: (product as any).warranty || product.warrantyPeriod || '1 Year Warranty',
+        enableBrandSupport: product.enableBrandSupport !== undefined ? product.enableBrandSupport : true,
+        brandSupportText: product.brandSupportText || '7-Day Brand Support',
         variants: (product.variants || []).map(v => {
           const vImages = Array.isArray(v.images) && v.images.length > 0
             ? v.images.slice(0, 8)
@@ -1043,6 +1069,167 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   </select>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Support & Service Details Management */}
+          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+            <div>
+              <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Services & Support Badges</h3>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
+                Configure individual service guarantees and badges displayed on the Product Details page
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 1. Customer Support */}
+              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Customer Support</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Show support badge</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableCustomerSupport !== false}
+                      onChange={e => setFormData(p => ({ ...p, enableCustomerSupport: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                {formData.enableCustomerSupport !== false && (
+                  <input
+                    type="text"
+                    value={formData.customerSupportText || ''}
+                    onChange={e => setFormData(p => ({ ...p, customerSupportText: e.target.value }))}
+                    placeholder="24/7 Customer Support"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                  />
+                )}
+              </div>
+
+              {/* 2. Return Policy & Period */}
+              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Product Return Policy</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Is product returnable?</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.isReturnable !== false}
+                      onChange={e => setFormData(p => ({ ...p, isReturnable: e.target.checked, enableReturns: e.target.checked, enableReturnPeriod: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                {formData.isReturnable !== false ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={formData.returnPeriodDays || 7}
+                      onChange={e => {
+                        const days = Number(e.target.value) || 7;
+                        setFormData(p => ({ ...p, returnPeriodDays: days, returnPolicy: `${days}-Day Return` }));
+                      }}
+                      placeholder="7"
+                      className="w-20 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-center outline-none focus:border-emerald-500"
+                    />
+                    <input
+                      type="text"
+                      value={formData.returnPolicy || ''}
+                      onChange={e => setFormData(p => ({ ...p, returnPolicy: e.target.value }))}
+                      placeholder="7-Day Return"
+                      className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.noReturnsText || ''}
+                    onChange={e => setFormData(p => ({ ...p, noReturnsText: e.target.value }))}
+                    placeholder="Non-Returnable"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-amber-500"
+                  />
+                )}
+              </div>
+
+              {/* 3. Doorstep Cancellation */}
+              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Doorstep Cancellation</span>
+                  <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Allow cancel at delivery</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.enableDoorstepCancellation !== false}
+                    onChange={e => setFormData(p => ({ ...p, enableDoorstepCancellation: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              {/* 4. Warranty */}
+              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Product Warranty</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable warranty badge</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableWarranty !== false}
+                      onChange={e => setFormData(p => ({ ...p, enableWarranty: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                {formData.enableWarranty !== false && (
+                  <input
+                    type="text"
+                    value={formData.warrantyPeriod || ''}
+                    onChange={e => setFormData(p => ({ ...p, warrantyPeriod: e.target.value }))}
+                    placeholder="1 Year Warranty"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                  />
+                )}
+              </div>
+
+              {/* 5. Brand Support */}
+              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Brand Support</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable brand support badge</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableBrandSupport !== false}
+                      onChange={e => setFormData(p => ({ ...p, enableBrandSupport: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+                {formData.enableBrandSupport !== false && (
+                  <input
+                    type="text"
+                    value={formData.brandSupportText || ''}
+                    onChange={e => setFormData(p => ({ ...p, brandSupportText: e.target.value }))}
+                    placeholder="7-Day Brand Support"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
