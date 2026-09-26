@@ -736,13 +736,9 @@ export default function ProductDetail() {
                       {getShortDeliveryText()}
                     </span>
                   </div>
-                  {product.isFreeDelivery !== false ? (
+                  {product.isFreeDelivery !== false && (
                     <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 uppercase tracking-wider">
                       Free Delivery
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 uppercase tracking-wider">
-                      Standard Delivery
                     </span>
                   )}
                 </div>
