@@ -221,8 +221,17 @@ export default function Checkout() {
   }, 0);
   const discount = Math.max(0, totalMRP - subtotal);
   const shipping = calculateShippingFee(items, subtotal);
-  const codFee = paymentMethod === 'cod' ? 9 : 0;
+
+  // Per-product COD check: COD is available only if ALL products in cart have COD enabled
+  const isCodAvailableForCart = items.length > 0 && items.every(i => i.product && i.product.isCodAllowed !== false);
+  const codFee = (paymentMethod === 'cod' && isCodAvailableForCart) ? 9 : 0;
   const grandTotal = subtotal + shipping + codFee;
+
+  React.useEffect(() => {
+    if (!isCodAvailableForCart && paymentMethod === 'cod') {
+      setPaymentMethod('razorpay');
+    }
+  }, [isCodAvailableForCart, paymentMethod]);
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -876,7 +885,7 @@ export default function Checkout() {
                 <span>Delivery Charges</span>
                 <span className={shipping === 0 ? 'text-emerald-600' : 'text-gray-900'}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
               </div>
-              {paymentMethod === 'cod' && (
+              {paymentMethod === 'cod' && isCodAvailableForCart && (
                 <div className="flex justify-between text-sm font-bold text-gray-500">
                   <span>COD Fee</span>
                   <span className="text-gray-900">₹{codFee}</span>

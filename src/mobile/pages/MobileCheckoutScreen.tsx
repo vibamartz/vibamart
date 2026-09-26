@@ -53,8 +53,17 @@ export default function MobileCheckoutScreen() {
   }, 0);
   const discount = Math.max(0, totalMRP - cartTotal);
   const deliveryCharge = calculateShippingFee(items, cartTotal);
-  const codFee = paymentMethod === 'cod' ? 9 : 0;
+
+  // Per-product COD check: COD is available only if ALL products in cart have COD enabled
+  const isCodAvailableForCart = items.length > 0 && items.every(i => i.product && i.product.isCodAllowed !== false);
+  const codFee = (paymentMethod === 'cod' && isCodAvailableForCart) ? 9 : 0;
   const grandTotal = cartTotal + deliveryCharge + codFee;
+
+  useEffect(() => {
+    if (!isCodAvailableForCart && paymentMethod === 'cod') {
+      setPaymentMethod('upi');
+    }
+  }, [isCodAvailableForCart, paymentMethod]);
 
   useEffect(() => {
     if (savedAddresses.length > 0) {
@@ -432,7 +441,7 @@ export default function MobileCheckoutScreen() {
             <span className="font-bold text-gray-900">₹{deliveryCharge}</span>
           )}
         </div>
-        {paymentMethod === 'cod' && (
+        {paymentMethod === 'cod' && isCodAvailableForCart && (
           <div className="flex justify-between text-gray-600">
             <span>COD Fee</span>
             <span className="font-bold text-gray-900">₹{codFee}</span>
