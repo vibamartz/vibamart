@@ -271,11 +271,16 @@ export const useCartStore = create<CartState>((set, get) => ({
     syncCartToFirebase(newItems);
   },
   updateQuantity: (productId, quantity, variantId) => {
-    const newItems = get().items.map(i =>
-      (i.productId === productId && i.variantId === variantId)
-        ? { ...i, quantity }
-        : i
-    );
+    const newItems = get().items.map(i => {
+      if (i.productId === productId && (i.variantId || undefined) === (variantId || undefined)) {
+        const product = i.product;
+        const variant = i.variantId && product?.variants ? product.variants.find(v => v.id === i.variantId) : null;
+        const availableStock = variant ? (variant.stock ?? 0) : (product?.stock ?? 0);
+        const cappedQty = availableStock > 0 ? Math.max(1, Math.min(quantity, availableStock)) : Math.max(1, quantity);
+        return { ...i, quantity: cappedQty };
+      }
+      return i;
+    });
     set({ items: newItems });
     localStorage.setItem(getCartKey(), JSON.stringify(newItems));
     syncCartToFirebase(newItems);

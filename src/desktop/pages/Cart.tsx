@@ -289,7 +289,16 @@ export default function Cart() {
                               </button>
                               <span className="text-xs sm:text-sm font-black w-4 text-center">{item.quantity}</span>
                               <button 
-                                onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId)}
+                                onClick={() => {
+                                  const product = item.product;
+                                  const variant = item.variantId ? product.variants?.find(v => v.id === item.variantId) : null;
+                                  const maxStock = variant ? (variant.stock ?? 0) : (product.stock ?? 0);
+                                  if (maxStock > 0 && item.quantity >= maxStock) {
+                                    toast.error(`Maximum available stock reached (${maxStock})`);
+                                    return;
+                                  }
+                                  updateQuantity(item.productId, item.quantity + 1, item.variantId);
+                                }}
                                 className="text-gray-500 hover:text-primary p-1.5 touch-target transition-colors"
                                 aria-label="Increase quantity"
                               >
