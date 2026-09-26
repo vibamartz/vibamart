@@ -866,8 +866,8 @@ function AdminDashboardContent() {
                             key={tab}
                             onClick={() => setNotificationTab(tab)}
                             className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${notificationTab === tab
-                                ? 'bg-primary text-white shadow-md shadow-primary/15'
-                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              ? 'bg-primary text-white shadow-md shadow-primary/15'
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                               }`}
                           >
                             {tab} ({counts[tab]})
@@ -1663,8 +1663,8 @@ function ActivityLogsView() {
         <button
           onClick={() => setActiveSubTab('admin')}
           className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeSubTab === 'admin'
-              ? 'bg-primary text-white shadow-md'
-              : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
+            ? 'bg-primary text-white shadow-md'
+            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
             }`}
         >
           Admin Activity Logs ({filteredAdminLogs.length})
@@ -1672,8 +1672,8 @@ function ActivityLogsView() {
         <button
           onClick={() => setActiveSubTab('notifications')}
           className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeSubTab === 'notifications'
-              ? 'bg-primary text-white shadow-md'
-              : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
+            ? 'bg-primary text-white shadow-md'
+            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'
             }`}
         >
           Notification Logs ({filteredNotificationLogs.length})
@@ -2048,8 +2048,8 @@ function UserManagementView() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-                          user.role === 'admin' ? 'bg-red-100 text-red-600' :
-                            user.role === 'vendor' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                        user.role === 'admin' ? 'bg-red-100 text-red-600' :
+                          user.role === 'vendor' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                         }`}>
                         {user.role}
                       </span>
@@ -3855,8 +3855,8 @@ function AnalyticsView() {
                   <td className="py-4 font-medium text-gray-700">{log.query}</td>
                   <td className="py-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${log.type === 'voice' ? 'bg-purple-100 text-purple-600' :
-                        log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
-                          'bg-blue-100 text-blue-600'
+                      log.type === 'visual' ? 'bg-amber-100 text-amber-600' :
+                        'bg-blue-100 text-blue-600'
                       }`}>
                       {log.type}
                     </span>
@@ -4017,6 +4017,155 @@ function SettingsView() {
               onChange={e => setLocalSettings(prev => ({ ...prev, returnWindowDays: Number(e.target.value) }))}
             />
           </div>
+        </div>
+
+        <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Delivery & Service Details Settings</h3>
+        <div className="space-y-4">
+          {/* Customer Support */}
+          <Toggle
+            label="Enable Customer Support Card"
+            desc="Show Customer Support details on product pages"
+            value={localSettings.enableCustomerSupport ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableCustomerSupport: !(prev.enableCustomerSupport ?? true) }))}
+          />
+          {(localSettings.enableCustomerSupport ?? true) && (
+            <div className="space-y-1.5 pl-4 border-l-2 border-emerald-200">
+              <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Customer Support Text</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                value={localSettings.customerSupportText ?? '24/7 Dedicated Customer Support'}
+                onChange={e => setLocalSettings(prev => ({ ...prev, customerSupportText: e.target.value }))}
+                placeholder="24/7 Customer Support"
+              />
+            </div>
+          )}
+
+          {/* Return Period */}
+          <Toggle
+            label="Enable Return Period Card"
+            desc="Show Return Period duration & text on product pages"
+            value={localSettings.enableReturnPeriod ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableReturnPeriod: !(prev.enableReturnPeriod ?? true) }))}
+          />
+          {(localSettings.enableReturnPeriod ?? true) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-blue-200">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Return Period (Days)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                  value={localSettings.returnPeriodDays ?? 7}
+                  onChange={e => setLocalSettings(prev => ({ ...prev, returnPeriodDays: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Return Period Text</label>
+                <input
+                  type="text"
+                  className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                  value={localSettings.returnPeriodText ?? '7 Days Easy Return & Replacement'}
+                  onChange={e => setLocalSettings(prev => ({ ...prev, returnPeriodText: e.target.value }))}
+                  placeholder="7 Days Easy Return & Replacement"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Doorstep Cancellation */}
+          <Toggle
+            label="Enable Doorstep Cancellation"
+            desc="Show Doorstep Cancellation availability on product pages"
+            value={localSettings.enableDoorstepCancellation ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableDoorstepCancellation: !(prev.enableDoorstepCancellation ?? true) }))}
+          />
+
+          {/* Returns */}
+          <Toggle
+            label="Enable Returns Policy Card"
+            desc="Show Return/No-Return policy details on product pages"
+            value={localSettings.enableReturns ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableReturns: !(prev.enableReturns ?? true) }))}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-teal-200">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Returnable Text</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                value={localSettings.returnsText ?? 'Hassle-free Returns & Refunds'}
+                onChange={e => setLocalSettings(prev => ({ ...prev, returnsText: e.target.value }))}
+                placeholder="Hassle-free Returns & Refunds"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Non-Returnable Text</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                value={localSettings.noReturnsText ?? 'Non-returnable Item'}
+                onChange={e => setLocalSettings(prev => ({ ...prev, noReturnsText: e.target.value }))}
+                placeholder="Non-returnable Item"
+              />
+            </div>
+          </div>
+
+          {/* Cash on Delivery (COD) */}
+          <Toggle
+            label="Enable Cash on Delivery (COD)"
+            desc="Global toggle for COD. When disabled, shows 'No Cash on Delivery'"
+            value={localSettings.enableCod ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableCod: !(prev.enableCod ?? true) }))}
+          />
+
+          {/* Free Delivery */}
+          <Toggle
+            label="Enable Free Delivery Service"
+            desc="Global toggle for Free Delivery. When disabled, hides Free Delivery badge/card"
+            value={localSettings.enableFreeDelivery ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableFreeDelivery: !(prev.enableFreeDelivery ?? true) }))}
+          />
+
+          {/* Warranty */}
+          <Toggle
+            label="Enable Warranty Details Card"
+            desc="Show Warranty status & period on product pages"
+            value={localSettings.enableWarranty ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableWarranty: !(prev.enableWarranty ?? true) }))}
+          />
+          {(localSettings.enableWarranty ?? true) && (
+            <div className="space-y-1.5 pl-4 border-l-2 border-purple-200">
+              <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Warranty Period / Text</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                value={localSettings.warrantyPeriod ?? '1 Year Brand Warranty'}
+                onChange={e => setLocalSettings(prev => ({ ...prev, warrantyPeriod: e.target.value }))}
+                placeholder="1 Year Brand Warranty"
+              />
+            </div>
+          )}
+
+          {/* Brand Support */}
+          <Toggle
+            label="Enable Brand Support Card"
+            desc="Show Brand Support availability & text on product pages"
+            value={localSettings.enableBrandSupport ?? true}
+            onChange={() => setLocalSettings(prev => ({ ...prev, enableBrandSupport: !(prev.enableBrandSupport ?? true) }))}
+          />
+          {(localSettings.enableBrandSupport ?? true) && (
+            <div className="space-y-1.5 pl-4 border-l-2 border-sky-200">
+              <label className="block text-xs font-black uppercase text-gray-400 tracking-widest">Brand Support Text</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border-2 border-transparent rounded-xl px-4 py-2.5 outline-none focus:bg-white focus:border-primary/20 transition-all text-sm font-bold"
+                value={localSettings.brandSupportText ?? 'Official Brand Support & Service Available'}
+                onChange={e => setLocalSettings(prev => ({ ...prev, brandSupportText: e.target.value }))}
+                placeholder="Official Brand Support & Service Available"
+              />
+            </div>
+          )}
         </div>
 
         <h3 className="text-lg font-black text-gray-900 tracking-tight border-b border-gray-100 pb-2 mt-8">Storefront Filters</h3>

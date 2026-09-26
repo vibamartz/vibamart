@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Product, ProductVariant, WaitlistItem } from '../../shared/types';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle, Ruler, X, Check } from 'lucide-react';
-import { useCartStore, useAuthStore, useCategoryStore } from '../../backend/store';
+import { useCartStore, useAuthStore, useCategoryStore, useSettingsStore } from '../../backend/store';
+import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ export default function ProductDetail() {
   const { addItem, items } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const { categories } = useCategoryStore();
+  const { settings } = useSettingsStore();
   const { selectedAddress } = useLocationStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
@@ -225,24 +227,27 @@ export default function ProductDetail() {
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
 
   const handleBuyNow = () => {
-    if (isInCart) {
-      navigate('/checkout');
-      return;
-    }
     const result = addItem(product, 1, selectedVariant);
-    if (result.success) {
+    if (result.success || result.exists) {
+      navigate('/checkout');
+    } else if (result.stockLimit) {
+      toast.error('Maximum available stock already in cart');
       navigate('/checkout');
     } else {
-      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock.');
+      toast.error('Could not proceed to checkout. Out of stock.');
     }
   };
 
   const handleAddToCart = () => {
     const result = addItem(product, 1, selectedVariant);
     if (result.success) {
-      toast.success('Product added to cart');
+      toast.success(result.updated ? 'Cart quantity updated' : 'Product added to cart');
+    } else if (result.stockLimit) {
+      toast.error('Maximum available stock already in cart');
+    } else if (result.limitReached) {
+      toast.error('Cart limit reached (100 items max)');
     } else {
-      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock.');
+      toast.error('Could not add to cart. Out of stock.');
     }
   };
 
@@ -756,6 +761,9 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
+
+          {/* Delivery & Service Details Section */}
+          <DeliveryAndServiceDetails product={product} settings={settings} />
 
           {/* Offers & Warranties */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">

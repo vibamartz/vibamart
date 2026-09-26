@@ -32,15 +32,14 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isInCart) {
-      navigate('/checkout');
-      return;
-    }
     const result = addItem(product, 1, selectedVariantId);
-    if (result.success) {
+    if (result.success || result.exists) {
+      navigate('/checkout');
+    } else if (result.stockLimit) {
+      toast.error('Maximum available stock already in cart');
       navigate('/checkout');
     } else {
-      toast.error(result.exists ? 'Product already added to cart' : 'Could not add to cart. Out of stock or limit reached.');
+      toast.error('Could not proceed to checkout. Out of stock.');
     }
   };
 
@@ -49,13 +48,13 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     e.stopPropagation();
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
-      toast.success('Product added to cart');
+      toast.success(result.updated ? 'Cart quantity updated' : 'Product added to cart');
+    } else if (result.stockLimit) {
+      toast.error('Maximum available stock already in cart');
+    } else if (result.limitReached) {
+      toast.error('Cart limit reached (100 items max)');
     } else {
-      if (result.exists) {
-        toast.error('Product already added to cart');
-      } else {
-        toast.error('Could not add to cart. Out of stock or limit reached.');
-      }
+      toast.error('Could not add to cart. Out of stock.');
     }
   };
 

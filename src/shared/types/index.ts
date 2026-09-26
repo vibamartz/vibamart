@@ -99,6 +99,20 @@ export interface Product {
   isCodAllowed?: boolean; // Admin toggle for COD availability (default true)
   isStockVisible?: boolean; // Admin toggle for stock visibility (default true)
   isFreeDelivery?: boolean; // Admin toggle for free delivery eligibility on this product (default true)
+  enableCustomerSupport?: boolean;
+  customerSupportText?: string;
+  enableReturnPeriod?: boolean;
+  returnPeriodDays?: number;
+  returnPeriodText?: string;
+  enableDoorstepCancellation?: boolean;
+  isReturnable?: boolean;
+  enableReturns?: boolean;
+  returnPolicy?: string;
+  noReturnsText?: string;
+  enableWarranty?: boolean;
+  warrantyPeriod?: string;
+  enableBrandSupport?: boolean;
+  brandSupportText?: string;
   isDeal259?: boolean; // Tagged as assigned to Deal 259
   deal259Price?: number; // Custom Deal 259 price
   deal259SubDealId?: string; // ID of Sub-Deal under Deal 259
@@ -324,6 +338,23 @@ export interface StoreSettings {
   enableBanner: boolean;
   returnWindowDays?: number;
   enableManualCancellation?: boolean;
+
+  // Delivery & Service Details Settings
+  enableCustomerSupport?: boolean;
+  customerSupportText?: string;
+  enableReturnPeriod?: boolean;
+  returnPeriodDays?: number;
+  returnPeriodText?: string;
+  enableDoorstepCancellation?: boolean;
+  enableReturns?: boolean;
+  returnsText?: string;
+  noReturnsText?: string;
+  enableCod?: boolean;
+  enableFreeDelivery?: boolean;
+  enableWarranty?: boolean;
+  warrantyPeriod?: string;
+  enableBrandSupport?: boolean;
+  brandSupportText?: string;
 }
 
 export interface SearchAnalytics {

@@ -66,12 +66,26 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             // Sync cart from Firebase if present, or write local cart to Firebase
             if (data.cart && Array.isArray(data.cart)) {
-              useCartStore.getState().setItems(data.cart);
+              const localCart = useCartStore.getState().items;
+              const hydratedCart = data.cart.map((remoteItem: any) => {
+                const localMatch = localCart.find(
+                  l => l.productId === remoteItem.productId && (l.variantId || undefined) === (remoteItem.variantId || undefined)
+                );
+                return {
+                  productId: remoteItem.productId,
+                  variantId: remoteItem.variantId || undefined,
+                  quantity: remoteItem.quantity || 1,
+                  product: remoteItem.product || localMatch?.product || null
+                };
+              }).filter((item: any) => item.product !== null);
+              if (hydratedCart.length > 0) {
+                useCartStore.getState().setItems(hydratedCart as CartItem[]);
+              }
             } else {
               const currentCart = useCartStore.getState().items;
               if (currentCart.length > 0) {
                 try {
-                  await setDoc(docRef, { cart: currentCart }, { merge: true });
+                  syncCartToFirebase(currentCart);
                 } catch (cartErr) {
                   console.error("[FIRESTORE WRITE ERROR] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
                 }
@@ -119,11 +133,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
+export interface AddItemResult {
+  success: boolean;
+  exists?: boolean;
+  updated?: boolean;
+  stockLimit?: boolean;
+  limitReached?: boolean;
+  outOfStock?: boolean;
+}
+
 interface CartState {
   items: CartItem[];
   setUid: (uid: string | null) => void;
   setItems: (items: CartItem[]) => void;
-  addItem: (product: Product, quantity: number, variantId?: string) => { success: boolean, exists?: boolean };
+  addItem: (product: Product, quantity: number, variantId?: string) => AddItemResult;
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
@@ -137,9 +160,46 @@ const getCartKey = () => currentUid ? `viba_cart_${currentUid}` : "viba_cart_gue
 const syncCartToFirebase = (items: CartItem[]) => {
   if (currentUid) {
     const userRef = doc(db, 'users', currentUid);
-    // Strip undefined values which Firebase rejects synchronously
-    const cleanItems = JSON.parse(JSON.stringify(items));
-    setDoc(userRef, { cart: cleanItems }, { merge: true }).catch(err => {
+    const cleanItems = items.map(item => ({
+      productId: item.productId,
+      variantId: item.variantId || null,
+      quantity: item.quantity,
+      product: item.product ? {
+        id: item.product.id,
+        name: item.product.name || '',
+        price: item.product.price || 0,
+        discountPrice: item.product.discountPrice || item.product.price || 0,
+        mrp: item.product.mrp || item.product.price || 0,
+        images: (item.product.images || []).slice(0, 2),
+        primaryImage: item.product.primaryImage || item.product.images?.[0] || '',
+        stock: item.product.stock || 0,
+        inStock: item.product.inStock !== false,
+        status: item.product.status || 'active',
+        isCodAllowed: item.product.isCodAllowed !== false,
+        isFreeDelivery: item.product.isFreeDelivery !== false,
+        brand: item.product.brand || '',
+        categoryId: item.product.categoryId || '',
+        variants: (item.product.variants || []).map(v => ({
+          id: v.id,
+          color: v.color || '',
+          colorName: v.colorName || '',
+          size: v.size || '',
+          shoeSize: v.shoeSize || '',
+          storage: v.storage || '',
+          ram: v.ram || '',
+          shade: v.shade || '',
+          volume: v.volume || '',
+          material: v.material || '',
+          model: v.model || '',
+          price: v.price || 0,
+          extraPrice: v.extraPrice || 0,
+          stock: v.stock || 0,
+          disabled: v.disabled || false
+        }))
+      } : null
+    }));
+    const payload = JSON.parse(JSON.stringify(cleanItems));
+    setDoc(userRef, { cart: payload }, { merge: true }).catch(err => {
       console.error("Failed to sync cart to Firebase:", err);
     });
   }
@@ -164,6 +224,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
   addItem: (product, quantity, variantId) => {
     const items = get().items;
+    const MAX_CART_ITEMS = 100;
 
     // Find the relevant variant if variantId is provided
     const variant = variantId && product.variants ? product.variants.find(v => v.id === variantId) : null;
@@ -177,20 +238,40 @@ export const useCartStore = create<CartState>((set, get) => ({
     // Validation: Check stock & status for the selected variant or base product
     const availableStock = variant ? variant.stock : product.stock;
     if (product.inStock === false || product.status === 'out_of_stock' || product.status === 'inactive' || availableStock === undefined || availableStock <= 0) {
-      return { success: false };
+      return { success: false, outOfStock: true };
     }
 
-    const existing = items.find(i => i.productId === product.id && i.variantId === variantId);
+    const normVariantId = variantId || undefined;
+    const existingIndex = items.findIndex(i => i.productId === product.id && (i.variantId || undefined) === normVariantId);
 
-    if (existing) {
-      return { success: false, exists: true };
+    if (existingIndex >= 0) {
+      const existingItem = items[existingIndex];
+      const newQuantity = Math.min(existingItem.quantity + quantity, availableStock);
+      if (newQuantity === existingItem.quantity && existingItem.quantity >= availableStock) {
+        return { success: false, exists: true, stockLimit: true };
+      }
+      const newItems = [...items];
+      newItems[existingIndex] = {
+        ...existingItem,
+        quantity: newQuantity,
+        product: { ...existingItem.product, ...product }
+      };
+      set({ items: newItems });
+      localStorage.setItem(getCartKey(), JSON.stringify(newItems));
+      syncCartToFirebase(newItems);
+      return { success: true, updated: true };
     }
 
-    if (quantity > availableStock) {
-      return { success: false };
+    if (items.length >= MAX_CART_ITEMS) {
+      return { success: false, limitReached: true };
     }
 
-    const newItems = [...items, { productId: product.id, variantId, quantity, product }];
+    const addQty = Math.min(quantity, availableStock);
+    if (addQty <= 0) {
+      return { success: false, outOfStock: true };
+    }
+
+    const newItems = [...items, { productId: product.id, variantId: normVariantId, quantity: addQty, product }];
 
     set({ items: newItems });
     localStorage.setItem(getCartKey(), JSON.stringify(newItems));
@@ -340,7 +421,31 @@ const DEFAULT_SETTINGS: StoreSettings = {
   enableAvailabilityFilter: true,
   enableBanner: true,
   returnWindowDays: 7,
-  enableManualCancellation: false
+  enableManualCancellation: false,
+
+  // Delivery & Service Details Defaults
+  enableCustomerSupport: true,
+  customerSupportText: '24/7 Dedicated Customer Support',
+
+  enableReturnPeriod: true,
+  returnPeriodDays: 7,
+  returnPeriodText: '7 Days Easy Return & Replacement',
+
+  enableDoorstepCancellation: true,
+
+  enableReturns: true,
+  returnsText: 'Hassle-free Returns & Refunds',
+  noReturnsText: 'Non-returnable Item',
+
+  enableCod: true,
+
+  enableFreeDelivery: true,
+
+  enableWarranty: true,
+  warrantyPeriod: '1 Year Brand Warranty',
+
+  enableBrandSupport: true,
+  brandSupportText: 'Official Brand Support & Service Available'
 };
 
 interface SettingsState {

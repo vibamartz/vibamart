@@ -16,6 +16,7 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
+import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -232,26 +233,29 @@ export default function MobileProductDetailScreen() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    if (isInCart) {
-      navigate('/cart');
-      return;
-    }
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
-      toast.success("Added to Cart!", { icon: '🛒' });
-    } else if (result.exists) {
-      navigate('/cart');
+      toast.success(result.updated ? "Cart quantity updated!" : "Added to Cart!", { icon: '🛒' });
+    } else if (result.stockLimit) {
+      toast.error("Maximum available stock already in cart");
+    } else if (result.limitReached) {
+      toast.error("Cart limit reached (100 items max)");
     } else {
-      toast.error("Out of stock");
+      toast.error("Could not add to cart. Out of stock");
     }
   };
 
   const handleBuyNow = () => {
     if (!product) return;
-    if (!isInCart) {
-      addItem(product, 1, selectedVariantId);
+    const result = addItem(product, 1, selectedVariantId);
+    if (result.success || result.exists) {
+      navigate('/checkout');
+    } else if (result.stockLimit) {
+      toast.error("Maximum available stock already in cart");
+      navigate('/checkout');
+    } else {
+      toast.error("Could not proceed to checkout. Out of stock.");
     }
-    navigate('/checkout');
   };
 
   if (loading || !product) {
@@ -618,6 +622,9 @@ export default function MobileProductDetailScreen() {
             </div>
           )}
         </div>
+
+        {/* Delivery & Service Details System */}
+        <DeliveryAndServiceDetails product={product} settings={settings} isMobile={true} />
 
         {/* Return Notice & Services */}
         <div className="pb-4 border-b border-gray-100 space-y-2">
