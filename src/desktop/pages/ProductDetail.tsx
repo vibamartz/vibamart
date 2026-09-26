@@ -697,7 +697,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Delivery Details Section */}
-          <div className="space-y-4 pt-8 border-t border-gray-100">
+          <div className="space-y-2 pt-6 border-t border-gray-100">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Details</h3>
 
             {isLocationAvailable === false && (
@@ -765,10 +765,10 @@ export default function ProductDetail() {
                 </button>
               </div>
             )}
-          </div>
 
-          {/* Service Cards directly below Delivery Details */}
-          <DeliveryAndServiceDetails product={product} settings={settings} />
+            {/* Service Cards directly below Delivery Details */}
+            <DeliveryAndServiceDetails product={product} settings={settings} />
+          </div>
         </div>
       </div>
 

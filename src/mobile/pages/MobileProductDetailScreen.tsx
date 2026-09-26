@@ -576,8 +576,8 @@ export default function MobileProductDetailScreen() {
           </div>
         )}
 
-        {/* Delivery Details Section (Requirement 4 & 5) */}
-        <div className="pb-4 border-b border-gray-100 space-y-2.5">
+        {/* Delivery Details & Service Section (Requirement 4 & 5) */}
+        <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-black text-gray-800 uppercase tracking-wider">
             <Truck className="w-4 h-4 text-emerald-600" />
             <span>Delivery Details</span>
@@ -626,10 +626,10 @@ export default function MobileProductDetailScreen() {
               </button>
             </div>
           )}
-        </div>
 
-        {/* Service Cards directly below Delivery Details */}
-        <DeliveryAndServiceDetails product={product} settings={settings} />
+          {/* Service Cards directly below Delivery Details with compact spacing */}
+          <DeliveryAndServiceDetails product={product} settings={settings} />
+        </div>
 
         {/* Questions FAQ link */}
         <div className="pb-4 border-b border-gray-100 flex items-center justify-between">

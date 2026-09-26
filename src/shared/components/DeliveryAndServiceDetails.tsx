@@ -3,7 +3,6 @@ import { Product, StoreSettings } from '../types';
 import {
   Headphones,
   RotateCcw,
-  PackageCheck,
   Banknote,
   ShieldCheck,
   Shield,
@@ -18,6 +17,30 @@ interface DeliveryAndServiceDetailsProps {
   settings: StoreSettings;
 }
 
+function sanitizeServiceText(text: string): string {
+  if (!text) return '';
+  // Convert newlines to spaces and trim
+  let cleaned = text.replace(/[\r\n]+/g, ' ').trim();
+  // Remove duplicate consecutive words (e.g. "7-Day Return 7-Day Return")
+  const words = cleaned.split(/\s+/);
+  const uniqueWords: string[] = [];
+  for (const w of words) {
+    if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1].toLowerCase() !== w.toLowerCase()) {
+      uniqueWords.push(w);
+    }
+  }
+  cleaned = uniqueWords.join(' ');
+
+  // Remove full repeated phrase if repeated (e.g. "24/7 Customer Support 24/7 Customer Support")
+  const mid = Math.floor(cleaned.length / 2);
+  const part1 = cleaned.slice(0, mid).trim();
+  const part2 = cleaned.slice(mid).trim();
+  if (part1 && part1.toLowerCase() === part2.toLowerCase()) {
+    cleaned = part1;
+  }
+  return cleaned;
+}
+
 export default function DeliveryAndServiceDetails({ product, settings }: DeliveryAndServiceDetailsProps) {
   if (!product || !settings) return null;
 
@@ -25,55 +48,58 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
   const isCustomerSupportEnabled = product.enableCustomerSupport !== undefined
     ? product.enableCustomerSupport
     : (settings.enableCustomerSupport !== false);
-  const customerSupportText = product.customerSupportText || settings.customerSupportText || '24/7 Customer Support';
+  const rawSupportText = product.customerSupportText || settings.customerSupportText || '24/7 Customer Support';
+  const customerSupportText = sanitizeServiceText(rawSupportText) || '24/7 Customer Support';
 
-  // 2. Return Period
+  // 2. Return Period / Policy
   const isReturnPeriodEnabled = product.enableReturnPeriod !== undefined
     ? product.enableReturnPeriod
     : (settings.enableReturnPeriod !== false);
+
+  const isReturnsEnabled = product.isReturnable !== undefined
+    ? product.isReturnable
+    : product.enableReturns !== undefined
+      ? product.enableReturns
+      : (settings.enableReturns !== false);
+
   const returnPeriodDays = (product as any).returnDays || product.returnPeriodDays || settings.returnPeriodDays || settings.returnWindowDays || 7;
-  const returnPeriodText = product.returnPeriodText || settings.returnPeriodText || `${returnPeriodDays}-Day Return`;
 
   // 3. Doorstep Cancellation
   const isDoorstepCancellationEnabled = product.enableDoorstepCancellation !== undefined
     ? product.enableDoorstepCancellation
     : (settings.enableDoorstepCancellation !== false);
 
-  // 4. Returns
-  const isReturnsEnabled = product.isReturnable !== undefined
-    ? product.isReturnable
-    : product.enableReturns !== undefined
-      ? product.enableReturns
-      : (settings.enableReturns !== false);
-  const returnsText = isReturnsEnabled
-    ? (product.returnPolicy || settings.returnsText || `${returnPeriodDays}-Day Return`)
-    : (product.noReturnsText || settings.noReturnsText || 'Non-Returnable');
-
-  // 5. COD
+  // 4. COD
   const isCodEnabled = product.isCodAllowed !== undefined
     ? product.isCodAllowed
     : (settings.enableCod !== false);
   const codText = isCodEnabled ? 'Cash on Delivery' : 'No Cash on Delivery';
 
-  // 6. Free Delivery (when disabled, hide it completely)
+  // 5. Free Delivery
   const isFreeDeliveryEnabled = product.isFreeDelivery !== undefined
     ? product.isFreeDelivery
     : (settings.enableFreeDelivery !== false);
 
-  // 7. Warranty
+  // 6. Warranty
   const isWarrantyEnabled = product.enableWarranty !== undefined
     ? product.enableWarranty
     : (settings.enableWarranty !== false);
-  const warrantyPeriod = (product as any).warranty || product.warrantyPeriod || settings.warrantyPeriod || '1 Year Warranty';
+  const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings.warrantyPeriod || '1 Year Warranty';
+  let warrantyPeriod = sanitizeServiceText(rawWarranty) || '1 Year Warranty';
+  if (!warrantyPeriod.toLowerCase().includes('warranty')) {
+    warrantyPeriod = `${warrantyPeriod} Warranty`;
+  }
 
-  // 8. Brand Support
+  // 7. Brand Support
   const isBrandSupportEnabled = product.enableBrandSupport !== undefined
     ? product.enableBrandSupport
     : (settings.enableBrandSupport !== false);
-  const brandSupportText = product.brandSupportText || settings.brandSupportText || 'Brand Support';
+  const rawBrandSupport = product.brandSupportText || settings.brandSupportText || '7-Day Brand Support';
+  const brandSupportText = sanitizeServiceText(rawBrandSupport) || '7-Day Brand Support';
 
   const cards = [];
 
+  // Card 1: Customer Support
   if (isCustomerSupportEnabled) {
     cards.push({
       key: 'support',
@@ -84,17 +110,31 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
-  if (isReturnPeriodEnabled) {
+  // Card 2: Return (Single card, concise one-liner: e.g. "7-Day Return" or "Non-Returnable")
+  if (isReturnPeriodEnabled || isReturnsEnabled !== undefined) {
+    const isReturnable = isReturnsEnabled !== false;
+    let returnText = '';
+    if (isReturnable) {
+      if (product.returnPolicy && product.returnPolicy.length <= 25) {
+        returnText = sanitizeServiceText(product.returnPolicy);
+      } else {
+        returnText = `${returnPeriodDays}-Day Return`;
+      }
+    } else {
+      returnText = product.noReturnsText ? sanitizeServiceText(product.noReturnsText) : 'Non-Returnable';
+    }
+
     cards.push({
-      key: 'return-period',
-      icon: RotateCcw,
-      text: returnPeriodText,
-      iconClass: 'text-blue-700 bg-blue-100/90',
-      borderClass: 'border-blue-200/80 bg-blue-50/50'
+      key: 'returns',
+      icon: isReturnable ? RotateCcw : XCircle,
+      text: returnText,
+      iconClass: isReturnable ? 'text-blue-700 bg-blue-100/90' : 'text-amber-700 bg-amber-100/90',
+      borderClass: isReturnable ? 'border-blue-200/80 bg-blue-50/50' : 'border-amber-200/80 bg-amber-50/50'
     });
   }
 
-  if (isDoorstepCancellationEnabled !== undefined) {
+  // Card 3: Doorstep Cancellation (if enabled)
+  if (isDoorstepCancellationEnabled !== undefined && isDoorstepCancellationEnabled !== false) {
     cards.push({
       key: 'doorstep-cancel',
       icon: isDoorstepCancellationEnabled ? CheckCircle2 : Ban,
@@ -104,16 +144,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
-  if (isReturnsEnabled !== undefined) {
-    cards.push({
-      key: 'returns',
-      icon: isReturnsEnabled ? PackageCheck : XCircle,
-      text: returnsText,
-      iconClass: isReturnsEnabled ? 'text-teal-700 bg-teal-100/90' : 'text-amber-700 bg-amber-100/90',
-      borderClass: isReturnsEnabled ? 'border-teal-200/80 bg-teal-50/50' : 'border-amber-200/80 bg-amber-50/50'
-    });
-  }
-
+  // Card 4: COD
   cards.push({
     key: 'cod',
     icon: Banknote,
@@ -122,6 +153,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     borderClass: isCodEnabled ? 'border-cyan-200/80 bg-cyan-50/50' : 'border-slate-200/80 bg-slate-50/50'
   });
 
+  // Card 5: Free Delivery
   if (isFreeDeliveryEnabled) {
     cards.push({
       key: 'free-delivery',
@@ -132,6 +164,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
+  // Card 6: Warranty
   if (isWarrantyEnabled) {
     cards.push({
       key: 'warranty',
@@ -142,6 +175,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
+  // Card 7: Brand Support
   if (isBrandSupportEnabled) {
     cards.push({
       key: 'brand-support',
@@ -155,7 +189,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
   if (cards.length === 0) return null;
 
   return (
-    <div className="w-full mt-1.5 pt-1.5 border-t border-gray-100">
+    <div className="w-full mt-2">
       <div
         className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none snap-x snap-mandatory flex-nowrap w-full touch-pan-x"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
@@ -180,3 +214,4 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     </div>
   );
 }
+
