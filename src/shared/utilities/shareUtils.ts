@@ -177,21 +177,24 @@ export async function shareReward(reward: BrandCoupon): Promise<void> {
 }
 
 /**
- * Shares the Deal 259 Super Store page with title, description, and link.
- * Allows anyone (visitors/customers) to share the Deal 259 store.
+/**
+ * Shares the Deal 259 Super Store page with title, description, image, and link.
+ * Allows anyone (visitors/customers) to share the Deal 259 store with social card image preview.
  */
-export async function shareDeal259Store(config?: Deal259PageConfig): Promise<void> {
+export async function shareDeal259Store(config?: Deal259PageConfig, fallbackImage?: string): Promise<void> {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/deal259`;
   const title = config?.title ? `${config.title} | ViBa Mart` : 'Deal 259 Super Store | ViBa Mart';
   const text = config?.subtitle || 'Check out Deal 259 Super Store for exclusive deals, mega savings, and unbeatable budget picks on ViBa Mart!';
+  const image = config?.bannerImage || fallbackImage;
 
-  updateOpenGraphTags(title, text, undefined, shareUrl);
+  updateOpenGraphTags(title, text, image, shareUrl);
 
   await shareItem({
     title,
     text,
     url: shareUrl,
+    imageUrl: image,
   });
 }
 

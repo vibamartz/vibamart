@@ -156,11 +156,11 @@ export default function Deal259Page() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => shareDeal259Store(config)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-rose-700 hover:bg-rose-50 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg border border-white/40 cursor-pointer shrink-0"
+              onClick={() => shareDeal259Store(config, products[0]?.images?.[0])}
+              className="w-auto inline-flex items-center justify-center gap-1.5 bg-white text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all shadow-md border border-white/40 cursor-pointer shrink-0"
               title="Share Deal 259 Store link"
             >
-              <Share2 className="w-4 h-4 text-rose-600" />
+              <Share2 className="w-3.5 h-3.5 text-rose-600" />
               Share Store
             </motion.button>
 
