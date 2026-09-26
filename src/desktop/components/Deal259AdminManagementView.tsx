@@ -279,11 +279,11 @@ export default function Deal259AdminManagementView() {
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
-              onClick={() => shareDeal259Store(config, assignedProducts[0]?.images?.[0])}
-              className="bg-white/20 hover:bg-white/30 text-white font-black px-2.5 py-1.5 rounded-xl text-[11px] uppercase tracking-wider shadow-md transition-all inline-flex items-center gap-1.5 border border-white/30 cursor-pointer shrink-0"
+              onClick={() => shareDeal259Store(config)}
+              className="bg-white/20 hover:bg-white/30 text-white font-black px-3.5 py-2.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition-all flex items-center gap-1.5 border border-white/30 cursor-pointer"
               title="Share Deal 259 Store Link"
             >
-              <Share2 className="w-3.5 h-3.5" />
+              <Share2 className="w-4 h-4" />
               Share Store
             </button>
             <button
