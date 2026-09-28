@@ -137,7 +137,7 @@ export default function ContactUs() {
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="First Last"
+                      placeholder="First and Last"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
                     />
                   </div>
