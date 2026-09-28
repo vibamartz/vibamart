@@ -329,11 +329,14 @@ export default function MobileCartScreen() {
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>🎉 You unlocked <strong>FREE Delivery</strong> on this order!</span>
             </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs font-bold text-amber-800">
-              Add ₹{(600 - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
-            </div>
-          )}
+          ) : (() => {
+            const threshold = items.some(i => i.product?.isDeal259 === true) ? 599 : 600;
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs font-bold text-amber-800">
+                Add ₹{Math.max(0, threshold - cartTotal).toLocaleString()} more to get <strong>FREE Delivery</strong>!
+              </div>
+            );
+          })()}
 
           {/* Cart Items List */}
           <div className="space-y-2.5">
