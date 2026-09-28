@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Package, MapPin, Settings, Heart, Bell,
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones
 } from 'lucide-react';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
@@ -540,10 +540,13 @@ export default function Profile() {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
-    { id: 'rewards', label: 'ViBa Rewards', icon: Gift },
+    { id: 'rewards', label: 'ViBa Rewards', icon: Gift, path: '/rewards' },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'terms-faq', label: 'Terms & FAQs', icon: FileText, path: '/faq' },
+    { id: 'privacy-security', label: 'Privacy & Security', icon: ShieldCheck, path: '/privacy' },
+    { id: 'contact-us', label: 'Contact Us (Help)', icon: Headphones, path: '/contact' },
   ];
 
   return (
@@ -580,7 +583,7 @@ export default function Profile() {
                 {menuItems.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => item.id === 'rewards' ? navigate('/rewards') : setActiveTab(item.id as any)}
+                    onClick={() => item.path ? navigate(item.path) : setActiveTab(item.id as any)}
                     className={`w-full touch-target min-h-[44px] flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === item.id
                         ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]'
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'

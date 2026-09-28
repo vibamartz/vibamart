@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle,
   LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders,
-  CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard
+  CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard,
+  FileText, Headphones
 } from 'lucide-react';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { useAuthStore } from '../../backend/store';
@@ -112,7 +113,9 @@ export default function MobileProfileScreen() {
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
     { title: 'Saved Addresses', icon: MapPin, path: '/addresses', badge: user.addresses?.length || null, color: 'text-emerald-600 bg-emerald-50' },
     { title: 'Notification Settings', icon: Bell, badge: null, color: 'text-purple-600 bg-purple-50', action: () => setShowPreferencesModal(true) },
-    { title: 'Help & FAQ', icon: HelpCircle, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
+    { title: 'Terms & FAQs', icon: FileText, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
+    { title: 'Privacy & Security', icon: ShieldCheck, path: '/privacy', badge: null, color: 'text-teal-600 bg-teal-50' },
+    { title: 'Contact Us (Help)', icon: Headphones, path: '/contact', badge: null, color: 'text-sky-600 bg-sky-50' },
   ];
 
   return (

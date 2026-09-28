@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone, Fingerprint } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './components/Logo';
 import axios from 'axios';
@@ -59,32 +59,6 @@ export default function Login() {
     }
   }, [step]);
 
-  const handleBiometricLogin = async () => {
-    setLoading(true);
-    try {
-      const bioResult = await ViBaPermissionManager.authenticateWithBiometrics('Log in to ViBa Mart');
-      if (bioResult.success) {
-        toast.success('Biometric authentication verified!');
-        const lastUid = localStorage.getItem('viba_last_uid');
-        if (lastUid) {
-          const userRef = doc(db, 'users', lastUid);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            setUser(userSnap.data() as any);
-            navigate('/');
-            return;
-          }
-        }
-        await handleGoogleSignIn();
-      } else if (bioResult.error) {
-        toast.error(bioResult.error);
-      }
-    } catch (e) {
-      toast.error('Biometric authentication failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
@@ -407,15 +381,6 @@ export default function Login() {
                     Continue with Google
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleBiometricLogin}
-                    disabled={loading}
-                    className="mt-3 w-full bg-slate-900 border-2 border-slate-900 text-white py-3.5 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-md shadow-slate-900/10"
-                  >
-                    <Fingerprint className="w-5 h-5 text-emerald-400" />
-                    Biometric Fingerprint / Face ID
-                  </button>
 
                   <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">
                     By continuing, you agree to ViBa Mart's{' '}
