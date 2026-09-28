@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vibamart-config
+  namespace: vibamart-production
+  labels:
+    app.kubernetes.io/name: vibamart
+    app.kubernetes.io/component: web
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  VITE_APP_NAME: "ViBa Mart"
+  VITE_API_URL: "https://vibamart.in/api"

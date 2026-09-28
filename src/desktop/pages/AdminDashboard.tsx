@@ -616,6 +616,7 @@ function AdminDashboardContent() {
           <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
           <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />

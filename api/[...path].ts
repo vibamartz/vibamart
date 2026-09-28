@@ -15,6 +15,7 @@ import segmentsHandler from "./_handlers/segments/index";
 import createPaymentOrderHandler from "./_handlers/payment/create-order";
 import verifyPaymentHandler from "./_handlers/payment/verify";
 import { initializeFirebaseAdmin } from "./_utils";
+import { cicdRouter } from "../src/backend/cicd/routes";
 
 initializeFirebaseAdmin();
 
@@ -31,6 +32,10 @@ app.use(limiter);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+app.use("/api/v1/cicd", cicdRouter);
+app.use("/api/cicd", cicdRouter);
+app.use("/v1/cicd", cicdRouter);
 
 // Health Check
 app.get(["/api/health", "/health"], (req, res) => {

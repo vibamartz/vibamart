@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vibamart-pdb
+  namespace: vibamart-production
+  labels:
+    app.kubernetes.io/name: vibamart
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: vibamart-web

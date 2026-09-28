@@ -54,6 +54,18 @@ import MobileOffersScreen from './mobile/pages/MobileOffersScreen';
 import MobileRewardsScreen from './mobile/pages/MobileRewardsScreen';
 import MobileRewardProductsScreen from './mobile/pages/MobileRewardProductsScreen';
 
+// ViBa CI/CD Platform Dashboard & Pages
+import CiCdDashboard from './cicd/pages/CiCdDashboard';
+import ServicesPage from './cicd/pages/ServicesPage';
+import PipelinesPage from './cicd/pages/PipelinesPage';
+import DeploymentsPage from './cicd/pages/DeploymentsPage';
+import SecretsPage from './cicd/pages/SecretsPage';
+import AuditLogsPage from './cicd/pages/AuditLogsPage';
+import {
+  BuildsPage, EnvironmentsPage, ClustersPage, SecurityPage,
+  MonitoringPage, LogsPage, ArtifactsPage, RepositoriesPage, SettingsPage
+} from './cicd/pages/OtherPages';
+
 // Scroll to top on route change
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -154,6 +166,22 @@ function MainAppRoutes() {
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
+            <Route path="/cicd" element={<CiCdDashboard />} />
+            <Route path="/cicd/services" element={<ServicesPage />} />
+            <Route path="/cicd/repositories" element={<RepositoriesPage />} />
+            <Route path="/cicd/pipelines" element={<PipelinesPage />} />
+            <Route path="/cicd/pipelines/:id" element={<PipelinesPage />} />
+            <Route path="/cicd/builds" element={<BuildsPage />} />
+            <Route path="/cicd/artifacts" element={<ArtifactsPage />} />
+            <Route path="/cicd/deployments" element={<DeploymentsPage />} />
+            <Route path="/cicd/environments" element={<EnvironmentsPage />} />
+            <Route path="/cicd/clusters" element={<ClustersPage />} />
+            <Route path="/cicd/secrets" element={<SecretsPage />} />
+            <Route path="/cicd/security" element={<SecurityPage />} />
+            <Route path="/cicd/logs" element={<LogsPage />} />
+            <Route path="/cicd/monitoring" element={<MonitoringPage />} />
+            <Route path="/cicd/audit" element={<AuditLogsPage />} />
+            <Route path="/cicd/settings" element={<SettingsPage />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="*" element={<MobileHomepage />} />
           </Routes>
@@ -193,6 +221,22 @@ function MainAppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/seller" element={<SellerDashboard />} />
+          <Route path="/cicd" element={<CiCdDashboard />} />
+          <Route path="/cicd/services" element={<ServicesPage />} />
+          <Route path="/cicd/repositories" element={<RepositoriesPage />} />
+          <Route path="/cicd/pipelines" element={<PipelinesPage />} />
+          <Route path="/cicd/pipelines/:id" element={<PipelinesPage />} />
+          <Route path="/cicd/builds" element={<BuildsPage />} />
+          <Route path="/cicd/artifacts" element={<ArtifactsPage />} />
+          <Route path="/cicd/deployments" element={<DeploymentsPage />} />
+          <Route path="/cicd/environments" element={<EnvironmentsPage />} />
+          <Route path="/cicd/clusters" element={<ClustersPage />} />
+          <Route path="/cicd/secrets" element={<SecretsPage />} />
+          <Route path="/cicd/security" element={<SecurityPage />} />
+          <Route path="/cicd/logs" element={<LogsPage />} />
+          <Route path="/cicd/monitoring" element={<MonitoringPage />} />
+          <Route path="/cicd/audit" element={<AuditLogsPage />} />
+          <Route path="/cicd/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/rewards" element={<Rewards />} />

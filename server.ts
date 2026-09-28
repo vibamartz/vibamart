@@ -14,6 +14,7 @@ import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
+import { cicdRouter } from "./src/backend/cicd/routes";
 
 
 dotenv.config();
@@ -136,6 +137,10 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // ViBa CI/CD API Router
+  app.use('/api/v1/cicd', cicdRouter);
+  app.use('/api/cicd', cicdRouter);
 
   // API routes
   app.get("/api/health", (req, res) => {
