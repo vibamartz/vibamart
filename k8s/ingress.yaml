@@ -13,10 +13,21 @@ metadata:
 spec:
   tls:
     - hosts:
+        - vibamart.vercel.com
         - vibamart.in
         - www.vibamart.in
       secretName: vibamart-tls-cert
   rules:
+    - host: vibamart.vercel.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vibamart-service
+                port:
+                  number: 80
     - host: vibamart.in
       http:
         paths:

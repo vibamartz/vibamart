@@ -478,7 +478,7 @@ export class CiCdEngine {
         }
       } else if (step.stepId === 'step-12') {
         appendLog(step.stepId, `[HEALTH] Performing automated HTTP Health Checks on target pods...`);
-        appendLog(step.stepId, `[HEALTH] GET http://${env.slug}.vibamart.in/api/health => HTTP 200 OK`);
+        appendLog(step.stepId, `[HEALTH] GET https://vibamart.vercel.com/api/health => HTTP 200 OK`);
         appendLog(step.stepId, `[HEALTH] Liveness and Readiness probes confirmed healthy.`);
       } else if (step.stepId === 'step-13') {
         appendLog(step.stepId, `[VERIFICATION] Verifying rollout status for ${pipeline.serviceName}...`);
