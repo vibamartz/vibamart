@@ -29,7 +29,7 @@ export default function ContactUs() {
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 md:py-14 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -137,7 +137,7 @@ export default function ContactUs() {
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Rahul Sharma"
+                      placeholder="First Last"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
                     />
                   </div>
@@ -151,7 +151,7 @@ export default function ContactUs() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="rahul@example.com"
+                      placeholder="vibamart@example.com"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
                     />
                   </div>
