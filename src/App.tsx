@@ -31,6 +31,8 @@ import Rewards from './desktop/pages/Rewards';
 import RewardProducts from './desktop/pages/RewardProducts';
 import Deal259Page from './desktop/pages/Deal259Page';
 import TermsOfService from './desktop/pages/TermsOfService';
+import PrivacyPolicy from './desktop/pages/PrivacyPolicy';
+import ContactUs from './desktop/pages/ContactUs';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -184,6 +186,8 @@ function MainAppRoutes() {
             <Route path="/cicd/settings" element={<SettingsPage />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/contact" element={<ContactUs />} />
             <Route path="*" element={<MobileHomepage />} />
           </Routes>
         </main>
@@ -247,6 +251,8 @@ function MainAppRoutes() {
           <Route path="/track-request/:requestId" element={<RequestTracking />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/contact" element={<ContactUs />} />
           <Route path="/product-not-found" element={<ProductNotFound />} />
           <Route path="*" element={<Home />} />
         </Routes>

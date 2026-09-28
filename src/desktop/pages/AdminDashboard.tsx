@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -38,6 +38,7 @@ import Deal259AdminManagementView from '../components/Deal259AdminManagementView
 import { VariantImageInput, VariantMultiImageInput } from '../components/VariantImageInput';
 import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
 import AdminTermsManagementView from '../components/AdminTermsManagementView';
+import AdminPrivacyManagementView from '../components/AdminPrivacyManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
@@ -630,6 +631,7 @@ function AdminDashboardContent() {
           <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={ShieldCheck} label="Terms of Service" active={activeTab === 'terms-management'} onClick={() => { setActiveTab('terms-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Lock} label="Privacy Policy" active={activeTab === 'privacy-management'} onClick={() => { setActiveTab('privacy-management'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
         </nav>
@@ -1171,6 +1173,7 @@ function AdminDashboardContent() {
           {activeTab === 'notifications-engagement' && <AdminNotificationsManagementView />}
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
           {activeTab === 'terms-management' && <AdminTermsManagementView />}
+          {activeTab === 'privacy-management' && <AdminPrivacyManagementView />}
 
           {(activeTab !== 'dashboard' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
