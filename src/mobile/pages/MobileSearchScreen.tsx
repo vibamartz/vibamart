@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo from '../../shared/components/CategoryLogo';
+import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
 
 export default function MobileSearchScreen() {
   const navigate = useNavigate();
@@ -115,37 +116,23 @@ export default function MobileSearchScreen() {
   };
 
   const startVoiceSearch = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error("Voice search is not supported on this browser.");
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.onstart = () => {
-      setIsListening(true);
-      toast('Listening for voice search...', { icon: '🎤', id: 'voice-search' });
-    };
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-      toast.success(`Voice query: "${transcript}"`, { id: 'voice-search' });
-      setIsListening(false);
-      handleSearchSubmit(undefined, transcript);
-    };
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
-        setShowMicPermissionModal(true);
+    setIsListening(true);
+    ViBaPermissionManager.startVoiceSearch(
+      (transcript) => {
+        setSearchQuery(transcript);
+        toast.success(`Voice query: "${transcript}"`, { id: 'voice-search' });
+        setIsListening(false);
+        handleSearchSubmit(undefined, transcript);
+      },
+      (err) => {
+        setIsListening(false);
+        if (err === 'Not supported') {
+          toast.error("Voice search is not supported on this browser.");
+        } else {
+          setShowMicPermissionModal(true);
+        }
       }
-    };
-    recognition.onend = () => setIsListening(false);
-    try {
-      recognition.start();
-    } catch (e) {
-      setIsListening(false);
-      setShowMicPermissionModal(true);
-    }
+    );
   };
 
   return (

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Camera, Image as ImageIcon, ScanLine, Loader2, Search } from 'lucide-react';
+import { X, Camera, Image as ImageIcon, ScanLine, Loader2, Search, Zap } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import Tesseract from 'tesseract.js';
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as tf from '@tensorflow/tfjs';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
+import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
 
 interface Props {
   isOpen: boolean;
@@ -64,6 +65,7 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
         (decodedText) => {
           stopScanner();
           setIsScanning(false);
+          ViBaPermissionManager.vibrate([100, 50, 100]);
           toast.success("Barcode found!");
           onSearch(decodedText);
           onClose();

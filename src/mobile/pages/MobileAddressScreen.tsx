@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { MapPin, Plus, Trash2, Edit2, Star, Check, Home as HomeIcon, Building, Briefcase } from 'lucide-react';
+import { MapPin, Plus, Trash2, Edit2, Star, Check, Home as HomeIcon, Building, Briefcase, UserCheck } from 'lucide-react';
 import { Address } from '../../shared/types';
 import { useAuthStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
 
 export default function MobileAddressScreen() {
   const { user } = useAuthStore();
@@ -195,9 +196,26 @@ export default function MobileAddressScreen() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-base font-black text-gray-900">
-                {editingAddress ? 'Edit Address' : 'Add New Address'}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-black text-gray-900">
+                  {editingAddress ? 'Edit Address' : 'Add New Address'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const c = await ViBaPermissionManager.pickContactForDelivery();
+                    if (c) {
+                      if (c.name) setFullName(c.name);
+                      if (c.phone) setPhone(c.phone);
+                      toast.success(`Imported contact: ${c.name || 'Recipient'}`);
+                    }
+                  }}
+                  className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl flex items-center gap-1 hover:bg-emerald-100 transition-colors"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Import Contact
+                </button>
+              </div>
               
               <input 
                 type="text" 

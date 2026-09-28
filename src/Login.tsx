@@ -5,10 +5,11 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './components/Logo';
 import axios from 'axios';
+import { ViBaPermissionManager } from './services/ViBaPermissionManager';
 
 type Step = 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
@@ -46,6 +47,44 @@ export default function Login() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (step === 'otp') {
+      ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
+        if (code && code.length === 6) {
+          setOtpDigits(code.split(''));
+          toast.success('SMS OTP autofilled securely!');
+        }
+      });
+    }
+  }, [step]);
+
+  const handleBiometricLogin = async () => {
+    setLoading(true);
+    try {
+      const bioResult = await ViBaPermissionManager.authenticateWithBiometrics('Log in to ViBa Mart');
+      if (bioResult.success) {
+        toast.success('Biometric authentication verified!');
+        const lastUid = localStorage.getItem('viba_last_uid');
+        if (lastUid) {
+          const userRef = doc(db, 'users', lastUid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            setUser(userSnap.data() as any);
+            navigate('/');
+            return;
+          }
+        }
+        await handleGoogleSignIn();
+      } else if (bioResult.error) {
+        toast.error(bioResult.error);
+      }
+    } catch (e) {
+      toast.error('Biometric authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
@@ -366,6 +405,16 @@ export default function Login() {
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                     </svg>
                     Continue with Google
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleBiometricLogin}
+                    disabled={loading}
+                    className="mt-3 w-full bg-slate-900 border-2 border-slate-900 text-white py-3.5 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-md shadow-slate-900/10"
+                  >
+                    <Fingerprint className="w-5 h-5 text-emerald-400" />
+                    Biometric Fingerprint / Face ID
                   </button>
 
                   <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">

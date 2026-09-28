@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -32,6 +32,7 @@ import AdminInvoicesView from '../components/AdminInvoicesView';
 import AdminCancellationManagementView from '../components/AdminCancellationManagementView';
 import AdminRefundManagementView from '../components/AdminRefundManagementView';
 import FeatureRegistryManagementView from '../components/FeatureRegistryManagementView';
+import AdminAppCapabilitiesView from '../components/AdminAppCapabilitiesView';
 import AdminRewardsManagementView from '../components/AdminRewardsManagementView';
 import Deal259AdminManagementView from '../components/Deal259AdminManagementView';
 import { VariantImageInput, VariantMultiImageInput } from '../components/VariantImageInput';
@@ -619,6 +620,7 @@ function AdminDashboardContent() {
           <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
           <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Smartphone} label="App Capabilities" active={activeTab === 'app-capabilities'} onClick={() => { setActiveTab('app-capabilities'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
 
@@ -1159,6 +1161,7 @@ function AdminDashboardContent() {
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'settings' && <SettingsView />}
           {activeTab === 'features' && <FeatureRegistryManagementView />}
+          {activeTab === 'app-capabilities' && <AdminAppCapabilitiesView />}
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
           {activeTab === 'categories' && <NewCategoriesManagementView />}

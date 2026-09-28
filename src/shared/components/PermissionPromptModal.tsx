@@ -6,7 +6,7 @@ import { getPermissionInfo } from '../utils/errorUtils';
 
 interface PermissionPromptModalProps {
   isOpen: boolean;
-  type: 'location' | 'camera' | 'microphone' | 'notifications';
+  type: 'location' | 'camera' | 'microphone' | 'notifications' | 'bluetooth' | 'biometrics' | 'contacts' | 'sms' | 'storageMedia';
   onClose: () => void;
   onAllowAccess: () => void;
   customTitle?: string;

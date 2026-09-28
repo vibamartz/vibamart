@@ -22,39 +22,39 @@ interface PermissionModalProps {
 
 const permissions = [
   {
-    icon: MessageSquare,
-    title: 'SMS',
-    description: 'We collect, monitor and transmit to our servers only your SMSs data which helps us in identifying various bank accounts, cash flow patterns, description, and amount of the transactions for credit risk assessment.'
-  },
-  {
-    icon: Mic,
-    title: 'Microphone',
-    description: 'Permission access for microphone is required to initiate voice commands and search.'
-  },
-  {
-    icon: Bell,
-    title: 'Notification',
-    description: 'Permission to access notifications is required to receive product updates, alerts, and promotional communications.'
+    icon: Camera,
+    title: 'Camera & Vision Search',
+    description: 'Used for AI visual search, barcode scanning, and defect product return evidence. Requested only when feature is opened.'
   },
   {
     icon: MapPin,
-    title: 'Location',
-    description: 'Required to assess your location for localized services and delivery.'
+    title: 'Location Services',
+    description: 'Used to auto-detect delivery pincodes, estimate shipping times, and verify service availability in your area.'
+  },
+  {
+    icon: Mic,
+    title: 'Microphone & Voice Search',
+    description: 'Enables hands-free voice product search and voice commands when triggered by user.'
+  },
+  {
+    icon: Bell,
+    title: 'Order Notifications',
+    description: 'Sends real-time order delivery updates, shipping progress, and instant discount vouchers.'
   },
   {
     icon: Smartphone,
-    title: 'Device',
-    description: 'Collected for security purposes, including device hardware model, OS, RAM, Storage, and unique identifiers like IMEI/Serial to prevent fraud.'
+    title: 'Device & Diagnostics',
+    description: 'Used for app performance optimization, RAM diagnostics, and secure session management.'
   },
   {
-    icon: Camera,
-    title: 'Camera',
-    description: 'Permission to access Camera is required to easily scan or capture documents for a seamless experience.'
+    icon: MessageSquare,
+    title: 'SMS OTP Verification',
+    description: 'Supported for zero-tap autofill of single-use OTP verification codes during login or checkout.'
   },
   {
     icon: User,
-    title: 'User Personal Information',
-    description: 'Required to collect user account data (email, name, photo) for login and mobile number verification.'
+    title: 'Account Security & Biometrics',
+    description: 'Fingerprint / Face ID login and secure profile management. ViBa Mart never accesses raw biometric data.'
   }
 ];
 
