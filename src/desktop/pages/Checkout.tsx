@@ -882,6 +882,10 @@ export default function Checkout() {
                 <span>{discount > 0 ? `- ₹${discount.toLocaleString()}` : '₹0'}</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-500">
+                <span>After Discount</span>
+                <span className="text-gray-900">₹{subtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-gray-500">
                 <span>Delivery Charges</span>
                 <span className={shipping === 0 ? 'text-emerald-600' : 'text-gray-900'}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
               </div>

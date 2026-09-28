@@ -471,6 +471,11 @@ export default function MobileCartScreen() {
               </div>
 
               <div className="flex justify-between text-gray-600 font-medium">
+                <span>After Discount</span>
+                <span className="font-bold text-gray-900">₹{cartTotal.toLocaleString()}</span>
+              </div>
+
+              <div className="flex justify-between text-gray-600 font-medium">
                 <span>Delivery Charges</span>
                 {deliveryCharge === 0 ? (
                   <span className="font-black text-emerald-600 uppercase">FREE</span>

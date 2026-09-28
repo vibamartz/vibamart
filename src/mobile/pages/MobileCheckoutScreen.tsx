@@ -434,6 +434,10 @@ export default function MobileCheckoutScreen() {
           <span className="font-bold">{discount > 0 ? `-₹${discount.toLocaleString()}` : '₹0'}</span>
         </div>
         <div className="flex justify-between text-gray-600">
+          <span>After Discount</span>
+          <span className="font-bold text-gray-900">₹{cartTotal.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between text-gray-600">
           <span>Delivery Charges</span>
           {deliveryCharge === 0 ? (
             <span className="font-black text-emerald-600 uppercase">FREE</span>

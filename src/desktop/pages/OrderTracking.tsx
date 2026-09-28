@@ -917,6 +917,10 @@ export default function OrderTracking() {
                       <span className="font-bold">₹0</span>
                     </div>
                     <div className="flex justify-between text-gray-600 font-medium">
+                      <span>After Discount</span>
+                      <span className="font-bold text-gray-900">₹{itemsTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-600 font-medium">
                       <span>Delivery Charges</span>
                       {deliveryFee === 0 ? (
                         <span className="text-emerald-600 font-bold">FREE</span>

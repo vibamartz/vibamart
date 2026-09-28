@@ -20,9 +20,18 @@ export function isCartEligibleForFreeDelivery(items: CartItemLike[]): boolean {
 export function calculateShippingFee(items: CartItemLike[], subtotal: number): number {
   if (!items || items.length === 0) return 0;
 
-  const isDeal259Order = items.some(item => item.product?.isDeal259 === true);
-  if (isDeal259Order) {
-    return subtotal >= 599 ? 0 : 49;
+  const deal259Items = items.filter(item => item.product?.isDeal259 === true);
+  if (deal259Items.length > 0) {
+    const deal259Subtotal = deal259Items.reduce((acc, item) => {
+      const product = item.product;
+      const variant = (item as any).variantId ? product?.variants?.find((v: any) => v.id === (item as any).variantId) : null;
+      const basePrice = product?.discountPrice || product?.price || 0;
+      const extra = variant?.extraPrice || 0;
+      const qty = (item as any).quantity || 1;
+      return acc + (basePrice + extra) * qty;
+    }, 0);
+
+    return deal259Subtotal >= 599 ? 0 : 49;
   }
 
   if (isCartEligibleForFreeDelivery(items)) return 0;
