@@ -11,7 +11,7 @@ export function initializeFirebaseAdmin() {
     try {
       if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
         let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
-        // Strip surrounding quotes if Vercel added them
+        // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
         // Handle escaped newlines
         formattedKey = formattedKey.replace(/\\n/g, '\n');
@@ -47,7 +47,7 @@ initializeFirebaseAdmin();
 
 export const verifyAuth = async (req: any) => {
   if (!admin.apps.length) {
-    throw new Error(`Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Vercel Environment Variables.`);
+    throw new Error(`Server Configuration Error: Firebase Admin initialization failed. Details: ${adminInitError || 'Unknown error'}. Please check your Environment Variables.`);
   }
   
   let authHeader = "";

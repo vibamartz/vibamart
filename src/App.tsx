@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './desktop/components/Logo';
 import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore } from './backend/store';
@@ -363,7 +362,6 @@ export default function App() {
           onClose={() => setShowPermissions(false)}
           onAccept={handlePermissionsAccept}
         />
-        <SpeedInsights />
       </Router>
     </ErrorBoundary>
   );
