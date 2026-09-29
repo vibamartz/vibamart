@@ -6,7 +6,7 @@ import { logAdminAction, AdminAction } from '../../backend/services/adminLogServ
 import { Product, ProductVariant, LocationAvailabilityRule } from '../../shared/types';
 import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
-import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText } from 'lucide-react';
+import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText, Bookmark, Tag, Filter, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
@@ -18,6 +18,102 @@ import { generateUniqueProductCode, formatProductCode, validateProductCode, isPr
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
+
+export interface SpecificationPreset {
+  id: string;
+  name: string;
+  categoryName?: string;
+  isSystem?: boolean;
+  specifications: { key: string; value: string }[];
+}
+
+const DEFAULT_SPEC_PRESETS: SpecificationPreset[] = [
+  {
+    id: 'preset_smartphones',
+    name: 'Smartphones & Mobile Devices',
+    categoryName: 'Electronics',
+    isSystem: true,
+    specifications: [
+      { key: 'Brand', value: '' },
+      { key: 'Model Name', value: '' },
+      { key: 'Operating System', value: 'Android / iOS' },
+      { key: 'RAM / Internal Storage', value: '8GB RAM / 128GB Storage' },
+      { key: 'Processor', value: 'Octa-core Processor' },
+      { key: 'Display Size & Type', value: '6.5" AMOLED 120Hz' },
+      { key: 'Primary Camera', value: '50 MP Dual Camera' },
+      { key: 'Front Camera', value: '16 MP Selfie Camera' },
+      { key: 'Battery Capacity', value: '5000 mAh' },
+      { key: 'Network / Connectivity', value: '5G, Wi-Fi 6, Bluetooth 5.3' },
+      { key: 'Warranty', value: '1 Year Manufacturer Warranty' }
+    ]
+  },
+  {
+    id: 'preset_laptops',
+    name: 'Laptops & Computers',
+    categoryName: 'Electronics',
+    isSystem: true,
+    specifications: [
+      { key: 'Brand', value: '' },
+      { key: 'Model Name', value: '' },
+      { key: 'Processor / CPU', value: 'Intel Core i5 / AMD Ryzen 5' },
+      { key: 'RAM Memory', value: '16GB DDR4 / DDR5' },
+      { key: 'Storage', value: '512GB NVMe SSD' },
+      { key: 'Graphics Card (GPU)', value: 'Integrated / Dedicated GPU' },
+      { key: 'Display Size & Resolution', value: '15.6" FHD (1920x1080)' },
+      { key: 'Operating System', value: 'Windows 11 Home' },
+      { key: 'Battery Backup', value: 'Up to 8 Hours' },
+      { key: 'Weight', value: '1.6 kg' },
+      { key: 'Warranty', value: '1 Year Onsite Warranty' }
+    ]
+  },
+  {
+    id: 'preset_fashion',
+    name: 'Fashion & Apparel',
+    categoryName: 'Fashion',
+    isSystem: true,
+    specifications: [
+      { key: 'Brand', value: '' },
+      { key: 'Fabric / Material', value: '100% Cotton / Blend' },
+      { key: 'Fit Type', value: 'Regular Fit' },
+      { key: 'Pattern / Design', value: 'Solid / Printed' },
+      { key: 'Sleeve Length', value: 'Half Sleeve / Full Sleeve' },
+      { key: 'Collar / Neckline', value: 'Round Neck / Polo' },
+      { key: 'Care Instructions', value: 'Machine Wash / Gentle Cycle' },
+      { key: 'Country of Origin', value: 'India' }
+    ]
+  },
+  {
+    id: 'preset_appliances',
+    name: 'Home Appliances',
+    categoryName: 'Home & Kitchen',
+    isSystem: true,
+    specifications: [
+      { key: 'Brand', value: '' },
+      { key: 'Model Number', value: '' },
+      { key: 'Power Consumption', value: '1500W' },
+      { key: 'Energy Star Rating', value: '5 Star' },
+      { key: 'Capacity', value: '25 Litres' },
+      { key: 'Body Material', value: 'Stainless Steel / ABS Plastic' },
+      { key: 'Voltage', value: '220V - 240V AC' },
+      { key: 'Warranty', value: '2 Years Comprehensive Warranty' }
+    ]
+  },
+  {
+    id: 'preset_footwear',
+    name: 'Footwear & Shoes',
+    categoryName: 'Fashion',
+    isSystem: true,
+    specifications: [
+      { key: 'Brand', value: '' },
+      { key: 'Upper Material', value: 'Synthetic Leather / Breathable Mesh' },
+      { key: 'Sole Material', value: 'EVA / Rubber Sole' },
+      { key: 'Closure Type', value: 'Lace-Up' },
+      { key: 'Toe Shape', value: 'Round Toe' },
+      { key: 'Occasion', value: 'Casual / Sports / Formal' },
+      { key: 'Care Instructions', value: 'Wipe with clean dry cloth' }
+    ]
+  }
+];
 
 export default function AddEditProductForm({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
   const { categories } = useCategoryStore();
@@ -155,22 +251,140 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showShareSpecsModal, setShowShareSpecsModal] = useState(false);
+  const [shareSpecsTab, setShareSpecsTab] = useState<'similar' | 'all' | 'presets'>('similar');
   const [shareSpecsSearch, setShareSpecsSearch] = useState('');
   const [selectedSourceProduct, setSelectedSourceProduct] = useState<Product | null>(null);
+  const [selectedSourcePreset, setSelectedSourcePreset] = useState<SpecificationPreset | null>(null);
 
-  const applySharedSpecifications = (sourceProduct: Product) => {
-    if (!sourceProduct.specifications || sourceProduct.specifications.length === 0) {
-      toast.error('Selected product has no specifications to copy.');
+  // Custom Specification Presets stored in localStorage
+  const [customPresets, setCustomPresets] = useState<SpecificationPreset[]>(() => {
+    try {
+      const saved = localStorage.getItem('viba_admin_spec_presets');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+
+  // Universal helper to apply a list of specifications (from a product or a preset)
+  const applySharedSpecificationsList = (specsList: { key: string; value: string }[], sourceTitle: string) => {
+    if (!specsList || specsList.length === 0) {
+      toast.error('Selected template has no specifications to apply.');
       return;
     }
-    const clonedSpecs = sourceProduct.specifications.map(s => ({ key: s.key || '', value: s.value || '' }));
+
+    // Clean, trim, and deduplicate by key (preserving non-empty values)
+    const specMap = new Map<string, string>();
+    specsList.forEach(s => {
+      const k = (s.key || '').trim();
+      const v = (s.value || '').trim();
+      if (k) {
+        if (!specMap.has(k) || (v && !specMap.get(k))) {
+          specMap.set(k, v);
+        }
+      }
+    });
+
+    const clonedSpecs = Array.from(specMap.entries()).map(([key, value]) => ({ key, value }));
+
+    if (clonedSpecs.length === 0) {
+      toast.error('No valid specification keys found to apply.');
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       specifications: clonedSpecs
     }));
-    toast.success(`Loaded ${clonedSpecs.length} specifications from "${sourceProduct.name}"`);
+
+    toast.success(`Applied ${clonedSpecs.length} specifications from "${sourceTitle}"`);
     setShowShareSpecsModal(false);
     setSelectedSourceProduct(null);
+    setSelectedSourcePreset(null);
+  };
+
+  const applySharedSpecifications = (sourceProduct: Product) => {
+    applySharedSpecificationsList(sourceProduct.specifications || [], sourceProduct.name);
+  };
+
+  const applySharedPreset = (preset: SpecificationPreset) => {
+    applySharedSpecificationsList(preset.specifications || [], preset.name);
+  };
+
+  // Clean empty or duplicate specification keys from current product form
+  const cleanAndDeduplicateSpecifications = () => {
+    const currentSpecs = formData.specifications || [];
+    if (currentSpecs.length === 0) {
+      toast.error('No specifications to clean.');
+      return;
+    }
+
+    const specMap = new Map<string, string>();
+    currentSpecs.forEach(s => {
+      const k = (s.key || '').trim();
+      const v = (s.value || '').trim();
+      if (k || v) {
+        const keyName = k || 'Unspecified Attribute';
+        if (!specMap.has(keyName) || (v && !specMap.get(keyName))) {
+          specMap.set(keyName, v);
+        }
+      }
+    });
+
+    const cleaned = Array.from(specMap.entries()).map(([key, value]) => ({ key, value }));
+    setFormData(prev => ({ ...prev, specifications: cleaned }));
+    toast.success(`Cleaned specifications. ${cleaned.length} attributes retained.`);
+  };
+
+  // Save current form's specifications as a reusable custom preset
+  const handleSaveCustomPreset = () => {
+    const currentSpecs = formData.specifications || [];
+    const validSpecs = currentSpecs
+      .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+      .filter(s => s.key.length > 0);
+
+    if (validSpecs.length === 0) {
+      toast.error('Add at least one specification attribute before saving as a reusable preset.');
+      return;
+    }
+
+    const nameToUse = newPresetName.trim() || `${formData.brand || 'Category'} - ${validSpecs.length} Specs Preset`;
+    const newPreset: SpecificationPreset = {
+      id: `preset_${Date.now()}`,
+      name: nameToUse,
+      categoryName: selectedCategory?.name || 'Custom',
+      specifications: validSpecs
+    };
+
+    const updatedPresets = [newPreset, ...customPresets];
+    setCustomPresets(updatedPresets);
+    try {
+      localStorage.setItem('viba_admin_spec_presets', JSON.stringify(updatedPresets));
+    } catch (e) {
+      console.error('Failed to persist custom presets:', e);
+    }
+
+    toast.success(`Saved reusable preset "${nameToUse}"`);
+    setShowSavePresetModal(false);
+    setNewPresetName('');
+  };
+
+  const handleDeleteCustomPreset = (presetId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = customPresets.filter(p => p.id !== presetId);
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem('viba_admin_spec_presets', JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+    if (selectedSourcePreset?.id === presetId) {
+      setSelectedSourcePreset(null);
+    }
+    toast.success('Preset deleted');
   };
 
   // Fetch all existing products for uniqueness checks & auto-generate Product Code
@@ -254,8 +468,14 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const { images: processedImages, primaryImage: processedPrimaryImage, variants: processedVariants } =
         await processAllProductImages(formData);
 
+      // Clean specifications (remove items with empty keys and trim whitespace)
+      const cleanedSpecs = (formData.specifications || [])
+        .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+        .filter(s => s.key.length > 0);
+
       const rawData = {
         ...formData,
+        specifications: cleanedSpecs,
         id: pid,
         productCode: finalProductCode,
         images: processedImages,
@@ -886,30 +1106,55 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
           </div>
 
           {/* Specifications Management Section */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <div className="flex justify-between items-center">
+          <div className="bg-white p-6 sm:p-10 rounded-[36px] sm:rounded-[48px] border border-gray-100 shadow-sm space-y-6 sm:space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Specifications</h3>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
                   Manage structured technical attributes shown on Product Details
                 </p>
               </div>
-              <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => {
                     setShowShareSpecsModal(true);
                     setSelectedSourceProduct(null);
+                    setSelectedSourcePreset(null);
                     setShareSpecsSearch('');
+                    setShareSpecsTab('similar');
                   }}
-                  className="px-5 py-3 bg-green-50 text-green-700 border border-green-200 text-[9px] font-black uppercase tracking-widest rounded-2xl hover:bg-green-100 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-emerald-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <Copy className="w-3.5 h-3.5" /> Use Existing Specifications
+                  <Copy className="w-3.5 h-3.5" /> Reuse / Share Specifications
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!formData.specifications || formData.specifications.length === 0) {
+                      toast.error('Add specifications before saving as a preset.');
+                      return;
+                    }
+                    setShowSavePresetModal(true);
+                  }}
+                  className="px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Bookmark className="w-3.5 h-3.5" /> Save as Preset
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cleanAndDeduplicateSpecifications}
+                  className="px-4 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-amber-100 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Clean / Deduplicate
+                </button>
+
                 <button
                   type="button"
                   onClick={() => addSpecification()}
-                  className="px-6 py-3 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded-2xl hover:bg-black transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Field
                 </button>
@@ -933,52 +1178,57 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {(formData.specifications || []).map((spec, idx) => (
-                <div key={idx} className="flex gap-3 items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+                <div key={idx} className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                   <input
                     type="text"
                     placeholder="Attribute Name (e.g. Brand, Warranty)"
                     value={spec.key}
                     onChange={e => updateSpecification(idx, e.target.value, spec.value)}
-                    className="w-1/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none"
+                    className="w-full sm:w-1/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
                   />
                   <input
                     type="text"
                     placeholder="Specification Value (e.g. 1 Year Warranty)"
                     value={spec.value}
                     onChange={e => updateSpecification(idx, spec.key, e.target.value)}
-                    className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none"
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
                   />
-                  <button
-                    type="button"
-                    onClick={() => moveSpecification(idx, 'up')}
-                    disabled={idx === 0}
-                    className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30"
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveSpecification(idx, 'down')}
-                    disabled={idx === (formData.specifications || []).length - 1}
-                    className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30"
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeSpecification(idx)}
-                    className="p-2 text-rose-500 hover:text-rose-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1 shrink-0 pt-1 sm:pt-0">
+                    <button
+                      type="button"
+                      onClick={() => moveSpecification(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSpecification(idx, 'down')}
+                      disabled={idx === (formData.specifications || []).length - 1}
+                      className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeSpecification(idx)}
+                      className="p-2 text-rose-500 hover:text-rose-700 cursor-pointer ml-1"
+                      title="Delete Field"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
 
               {(!formData.specifications || formData.specifications.length === 0) && (
                 <div className="py-8 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[28px]">
-                  No specification fields added. Use Quick Category Attributes above or click Add Field.
+                  No specification fields added. Use Quick Category Attributes above, Reuse Specifications, or click Add Field.
                 </div>
               )}
             </div>
@@ -1496,21 +1746,76 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
       {/* Use / Share Existing Specifications Modal */}
       {showShareSpecsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-[36px] max-w-2xl w-full p-8 space-y-6 relative shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[28px] sm:rounded-[36px] max-w-3xl w-[95vw] sm:w-full p-5 sm:p-8 space-y-5 relative shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 flex-shrink-0">
               <div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight">Use Existing Specifications</h3>
+                <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">Reuse & Share Product Specifications</h3>
                 <p className="text-xs font-bold text-gray-400 mt-0.5">
-                  Select a product to copy its specification set to this product
+                  Select existing saved specifications from similar products or presets
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowShareSpecsModal(false)}
+                onClick={() => {
+                  setShowShareSpecsModal(false);
+                  setSelectedSourceProduct(null);
+                  setSelectedSourcePreset(null);
+                }}
                 className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Navigation Tabs */}
+            <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShareSpecsTab('similar');
+                  setSelectedSourceProduct(null);
+                  setSelectedSourcePreset(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  shareSpecsTab === 'similar'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Similar Products
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShareSpecsTab('all');
+                  setSelectedSourceProduct(null);
+                  setSelectedSourcePreset(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  shareSpecsTab === 'all'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" /> All Catalog Items
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShareSpecsTab('presets');
+                  setSelectedSourceProduct(null);
+                  setSelectedSourcePreset(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  shareSpecsTab === 'presets'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Bookmark className="w-3.5 h-3.5" /> Saved Presets ({DEFAULT_SPEC_PRESETS.length + customPresets.length})
               </button>
             </div>
 
@@ -1521,29 +1826,135 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 type="text"
                 value={shareSpecsSearch}
                 onChange={e => setShareSpecsSearch(e.target.value)}
-                placeholder="Search products by name or brand..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-11 pr-4 py-3 text-xs font-bold outline-none focus:border-green-600 focus:bg-white transition-all"
+                placeholder={
+                  shareSpecsTab === 'presets'
+                    ? 'Search saved specification presets...'
+                    : 'Search products by name, brand, or SKU...'
+                }
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-11 pr-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all"
               />
             </div>
 
-            {/* Candidate Products List */}
-            <div className="flex-1 overflow-y-auto min-h-[220px] space-y-3 pr-1">
-              {existingProducts
-                .filter(p => p.id !== product?.id)
-                .filter(p => p.specifications && p.specifications.length > 0)
-                .filter(p => {
-                  if (!shareSpecsSearch.trim()) return true;
-                  const q = shareSpecsSearch.toLowerCase();
-                  return (
-                    p.name.toLowerCase().includes(q) ||
-                    (p.brand && p.brand.toLowerCase().includes(q))
-                  );
-                }).length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-2xl">
-                    No products found with existing specifications.
-                  </div>
-                ) : (
-                  existingProducts
+            {/* Modal Body / Tab Content */}
+            <div className="flex-1 overflow-y-auto min-h-[240px] space-y-3 pr-1">
+
+              {/* TAB 1: SIMILAR PRODUCTS */}
+              {shareSpecsTab === 'similar' && (
+                (() => {
+                  const similarProducts = existingProducts
+                    .filter(p => p.id !== product?.id)
+                    .filter(p => p.specifications && p.specifications.length > 0)
+                    .filter(p => {
+                      const sameCategory = formData.categoryId && p.categoryId === formData.categoryId;
+                      const sameSubCategory = formData.subCategoryId && p.subCategoryId === formData.subCategoryId;
+                      const sameBrand = formData.brand && p.brand && p.brand.toLowerCase().trim() === formData.brand.toLowerCase().trim();
+                      return sameCategory || sameSubCategory || sameBrand;
+                    })
+                    .filter(p => {
+                      if (!shareSpecsSearch.trim()) return true;
+                      const q = shareSpecsSearch.toLowerCase();
+                      return (
+                        p.name.toLowerCase().includes(q) ||
+                        (p.brand && p.brand.toLowerCase().includes(q))
+                      );
+                    });
+
+                  if (similarProducts.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-2xl space-y-2">
+                        <p>No similar products found in this category or brand with saved specifications.</p>
+                        <button
+                          type="button"
+                          onClick={() => setShareSpecsTab('presets')}
+                          className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" /> Browse Category Presets Instead
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return similarProducts.map(p => {
+                    const isSelected = selectedSourceProduct?.id === p.id;
+                    const sameCat = formData.categoryId && p.categoryId === formData.categoryId;
+                    const sameSubCat = formData.subCategoryId && p.subCategoryId === formData.subCategoryId;
+                    const sameBrand = formData.brand && p.brand && p.brand.toLowerCase().trim() === formData.brand.toLowerCase().trim();
+
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedSourceProduct(p);
+                          setSelectedSourcePreset(null);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-50/40 shadow-sm'
+                            : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            {p.images?.[0] ? (
+                              <img src={p.images[0]} alt={p.name} className="w-11 h-11 object-cover rounded-xl bg-gray-100 flex-shrink-0" />
+                            ) : (
+                              <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs flex-shrink-0">
+                                PR
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-xs font-black text-gray-900">{p.name}</h4>
+                                {sameSubCat ? (
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-md uppercase">Subcategory Match</span>
+                                ) : sameCat ? (
+                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[9px] font-black rounded-md uppercase">Category Match</span>
+                                ) : sameBrand ? (
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[9px] font-black rounded-md uppercase">Brand Match</span>
+                                ) : null}
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-400 mt-0.5 block">
+                                {p.brand ? `${p.brand} • ` : ''}{p.specifications?.length || 0} specification attributes
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applySharedSpecifications(p);
+                            }}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Use Specs
+                          </button>
+                        </div>
+
+                        {/* Preview Specs Pills */}
+                        {p.specifications && p.specifications.length > 0 && (
+                          <div className="pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+                            {p.specifications.slice(0, isSelected ? 30 : 6).map((s, idx) => (
+                              <span key={idx} className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700">
+                                <strong className="font-extrabold text-gray-900">{s.key}:</strong> {s.value || '—'}
+                              </span>
+                            ))}
+                            {!isSelected && p.specifications.length > 6 && (
+                              <span className="px-2 py-1 text-[10px] font-bold text-gray-400 italic">
+                                +{p.specifications.length - 6} more (click to expand)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()
+              )}
+
+              {/* TAB 2: ALL CATALOG ITEMS */}
+              {shareSpecsTab === 'all' && (
+                (() => {
+                  const candidateProducts = existingProducts
                     .filter(p => p.id !== product?.id)
                     .filter(p => p.specifications && p.specifications.length > 0)
                     .filter(p => {
@@ -1553,81 +1964,280 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                         p.name.toLowerCase().includes(q) ||
                         (p.brand && p.brand.toLowerCase().includes(q))
                       );
-                    })
-                    .map(p => {
-                      const isSelected = selectedSourceProduct?.id === p.id;
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => setSelectedSourceProduct(p)}
-                          className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-2 ${
-                            isSelected
-                              ? 'border-green-600 bg-green-50/50 shadow-sm'
-                              : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {p.images?.[0] ? (
-                                <img src={p.images[0]} alt={p.name} className="w-10 h-10 object-cover rounded-xl bg-gray-100 flex-shrink-0" />
-                              ) : (
-                                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs flex-shrink-0">
-                                  PR
-                                </div>
-                              )}
-                              <div>
-                                <h4 className="text-xs font-black text-gray-900">{p.name}</h4>
-                                <span className="text-[10px] font-bold text-gray-400">
-                                  {p.brand ? `${p.brand} • ` : ''}{p.specifications?.length || 0} specification attributes
-                                </span>
+                    });
+
+                  if (candidateProducts.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-2xl">
+                        No catalog items found with existing specifications matching your search.
+                      </div>
+                    );
+                  }
+
+                  return candidateProducts.map(p => {
+                    const isSelected = selectedSourceProduct?.id === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          setSelectedSourceProduct(p);
+                          setSelectedSourcePreset(null);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 ${
+                          isSelected
+                            ? 'border-emerald-600 bg-emerald-50/40 shadow-sm'
+                            : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            {p.images?.[0] ? (
+                              <img src={p.images[0]} alt={p.name} className="w-10 h-10 object-cover rounded-xl bg-gray-100 flex-shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 font-black text-xs flex-shrink-0">
+                                PR
                               </div>
+                            )}
+                            <div>
+                              <h4 className="text-xs font-black text-gray-900">{p.name}</h4>
+                              <span className="text-[10px] font-bold text-gray-400 block mt-0.5">
+                                {p.brand ? `${p.brand} • ` : ''}{p.specifications?.length || 0} specification attributes
+                              </span>
                             </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applySharedSpecifications(p);
+                            }}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Use Specs
+                          </button>
+                        </div>
+
+                        {/* Preview Specs Pills */}
+                        {p.specifications && p.specifications.length > 0 && (
+                          <div className="pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+                            {p.specifications.slice(0, isSelected ? 30 : 6).map((s, idx) => (
+                              <span key={idx} className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700">
+                                <strong className="font-extrabold text-gray-900">{s.key}:</strong> {s.value || '—'}
+                              </span>
+                            ))}
+                            {!isSelected && p.specifications.length > 6 && (
+                              <span className="px-2 py-1 text-[10px] font-bold text-gray-400 italic">
+                                +{p.specifications.length - 6} more (click to expand)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()
+              )}
+
+              {/* TAB 3: SAVED SPECIFICATION PRESETS */}
+              {shareSpecsTab === 'presets' && (
+                (() => {
+                  const allPresets = [...DEFAULT_SPEC_PRESETS, ...customPresets].filter(preset => {
+                    if (!shareSpecsSearch.trim()) return true;
+                    const q = shareSpecsSearch.toLowerCase();
+                    return (
+                      preset.name.toLowerCase().includes(q) ||
+                      (preset.categoryName && preset.categoryName.toLowerCase().includes(q))
+                    );
+                  });
+
+                  if (allPresets.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-2xl">
+                        No specification presets found matching search.
+                      </div>
+                    );
+                  }
+
+                  return allPresets.map(preset => {
+                    const isSelected = selectedSourcePreset?.id === preset.id;
+                    return (
+                      <div
+                        key={preset.id}
+                        onClick={() => {
+                          setSelectedSourcePreset(preset);
+                          setSelectedSourceProduct(null);
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/40 shadow-sm'
+                            : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 ${
+                              preset.isSystem ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              <Bookmark className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-xs font-black text-gray-900">{preset.name}</h4>
+                                {preset.isSystem ? (
+                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[9px] font-black rounded-md uppercase">Standard System Preset</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-md uppercase">Custom Saved Preset</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-bold text-gray-400 block mt-0.5">
+                                {preset.categoryName ? `${preset.categoryName} • ` : ''}{preset.specifications.length} attributes preset
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {!preset.isSystem && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteCustomPreset(preset.id, e)}
+                                className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                title="Delete Custom Preset"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                applySharedSpecifications(p);
+                                applySharedPreset(preset);
                               }}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shrink-0"
                             >
-                              <Check className="w-3.5 h-3.5" /> Use Specs
+                              <Check className="w-3.5 h-3.5" /> Apply Preset
                             </button>
                           </div>
+                        </div>
 
-                          {/* Preview Specs */}
-                          {isSelected && p.specifications && p.specifications.length > 0 && (
-                            <div className="pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
-                              {p.specifications.map((s, idx) => (
-                                <span key={idx} className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700">
-                                  <strong className="font-extrabold text-gray-900">{s.key}:</strong> {s.value}
-                                </span>
-                              ))}
-                            </div>
+                        {/* Preview Preset Attribute Pills */}
+                        <div className="pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+                          {preset.specifications.slice(0, isSelected ? 30 : 6).map((s, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-700">
+                              <strong className="font-extrabold text-gray-900">{s.key}:</strong> {s.value || 'Empty Value'}
+                            </span>
+                          ))}
+                          {!isSelected && preset.specifications.length > 6 && (
+                            <span className="px-2 py-1 text-[10px] font-bold text-gray-400 italic">
+                              +{preset.specifications.length - 6} more (click to expand)
+                            </span>
                           )}
                         </div>
-                      );
-                    })
-                )}
+                      </div>
+                    );
+                  });
+                })()
+              )}
+
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-gray-100 flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-400">
+                Specifications will be cloned cleanly into this product without affecting other products.
+              </span>
+              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowShareSpecsModal(false);
+                    setSelectedSourceProduct(null);
+                    setSelectedSourcePreset(null);
+                  }}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer w-1/2 sm:w-auto"
+                >
+                  Cancel
+                </button>
+                {selectedSourceProduct && (
+                  <button
+                    type="button"
+                    onClick={() => applySharedSpecifications(selectedSourceProduct)}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-600/20 cursor-pointer w-1/2 sm:w-auto flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-4 h-4" /> Apply ({selectedSourceProduct.specifications?.length || 0})
+                  </button>
+                )}
+                {selectedSourcePreset && (
+                  <button
+                    type="button"
+                    onClick={() => applySharedPreset(selectedSourcePreset)}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/20 cursor-pointer w-1/2 sm:w-auto flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-4 h-4" /> Apply Preset ({selectedSourcePreset.specifications.length})
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Custom Preset Prompt Modal */}
+      {showSavePresetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[28px] max-w-md w-full p-6 space-y-5 relative shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Save Specifications as Reusable Preset</h3>
+                <p className="text-xs font-bold text-gray-400 mt-0.5">
+                  Save current specification keys & values to reuse on similar products later
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowShareSpecsModal(false)}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setShowSavePresetModal(false)}
+                className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Preset Template Name</label>
+              <input
+                type="text"
+                value={newPresetName}
+                onChange={e => setNewPresetName(e.target.value)}
+                placeholder={`e.g. ${formData.brand || 'Flagship'} - ${formData.specifications?.length || 0} Specs Preset`}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 max-h-36 overflow-y-auto space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+                Preview Attributes ({formData.specifications?.length || 0}):
+              </span>
+              {(formData.specifications || []).map((s, idx) => (
+                <div key={idx} className="text-[10px] font-bold text-gray-700">
+                  • <strong className="font-extrabold text-gray-900">{s.key || 'Empty Key'}:</strong> {s.value || 'Empty Value'}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSavePresetModal(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 Cancel
               </button>
-              {selectedSourceProduct && (
-                <button
-                  type="button"
-                  onClick={() => applySharedSpecifications(selectedSourceProduct)}
-                  className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-green-600/20 cursor-pointer"
-                >
-                  Apply Selected Specifications ({selectedSourceProduct.specifications?.length || 0})
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleSaveCustomPreset}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1"
+              >
+                <Bookmark className="w-3.5 h-3.5" /> Save Preset
+              </button>
             </div>
           </div>
         </div>

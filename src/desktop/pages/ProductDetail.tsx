@@ -826,7 +826,7 @@ export default function ProductDetail() {
       {availableTabs.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
           <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
-            <h2 className="text-2xl font-black text-gray-900 italic tracking-tight">Product Information Details</h2>
+            <h2 className="text-2xl font-black text-gray-900 italic tracking-tight">Product Details</h2>
 
             {/* Compact horizontal scrollable tabs in one row */}
             <div className="flex flex-nowrap overflow-x-auto gap-2.5 pb-2 scrollbar-none border-b border-gray-100">
