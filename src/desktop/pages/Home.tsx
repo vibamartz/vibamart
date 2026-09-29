@@ -23,6 +23,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
+import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -38,6 +39,22 @@ export default function Home() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [recentlyViewedProds, setRecentlyViewedProds] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadRecent = async () => {
+      const recent = await fetchRecentlyViewedProducts('', 8);
+      if (isMounted) setRecentlyViewedProds(recent);
+    };
+    loadRecent();
+    const handleUpdate = () => loadRecent();
+    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+    };
+  }, []);
 
   const userName = user?.displayName
     ? user.displayName.split(' ')[0]
@@ -106,6 +123,12 @@ export default function Home() {
       return catId === targetId || catId === targetSlug;
     });
   }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
+
+  const displayStillLooking = useMemo(() => {
+    const recentIds = new Set(recentlyViewedProds.map(p => p.id));
+    const fallback = [...filteredProducts].filter(p => !recentIds.has(p.id));
+    return [...recentlyViewedProds, ...fallback].slice(0, 8);
+  }, [recentlyViewedProds, filteredProducts]);
 
   const scrollCategoryLeft = () => {
     if (categoryScrollRef.current) {
@@ -570,7 +593,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-              {filteredProducts.slice(0, 8).map((product) => (
+              {displayStillLooking.map((product) => (
                 <div key={`still-looking-${product.id}`} className="w-[165px] sm:w-[185px] shrink-0 snap-start flex flex-col">
                   <ProductCard product={product} hideButtons={true} />
                 </div>

@@ -21,6 +21,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
+import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -193,15 +194,13 @@ export default function ProductDetail() {
   // Track recently viewed
   useEffect(() => {
     const trackRecent = async () => {
-      if (product) {
+      if (product && product.id) {
         try {
           const rewardIds = await getRewardProductIds();
           if (rewardIds.has(product.id) || (product as any).isRewardProduct) {
             return;
           }
-          const existing: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-          const updated = Array.from(new Set([product.id, ...existing.filter(pid => pid !== product.id)])).slice(0, 8);
-          localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+          addRecentlyViewedId(product.id);
         } catch (err) {
           console.error("Error updating recently viewed:", err);
         }
@@ -909,33 +908,26 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchRecent = async () => {
-      const savedIds = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-      const targetIds = savedIds.filter((pid: string) => pid !== currentProductId).slice(0, 4);
-      if (targetIds.length === 0) {
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const q = query(
-          collection(db, 'products'),
-          where(documentId(), 'in', targetIds)
-        );
-        const snapshot = await getDocs(q);
-        const rewardIds = await getRewardProductIds();
-        const fetchedProducts = filterOutRewardProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
-        fetchedProducts.sort((a, b) => targetIds.indexOf(a.id) - targetIds.indexOf(b.id));
-        setProducts(fetchedProducts);
-      } catch (err) {
-        console.error('Error fetching recently viewed products:', err);
-      } finally {
+      setLoading(true);
+      const fetched = await fetchRecentlyViewedProducts(currentProductId, 4);
+      if (isMounted) {
+        setProducts(fetched);
         setLoading(false);
       }
     };
 
     fetchRecent();
+
+    const handleUpdate = () => {
+      fetchRecent();
+    };
+    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+    };
   }, [currentProductId]);
 
   if (!loading && products.length === 0) return null;

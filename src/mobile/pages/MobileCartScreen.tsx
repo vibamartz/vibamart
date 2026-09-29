@@ -13,6 +13,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../shared/utilities/shippingUtils';
+import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -24,28 +25,25 @@ function MobileRecentlyViewedSection() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
     const fetchRecent = async () => {
-      try {
-        const savedIds: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-        if (savedIds.length === 0) {
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-        const targetIds = savedIds.slice(0, 4);
-        const q = query(collection(db, 'products'), where(documentId(), 'in', targetIds));
-        const snapshot = await getDocs(q);
-        const rewardIds = await getRewardProductIds();
-        const fetched = filterOutRewardProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
-        fetched.sort((a, b) => targetIds.indexOf(a.id) - targetIds.indexOf(b.id));
+      setLoading(true);
+      const fetched = await fetchRecentlyViewedProducts('', 4);
+      if (isMounted) {
         setProducts(fetched);
-      } catch (err) {
-        console.error('Error fetching recently viewed:', err);
-      } finally {
         setLoading(false);
       }
     };
     fetchRecent();
+
+    const handleUpdate = () => {
+      fetchRecent();
+    };
+    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+    };
   }, []);
 
   return (

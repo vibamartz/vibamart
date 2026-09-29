@@ -21,6 +21,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
+import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -37,6 +38,22 @@ export default function MobileHomepage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [recentlyViewedProds, setRecentlyViewedProds] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadRecent = async () => {
+      const recent = await fetchRecentlyViewedProducts('', 6);
+      if (isMounted) setRecentlyViewedProds(recent);
+    };
+    loadRecent();
+    const handleUpdate = () => loadRecent();
+    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+    };
+  }, []);
 
   const bannerScrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingBanner = useRef(false);
@@ -397,6 +414,12 @@ export default function MobileHomepage() {
       return catId === targetId || catId === targetSlug;
     });
   }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
+
+  const displayRecentAndPopular = useMemo(() => {
+    const recentIds = new Set(recentlyViewedProds.map(p => p.id));
+    const fallback = [...filteredProducts].filter(p => !recentIds.has(p.id)).reverse();
+    return [...recentlyViewedProds, ...fallback].slice(0, 8);
+  }, [recentlyViewedProds, filteredProducts]);
 
   // User display name for personalized recommendations
   const userName = user?.displayName
@@ -961,7 +984,7 @@ export default function MobileHomepage() {
               />
             ))
           ) : (
-            [...filteredProducts].reverse().slice(0, 8).map((product) => (
+            displayRecentAndPopular.map((product) => (
               <MobileProductCardItem
                 key={`recent-${product.id}`}
                 product={product}

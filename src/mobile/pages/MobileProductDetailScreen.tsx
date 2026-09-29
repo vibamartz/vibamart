@@ -19,6 +19,7 @@ import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 
 export default function MobileProductDetailScreen() {
   const params = useParams<{ id?: string; slug?: string }>();
@@ -149,9 +150,7 @@ export default function MobileProductDetailScreen() {
           try {
             const rewardIds = await getRewardProductIds();
             if (!rewardIds.has(foundProduct.id) && !(foundProduct as any).isRewardProduct) {
-              const existing: string[] = JSON.parse(localStorage.getItem('viba_recently_viewed') || '[]');
-              const updated = Array.from(new Set([foundProduct.id, ...existing.filter((pid: string) => pid !== foundProduct.id)])).slice(0, 8);
-              localStorage.setItem('viba_recently_viewed', JSON.stringify(updated));
+              addRecentlyViewedId(foundProduct.id);
             }
           } catch (err) {
             console.error("Error updating recently viewed:", err);
@@ -677,6 +676,11 @@ export default function MobileProductDetailScreen() {
           </div>
         </div>
 
+        {/* Recently Viewed & Similar Products */}
+        <div className="space-y-6 pt-2 pb-6">
+          <MobileRecentlyViewed currentProductId={product.id} />
+          <MobileSimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+        </div>
 
       </div>
 
@@ -726,6 +730,51 @@ export default function MobileProductDetailScreen() {
         isOpen={showLocationPickerModal}
         onClose={() => setShowLocationPickerModal(false)}
       />
+    </div>
+  );
+}
+
+function MobileRecentlyViewed({ currentProductId }: { currentProductId: string }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRecent = async () => {
+      setLoading(true);
+      const fetched = await fetchRecentlyViewedProducts(currentProductId, 4);
+      if (isMounted) {
+        setProducts(fetched);
+        setLoading(false);
+      }
+    };
+
+    fetchRecent();
+
+    const handleUpdate = () => {
+      fetchRecent();
+    };
+    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+    };
+  }, [currentProductId]);
+
+  if (!loading && products.length === 0) return null;
+
+  return (
+    <div className="space-y-2.5 pt-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
+          Recently Viewed
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {products.map(p => (
+          <ProductCard key={`recent-${p.id}`} product={p} />
+        ))}
+      </div>
     </div>
   );
 }
