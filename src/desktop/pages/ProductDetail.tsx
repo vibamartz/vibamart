@@ -42,6 +42,7 @@ export default function ProductDetail() {
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(true);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
   const handleGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const width = e.currentTarget.clientWidth;
@@ -332,6 +333,55 @@ export default function ProductDetail() {
   if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
     specsList.push({ key: 'Size', value: product.size });
   }
+
+  // Manufacturer Details
+  const manufacturerDetails: { key: string; value: string }[] = [];
+  if (product.brand) {
+    manufacturerDetails.push({ key: 'Brand / Manufacturer', value: product.brand });
+  }
+  if (product.productCode) {
+    manufacturerDetails.push({ key: 'Product Code', value: formatProductCode(product.productCode) });
+  }
+  if (product.sku) {
+    manufacturerDetails.push({ key: 'SKU', value: product.sku });
+  }
+  if (product.vendorId && product.vendorId !== 'admin') {
+    manufacturerDetails.push({ key: 'Vendor ID', value: product.vendorId });
+  }
+  if (product.specifications && Array.isArray(product.specifications)) {
+    product.specifications.forEach(s => {
+      if (s.key && s.value) {
+        const kLower = s.key.toLowerCase();
+        if (
+          (kLower.includes('manufacturer') || kLower.includes('origin') || kLower.includes('imported') || kLower.includes('packer') || kLower.includes('country')) &&
+          !manufacturerDetails.some(m => m.key.toLowerCase() === kLower)
+        ) {
+          manufacturerDetails.push({ key: s.key.trim(), value: s.value.trim() });
+        }
+      }
+    });
+  }
+
+  const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
+  const isWarrantyEnabled = product.enableWarranty !== false;
+
+  const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
+  if (specsList.length > 0) {
+    availableTabs.push({ id: 'specifications', label: 'Specifications' });
+  }
+  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
+    availableTabs.push({ id: 'description', label: 'Description' });
+  }
+  if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
+    availableTabs.push({ id: 'warranty', label: 'Warranty' });
+  }
+  if (manufacturerDetails.length > 0) {
+    availableTabs.push({ id: 'manufacturer', label: 'Manufacturer Info' });
+  }
+
+  const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
+    ? activeInfoTab
+    : availableTabs[0]?.id;
 
   const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
@@ -773,34 +823,87 @@ export default function ProductDetail() {
       </div>
 
       {/* Product Information Details Section (Requirements 7 & 8) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
-        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-          <h2 className="text-2xl font-black text-gray-900 italic tracking-tight">Product Information Details</h2>
+      {availableTabs.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+          <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
+            <h2 className="text-2xl font-black text-gray-900 italic tracking-tight">Product Information Details</h2>
 
-          {/* Specifications */}
-          {specsList.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-black text-gray-900 tracking-tight">Specifications</h3>
-              <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
-                {specsList.map((spec, i) => (
-                  <div key={i} className="flex flex-col sm:flex-row p-4 hover:bg-white transition-colors">
-                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{spec.key}</span>
-                    <span className="text-sm font-black text-gray-900 sm:flex-1">{spec.value}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Compact horizontal scrollable tabs in one row */}
+            <div className="flex flex-nowrap overflow-x-auto gap-2.5 pb-2 scrollbar-none border-b border-gray-100">
+              {availableTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveInfoTab(tab.id)}
+                  className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
+                    activeTabId === tab.id
+                      ? 'bg-green-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-          )}
 
-          {/* Description */}
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Description</h3>
-            <p className="text-gray-600 leading-relaxed font-medium whitespace-pre-line text-sm">
-              {product.fullDescription || product.description}
-            </p>
+            {/* Selected Tab Content */}
+            {activeTabId === 'specifications' && (
+              <div>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                  {specsList.map((spec, i) => (
+                    <div key={i} className="flex flex-col sm:flex-row p-4 hover:bg-white transition-colors">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{spec.key}</span>
+                      <span className="text-sm font-black text-gray-900 sm:flex-1">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTabId === 'description' && (
+              <div>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6">
+                  <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line text-sm">
+                    {product.fullDescription || product.description}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTabId === 'warranty' && (
+              <div>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-green-600" />
+                    <h3 className="text-base font-black text-gray-900 tracking-tight">Warranty Coverage</h3>
+                  </div>
+                  <p className="text-sm font-bold text-gray-800">
+                    {rawWarranty}
+                  </p>
+                  {product.brandSupportText && (
+                    <p className="text-xs text-gray-500 font-medium">
+                      Brand Support: {product.brandSupportText}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTabId === 'manufacturer' && (
+              <div>
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                  {manufacturerDetails.map((item, i) => (
+                    <div key={i} className="flex flex-col sm:flex-row p-4 hover:bg-white transition-colors">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{item.key}</span>
+                      <span className="text-sm font-black text-gray-900 sm:flex-1">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Recently Viewed Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">

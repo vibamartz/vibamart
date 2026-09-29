@@ -35,6 +35,7 @@ export default function MobileProductDetailScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
   const handleMobileGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const width = e.currentTarget.clientWidth;
@@ -303,6 +304,55 @@ export default function MobileProductDetailScreen() {
   if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
     specsList.push({ key: 'Size', value: product.size });
   }
+
+  // Manufacturer Details
+  const manufacturerDetails: { key: string; value: string }[] = [];
+  if (product.brand) {
+    manufacturerDetails.push({ key: 'Brand / Manufacturer', value: product.brand });
+  }
+  if (product.productCode) {
+    manufacturerDetails.push({ key: 'Product Code', value: formatProductCode(product.productCode) });
+  }
+  if (product.sku) {
+    manufacturerDetails.push({ key: 'SKU', value: product.sku });
+  }
+  if (product.vendorId && product.vendorId !== 'admin') {
+    manufacturerDetails.push({ key: 'Vendor ID', value: product.vendorId });
+  }
+  if (product.specifications && Array.isArray(product.specifications)) {
+    product.specifications.forEach(s => {
+      if (s.key && s.value) {
+        const kLower = s.key.toLowerCase();
+        if (
+          (kLower.includes('manufacturer') || kLower.includes('origin') || kLower.includes('imported') || kLower.includes('packer') || kLower.includes('country')) &&
+          !manufacturerDetails.some(m => m.key.toLowerCase() === kLower)
+        ) {
+          manufacturerDetails.push({ key: s.key.trim(), value: s.value.trim() });
+        }
+      }
+    });
+  }
+
+  const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
+  const isWarrantyEnabled = product.enableWarranty !== false;
+
+  const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
+  if (specsList.length > 0) {
+    availableTabs.push({ id: 'specifications', label: 'Specifications' });
+  }
+  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
+    availableTabs.push({ id: 'description', label: 'Description' });
+  }
+  if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
+    availableTabs.push({ id: 'warranty', label: 'Warranty' });
+  }
+  if (manufacturerDetails.length > 0) {
+    availableTabs.push({ id: 'manufacturer', label: 'Manufacturer Info' });
+  }
+
+  const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
+    ? activeInfoTab
+    : availableTabs[0]?.id;
 
   return (
     <div className="min-h-screen bg-white pb-44 font-sans select-none space-y-3">
@@ -646,34 +696,85 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {/* Product Information Details (Requirements 7 & 8) */}
-        <div className="pb-4 border-b border-gray-100 space-y-4">
-          <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
-            Product Information Details
-          </h3>
+        {availableTabs.length > 0 && (
+          <div className="pb-4 border-b border-gray-100 space-y-3">
+            <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+              Product Information Details
+            </h3>
 
-          {/* Specifications */}
-          {specsList.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase text-gray-400">Specifications</span>
-              <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
-                {specsList.map((spec, i) => (
-                  <div key={i} className="py-1.5 flex justify-between text-xs">
-                    <span className="font-bold text-gray-500">{spec.key}</span>
-                    <span className="font-extrabold text-gray-900 text-right ml-2">{spec.value}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Compact horizontal scrollable buttons row */}
+            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-1 scrollbar-none">
+              {availableTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveInfoTab(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
+                    activeTabId === tab.id
+                      ? 'bg-green-600 text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-          )}
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-black uppercase text-gray-400">Description</span>
-            <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-3 rounded-xl">
-              {product.fullDescription || product.description}
-            </p>
+            {/* Selected Tab Content */}
+            {activeTabId === 'specifications' && (
+              <div>
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
+                  {specsList.map((spec, i) => (
+                    <div key={i} className="py-1.5 flex justify-between text-xs">
+                      <span className="font-bold text-gray-500">{spec.key}</span>
+                      <span className="font-extrabold text-gray-900 text-right ml-2">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTabId === 'description' && (
+              <div>
+                <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-3 rounded-xl">
+                  {product.fullDescription || product.description}
+                </p>
+              </div>
+            )}
+
+            {activeTabId === 'warranty' && (
+              <div>
+                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-black text-gray-900">Warranty Coverage</span>
+                  </div>
+                  <p className="text-xs font-extrabold text-gray-800">
+                    {rawWarranty}
+                  </p>
+                  {product.brandSupportText && (
+                    <p className="text-[10px] text-gray-500 font-medium">
+                      Brand Support: {product.brandSupportText}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTabId === 'manufacturer' && (
+              <div>
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
+                  {manufacturerDetails.map((item, i) => (
+                    <div key={i} className="py-1.5 flex justify-between text-xs">
+                      <span className="font-bold text-gray-500">{item.key}</span>
+                      <span className="font-extrabold text-gray-900 text-right ml-2">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Recently Viewed & Similar Products */}
         <div className="space-y-6 pt-2 pb-6">
