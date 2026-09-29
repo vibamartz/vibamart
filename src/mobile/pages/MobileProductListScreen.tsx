@@ -504,7 +504,7 @@ export default function MobileProductListScreen() {
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
                     />
                     {discountPct > 0 && (
-                      <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[8px] font-black px-1 py-0.5 rounded">
+                      <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
                         {discountPct}% OFF
                       </span>
                     )}
@@ -551,7 +551,7 @@ export default function MobileProductListScreen() {
                     className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
                   />
                   {discountPct > 0 && (
-                    <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                    <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm">
                       {discountPct}% OFF
                     </span>
                   )}

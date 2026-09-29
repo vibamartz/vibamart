@@ -326,14 +326,7 @@ export default function MobileProductDetailScreen() {
             ))}
           </div>
 
-          <div className="absolute top-3 right-3 flex items-center gap-2 z-10 pointer-events-auto">
-            <button
-              onClick={handleShare}
-              aria-label="Share product"
-              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-md text-gray-700 hover:text-emerald-700"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
+          <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
             <button
               onClick={handleToggleWishlist}
               aria-label="Add to wishlist"
@@ -341,13 +334,14 @@ export default function MobileProductDetailScreen() {
             >
               <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
             </button>
+            <button
+              onClick={handleShare}
+              aria-label="Share product"
+              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-md text-gray-700 hover:text-emerald-700"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
           </div>
-
-          {discountPct > 0 && (
-            <span className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow z-10">
-              {discountPct}% OFF
-            </span>
-          )}
         </div>
 
         {images.length > 1 && (
@@ -386,6 +380,11 @@ export default function MobileProductDetailScreen() {
             {originalPrice > finalPrice && (
               <span className="text-sm text-gray-400 line-through">
                 ₹{originalPrice.toLocaleString()}
+              </span>
+            )}
+            {discountPct > 0 && (
+              <span className="text-xs font-black text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">
+                {discountPct}% OFF
               </span>
             )}
             {discountAmount > 0 && (

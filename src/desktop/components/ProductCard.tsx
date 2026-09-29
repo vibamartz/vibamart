@@ -111,7 +111,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
           />
           
           {discountPercentage > 0 && (
-            <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+            <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-md shadow-xs">
               {discountPercentage}% OFF
             </span>
           )}

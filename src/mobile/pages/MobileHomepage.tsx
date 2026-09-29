@@ -1065,7 +1065,7 @@ function MobileProductCardItem({
           />
 
           {discountPercentage > 0 && (
-            <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[7px] font-black px-1 py-0.2 rounded shadow-xs z-10 leading-tight">
+            <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs z-10 leading-tight">
               {discountPercentage}% OFF
             </span>
           )}
@@ -1114,7 +1114,7 @@ function MobileProductCardItem({
         />
 
         {discountPercentage > 0 && (
-          <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md shadow-sm z-10">
+          <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm z-10">
             {discountPercentage}% OFF
           </span>
         )}
