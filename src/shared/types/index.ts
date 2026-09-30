@@ -73,7 +73,7 @@ export interface Product {
   subCategoryId?: string;
   nestedSubCategoryId?: string;
   vendorId: string;
-  images: string[]; // Up to 8 images
+  images: string[]; // Up to 10 images
   primaryImage?: string;
   sku?: string;
   productCode?: string; // Auto-generated 12-digit numeric product code (Format: 8900 0996 XXXX)

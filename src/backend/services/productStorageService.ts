@@ -82,12 +82,12 @@ export async function uploadProductImageToStorage(
     return trimmed;
   }
 
-  // Reject oversized data URLs (> 15MB raw binary size)
-  const MAX_BYTES = 15 * 1024 * 1024;
+  // Reject oversized data URLs (> 10MB raw binary size, approx 14MB in base64)
+  const MAX_BYTES = 10 * 1024 * 1024;
   if (trimmed.startsWith('data:') || trimmed.length > 500) {
     const approxBytes = Math.round((trimmed.length * 3) / 4);
     if (approxBytes > MAX_BYTES * 1.5) {
-      console.warn('Image data exceeds 15 MB limit, skipping upload');
+      console.warn('Image data exceeds 10 MB limit, skipping upload');
       return '';
     }
   }
@@ -115,7 +115,7 @@ export async function uploadProductImageToStorage(
       const res = await fetch(trimmed);
       const blob = await res.blob();
       if (blob.size > MAX_BYTES) {
-        console.warn('Blob exceeds limit');
+        console.warn('Blob exceeds 10 MB limit');
         return '';
       }
       await withTimeout(uploadBytes(storageRef, blob));

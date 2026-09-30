@@ -171,8 +171,8 @@ export default function CategoriesManagementView() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB max
-        toast.error('File size exceeds 5 MB limit');
+      if (file.size > 10 * 1024 * 1024) { // 10MB max
+        toast.error('File size exceeds 10 MB limit');
         return;
       }
       const reader = new FileReader();
