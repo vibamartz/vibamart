@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Product, ProductVariant } from '../../shared/types';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck } from 'lucide-react';
+import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck, Share2 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
 import { getProductSlug } from '../../shared/utilities/slug';
+import { shareProduct } from '../../shared/utilities/shareUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -115,17 +116,35 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
               {discountPercentage}% OFF
             </span>
           )}
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
-            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-            className={`absolute top-2.5 right-2.5 p-2 touch-target rounded-full transition-all shadow-sm z-10 flex items-center justify-center ${
-              isWishlisted 
-                ? 'bg-rose-500 text-white' 
-                : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-500 hover:bg-white'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
-          </button>
+          <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10">
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
+              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              className={`p-2 touch-target rounded-full transition-all shadow-sm flex items-center justify-center ${
+                isWishlisted 
+                  ? 'bg-rose-500 text-white' 
+                  : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-rose-500 hover:bg-white'
+              }`}
+            >
+              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                shareProduct(product, {
+                  specificImage: selectedVariant?.image || product.images?.[0],
+                  variantName: selectedVariant?.name
+                });
+              }}
+              aria-label="Share product"
+              title="Share product with image and link"
+              className="p-2 touch-target rounded-full transition-all shadow-sm flex items-center justify-center bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-600 hover:bg-white active:scale-95"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="p-2 flex flex-col flex-1">

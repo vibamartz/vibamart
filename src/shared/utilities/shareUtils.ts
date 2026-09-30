@@ -65,12 +65,33 @@ export async function shareItem(options: ShareOptions): Promise<void> {
 
     if (imageUrl && typeof navigator.canShare === 'function') {
       try {
-        const response = await fetch(imageUrl, { mode: 'cors' });
-        if (response.ok) {
-          const blob = await response.blob();
-          const mimeType = blob.type || 'image/png';
-          const ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
-          const file = new File([blob], `share-preview.${ext}`, { type: mimeType });
+        let blob: Blob | null = null;
+        let mimeType = 'image/png';
+        let ext = 'png';
+
+        if (imageUrl.startsWith('data:')) {
+          const arr = imageUrl.split(',');
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+          ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          blob = new Blob([u8arr], { type: mimeType });
+        } else {
+          const response = await fetch(imageUrl, { mode: 'cors' });
+          if (response.ok) {
+            blob = await response.blob();
+            mimeType = blob.type || 'image/png';
+            ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
+          }
+        }
+
+        if (blob) {
+          const file = new File([blob], `product-share.${ext}`, { type: mimeType });
           if (navigator.canShare({ files: [file], title, text: textWithUrl, url })) {
             filesToShare = [file];
           } else if (navigator.canShare({ files: [file] })) {
@@ -147,21 +168,28 @@ export async function shareItem(options: ShareOptions): Promise<void> {
   }
 }
 
+export interface ProductShareOptions {
+  specificUrl?: string;
+  specificImage?: string;
+  variantName?: string;
+}
+
 /**
  * Shares a product with its permanent human-readable URL, product image,
  * title, and product details.
  */
-export async function shareProduct(product: Product): Promise<void> {
+export async function shareProduct(product: Product, options?: ProductShareOptions): Promise<void> {
   const slug = getProductSlug(product);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const shareUrl = `${origin}/products/${slug}`;
+  const shareUrl = options?.specificUrl || `${origin}/products/${slug}`;
 
-  const image = (product.images && product.images.length > 0) ? product.images[0] : (product as any).image;
+  const image = options?.specificImage || ((product.images && product.images.length > 0) ? product.images[0] : (product as any).image);
   const priceDisplay = product.price ? ` - ₹${product.price}` : '';
+  const variantDisplay = options?.variantName ? ` (${options.variantName})` : '';
   const descSnippet = product.description ? `\n\n${product.description.slice(0, 150)}` : '';
 
-  const title = `${product.name} | ViBa Mart`;
-  const text = `Check out ${product.name}${priceDisplay} on ViBa Mart!${descSnippet}`;
+  const title = `${product.name}${variantDisplay} | ViBa Mart`;
+  const text = `Check out ${product.name}${variantDisplay}${priceDisplay} on ViBa Mart!${descSnippet}`;
 
   // Update head tags for crawlers
   updateOpenGraphTags(title, product.description || text, image, shareUrl);

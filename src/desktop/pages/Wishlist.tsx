@@ -3,11 +3,12 @@ import { useAuthStore, useCartStore } from '../../backend/store';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs, documentId, doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { Product } from '../../shared/types';
-import { Heart, ShoppingBag, ArrowRight, Trash2, Star, CheckSquare, Square, ShoppingCart, CheckCircle2 } from 'lucide-react';
+import { Heart, ShoppingBag, ArrowRight, Trash2, Star, CheckSquare, Square, ShoppingCart, CheckCircle2, Share2 } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
 import { getExpiredRewardProductIds } from '../../shared/utilities/rewardUtils';
+import { shareProduct } from '../../shared/utilities/shareUtils';
 import toast from 'react-hot-toast';
 
 export default function Wishlist() {
@@ -308,6 +309,19 @@ export default function Wishlist() {
                       >
                         <ShoppingCart className="w-4 h-4" />
                         {isInCart ? 'In Cart' : 'Add to Cart'}
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          shareProduct(product);
+                        }}
+                        title="Share product with image and link"
+                        aria-label="Share product"
+                        className="p-2.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all border border-gray-200 hover:border-green-200 shrink-0"
+                      >
+                        <Share2 className="w-4 h-4" />
                       </button>
 
                       <button

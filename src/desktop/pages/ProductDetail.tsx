@@ -444,8 +444,19 @@ export default function ProductDetail() {
                 <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-rose-500' : ''}`} />
               </button>
               <button
-                onClick={() => product && shareProduct(product)}
+                onClick={() => {
+                  if (product) {
+                    const currentImg = currentVariant?.image && selectedImage === 0
+                      ? currentVariant.image
+                      : (product.images && product.images[selectedImage]) || product.images?.[0] || (product as any).image;
+                    shareProduct(product, {
+                      specificImage: currentImg,
+                      variantName: currentVariant?.name
+                    });
+                  }
+                }}
                 aria-label="Share product"
+                title="Share product with image and link"
                 className="p-3 touch-target min-h-[44px] flex items-center justify-center bg-white/90 backdrop-blur shadow-sm rounded-full text-gray-400 hover:text-green-600 transition-colors"
               >
                 <Share2 className="w-5 h-5" />
