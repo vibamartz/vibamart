@@ -199,8 +199,8 @@ export default function BannersManagementView() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds 10 MB limit');
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size exceeds 5 MB limit');
         return;
       }
       try {
@@ -551,7 +551,7 @@ export default function BannersManagementView() {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700 flex justify-between">
                       Banner Image <span className="text-rose-500">*</span>
-                      <span className="text-xs text-gray-400 font-normal">Max size: 3MB</span>
+                      <span className="text-xs text-gray-400 font-normal">Max size: 5MB</span>
                     </label>
                     <div className="flex justify-center">
                       {formData.image ? (
