@@ -60,9 +60,11 @@ function RecentlyViewedCartSection() {
       ) : products.length === 0 ? (
         <p className="text-xs text-gray-400 font-medium py-4 text-center">No recently viewed items yet.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {products.map(product => (
-            <ProductCard key={product.id} product={product} />
+            <div key={product.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+              <ProductCard product={product} />
+            </div>
           ))}
         </div>
       )}
@@ -83,7 +85,7 @@ function WishlistCartSection() {
         return;
       }
       try {
-        const targetIds = user.wishlist.slice(0, 4);
+        const targetIds = user.wishlist.slice(0, 8);
         const q = query(collection(db, 'products'), where(documentId(), 'in', targetIds));
         const snapshot = await getDocs(q);
         const rewardIds = await getRewardProductIds();
@@ -120,9 +122,11 @@ function WishlistCartSection() {
       ) : products.length === 0 ? (
         <p className="text-xs text-gray-400 font-medium py-4 text-center">No wishlist products saved yet.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {products.map(product => (
-            <ProductCard key={product.id} product={product} />
+            <div key={product.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+              <ProductCard product={product} />
+            </div>
           ))}
         </div>
       )}

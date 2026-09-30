@@ -128,22 +128,22 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
           </button>
         </div>
 
-        <div className="p-2.5 flex flex-col flex-1">
-          <span className="text-sm font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-1">
+        <div className="p-2 flex flex-col flex-1">
+          <span className="text-xs sm:text-sm font-bold text-gray-900 line-clamp-1 hover:text-green-600 transition-colors mb-0.5">
             {product.name}
           </span>
 
           {product.variants && product.variants.length > 0 ? (
-            <div className="mb-2 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-1.5 space-y-0.5" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
+                <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
               </div>
               <div className="relative group/select">
                 <select 
                   value={selectedVariantId}
                   onChange={(e) => setSelectedVariantId(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-full text-xs border-2 border-gray-100 rounded-xl py-1.5 px-3 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-black appearance-none cursor-pointer pr-8"
+                  className="w-full text-[11px] border border-gray-200 rounded-lg py-1 px-2 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-bold appearance-none cursor-pointer pr-6"
                 >
                   {product.variants.map((v) => (
                     <option key={v.id} value={v.id} disabled={v.stock === 0}>
@@ -151,8 +151,8 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
-                  <ChevronDown className="w-4 h-4" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </div>
               </div>
             </div>
@@ -160,20 +160,20 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
 
           <div className="mt-auto flex items-end justify-between pt-1 border-t border-gray-50">
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base font-bold text-gray-900">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-sm sm:text-base font-bold text-gray-900">
                   ₹{((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)).toLocaleString()}
                 </span>
                 {product.discountPrice && product.price && (
-                  <span className="text-xs text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
+                  <span className="text-[11px] text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                 {product.isFreeDelivery !== false && (
-                  <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
+                  <p className="text-[9px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
                 )}
                 {product.discountPrice && product.price && (
-                  <span className="text-[10px] text-green-600 font-black">
+                  <span className="text-[9px] text-green-600 font-black">
                     • Save ₹{(product.price - product.discountPrice).toLocaleString()}
                   </span>
                 )}

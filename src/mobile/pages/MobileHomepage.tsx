@@ -1102,10 +1102,10 @@ function MobileProductCardItem({
     <motion.div
       whileTap={{ scale: 0.97 }}
       onClick={onCardClick}
-      className={`w-[145px] sm:w-[165px] bg-white ${cardRadius} p-2 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
+      className={`w-[135px] sm:w-[155px] bg-white ${cardRadius} p-1.5 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Clear object-contain) */}
-      <div className="relative w-full aspect-[4/5] rounded-[12px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0">
+      <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
@@ -1114,31 +1114,31 @@ function MobileProductCardItem({
         />
 
         {discountPercentage > 0 && (
-          <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm z-10">
+          <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs z-10 leading-none">
             {discountPercentage}% OFF
           </span>
         )}
       </div>
 
       {/* Brand & Name (Max 1 line) */}
-      <div className="flex flex-col flex-1 min-w-0 mb-1">
-        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
+      <div className="flex flex-col flex-1 min-w-0 mb-0.5">
+        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest truncate leading-none">
           {product.brand || 'ViBa Select'}
         </span>
-        <h4 className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
+        <h4 className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
           {product.name}
         </h4>
       </div>
 
       {/* Pricing */}
-      <div className="mt-auto pt-1 border-t border-gray-100 min-w-0">
-        <div className="flex items-baseline justify-between gap-1.5 flex-wrap">
-          <div className="flex items-baseline gap-1.5">
+      <div className="mt-auto pt-0.5 border-t border-gray-100 min-w-0">
+        <div className="flex items-baseline justify-between gap-1 flex-wrap">
+          <div className="flex items-baseline gap-1">
             <span className="text-xs sm:text-sm font-black text-gray-900">
               ₹{(product.discountPrice || product.price || 0).toLocaleString()}
             </span>
             {product.discountPrice && product.price && product.discountPrice < product.price && (
-              <span className="text-[10px] text-gray-400 line-through">
+              <span className="text-[9px] text-gray-400 line-through">
                 ₹{product.price.toLocaleString()}
               </span>
             )}

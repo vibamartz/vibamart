@@ -991,14 +991,16 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
           </div>
         </Link>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-50 rounded-[2.5rem] aspect-[4/5] border border-gray-100" />
+            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
           ))
         ) : (
           products.map(p => (
-            <ProductCard key={p.id} product={p} />
+            <div key={p.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+              <ProductCard product={p} />
+            </div>
           ))
         )}
       </div>
@@ -1014,7 +1016,7 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
     let isMounted = true;
     const fetchRecent = async () => {
       setLoading(true);
-      const fetched = await fetchRecentlyViewedProducts(currentProductId, 4);
+      const fetched = await fetchRecentlyViewedProducts(currentProductId, 8);
       if (isMounted) {
         setProducts(fetched);
         setLoading(false);
@@ -1043,14 +1045,16 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Products you looked at recently</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-gray-50 rounded-[2.5rem] aspect-[4/5] border border-gray-100" />
+            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
           ))
         ) : (
           products.map(p => (
-            <ProductCard key={p.id} product={p} />
+            <div key={p.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+              <ProductCard product={p} />
+            </div>
           ))
         )}
       </div>

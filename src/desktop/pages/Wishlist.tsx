@@ -238,7 +238,7 @@ export default function Wishlist() {
 
         {/* Clean Wishlist Product Layout without Unnecessary Card Containers */}
         {products.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-2 min-w-0 w-full">
             {products.map((product) => {
               const isInCart = cartItems.some(i => i.productId === product.id);
               const isSelected = selectedProductIds.includes(product.id);
@@ -247,7 +247,7 @@ export default function Wishlist() {
               return (
                 <div
                   key={product.id}
-                  className={`relative flex flex-col justify-between p-3 rounded-2xl transition-all ${
+                  className={`w-[180px] sm:w-[200px] shrink-0 snap-start bg-white border border-gray-100 shadow-xs hover:shadow-md relative flex flex-col justify-between p-2.5 rounded-2xl transition-all ${
                     isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''
                   }`}
                 >
@@ -255,18 +255,18 @@ export default function Wishlist() {
                   {isBulkMode && (
                     <button
                       onClick={() => handleToggleSelectProduct(product.id)}
-                      className="absolute top-4 left-4 z-20 p-1.5 bg-white rounded-lg shadow-md border border-gray-200"
+                      className="absolute top-3 left-3 z-20 p-1 bg-white rounded-lg shadow-md border border-gray-200"
                     >
                       {isSelected ? (
-                        <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-50" />
+                        <CheckSquare className="w-4 h-4 text-emerald-600 fill-emerald-50" />
                       ) : (
-                        <Square className="w-5 h-5 text-gray-400" />
+                        <Square className="w-4 h-4 text-gray-400" />
                       )}
                     </button>
                   )}
 
                   <Link to={`/products/${getProductSlug(product)}`} className="block group">
-                    <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1.5 flex items-center justify-center mb-1.5">
+                    <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300'}
                         alt={product.name}
@@ -274,22 +274,22 @@ export default function Wishlist() {
                       />
                     </div>
 
-                    <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug hover:text-primary transition-colors min-h-0">
+                    <h3 className="text-xs font-bold text-gray-900 line-clamp-1 leading-snug hover:text-primary transition-colors min-h-0">
                       {product.name}
                     </h3>
                   </Link>
 
                   {/* Price Info */}
-                  <div className="mt-1.5 space-y-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-black text-gray-900">₹{sellingPrice.toLocaleString()}</span>
+                  <div className="mt-1 space-y-1">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-base font-black text-gray-900">₹{sellingPrice.toLocaleString()}</span>
                       {product.discountPrice && product.price > product.discountPrice && (
-                        <span className="text-xs text-gray-400 line-through font-bold">₹{product.price.toLocaleString()}</span>
+                        <span className="text-[11px] text-gray-400 line-through font-bold">₹{product.price.toLocaleString()}</span>
                       )}
                     </div>
 
                     {/* Action Row: Add to Cart + Direct Delete Icon */}
-                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-gray-100">
                       <button
                         onClick={() => {
                           if (isInCart) {
@@ -300,23 +300,23 @@ export default function Wishlist() {
                             else navigate('/cart');
                           }
                         }}
-                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                        className={`flex-1 py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
                           isInCart
                             ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs'
                         }`}
                       >
-                        <ShoppingCart className="w-4 h-4" />
-                        {isInCart ? 'In Cart' : 'Add to Cart'}
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        {isInCart ? 'In Cart' : 'Add'}
                       </button>
 
                       <button
                         onClick={() => handleSingleRemove(product.id)}
                         title="Remove from wishlist"
                         aria-label="Remove from wishlist"
-                        className="p-2.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-gray-200 hover:border-rose-200 shrink-0"
+                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-gray-200 hover:border-rose-200 shrink-0"
                       >
-                        <Trash2 className="w-4 h-4 text-rose-500" />
+                        <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                       </button>
                     </div>
                   </div>

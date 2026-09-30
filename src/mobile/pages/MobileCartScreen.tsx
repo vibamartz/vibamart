@@ -59,17 +59,17 @@ function MobileRecentlyViewedSection() {
       ) : products.length === 0 ? (
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No recently viewed items yet.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {products.map((product) => {
             const isInCart = cartItems.some(i => i.productId === product.id);
             return (
               <div
                 key={product.id}
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
+                className="w-[135px] sm:w-[150px] shrink-0 snap-start bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-[4/5] rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
                     <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
                   <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>
@@ -115,7 +115,7 @@ function MobileWishlistSection() {
         return;
       }
       try {
-        const targetIds = user.wishlist.slice(0, 4);
+        const targetIds = user.wishlist.slice(0, 8);
         const q = query(collection(db, 'products'), where(documentId(), 'in', targetIds));
         const snapshot = await getDocs(q);
         const rewardIds = await getRewardProductIds();
@@ -147,17 +147,17 @@ function MobileWishlistSection() {
       ) : products.length === 0 ? (
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No wishlist products saved yet.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {products.map((product) => {
             const isInCart = cartItems.some(i => i.productId === product.id);
             return (
               <div
                 key={product.id}
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                className="bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1.5 flex flex-col justify-between"
+                className="w-[135px] sm:w-[150px] shrink-0 snap-start bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1 flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-full aspect-[4/5] rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
                     <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
                   <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>

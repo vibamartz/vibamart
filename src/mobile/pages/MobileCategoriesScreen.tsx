@@ -359,37 +359,37 @@ export default function MobileCategoriesScreen() {
                             key={product.id}
                             whileTap={{ scale: 0.97 }}
                             onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                            className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
+                            className="bg-white rounded-xl p-1.5 shadow-xs border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
                           >
-                            <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                               <img
                                 src={product.images?.[0] || 'https://via.placeholder.com/200'}
                                 alt={product.name}
                                 className="w-full h-full object-contain group-hover:scale-105 transition-transform"
                               />
                               {discountPct > 0 && (
-                                <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                                <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[8px] font-black px-1 py-0.5 rounded shadow-xs leading-none">
                                   {discountPct}% OFF
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex flex-col flex-1 min-w-0 mb-1">
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">
+                            <div className="flex flex-col flex-1 min-w-0 mb-0.5">
+                              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest truncate leading-none">
                                 {product.brand || 'ViBa Select'}
                               </span>
-                              <h5 className="text-xs font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
+                              <h5 className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate leading-tight mt-0.5">
                                 {product.name}
                               </h5>
                             </div>
 
-                            <div className="space-y-1 pt-1 border-t border-gray-100">
+                            <div className="space-y-0.5 pt-1 border-t border-gray-100">
                               <div className="flex items-baseline gap-1">
                                 <span className="text-xs font-black text-gray-900">
                                   ₹{(product.discountPrice || product.price).toLocaleString()}
                                 </span>
                                 {product.discountPrice && (
-                                  <span className="text-[9px] text-gray-400 line-through">
+                                  <span className="text-[8px] text-gray-400 line-through">
                                     ₹{product.price.toLocaleString()}
                                   </span>
                                 )}
@@ -397,7 +397,7 @@ export default function MobileCategoriesScreen() {
 
                               <button
                                 onClick={(e) => handleAddToCart(e, product)}
-                                className={`w-full py-1 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${isInCart
+                                className={`w-full py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${isInCart
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
                                   }`}

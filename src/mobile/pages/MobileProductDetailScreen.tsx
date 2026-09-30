@@ -870,9 +870,11 @@ function MobileRecentlyViewed({ currentProductId }: { currentProductId: string }
           Recently Viewed
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {products.map(p => (
-          <ProductCard key={`recent-${p.id}`} product={p} />
+          <div key={`recent-${p.id}`} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
+            <ProductCard product={p} />
+          </div>
         ))}
       </div>
     </div>
@@ -891,7 +893,7 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
           collection(db, 'products'),
           where('categoryId', '==', categoryId),
           where('status', '==', 'active'),
-          limit(6)
+          limit(10)
         );
         const snapshot = await getDocs(q);
         const rewardIds = await getRewardProductIds();
@@ -900,7 +902,7 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
             .map(doc => ({ id: doc.id, ...doc.data() } as Product))
             .filter(p => p.id !== currentProductId),
           rewardIds
-        ).slice(0, 4);
+        ).slice(0, 8);
         setProducts(fetchedProducts);
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -924,9 +926,11 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
           See All →
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {products.map(p => (
-          <ProductCard key={p.id} product={p} />
+          <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
+            <ProductCard product={p} />
+          </div>
         ))}
       </div>
     </div>
