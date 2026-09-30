@@ -7,7 +7,6 @@ export interface ShareOptions {
   text: string;
   url: string;
   imageUrl?: string;
-  customToastMessage?: string;
 }
 
 /**
@@ -52,28 +51,20 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
  * optional image attachments, and automatic copy-to-clipboard fallback.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
-  const { title, text, url, imageUrl, customToastMessage } = options;
-
-  // Build full text ensuring the canonical URL is explicitly embedded within the message.
-  // This ensures desktop and mobile share targets (WhatsApp, Telegram, Discord, Mail, Windows Share, etc.)
-  // include the product URL even when the platform prioritizes image file attachments or drops the standalone URL field.
-  const textWithUrl = text ? (text.includes(url) ? text : `${text}\n\n${url}`) : url;
+  const { title, text, url, imageUrl } = options;
 
   // 1. Try native Web Share API
-  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+  if (typeof navigator !== 'undefined' && navigator.share) {
     let filesToShare: File[] = [];
 
-    if (imageUrl && typeof navigator.canShare === 'function') {
+    if (imageUrl && navigator.canShare) {
       try {
         const response = await fetch(imageUrl, { mode: 'cors' });
         if (response.ok) {
           const blob = await response.blob();
-          const mimeType = blob.type || 'image/png';
-          const ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
-          const file = new File([blob], `share-preview.${ext}`, { type: mimeType });
-          if (navigator.canShare({ files: [file], title, text: textWithUrl, url })) {
-            filesToShare = [file];
-          } else if (navigator.canShare({ files: [file] })) {
+          const ext = blob.type.split('/')[1] || 'png';
+          const file = new File([blob], `share-preview.${ext}`, { type: blob.type });
+          if (navigator.canShare({ files: [file] })) {
             filesToShare = [file];
           }
         }
@@ -86,7 +77,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       if (filesToShare.length > 0) {
         await navigator.share({
           title,
-          text: textWithUrl,
+          text,
           url,
           files: filesToShare,
         });
@@ -94,41 +85,24 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       } else {
         await navigator.share({
           title,
-          text: textWithUrl,
+          text,
           url,
         });
         return;
       }
     } catch (err: any) {
       // User cancelled native share sheet
-      if (err && (err.name === 'AbortError' || err.code === 20)) {
+      if (err.name === 'AbortError') {
         return;
-      }
-
-      // If sharing with files failed on this platform, retry without files
-      // to ensure the product URL and description are successfully shared.
-      if (filesToShare.length > 0) {
-        try {
-          await navigator.share({
-            title,
-            text: textWithUrl,
-            url,
-          });
-          return;
-        } catch (retryErr: any) {
-          if (retryErr && (retryErr.name === 'AbortError' || retryErr.code === 20)) {
-            return;
-          }
-        }
       }
     }
   }
 
-  // 2. Fallback to copy link to clipboard (for browsers without Web Share API)
+  // 2. Fallback to copy link to clipboard
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(url);
-      toast.success(customToastMessage || 'Product link copied to clipboard!');
+      toast.success('Deal 259 Store link copied to clipboard!');
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -140,7 +114,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      toast.success(customToastMessage || 'Product link copied to clipboard!');
+      toast.success('Deal 259 Store link copied to clipboard!');
     }
   } catch (err) {
     toast.error('Failed to copy share link.');
@@ -171,7 +145,6 @@ export async function shareProduct(product: Product): Promise<void> {
     text,
     url: shareUrl,
     imageUrl: image,
-    customToastMessage: 'Product link copied to clipboard!',
   });
 }
 
@@ -200,7 +173,6 @@ export async function shareReward(reward: BrandCoupon): Promise<void> {
     text,
     url: shareUrl,
     imageUrl: image,
-    customToastMessage: 'Reward link copied to clipboard!',
   });
 }
 
@@ -220,8 +192,6 @@ export async function shareDeal259Store(config?: Deal259PageConfig): Promise<voi
     title,
     text,
     url: shareUrl,
-    customToastMessage: 'Deal 259 Store link copied to clipboard!',
   });
 }
-
 
