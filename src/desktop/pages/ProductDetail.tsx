@@ -469,7 +469,7 @@ export default function ProductDetail() {
         </div>
 
         {/* Right: Info & Variants */}
-        <div className="flex-1 space-y-8 py-4">
+        <div className="flex-1 min-w-0 space-y-8 py-4">
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <div className="flex items-baseline gap-4 flex-wrap">
@@ -950,6 +950,11 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
     const fetchSimilar = async () => {
       setLoading(true);
       try {
+        if (!categoryId) {
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
         const q = query(
           collection(db, 'products'),
           where('categoryId', '==', categoryId),
@@ -961,7 +966,19 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
         const fetchedProducts = filterOutRewardProducts(
           snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-            .filter(p => p.id !== currentProductId),
+            .filter(p => {
+              if (!p) return false;
+              const pid = p.id;
+              const pDocId = (p as any).id;
+              const code = (p as any).productCode;
+              const slug = getProductSlug(p);
+              return (
+                pid !== currentProductId &&
+                pDocId !== currentProductId &&
+                (!code || code !== currentProductId) &&
+                (!slug || slug !== currentProductId)
+              );
+            }),
           rewardIds
         ).slice(0, 4);
         setProducts(fetchedProducts);

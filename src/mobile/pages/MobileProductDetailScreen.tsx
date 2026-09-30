@@ -69,6 +69,14 @@ export default function MobileProductDetailScreen() {
   };
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.wishlist && product?.id) {
+      setIsWishlisted(user.wishlist.includes(product.id));
+    } else {
+      setIsWishlisted(false);
+    }
+  }, [user?.wishlist, product?.id]);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
 
   // Reviews state
@@ -776,10 +784,9 @@ export default function MobileProductDetailScreen() {
           </div>
         )}
 
-        {/* Recently Viewed & Similar Products */}
+        {/* Recently Viewed */}
         <div className="space-y-6 pt-2 pb-6">
           <MobileRecentlyViewed currentProductId={product.id} />
-          <MobileSimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
         </div>
 
       </div>
@@ -889,6 +896,11 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
     const fetchSimilar = async () => {
       setLoading(true);
       try {
+        if (!categoryId) {
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
         const q = query(
           collection(db, 'products'),
           where('categoryId', '==', categoryId),
@@ -900,7 +912,19 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
         const fetchedProducts = filterOutRewardProducts(
           snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-            .filter(p => p.id !== currentProductId),
+            .filter(p => {
+              if (!p) return false;
+              const pid = p.id;
+              const pDocId = (p as any).id;
+              const code = (p as any).productCode;
+              const slug = getProductSlug(p);
+              return (
+                pid !== currentProductId &&
+                pDocId !== currentProductId &&
+                (!code || code !== currentProductId) &&
+                (!slug || slug !== currentProductId)
+              );
+            }),
           rewardIds
         ).slice(0, 8);
         setProducts(fetchedProducts);

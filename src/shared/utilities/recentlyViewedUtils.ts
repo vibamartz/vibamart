@@ -34,7 +34,7 @@ export function addRecentlyViewedId(productId: string): void {
 export async function fetchRecentlyViewedProducts(excludeProductId?: string, maxItems: number = 6): Promise<Product[]> {
   try {
     const savedIds = getRecentlyViewedIds();
-    const targetIds = savedIds.filter(id => id && id !== excludeProductId).slice(0, maxItems);
+    const targetIds = savedIds.filter(id => id).slice(0, 12);
     if (targetIds.length === 0) return [];
 
     const snap = await getDocs(collection(db, 'products'));
@@ -50,6 +50,16 @@ export async function fetchRecentlyViewedProducts(excludeProductId?: string, max
       const pDocId = (p as any).id;
       const code = (p as any).productCode;
       const slug = getProductSlug(p);
+      if (excludeProductId) {
+        if (
+          pid === excludeProductId ||
+          pDocId === excludeProductId ||
+          (code && code === excludeProductId) ||
+          (slug && slug === excludeProductId)
+        ) {
+          return false;
+        }
+      }
       return targetIds.includes(pid) || targetIds.includes(pDocId) || (code && targetIds.includes(code)) || (slug && targetIds.includes(slug));
     });
 
@@ -66,7 +76,7 @@ export async function fetchRecentlyViewedProducts(excludeProductId?: string, max
       return getMinIdx(a) - getMinIdx(b);
     });
 
-    return matched;
+    return matched.slice(0, maxItems);
   } catch (err) {
     console.error("Error fetching recently viewed products:", err);
     return [];
