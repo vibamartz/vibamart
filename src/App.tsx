@@ -7,7 +7,6 @@ import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useR
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
-import ShareModal from './desktop/components/ShareModal';
 import GlobalPushNotificationListener from './shared/components/GlobalPushNotificationListener';
 
 // Desktop UI (Isolated Desktop Fronted)
@@ -34,6 +33,7 @@ import Deal259Page from './desktop/pages/Deal259Page';
 import TermsOfService from './desktop/pages/TermsOfService';
 import PrivacyPolicy from './desktop/pages/PrivacyPolicy';
 import ContactUs from './desktop/pages/ContactUs';
+import DesktopShareModal from './desktop/components/DesktopShareModal';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -259,6 +259,7 @@ function MainAppRoutes() {
         </Routes>
       </main>
       <Footer />
+      <DesktopShareModal />
     </div>
   );
 }
@@ -372,7 +373,6 @@ export default function App() {
           onClose={() => setShowPermissions(false)}
           onAccept={handlePermissionsAccept}
         />
-        <ShareModal />
       </Router>
     </ErrorBoundary>
   );
