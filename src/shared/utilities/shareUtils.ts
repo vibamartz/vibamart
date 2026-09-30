@@ -89,56 +89,29 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 }
 
 /**
- * Main share function supporting Web Share API with native share sheet,
- * image attachments, clickable canonical destination links, and copy-to-clipboard fallback.
+ * Main share function supporting native Web Share API (mobile share sheet & desktop Web Share API)
+ * with single canonical URL sharing and copy-to-clipboard fallback.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
   const { title, text, url, imageUrl } = options;
   const fullUrl = toCanonicalDestinationUrl(url);
   const fullImageUrl = imageUrl ? toAbsoluteUrl(imageUrl) : undefined;
 
-  // Update head Open Graph and Twitter tags for social previews
+  // Update head Open Graph and Twitter meta tags for crawler/social previews
   updateOpenGraphTags(title, text, fullImageUrl, fullUrl);
 
-  const shareTextPayload = text.includes(fullUrl) ? text : `${text}\n\n${fullUrl}`;
+  // Clean share text (ensuring URL is not duplicated in text string)
+  const cleanText = text.replace(fullUrl, '').trim();
 
-  // 1. Try native Web Share API
+  // 1. Try native Web Share API (Mobile system share sheet / Desktop Web Share API)
   if (typeof navigator !== 'undefined' && navigator.share) {
-    let filesToShare: File[] = [];
-
-    if (fullImageUrl && navigator.canShare) {
-      try {
-        const response = await fetch(fullImageUrl, { mode: 'cors' });
-        if (response.ok) {
-          const blob = await response.blob();
-          const ext = blob.type.split('/')[1]?.split(';')[0] || 'png';
-          const file = new File([blob], `share-preview.${ext}`, { type: blob.type || 'image/png' });
-          if (navigator.canShare({ files: [file] })) {
-            filesToShare = [file];
-          }
-        }
-      } catch (_) {
-        // Fallback to text/url sharing if image fetch fails (e.g. CORS)
-      }
-    }
-
     try {
-      if (filesToShare.length > 0) {
-        await navigator.share({
-          title,
-          text: shareTextPayload,
-          url: fullUrl,
-          files: filesToShare,
-        });
-        return;
-      } else {
-        await navigator.share({
-          title,
-          text: shareTextPayload,
-          url: fullUrl,
-        });
-        return;
-      }
+      await navigator.share({
+        title,
+        text: cleanText,
+        url: fullUrl,
+      });
+      return;
     } catch (err: any) {
       // User cancelled native share sheet
       if (err.name === 'AbortError') {
@@ -147,11 +120,11 @@ export async function shareItem(options: ShareOptions): Promise<void> {
     }
   }
 
-  // 2. Fallback to copy link to clipboard
+  // 2. Fallback to copy link to clipboard when native sharing is not supported
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(fullUrl);
-      toast.success(`${title || 'Link'} copied to clipboard!`);
+      toast.success('Link copied to clipboard!');
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -163,7 +136,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      toast.success(`${title || 'Link'} copied to clipboard!`);
+      toast.success('Link copied to clipboard!');
     }
   } catch (err) {
     toast.error('Failed to copy share link.');
@@ -182,10 +155,9 @@ export async function shareProduct(product: Product): Promise<void> {
     ? product.images[0]
     : ((product as any).image || (product as any).imageUrl || '');
   const priceDisplay = product.price ? ` - ₹${product.price}` : '';
-  const descSnippet = product.description ? `\n\n${product.description.slice(0, 150)}` : '';
 
   const title = `${product.name} | ViBa Mart`;
-  const text = `Check out ${product.name}${priceDisplay} on ViBa Mart!${descSnippet}`;
+  const text = `Check out ${product.name}${priceDisplay} on ViBa Mart!`;
 
   await shareItem({
     title,
