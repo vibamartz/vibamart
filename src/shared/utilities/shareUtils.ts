@@ -50,14 +50,13 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 /**
  * Main share function supporting Web Share API with native share sheet,
  * optional image attachments, and automatic copy-to-clipboard fallback.
- * Operates identically on Mobile and Desktop.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
   const { title, text, url, imageUrl, customToastMessage } = options;
 
   // Build full text ensuring the canonical URL is explicitly embedded within the message.
-  // This guarantees that mobile (WhatsApp, Messages, Instagram, etc.) and desktop share targets
-  // receive the link even when the app/platform drops the separate URL field or prioritizes file attachments.
+  // This ensures desktop and mobile share targets (WhatsApp, Telegram, Discord, Mail, Windows Share, etc.)
+  // include the product URL even when the platform prioritizes image file attachments or drops the standalone URL field.
   const textWithUrl = text ? (text.includes(url) ? text : `${text}\n\n${url}`) : url;
 
   // 1. Try native Web Share API
@@ -107,7 +106,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       }
 
       // If sharing with files failed on this platform, retry without files
-      // to ensure the product/reward URL and description are successfully shared.
+      // to ensure the product URL and description are successfully shared.
       if (filesToShare.length > 0) {
         try {
           await navigator.share({
@@ -125,11 +124,11 @@ export async function shareItem(options: ShareOptions): Promise<void> {
     }
   }
 
-  // 2. Fallback to copy link to clipboard (for browsers or platforms without Web Share API)
+  // 2. Fallback to copy link to clipboard (for browsers without Web Share API)
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(url);
-      toast.success(customToastMessage || 'Link copied to clipboard!');
+      toast.success(customToastMessage || 'Product link copied to clipboard!');
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -141,7 +140,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      toast.success(customToastMessage || 'Link copied to clipboard!');
+      toast.success(customToastMessage || 'Product link copied to clipboard!');
     }
   } catch (err) {
     toast.error('Failed to copy share link.');
@@ -177,45 +176,31 @@ export async function shareProduct(product: Product): Promise<void> {
 }
 
 /**
- * Shares a complete coupon/reward card with its permanent human-readable URL, reward image,
- * title, brand info, discount/offer, price, validity/expiry, and card details. Strictly omits any coupon code.
+ * Shares a coupon/reward with its permanent human-readable URL, reward image,
+ * title, and discount details. Strictly omits any coupon code.
  */
 export async function shareReward(reward: BrandCoupon): Promise<void> {
-  if (!reward) return;
   const slug = getRewardSlug(reward);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/rewards/${slug}`;
 
-  const image = reward.productImage || (reward.catalogImages && reward.catalogImages.length > 0 ? reward.catalogImages[0] : '') || reward.imageUrl || reward.brandLogo || '';
-  const discountText = (reward.discountType === 'percent' || reward.discountType === 'percentage')
+  const image = reward.productImage || reward.brandLogo;
+  const discountText = reward.discountType === 'percent'
     ? `${reward.discountValue}% OFF`
     : `₹${reward.discountValue} OFF`;
 
-  const validUntilText = reward.expiryDate
-    ? new Date(reward.expiryDate).toLocaleDateString()
-    : 'Limited Time';
-
-  const brandInfo = reward.category ? `${reward.brandName} (${reward.category})` : reward.brandName;
-  const priceInfo = reward.buyNowPrice ? ` | Buy: ₹${reward.buyNowPrice}` : '';
-  const minSpendInfo = reward.minOrderValue ? ` | Min Spend: ₹${reward.minOrderValue}` : '';
-  const remainingInfo = reward.remainingQuantity !== undefined ? ` | ${reward.remainingQuantity} Left` : '';
-  const validityInfo = ` | Valid Until: ${validUntilText}`;
-  const descInfo = reward.description ? `\n\n${reward.description}` : (reward.terms ? `\n\nTerms: ${reward.terms}` : '');
-
   const title = `${reward.title} - ${reward.brandName} | ViBa Mart`;
-  const text = `Check out this Reward Card on ViBa Mart:\n\n${reward.title}\nOffer: ${discountText} by ${brandInfo}${priceInfo}${minSpendInfo}${remainingInfo}${validityInfo}${descInfo}`;
+  const text = `Claim ${reward.title} (${discountText}) by ${reward.brandName} on ViBa Mart! Exclusive brand deal.`;
 
-  const ogDescription = `Claim ${reward.title} (${discountText}) by ${brandInfo} on ViBa Mart! Buy: ₹${reward.buyNowPrice || 0} | Valid Until: ${validUntilText}. ${reward.description || reward.terms || ''}`.trim();
-
-  // Update head tags for crawlers and rich card link previews (OpenGraph / Twitter Card)
-  updateOpenGraphTags(title, ogDescription, image, shareUrl);
+  // Update head tags for crawlers
+  updateOpenGraphTags(title, reward.description || reward.terms || text, image, shareUrl);
 
   await shareItem({
     title,
     text,
     url: shareUrl,
     imageUrl: image,
-    customToastMessage: 'Reward Card link copied to clipboard!',
+    customToastMessage: 'Reward link copied to clipboard!',
   });
 }
 
@@ -238,4 +223,5 @@ export async function shareDeal259Store(config?: Deal259PageConfig): Promise<voi
     customToastMessage: 'Deal 259 Store link copied to clipboard!',
   });
 }
+
 
