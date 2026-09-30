@@ -5,6 +5,7 @@ import { Banner, Product } from '../../shared/types';
 import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud, Layers, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useCategoryStore, useRewardsStore } from '../../backend/store';
 import { getCategorySlug, getProductSlug, getRewardSlug, createSlug } from '../../shared/utilities/slug';
+import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -283,13 +284,19 @@ export default function BannersManagementView() {
       const bannerSlug = (formData.slug || createSlug(formData.title || '') || 'special-offer').trim();
       const finalLink = (formData.link || '').trim() || `/offers/${bannerSlug}`;
 
+      // Upload banner image to Storage if base64/blob to get short clean permanent URL
+      const cleanBannerImageUrl = await uploadImageFileToStorage(formData.image, {
+        folder: 'banners',
+        entityName: formData.title || bannerSlug
+      });
+
       // Deduplicate product IDs inside the same banner
       const uniqueProductIds = Array.from(new Set(formData.productIds || []));
 
       const payload: Record<string, any> = {
         title: formData.title || '',
         subtitle: formData.subtitle || '',
-        image: formData.image,
+        image: cleanBannerImageUrl || formData.image,
         link: finalLink,
         slug: bannerSlug,
         categoryId: formData.categoryId || '',

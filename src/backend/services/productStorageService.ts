@@ -1,26 +1,11 @@
-import { ref, uploadString, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from '../firebase/firebase';
 import {
-  buildCdnImageUrl,
-  generateSecureImageId,
-  getExtensionFromMimeType,
-  isCdnImageUrl,
-  validateImageInput,
-  MAX_IMAGE_SIZE_BYTES
+  uploadImageFileToStorage,
+  isExistingUrl
 } from '../../shared/utilities/cdnImageUtils';
 
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Storage operation timed out after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-};
-
 /**
- * High-definition fallback image processor for offline/restricted environments.
- * Preserves high resolution (up to 2048x2048) and high quality (0.95) with smoothing.
+ * High-definition fallback image processor for offline/restricted environments if canvas operations are requested.
+ * Preserves full quality.
  */
 export async function compressDataUrl(
   dataUrl: string,
@@ -73,133 +58,38 @@ export async function compressDataUrl(
 }
 
 /**
- * Uploads an image input (base64 Data URL, Blob URL, or raw base64 string) to Firebase Storage
- * and automatically returns a stable canonical ViBa Mart CDN URL:
- * https://cdn.vibamart.com/image/1920/1920/{imageId}.{ext}
+ * Uploads a product image input (File, Blob, or base64 Data URL) to Firebase Storage
+ * and automatically returns a SHORT, clean, permanent image URL:
+ * https://cdn.vibamart.com/images/products/{productSlug}-{shortId}.{ext}
  *
  * Rules:
- * 1. Generates a cryptographically secure, unique image ID without using the original filename.
- * 2. Stores the original image file without downscaling, compression, or quality reduction.
- * 3. Existing valid HTTP/HTTPS URLs (including existing CDN URLs) are preserved untouched.
+ * 1. Generates a short, unique, clean filename & URL without exposing internal tokens.
+ * 2. Stores the original image file without downscaling or quality reduction.
+ * 3. Existing valid HTTP/HTTPS URLs are preserved untouched without duplication.
  * 4. Strictly validates format and file size limits (<= 10MB).
- * 5. Cleans up orphan storage items if an upload fails mid-flight.
  */
 export async function uploadProductImageToStorage(
-  imageInput: string | null | undefined,
-  folderPath: string = 'products/originals'
+  imageInput: string | File | Blob | null | undefined,
+  folderPath: string = 'products',
+  productName?: string
 ): Promise<string> {
-  if (!imageInput || typeof imageInput !== 'string') return '';
-  const trimmed = imageInput.trim();
-  if (!trimmed) return '';
+  if (!imageInput) return '';
 
-  // 1. Existing HTTP/HTTPS URLs (e.g. https://cdn.vibamart.com/... or legacy storage URLs) require no re-upload
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
+  // 1. Existing HTTP/HTTPS URLs require no re-upload
+  if (typeof imageInput === 'string' && isExistingUrl(imageInput)) {
+    return imageInput.trim();
   }
 
-  // 2. Validate input format and size
-  const validation = validateImageInput(trimmed, MAX_IMAGE_SIZE_BYTES);
-  if (!validation.valid) {
-    console.warn(`[ProductStorageService] Validation rejected image: ${validation.error}`);
-    return '';
-  }
-
-  // 3. Generate unique secure image ID and determine extension
-  const ext = validation.extension || getExtensionFromMimeType(trimmed);
-  const imageId = generateSecureImageId('viba_prod');
-  const canonicalCdnUrl = buildCdnImageUrl({
-    imageId,
-    extension: ext,
-    width: 1920,
-    height: 1920,
+  // 2. Upload via unified clean storage system
+  return await uploadImageFileToStorage(imageInput, {
+    folder: 'products',
+    entityName: productName || 'product'
   });
-
-  const storageFilePath = `${folderPath}/${imageId}.${ext}`;
-  const storageRef = ref(storage, storageFilePath);
-
-  // 4. Upload original raw image without compression or quality reduction
-  try {
-    let uploadedSuccessfully = false;
-
-    if (trimmed.startsWith('data:')) {
-      const mimeType = trimmed.substring(5, trimmed.indexOf(';'));
-      await withTimeout(
-        uploadString(storageRef, trimmed, 'data_url', {
-          contentType: mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-          customMetadata: {
-            originalImageId: imageId,
-            cdnUrl: canonicalCdnUrl,
-            uploadedAt: new Date().toISOString(),
-          },
-        })
-      );
-      uploadedSuccessfully = true;
-    } else if (trimmed.startsWith('blob:')) {
-      const res = await fetch(trimmed);
-      const blob = await res.blob();
-      if (blob.size > MAX_IMAGE_SIZE_BYTES) {
-        console.warn('[ProductStorageService] Blob exceeds maximum allowed size (10 MB)');
-        return '';
-      }
-      await withTimeout(
-        uploadBytes(storageRef, blob, {
-          contentType: blob.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-          customMetadata: {
-            originalImageId: imageId,
-            cdnUrl: canonicalCdnUrl,
-            uploadedAt: new Date().toISOString(),
-          },
-        })
-      );
-      uploadedSuccessfully = true;
-    } else if (trimmed.length > 500 && !trimmed.startsWith('http')) {
-      const fullDataUrl = trimmed.includes(';base64,') ? trimmed : `data:image/jpeg;base64,${trimmed}`;
-      await withTimeout(
-        uploadString(storageRef, fullDataUrl, 'data_url', {
-          contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-          customMetadata: {
-            originalImageId: imageId,
-            cdnUrl: canonicalCdnUrl,
-            uploadedAt: new Date().toISOString(),
-          },
-        })
-      );
-      uploadedSuccessfully = true;
-    }
-
-    if (uploadedSuccessfully) {
-      // Storage upload succeeded: Return the canonical CDN URL
-      return canonicalCdnUrl;
-    }
-  } catch (err) {
-    console.warn('[ProductStorageService] Firebase Storage upload encounter:', err);
-
-    // Attempt cleanup of orphan file if reference exists
-    try {
-      await deleteObject(storageRef).catch(() => {});
-    } catch {
-      // Ignore cleanup error if file was never written
-    }
-
-    // Fallback: If Firebase Storage bucket is offline/unreachable in local preview,
-    // generate CDN URL format with fallback payload or high-clarity data URL for Firestore
-    if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.length > 500) {
-      try {
-        const compressedFallback = await compressDataUrl(trimmed, 1920, 1920, 0.92);
-        return compressedFallback;
-      } catch (fallbackErr) {
-        console.error('[ProductStorageService] Fallback compression failed:', fallbackErr);
-        return '';
-      }
-    }
-  }
-
-  return '';
 }
 
 /**
  * Processes all product images (main product images, primary image, and variant galleries),
- * uploading them to Storage with unique IDs and generating stable CDN URLs before saving to Firestore.
+ * uploading them to Storage with clean short URLs before saving to Firestore.
  *
  * Rules:
  * - Enforces a maximum of 10 images per product and per variant.
@@ -207,16 +97,18 @@ export async function uploadProductImageToStorage(
  * - Preserves existing CDN URLs and external URLs across edits/refreshes.
  */
 export async function processAllProductImages(formData: {
+  name?: string;
   images?: string[];
   primaryImage?: string;
   variants?: any[];
 }) {
   const MAX_PRODUCT_IMAGES = 10;
+  const prodName = formData.name || 'product';
 
   // 1. Process and upload main product images (preserving order, max 10)
   const rawImages = (formData.images || []).filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
   const processedImages = await Promise.all(
-    rawImages.map((img) => uploadProductImageToStorage(img, 'products/originals'))
+    rawImages.map((img) => uploadProductImageToStorage(img, 'products', prodName))
   );
   const finalImages = processedImages.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
 
@@ -225,7 +117,8 @@ export async function processAllProductImages(formData: {
   if (formData.primaryImage) {
     finalPrimaryImage = await uploadProductImageToStorage(
       formData.primaryImage,
-      'products/originals'
+      'products',
+      `${prodName}-primary`
     );
   }
 
@@ -246,13 +139,14 @@ export async function processAllProductImages(formData: {
   const processedVariants = await Promise.all(
     rawVariants.map(async (v) => {
       let vImages: string[] = [];
+      const variantLabel = v.name || v.color || v.shade || v.model || prodName;
 
       // Process variant image array
       if (Array.isArray(v.images) && v.images.length > 0) {
         const validVImages = v.images.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
         const uploaded = await Promise.all(
           validVImages.map((img: string) =>
-            uploadProductImageToStorage(img, 'products/variants/originals')
+            uploadProductImageToStorage(img, 'products', `${prodName}-${variantLabel}`)
           )
         );
         vImages = uploaded.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
@@ -261,7 +155,11 @@ export async function processAllProductImages(formData: {
       // Process single variant primary image
       let vImage = '';
       if (v.image) {
-        vImage = await uploadProductImageToStorage(v.image, 'products/variants/originals');
+        vImage = await uploadProductImageToStorage(
+          v.image,
+          'products',
+          `${prodName}-${variantLabel}`
+        );
       }
 
       if (!vImage && vImages.length > 0) {

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../backend/firebase/firebase';
+import { uploadImageFileToStorage } from '../utilities/cdnImageUtils';
 import { Order } from '../types';
 import toast from 'react-hot-toast';
 
@@ -132,20 +133,13 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
     setIsSubmitting(true);
 
     try {
-      // Upload media if Firebase Storage bucket exists, otherwise keep data URL
+      // Upload media to clean storage
       const uploadedMediaUrls = await Promise.all(
         mediaFiles.map(async (media, idx) => {
-          if (!storage?.app?.options?.storageBucket) {
-            return media.url;
-          }
-          try {
-            const ext = media.type === 'video' ? 'mp4' : 'jpg';
-            const mediaRef = ref(storage, `reviews/${order.id}_${selectedProductId}_${Date.now()}_${idx}.${ext}`);
-            await uploadString(mediaRef, media.url, 'data_url');
-            return await getDownloadURL(mediaRef);
-          } catch {
-            return media.url;
-          }
+          return await uploadImageFileToStorage(media.url, {
+            folder: 'general',
+            entityName: `review-${order.id}-${idx + 1}`
+          });
         })
       );
 

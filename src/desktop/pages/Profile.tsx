@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { Order, Address, UserProfile, WaitlistItem, Product } from '../../shared/types';
 import { lookupZipcode } from '../../backend/services/zipcode';
+import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -411,25 +412,14 @@ export default function Profile() {
     }
     setIsSubmitting(true);
     try {
-      const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
-        if (!storage.app.options.storageBucket) {
-          return "https://via.placeholder.com/150?text=Mock+Return+Image";
-        }
-        try {
-          const imageRef = ref(storage, `returns/${selectedOrderId}_${Date.now()}_${index}`);
-          const uploadPromise = uploadString(imageRef, imgBase64, 'data_url');
-          let timeoutId: any;
-          const timeoutPromise = new Promise((_, reject) => {
-            timeoutId = setTimeout(() => reject(new Error("Image upload timed out.")), 10000);
+      const uploadedImageUrls = await Promise.all(
+        returnImages.map(async (imgBase64, index) => {
+          return await uploadImageFileToStorage(imgBase64, {
+            folder: 'general',
+            entityName: `return-${selectedOrderId}-${index + 1}`
           });
-          await Promise.race([uploadPromise, timeoutPromise]);
-          clearTimeout(timeoutId);
-          return await getDownloadURL(imageRef);
-        } catch (error) {
-          console.warn("Firebase Storage upload failed, using placeholder instead:", error);
-          return "https://via.placeholder.com/150?text=Upload+Failed";
-        }
-      }));
+        })
+      );
 
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/returns/request', {

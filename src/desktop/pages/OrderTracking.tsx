@@ -14,6 +14,7 @@ import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG: Record<OrderStatus, { icon: any, color: string, label: string }> = {
@@ -310,18 +311,14 @@ export default function OrderTracking() {
     }
     setIsSubmitting(true);
     try {
-      const uploadedImageUrls = await Promise.all(returnImages.map(async (imgBase64, index) => {
-        if (!storage.app.options.storageBucket) {
-          return imgBase64;
-        }
-        try {
-          const imageRef = ref(storage, `returns/${order.id}_${Date.now()}_${index}`);
-          await uploadString(imageRef, imgBase64, 'data_url');
-          return await getDownloadURL(imageRef);
-        } catch {
-          return imgBase64;
-        }
-      }));
+      const uploadedImageUrls = await Promise.all(
+        returnImages.map(async (imgBase64, index) => {
+          return await uploadImageFileToStorage(imgBase64, {
+            folder: 'general',
+            entityName: `return-${order.id}-${index + 1}`
+          });
+        })
+      );
 
       const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/returns/request', {

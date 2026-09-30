@@ -44,6 +44,8 @@ import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
+import { sanitizeAndUploadCategoryDoc, uploadCategoryImageToStorage } from '../../backend/services/categoryStorageService';
+import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 
 
 const STATS = [
@@ -5198,7 +5200,8 @@ function CategoriesManagementView() {
         seoDescription: newCatSeoDesc.trim(),
         subcategories: []
       };
-      await setDoc(doc(db, 'categories', catId), newCat);
+      const sanitized = await sanitizeAndUploadCategoryDoc(newCat);
+      await setDoc(doc(db, 'categories', catId), sanitized);
       toast.success('Category added successfully');
       setNewCatName('');
       setNewCatImage('');
@@ -5239,7 +5242,7 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      await setDoc(doc(db, 'categories', catId), {
+      const updatedCat: Partial<Category> = {
         ...cat,
         name: editCatName.trim(),
         image: editCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
@@ -5250,7 +5253,9 @@ function CategoriesManagementView() {
         seoSlug: editCatSeoSlug.trim(),
         seoTitle: editCatSeoTitle.trim(),
         seoDescription: editCatSeoDesc.trim()
-      });
+      };
+      const sanitized = await sanitizeAndUploadCategoryDoc(updatedCat);
+      await setDoc(doc(db, 'categories', catId), sanitized, { merge: true });
       toast.success('Category updated successfully');
       setEditingCatId(null);
     } catch (e: any) {
@@ -5331,10 +5336,11 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
+      const cleanSubImage = await uploadCategoryImageToStorage(newSubImage, 'subcategories', newSubName);
       const newSub = {
         id: subId,
         name: newSubName.trim(),
-        image: newSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
+        image: cleanSubImage || newSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
         subcategories: []
       };
       const subcategories = cat.subcategories ? [...cat.subcategories, newSub] : [newSub];
@@ -5365,12 +5371,13 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
+      const cleanSubImage = await uploadCategoryImageToStorage(editSubImage, 'subcategories', editSubName);
       const subcategories = cat.subcategories?.map(s => {
         if (s.id === subId) {
           return {
             ...s,
             name: editSubName.trim(),
-            image: editSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+            image: cleanSubImage || editSubImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
           };
         }
         return s;
@@ -5391,7 +5398,8 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: newImage } : s);
+      const cleanSubImage = await uploadCategoryImageToStorage(newImage, 'subcategories', 'subcategory');
+      const newSubs = cat.subcategories?.map(s => s.id === subId ? { ...s, image: cleanSubImage || newImage } : s);
       await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories: newSubs }), { merge: true });
       toast.success('Subcategory image updated');
     } catch (e: any) {
@@ -5423,16 +5431,17 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
+      const cleanNestedImage = await uploadCategoryImageToStorage(newNestedImage, 'subcategories', newNestedName);
       const subcategories = cat.subcategories?.map(s => {
         if (s.id === subId) {
           const nestedSubs = s.subcategories ? [...s.subcategories, {
             id: nestedId,
             name: newNestedName.trim(),
-            image: newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+            image: cleanNestedImage || newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
           }] : [{
             id: nestedId,
             name: newNestedName.trim(),
-            image: newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+            image: cleanNestedImage || newNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
           }];
           return { ...s, subcategories: nestedSubs };
         }
@@ -5465,6 +5474,7 @@ function CategoriesManagementView() {
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
+      const cleanNestedImage = await uploadCategoryImageToStorage(editNestedImage, 'subcategories', editNestedName);
       const subcategories = cat.subcategories?.map(s => {
         if (s.id === subId) {
           const nestedSubs = s.subcategories?.map(n => {
@@ -5472,7 +5482,7 @@ function CategoriesManagementView() {
               return {
                 ...n,
                 name: editNestedName.trim(),
-                image: editNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
+                image: cleanNestedImage || editNestedImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'
               };
             }
             return n;

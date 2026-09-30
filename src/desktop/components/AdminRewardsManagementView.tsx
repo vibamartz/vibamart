@@ -17,6 +17,7 @@ import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from '
 import toast from 'react-hot-toast';
 import { useAdminDateFilter } from './AdminDateFilterContext';
 import { processAllProductImages } from '../../backend/services/productStorageService';
+import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
@@ -922,8 +923,31 @@ export default function AdminRewardsManagementView() {
       const existingSlugs = offers.map(o => o.slug || '').filter(Boolean);
       const generatedSlug = generateUniqueSlug(couponForm.title || couponForm.brandName || 'reward', existingSlugs, editingCoupon?.slug);
 
+      // Upload brand logo and reward coupon images to clean storage
+      const cleanBrandLogo = await uploadImageFileToStorage(couponForm.brandLogo, {
+        folder: 'brands',
+        entityName: couponForm.brandName || 'brand'
+      });
+
+      const cleanProductImage = await uploadImageFileToStorage(couponForm.productImage, {
+        folder: 'rewards',
+        entityName: couponForm.title || couponForm.brandName || 'reward'
+      });
+
+      const cleanCatalogImages = await Promise.all(
+        (couponForm.catalogImages || []).map((img, idx) =>
+          uploadImageFileToStorage(img, {
+            folder: 'rewards',
+            entityName: `${couponForm.title || couponForm.brandName || 'reward'}-catalog-${idx + 1}`
+          })
+        )
+      );
+
       const payload: Partial<BrandCoupon> = {
         ...couponForm,
+        brandLogo: cleanBrandLogo || couponForm.brandLogo,
+        productImage: cleanProductImage || couponForm.productImage,
+        catalogImages: cleanCatalogImages.filter(Boolean),
         code: cleanCode,
         slug: editingCoupon?.slug || generatedSlug,
         brandWebsiteUrl: validatedUrl || '',
