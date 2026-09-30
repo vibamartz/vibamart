@@ -43,7 +43,7 @@ import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
-import { processAllProductImages, compressDataUrl } from '../../backend/services/productStorageService';
+import { processAllProductImages } from '../../backend/services/productStorageService';
 
 
 const STATS = [
@@ -4234,18 +4234,9 @@ export function ProductImageUploader({
           }
           return new Promise<string>((res) => {
             const reader = new FileReader();
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
               const rawDataUrl = e.target?.result as string;
-              if (rawDataUrl) {
-                try {
-                  const whiteBacked = await compressDataUrl(rawDataUrl);
-                  res(whiteBacked);
-                } catch {
-                  res(rawDataUrl);
-                }
-              } else {
-                res('');
-              }
+              res(rawDataUrl || '');
             };
             reader.onerror = () => res('');
             reader.readAsDataURL(file);

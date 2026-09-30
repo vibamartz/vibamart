@@ -11,13 +11,14 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 8000): Promise<
 };
 
 /**
- * Compresses a base64 Data URL or Blob URL to a lightweight JPEG data URL (~30-60KB).
+ * High-definition image processor for fallback cases.
+ * Preserves high resolution (up to 2048x2048) and high quality (0.92) with smoothing.
  */
 export async function compressDataUrl(
   dataUrl: string,
-  maxWidth = 1000,
-  maxHeight = 1000,
-  quality = 0.7
+  maxWidth = 2048,
+  maxHeight = 2048,
+  quality = 0.92
 ): Promise<string> {
   if (
     !dataUrl ||
@@ -42,15 +43,20 @@ export async function compressDataUrl(
         }
       }
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         resolve(dataUrl);
         return;
       }
-      ctx.drawImage(img, 0, 0, width, height);
-      const compressed = canvas.toDataURL('image/jpeg', quality);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      const isPng = dataUrl.startsWith('data:image/png');
+      const format = isPng ? 'image/png' : 'image/jpeg';
+      const compressed = canvas.toDataURL(format, isPng ? undefined : quality);
       resolve(compressed);
     };
     img.onerror = () => resolve(dataUrl);
@@ -60,8 +66,8 @@ export async function compressDataUrl(
 
 /**
  * Uploads a base64 Data URL, Blob URL, or raw base64 string to Firebase Storage under `folderPath`.
- * Returns the public Firebase Storage HTTP download URL.
- * If Storage fails or is unavailable, returns a compressed data URL (< 100KB) to ensure Firestore write limits are never exceeded.
+ * Preserves high-definition original image fidelity and returns the public Firebase Storage HTTP download URL.
+ * If Storage fails or is unavailable, returns a high-quality data URL for Firestore fallback.
  */
 export async function uploadProductImageToStorage(
   imageInput: string | null | undefined,
@@ -76,21 +82,30 @@ export async function uploadProductImageToStorage(
     return trimmed;
   }
 
-  // Reject oversized data URLs (> 10MB raw binary size, approx 14MB in base64)
-  const MAX_BYTES = 10 * 1024 * 1024;
+  // Reject oversized data URLs (> 15MB raw binary size)
+  const MAX_BYTES = 15 * 1024 * 1024;
   if (trimmed.startsWith('data:') || trimmed.length > 500) {
     const approxBytes = Math.round((trimmed.length * 3) / 4);
     if (approxBytes > MAX_BYTES * 1.5) {
-      console.warn('Image data exceeds 10 MB limit, skipping upload');
+      console.warn('Image data exceeds 15 MB limit, skipping upload');
       return '';
     }
   }
 
-  // Attempt upload to Firebase Storage
+  // Attempt direct high-quality upload to Firebase Storage
   try {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
-    const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.jpg`);
+    
+    // Determine accurate extension from MIME type to preserve format
+    let ext = 'jpg';
+    if (trimmed.startsWith('data:image/png')) ext = 'png';
+    else if (trimmed.startsWith('data:image/webp')) ext = 'webp';
+    else if (trimmed.startsWith('data:image/svg')) ext = 'svg';
+    else if (trimmed.startsWith('data:image/gif')) ext = 'gif';
+    else if (trimmed.startsWith('data:image/avif')) ext = 'avif';
+
+    const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.${ext}`);
 
     if (trimmed.startsWith('data:')) {
       await withTimeout(uploadString(storageRef, trimmed, 'data_url'));
@@ -100,7 +115,7 @@ export async function uploadProductImageToStorage(
       const res = await fetch(trimmed);
       const blob = await res.blob();
       if (blob.size > MAX_BYTES) {
-        console.warn('Blob exceeds 10 MB limit');
+        console.warn('Blob exceeds limit');
         return '';
       }
       await withTimeout(uploadBytes(storageRef, blob));
@@ -113,13 +128,13 @@ export async function uploadProductImageToStorage(
       if (downloadUrl) return downloadUrl;
     }
   } catch (err) {
-    console.warn('Firebase Storage upload failed/bypassed, compressing image data URL for Firestore:', err);
+    console.warn('Firebase Storage upload failed/bypassed, using high quality fallback for Firestore:', err);
   }
 
-  // Fallback: Compress data URL to lightweight JPEG (< 60KB) so Firestore write never fails
+  // Fallback: If Firebase Storage upload fails, compress data URL for Firestore with high clarity
   if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.length > 500) {
     try {
-      return await compressDataUrl(trimmed);
+      return await compressDataUrl(trimmed, 1920, 1920, 0.88);
     } catch (compressErr) {
       console.error('Data URL compression error:', compressErr);
     }

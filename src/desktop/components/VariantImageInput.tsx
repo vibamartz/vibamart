@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Upload, Link, Trash2, Image as ImageIcon, RefreshCw, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { compressDataUrl } from '../../backend/services/productStorageService';
 
 interface VariantImageInputProps {
   value: string;
@@ -31,16 +30,11 @@ export function VariantImageInput({ value, onChange, disabled, label, imageTypeL
     }
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       const result = event.target?.result as string;
       if (result) {
         setImageError(false);
-        try {
-          const whiteBacked = await compressDataUrl(result);
-          onChange(whiteBacked);
-        } catch {
-          onChange(result);
-        }
+        onChange(result);
         toast.success(`${imageTypeLabel} uploaded`);
       }
     };
@@ -218,15 +212,10 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
     const loadedImages: string[] = [];
     validFiles.forEach(file => {
       const reader = new FileReader();
-      reader.onload = async (event) => {
+      reader.onload = (event) => {
         const result = event.target?.result as string;
         if (result) {
-          try {
-            const whiteBacked = await compressDataUrl(result);
-            loadedImages.push(whiteBacked);
-          } catch {
-            loadedImages.push(result);
-          }
+          loadedImages.push(result);
         }
         readCount++;
         if (readCount === validFiles.length) {
@@ -293,16 +282,11 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
     }
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       const result = event.target?.result as string;
       if (result) {
         const list = [...images];
-        try {
-          const whiteBacked = await compressDataUrl(result);
-          list[replacingIndex] = whiteBacked;
-        } catch {
-          list[replacingIndex] = result;
-        }
+        list[replacingIndex] = result;
         onChange(list);
         toast.success(`Variant image #${replacingIndex + 1} replaced`);
       }
