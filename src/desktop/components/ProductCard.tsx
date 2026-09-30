@@ -107,6 +107,8 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
           

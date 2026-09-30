@@ -1061,6 +1061,7 @@ function MobileProductCardItem({
             src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
             alt={product.name}
             loading="lazy"
+            decoding="async"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
           />
 
@@ -1110,6 +1111,7 @@ function MobileProductCardItem({
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
           loading="lazy"
+          decoding="async"
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
         />
 

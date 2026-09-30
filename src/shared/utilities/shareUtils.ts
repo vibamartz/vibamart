@@ -177,31 +177,45 @@ export async function shareProduct(product: Product): Promise<void> {
 }
 
 /**
- * Shares a coupon/reward with its permanent human-readable URL, reward image,
- * title, and discount details. Strictly omits any coupon code.
+ * Shares a complete coupon/reward card with its permanent human-readable URL, reward image,
+ * title, brand info, discount/offer, price, validity/expiry, and card details. Strictly omits any coupon code.
  */
 export async function shareReward(reward: BrandCoupon): Promise<void> {
+  if (!reward) return;
   const slug = getRewardSlug(reward);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/rewards/${slug}`;
 
-  const image = reward.productImage || reward.brandLogo;
+  const image = reward.productImage || (reward.catalogImages && reward.catalogImages.length > 0 ? reward.catalogImages[0] : '') || reward.imageUrl || reward.brandLogo || '';
   const discountText = (reward.discountType === 'percent' || reward.discountType === 'percentage')
     ? `${reward.discountValue}% OFF`
     : `₹${reward.discountValue} OFF`;
 
-  const title = `${reward.title} - ${reward.brandName} | ViBa Mart`;
-  const text = `Claim ${reward.title} (${discountText}) by ${reward.brandName} on ViBa Mart! Exclusive brand deal.`;
+  const validUntilText = reward.expiryDate
+    ? new Date(reward.expiryDate).toLocaleDateString()
+    : 'Limited Time';
 
-  // Update head tags for crawlers
-  updateOpenGraphTags(title, reward.description || reward.terms || text, image, shareUrl);
+  const brandInfo = reward.category ? `${reward.brandName} (${reward.category})` : reward.brandName;
+  const priceInfo = reward.buyNowPrice ? ` | Buy: ₹${reward.buyNowPrice}` : '';
+  const minSpendInfo = reward.minOrderValue ? ` | Min Spend: ₹${reward.minOrderValue}` : '';
+  const remainingInfo = reward.remainingQuantity !== undefined ? ` | ${reward.remainingQuantity} Left` : '';
+  const validityInfo = ` | Valid Until: ${validUntilText}`;
+  const descInfo = reward.description ? `\n\n${reward.description}` : (reward.terms ? `\n\nTerms: ${reward.terms}` : '');
+
+  const title = `${reward.title} - ${reward.brandName} | ViBa Mart`;
+  const text = `Check out this Reward Card on ViBa Mart:\n\n${reward.title}\nOffer: ${discountText} by ${brandInfo}${priceInfo}${minSpendInfo}${remainingInfo}${validityInfo}${descInfo}`;
+
+  const ogDescription = `Claim ${reward.title} (${discountText}) by ${brandInfo} on ViBa Mart! Buy: ₹${reward.buyNowPrice || 0} | Valid Until: ${validUntilText}. ${reward.description || reward.terms || ''}`.trim();
+
+  // Update head tags for crawlers and rich card link previews (OpenGraph / Twitter Card)
+  updateOpenGraphTags(title, ogDescription, image, shareUrl);
 
   await shareItem({
     title,
     text,
     url: shareUrl,
     imageUrl: image,
-    customToastMessage: 'Reward link copied to clipboard!',
+    customToastMessage: 'Reward Card link copied to clipboard!',
   });
 }
 

@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Camera, Image as ImageIcon, ScanLine, Loader2, Search, Zap } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
-import Tesseract from 'tesseract.js';
-import * as mobilenet from '@tensorflow-models/mobilenet';
-import * as tf from '@tensorflow/tfjs';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
@@ -23,7 +19,7 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
   const [scannedResult, setScannedResult] = useState<string>('');
   
   const videoRef = useRef<HTMLDivElement>(null);
-  const html5QrCode = useRef<Html5Qrcode | null>(null);
+  const html5QrCode = useRef<any>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewRef = useRef<HTMLImageElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,13 +52,14 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
     if (!videoRef.current) return;
     try {
       if (!html5QrCode.current) {
+        const { Html5Qrcode } = await import('html5-qrcode');
         html5QrCode.current = new Html5Qrcode("reader");
       }
       setIsScanning(true);
       await html5QrCode.current.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
+        (decodedText: string) => {
           stopScanner();
           setIsScanning(false);
           ViBaPermissionManager.vibrate([100, 50, 100]);
@@ -70,7 +67,7 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
           onSearch(decodedText);
           onClose();
         },
-        (errorMessage) => {
+        (_errorMessage: any) => {
           // Continuous scanning errors are expected, ignore them
         }
       );
@@ -86,7 +83,11 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
     setProcessingState('Initializing AI Model...');
     
     try {
-      // 1. Ensure TF backend is ready
+      // 1. Dynamic imports for TensorFlow & MobileNet
+      const tf = await import('@tensorflow/tfjs');
+      const mobilenet = await import('@tensorflow-models/mobilenet');
+      
+      // Ensure TF backend is ready
       await tf.ready();
       
       // 2. Load MobileNet
@@ -105,7 +106,9 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
         .map(p => p.className.split(',')[0].toLowerCase());
       
       setProcessingState('Scanning for text (OCR)...');
-      // 5. OCR with Tesseract
+      // 5. Dynamic import OCR with Tesseract
+      const TesseractModule = await import('tesseract.js');
+      const Tesseract = TesseractModule.default || TesseractModule;
       const { data: { text } } = await Tesseract.recognize(file, 'eng');
       const cleanText = text.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
       const extractedWords = cleanText.split(' ').filter(w => w.length > 3).slice(0, 3);
