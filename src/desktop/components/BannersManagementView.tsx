@@ -182,6 +182,8 @@ export default function BannersManagementView() {
             resolve(e.target?.result as string);
             return;
           }
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', quality);
           resolve(dataUrl);

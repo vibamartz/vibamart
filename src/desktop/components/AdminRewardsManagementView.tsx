@@ -16,6 +16,7 @@ import { db } from '../../backend/firebase/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAdminDateFilter } from './AdminDateFilterContext';
+import { processAllProductImages } from '../../backend/services/productStorageService';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
@@ -46,6 +47,8 @@ const compressImage = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.
           resolve(e.target?.result as string);
           return;
         }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(dataUrl);
@@ -477,11 +480,11 @@ function CouponCardProductImagesManager({ images = [], onChange, accentColor = '
                 </div>
 
                 {/* Image Preview */}
-                <div className="h-28 bg-gray-100 relative flex items-center justify-center overflow-hidden">
+                <div className="h-28 bg-white border border-gray-100 relative flex items-center justify-center overflow-hidden">
                   <img
                     src={imgSrc}
                     alt={`Product Image ${idx + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-white"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image';
                     }}
@@ -691,7 +694,8 @@ export default function AdminRewardsManagementView() {
 
     try {
       const sanitizedImages = (newProductForm.images || []).filter(img => img && img.trim().length > 0).slice(0, 6);
-      const finalImages = sanitizedImages.length > 0 ? sanitizedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
+      const { images: processedImages } = await processAllProductImages({ images: sanitizedImages });
+      const finalImages = processedImages.length > 0 ? processedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
 
       const newProd: Partial<Product> = {
         name: newProductForm.name,

@@ -43,7 +43,7 @@ import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
-import { processAllProductImages } from '../../backend/services/productStorageService';
+import { processAllProductImages, compressDataUrl } from '../../backend/services/productStorageService';
 
 
 const STATS = [
@@ -2517,7 +2517,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100" alt="" />
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>
                             <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
@@ -4222,21 +4222,40 @@ export function ProductImageUploader({
       const remaining = MAX_SLOTS - images.length;
       const toProcess = Array.from(files).slice(0, remaining);
 
-      toProcess.forEach((file) => {
-        if (!ACCEPTED_TYPES.includes(file.type)) {
-          toast.error(`"${file.name}" is not a supported format (JPG, PNG, WEBP).`);
-          return;
+      Promise.all(
+        toProcess.map((file) => {
+          if (!ACCEPTED_TYPES.includes(file.type)) {
+            toast.error(`"${file.name}" is not a supported format (JPG, PNG, WEBP).`);
+            return Promise.resolve('');
+          }
+          if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            toast.error(`"${file.name}" exceeds the 10 MB limit.`);
+            return Promise.resolve('');
+          }
+          return new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const rawDataUrl = e.target?.result as string;
+              if (rawDataUrl) {
+                try {
+                  const whiteBacked = await compressDataUrl(rawDataUrl);
+                  res(whiteBacked);
+                } catch {
+                  res(rawDataUrl);
+                }
+              } else {
+                res('');
+              }
+            };
+            reader.onerror = () => res('');
+            reader.readAsDataURL(file);
+          });
+        })
+      ).then((newUrls) => {
+        const validUrls = newUrls.filter(Boolean);
+        if (validUrls.length > 0) {
+          onChange([...images, ...validUrls].slice(0, MAX_SLOTS));
         }
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-          toast.error(`"${file.name}" exceeds the 10 MB limit.`);
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result as string;
-          onChange([...images, dataUrl]);
-        };
-        reader.readAsDataURL(file);
       });
     },
     [images, onChange]
@@ -4363,17 +4382,17 @@ export function ProductImageUploader({
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
-              className="relative aspect-square bg-gray-50 rounded-[28px] overflow-hidden group border-2 border-transparent hover:border-gray-900 transition-all cursor-pointer"
+              className="relative aspect-square bg-white rounded-[28px] overflow-hidden group border-2 border-gray-100 hover:border-gray-900 transition-all cursor-pointer"
               onClick={() => setPrimary(idx)}
               title={idx === 0 ? 'Primary image' : 'Click to set as primary'}
             >
               <img
                 src={sanitizeImageUrl(img) || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=500'}
                 alt={`Product image ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-105"
               />
               {/* Overlay on hover */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 rounded-[26px]" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-[26px]" />
 
               {/* Primary Badge */}
               {idx === 0 ? (

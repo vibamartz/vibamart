@@ -1056,12 +1056,12 @@ function MobileProductCardItem({
         className={`w-[calc((100%-12px)/3)] bg-white ${cardRadius} p-1 shadow-xs border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
       >
         {/* Product Image (Clear aspect-contain) */}
-        <div className="relative w-full aspect-[4/5] rounded-[10px] overflow-hidden bg-gray-50/80 p-0.5 flex items-center justify-center shrink-0 mb-0.5">
+        <div className="relative w-full aspect-[4/5] rounded-[10px] overflow-hidden bg-white p-0.5 flex items-center justify-center shrink-0 mb-0.5">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
             alt={product.name}
             loading="lazy"
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300"
           />
 
           {discountPercentage > 0 && (
@@ -1105,12 +1105,12 @@ function MobileProductCardItem({
       className={`w-[135px] sm:w-[155px] bg-white ${cardRadius} p-1.5 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Clear object-contain) */}
-      <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1 shrink-0">
+      <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-white p-1 flex items-center justify-center mb-1 shrink-0">
         <img
           src={product.images?.[0] || 'https://via.placeholder.com/300x400?text=No+Image'}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300"
         />
 
         {discountPercentage > 0 && (

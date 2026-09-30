@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Upload, Link, Trash2, Image as ImageIcon, RefreshCw, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { compressDataUrl } from '../../backend/services/productStorageService';
 
 interface VariantImageInputProps {
   value: string;
@@ -30,11 +31,16 @@ export function VariantImageInput({ value, onChange, disabled, label, imageTypeL
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const result = event.target?.result as string;
       if (result) {
         setImageError(false);
-        onChange(result);
+        try {
+          const whiteBacked = await compressDataUrl(result);
+          onChange(whiteBacked);
+        } catch {
+          onChange(result);
+        }
         toast.success(`${imageTypeLabel} uploaded`);
       }
     };
@@ -113,12 +119,12 @@ export function VariantImageInput({ value, onChange, disabled, label, imageTypeL
         {/* Image Preview Card */}
         {value ? (
           <div className="relative group p-3 bg-white rounded-2xl border border-gray-200 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 shrink-0 relative flex items-center justify-center">
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0 relative flex items-center justify-center">
               {!imageError ? (
                 <img
                   src={value}
                   alt="Variant preview"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-white"
                   onError={() => setImageError(true)}
                 />
               ) : (
@@ -212,10 +218,15 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
     const loadedImages: string[] = [];
     validFiles.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const result = event.target?.result as string;
         if (result) {
-          loadedImages.push(result);
+          try {
+            const whiteBacked = await compressDataUrl(result);
+            loadedImages.push(whiteBacked);
+          } catch {
+            loadedImages.push(result);
+          }
         }
         readCount++;
         if (readCount === validFiles.length) {
@@ -282,11 +293,16 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const result = event.target?.result as string;
       if (result) {
         const list = [...images];
-        list[replacingIndex] = result;
+        try {
+          const whiteBacked = await compressDataUrl(result);
+          list[replacingIndex] = whiteBacked;
+        } catch {
+          list[replacingIndex] = result;
+        }
         onChange(list);
         toast.success(`Variant image #${replacingIndex + 1} replaced`);
       }
@@ -393,11 +409,11 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
                 key={idx}
                 className="relative group bg-white p-2 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-2 shadow-sm"
               >
-                <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-50 border border-gray-100 relative flex items-center justify-center">
+                <div className="w-full aspect-square rounded-xl overflow-hidden bg-white border border-gray-100 relative flex items-center justify-center">
                   <img
                     src={imgUrl}
                     alt={`Variant image ${idx + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-white"
                     onError={(e) => {
                       (e.target as HTMLElement).setAttribute('src', 'https://via.placeholder.com/150?text=Invalid+URL');
                     }}

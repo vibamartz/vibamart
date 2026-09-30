@@ -497,11 +497,11 @@ export default function MobileProductListScreen() {
                   onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                   className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex gap-2.5 cursor-pointer group hover:shadow-md transition-all"
                 >
-                  <div className="w-24 h-24 rounded-xl bg-gray-50/80 p-1 overflow-hidden relative shrink-0 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-xl bg-white p-1 overflow-hidden relative shrink-0 flex items-center justify-center border border-gray-100">
                     <img 
                       src={product.images?.[0] || 'https://via.placeholder.com/150'} 
                       alt={product.name} 
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform bg-white" 
                     />
                     {discountPct > 0 && (
                       <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
@@ -544,11 +544,11 @@ export default function MobileProductListScreen() {
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                 className="bg-white rounded-2xl p-2 shadow-sm border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
               >
-                <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white p-1 flex items-center justify-center mb-1 border border-gray-50">
                   <img 
                     src={product.images?.[0] || 'https://via.placeholder.com/300'} 
                     alt={product.name} 
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform bg-white" 
                   />
                   {discountPct > 0 && (
                     <span className="absolute top-1.5 left-1.5 bg-emerald-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm">

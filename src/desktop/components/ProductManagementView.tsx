@@ -289,7 +289,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100" alt="" />
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>
                             <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>

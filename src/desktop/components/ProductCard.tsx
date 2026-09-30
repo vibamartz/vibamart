@@ -72,11 +72,11 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
         whileHover={{ y: -5, scale: 1.02 }}
         className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 relative flex flex-col h-full cursor-pointer"
       >
-        <div className="block relative aspect-square overflow-hidden bg-gray-50/80 p-1.5 flex items-center justify-center">
+        <div className="block relative aspect-square overflow-hidden bg-white p-1.5 flex items-center justify-center">
           <img
             src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 bg-white"
           />
           
           {discountPercentage > 0 && (

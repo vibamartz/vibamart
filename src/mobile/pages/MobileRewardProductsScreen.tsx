@@ -364,11 +364,11 @@ export default function MobileRewardProductsScreen() {
                 >
                   <div>
                     {/* Image */}
-                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-[4/5] bg-gray-50/80 p-1 flex items-center justify-center overflow-hidden">
+                    <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-[4/5] bg-white p-1 flex items-center justify-center overflow-hidden border-b border-gray-50">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300?text=No+Image'}
                         alt={product.name}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain bg-white"
                       />
                       {discountPercent > 0 && (
                         <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-rose-500 text-white font-black text-[9px] rounded-md">

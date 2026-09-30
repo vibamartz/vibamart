@@ -361,11 +361,11 @@ export default function MobileCategoriesScreen() {
                             onClick={() => navigate(`/products/${getProductSlug(product)}`)}
                             className="bg-white rounded-xl p-1.5 shadow-xs border border-yellow-100 flex flex-col justify-between cursor-pointer group hover:shadow-md transition-all relative overflow-hidden"
                           >
-                            <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                            <div className="relative aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center mb-1 border border-gray-50">
                               <img
                                 src={product.images?.[0] || 'https://via.placeholder.com/200'}
                                 alt={product.name}
-                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform bg-white"
                               />
                               {discountPct > 0 && (
                                 <span className="absolute top-1 left-1 bg-emerald-600 text-white text-[8px] font-black px-1 py-0.5 rounded shadow-xs leading-none">

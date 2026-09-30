@@ -366,7 +366,7 @@ export default function MobileProductDetailScreen() {
     <div className="min-h-screen bg-white pb-44 font-sans select-none space-y-3">
       {/* Top Gallery */}
       <div className="bg-white relative">
-        <div className="aspect-square w-full relative overflow-hidden bg-gray-50">
+        <div className="aspect-square w-full relative overflow-hidden bg-white">
           <div
             ref={mobileGalleryRef}
             onScroll={handleMobileGalleryScroll}
@@ -374,11 +374,11 @@ export default function MobileProductDetailScreen() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {images.map((img, idx) => (
-              <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1">
+              <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1 bg-white">
                 <img
                   src={selectedVariant?.image && idx === activeImageIndex ? selectedVariant.image : img}
                   alt={`${product.name} - ${idx + 1}`}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain bg-white"
                 />
               </div>
             ))}

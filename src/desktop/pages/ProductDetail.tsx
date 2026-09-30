@@ -417,7 +417,7 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-white sm:rounded-3xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-12">
         {/* Left: Image Gallery */}
         <div className="w-full lg:flex-1 space-y-4">
-          <div className="relative aspect-square sm:aspect-[4/5] max-h-[520px] w-full overflow-hidden rounded-2xl bg-gray-50/80 border border-gray-100 lg:sticky lg:top-24 flex items-center justify-center p-3 sm:p-4">
+          <div className="relative aspect-square sm:aspect-[4/5] max-h-[520px] w-full overflow-hidden rounded-2xl bg-white border border-gray-100 lg:sticky lg:top-24 flex items-center justify-center p-3 sm:p-4">
             <div
               ref={galleryRef}
               onScroll={handleGalleryScroll}
@@ -425,11 +425,11 @@ export default function ProductDetail() {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {(product.images && product.images.length > 0 ? product.images : [activeImageSrc]).map((img, idx) => (
-                <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-2">
+                <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-2 bg-white">
                   <img
                     src={currentVariant?.image && idx === selectedImage ? currentVariant.image : img}
                     alt={`${product.name} - ${idx + 1}`}
-                    className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-sm transition-all duration-200"
+                    className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-sm transition-all duration-200 bg-white"
                   />
                 </div>
               ))}
@@ -470,9 +470,9 @@ export default function ProductDetail() {
                 <button
                   key={idx}
                   onClick={() => scrollToImage(idx)}
-                  className={`w-20 h-20 shrink-0 snap-start rounded-xl overflow-hidden border-2 transition-all bg-gray-50/50 p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600 scale-105' : 'border-gray-200 opacity-60 hover:opacity-100'}`}
+                  className={`w-20 h-20 shrink-0 snap-start rounded-xl overflow-hidden border-2 transition-all bg-white p-1 flex items-center justify-center ${selectedImage === idx && !currentVariant?.image ? 'border-green-600 scale-105' : 'border-gray-200 opacity-60 hover:opacity-100'}`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-contain" />
+                  <img src={img} alt="" className="w-full h-full object-contain bg-white" />
                 </button>
               ))}
             </div>

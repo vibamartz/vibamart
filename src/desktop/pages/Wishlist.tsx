@@ -267,11 +267,11 @@ export default function Wishlist() {
                   )}
 
                   <Link to={`/products/${getProductSlug(product)}`} className="block group">
-                    <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1.5 flex items-center justify-center mb-1.5">
+                    <div className="aspect-square rounded-xl overflow-hidden bg-white p-1.5 flex items-center justify-center mb-1.5 border border-gray-50">
                       <img
                         src={product.images?.[0] || 'https://via.placeholder.com/300'}
                         alt={product.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
                       />
                     </div>
 

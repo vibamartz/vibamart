@@ -356,11 +356,11 @@ export default function RewardProducts() {
               >
                 <div>
                   {/* Product Image */}
-                  <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square overflow-hidden bg-gray-50/80 flex items-center justify-center p-2">
+                  <Link to={`/products/${getProductSlug(product)}`} className="block relative aspect-square overflow-hidden bg-white flex items-center justify-center p-2">
                     <img
                       src={product.images?.[0] || 'https://via.placeholder.com/400?text=No+Image'}
                       alt={product.name}
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 bg-white"
                     />
 
                     {/* Discount % Badge */}
