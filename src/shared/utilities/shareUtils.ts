@@ -1,5 +1,6 @@
 import { Product, BrandCoupon, Deal259PageConfig, Banner } from '../types';
 import { getProductSlug, getRewardSlug, getBannerSlug } from './slug';
+import { triggerShareModal } from '../components/GlobalShareModal';
 import toast from 'react-hot-toast';
 
 export interface ShareOptions {
@@ -90,7 +91,7 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 
 /**
  * Main share function supporting native Web Share API (mobile share sheet & desktop Web Share API)
- * with image/banner file attachments when available, single canonical URL sharing, and copy-to-clipboard fallback.
+ * with image/banner file attachments when available, single canonical URL sharing, and multi-platform fallback modal.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
   const { title, text, url, imageUrl } = options;
@@ -112,8 +113,9 @@ export async function shareItem(options: ShareOptions): Promise<void> {
         const response = await fetch(fullImageUrl, { mode: 'cors' });
         if (response.ok) {
           const blob = await response.blob();
-          const ext = blob.type.split('/')[1]?.split(';')[0] || 'png';
-          const file = new File([blob], `share-preview.${ext}`, { type: blob.type || 'image/png' });
+          const mimeType = blob.type || 'image/png';
+          const ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
+          const file = new File([blob], `share-preview.${ext}`, { type: mimeType });
           if (navigator.canShare({ files: [file] })) {
             filesToShare = [file];
           }
@@ -148,27 +150,13 @@ export async function shareItem(options: ShareOptions): Promise<void> {
     }
   }
 
-  // 2. Fallback to copy link to clipboard when native sharing is not supported
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(fullUrl);
-      toast.success('Link copied to clipboard!');
-    } else {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = fullUrl;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      toast.success('Link copied to clipboard!');
-    }
-  } catch (err) {
-    toast.error('Failed to copy share link.');
-  }
+  // 2. Fallback to interactive Share Modal when native sharing is not supported or fails
+  triggerShareModal({
+    title,
+    text: cleanText,
+    url: fullUrl,
+    imageUrl: fullImageUrl,
+  });
 }
 
 /**

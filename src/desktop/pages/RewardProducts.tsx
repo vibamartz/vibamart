@@ -100,7 +100,7 @@ export default function RewardProducts() {
         setRewardCard(matched);
         const canonicalSlug = getRewardSlug(matched);
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        const img = matched.productImage || matched.brandLogo;
+        const img = matched.productImage || matched.imageUrl || matched.brandLogo;
         const discountText = matched.discountType === 'percent' ? `${matched.discountValue}% OFF` : `₹${matched.discountValue} OFF`;
         updateOpenGraphTags(
           `${matched.title} - ${matched.brandName} | ViBa Mart`,
