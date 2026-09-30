@@ -242,7 +242,7 @@ export default function MobileWishlistScreen() {
       </div>
 
       {/* Clean Wishlist Product Layout without Unnecessary Card Containers */}
-      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+      <div className="grid grid-cols-2 gap-2.5">
         {products.map((product) => {
           const isInCart = cartItems.some(i => i.productId === product.id);
           const isSelected = selectedProductIds.includes(product.id);
@@ -252,7 +252,7 @@ export default function MobileWishlistScreen() {
             <motion.div
               key={product.id}
               whileTap={{ scale: 0.98 }}
-              className={`w-[135px] sm:w-[150px] shrink-0 snap-start bg-white border border-gray-100 shadow-xs relative p-2 rounded-2xl flex flex-col justify-between cursor-pointer ${
+              className={`relative p-2 rounded-2xl flex flex-col justify-between cursor-pointer ${
                 isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''
               }`}
               onClick={() => {
@@ -274,7 +274,7 @@ export default function MobileWishlistScreen() {
               )}
 
               <div>
-                <div className="aspect-square rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
+                <div className="aspect-[4/5] rounded-xl overflow-hidden bg-gray-50/80 p-1 flex items-center justify-center mb-1">
                   <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-contain" />
                 </div>
                 <h4 className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate leading-tight min-h-0">{product.name}</h4>
