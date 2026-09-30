@@ -14,6 +14,8 @@ import { getRewardSlug, getProductSlug, createSlug } from '../../shared/utilitie
 import { shareReward, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import toast from 'react-hot-toast';
 
+import { DEFAULT_BRAND_COUPONS } from '../../shared/constants';
+
 function ExpiryCountdown({ expiryDate }: { expiryDate: string }) {
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isExpired: boolean }>({
     days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false
@@ -70,7 +72,11 @@ export default function RewardProducts() {
     if (!targetRewardSlugOrId) return;
 
     const findReward = async () => {
-      let matched = offers.find(o => o.id === targetRewardSlugOrId || o.slug === targetRewardSlugOrId || getRewardSlug(o) === targetRewardSlugOrId);
+      let matched = offers.find(o => o.id === targetRewardSlugOrId || o.slug === targetRewardSlugOrId || getRewardSlug(o) === targetRewardSlugOrId || createSlug(o.title) === targetRewardSlugOrId);
+
+      if (!matched) {
+        matched = DEFAULT_BRAND_COUPONS.find(o => o.id === targetRewardSlugOrId || o.slug === targetRewardSlugOrId || getRewardSlug(o) === targetRewardSlugOrId || createSlug(o.title) === targetRewardSlugOrId);
+      }
 
       if (!matched) {
         try {
@@ -88,7 +94,7 @@ export default function RewardProducts() {
           const qSnap = await getDocs(collection(db, 'reward_offers'));
           const foundDoc = qSnap.docs.find(d => {
             const data = { id: d.id, ...d.data() } as BrandCoupon;
-            return getRewardSlug(data) === targetRewardSlugOrId || data.slug === targetRewardSlugOrId || createSlug(data.title) === targetRewardSlugOrId;
+            return getRewardSlug(data) === targetRewardSlugOrId || data.slug === targetRewardSlugOrId || createSlug(data.title) === targetRewardSlugOrId || d.id === targetRewardSlugOrId;
           });
           if (foundDoc) {
             matched = { id: foundDoc.id, ...foundDoc.data() } as BrandCoupon;
@@ -104,7 +110,7 @@ export default function RewardProducts() {
         const discountText = matched.discountType === 'percent' ? `${matched.discountValue}% OFF` : `₹${matched.discountValue} OFF`;
         updateOpenGraphTags(
           `${matched.title} - ${matched.brandName} | ViBa Mart`,
-          `Claim ${matched.title} (${discountText}) by ${matched.brandName} on ViBa Mart!`,
+          `Claim ${matched.title} (${discountText}) by ${matched.brandName} on ViBa Mart! Includes all associated products.`,
           img,
           `${origin}/rewards/${canonicalSlug}`
         );
@@ -130,11 +136,18 @@ export default function RewardProducts() {
 
         let resultProds: Product[] = [];
 
-        // Explicitly assigned product IDs ONLY for this Reward Card
+        // 1. Explicitly assigned product IDs for this Reward Card
         if (Array.isArray(rewardCard.productIds) && rewardCard.productIds.length > 0) {
           resultProds = rewardCard.productIds
             .map(id => allProds.find(p => p.id === id))
             .filter((p): p is Product => Boolean(p));
+        } else if (rewardCard.brandName) {
+          // 2. Fallback: all products associated with this brand
+          const cleanBrand = rewardCard.brandName.trim().toLowerCase();
+          resultProds = allProds.filter(p => {
+            const pBrand = (p.brand || (p as any).brandName || '').trim().toLowerCase();
+            return pBrand && (pBrand === cleanBrand || cleanBrand.includes(pBrand) || pBrand.includes(cleanBrand));
+          });
         }
 
         // Exclude products explicitly disabled or unassigned for this reward card

@@ -1,36 +1,65 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Check, Copy, Download, Share2, Mail, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Copy, Download, Share2, Mail, ExternalLink, Image as ImageIcon, Gift, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Product } from '../../shared/types';
-import { getProductSlug } from '../../shared/utilities/slug';
+import { Product, BrandCoupon } from '../../shared/types';
+import { getProductSlug, getRewardSlug } from '../../shared/utilities/slug';
 import { deduplicateShareContent } from '../../shared/utilities/shareUtils';
 import { useDesktopShareStore } from './useDesktopShareStore';
 
 export { useDesktopShareStore };
 
 export default function DesktopShareModal() {
-  const { isOpen, product, options, closeShare } = useDesktopShareStore();
+  const { isOpen, product, reward, options, closeShare } = useDesktopShareStore();
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [imageDownloading, setImageDownloading] = useState(false);
   const [imageCopied, setImageCopied] = useState(false);
 
-  if (!isOpen || !product) return null;
+  if (!isOpen || (!product && !reward)) return null;
 
-  const slug = getProductSlug(product);
+  const isReward = Boolean(reward);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const shareUrl = options?.specificUrl || `${origin}/products/${slug}`;
-  const image = options?.specificImage || (product.images && product.images.length > 0 ? product.images[0] : (product as any).image);
-  
-  const variantDisplay = options?.variantName ? ` (${options.variantName})` : '';
-  const priceDisplay = product.price ? `₹${(product.discountPrice || product.price).toLocaleString()}` : '';
-  const originalPriceDisplay = product.discountPrice && product.price > product.discountPrice ? `₹${product.price.toLocaleString()}` : '';
-  const discountPercent = product.discountPrice && product.price > product.discountPrice
-    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
-    : 0;
 
-  const title = `${product.name}${variantDisplay} | ViBa Mart`;
-  const rawText = `Check out ${product.name}${variantDisplay}${priceDisplay ? ` at ${priceDisplay}` : ''} on ViBa Mart!`;
+  // Calculate fields for Reward vs Product
+  let slug = '';
+  let shareUrl = '';
+  let image = '';
+  let title = '';
+  let rawText = '';
+  let priceDisplay = '';
+  let originalPriceDisplay = '';
+  let discountPercent = 0;
+  let variantDisplay = '';
+  let discountText = '';
+
+  if (reward) {
+    slug = getRewardSlug(reward);
+    shareUrl = `${origin}/rewards/${slug}`;
+    image = reward.productImage || reward.brandLogo;
+    discountText = reward.discountType === 'percent'
+      ? `${reward.discountValue}% OFF`
+      : `₹${reward.discountValue} OFF`;
+    title = `${reward.title} - ${reward.brandName} | ViBa Mart`;
+    const priceInfo = reward.buyNowPrice ? ` | Buy Coupon: ₹${reward.buyNowPrice}` : '';
+    const minSpendInfo = reward.minOrderValue ? ` | Min Spend: ₹${reward.minOrderValue}` : '';
+    const expiryInfo = reward.expiryDate ? ` | Valid Until: ${new Date(reward.expiryDate).toLocaleDateString()}` : '';
+    const descInfo = reward.description ? `\n\n${reward.description}` : '';
+    rawText = `🏷️ ${reward.title} (${discountText}) by ${reward.brandName}${priceInfo}${minSpendInfo}${expiryInfo}${descInfo}\n\nExplore all associated official products on ViBa Mart!`;
+  } else if (product) {
+    slug = getProductSlug(product);
+    shareUrl = options?.specificUrl || `${origin}/products/${slug}`;
+    image = options?.specificImage || (product.images && product.images.length > 0 ? product.images[0] : (product as any).image);
+    variantDisplay = options?.variantName ? ` (${options.variantName})` : '';
+    priceDisplay = product.price ? `₹${(product.discountPrice || product.price).toLocaleString()}` : '';
+    originalPriceDisplay = product.discountPrice && product.price > product.discountPrice ? `₹${product.price.toLocaleString()}` : '';
+    discountPercent = product.discountPrice && product.price > product.discountPrice
+      ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+      : 0;
+    title = `${product.name}${variantDisplay} | ViBa Mart`;
+    rawText = `Check out ${product.name}${variantDisplay}${priceDisplay ? ` at ${priceDisplay}` : ''} on ViBa Mart!`;
+  }
 
   // Deduplicate and enforce strictly ONE canonical destination link
   const { cleanText, combinedTextWithSingleUrl, canonicalUrl } = deduplicateShareContent(rawText, shareUrl);
@@ -51,7 +80,7 @@ export default function DesktopShareModal() {
         document.body.removeChild(textarea);
       }
       setCopied(true);
-      toast.success('Specific product link copied to clipboard!');
+      toast.success(isReward ? 'Reward link copied to clipboard!' : 'Product link copied to clipboard!');
       setTimeout(() => setCopied(false), 2500);
     } catch {
       toast.error('Failed to copy link.');
@@ -84,7 +113,6 @@ export default function DesktopShareModal() {
       document.body.removeChild(link);
       toast.success('Product image downloaded!');
     } catch {
-      // Direct anchor click fallback
       const link = document.createElement('a');
       link.href = image;
       link.target = '_blank';
@@ -137,7 +165,6 @@ export default function DesktopShareModal() {
   const handleSystemShare = async () => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        // Share text + url directly (without files array) so OS/Windows doesn't drop the canonical link
         await navigator.share({
           title,
           text: cleanText,
@@ -239,10 +266,14 @@ export default function DesktopShareModal() {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Share2 className="w-4 h-4" />
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                isReward ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+              }`}>
+                {isReward ? <Gift className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
               </div>
-              <h3 className="text-base font-black text-gray-900">Share Product</h3>
+              <h3 className="text-base font-black text-gray-900">
+                {isReward ? 'Share Reward Coupon' : 'Share Product'}
+              </h3>
             </div>
             <button
               onClick={closeShare}
@@ -253,44 +284,107 @@ export default function DesktopShareModal() {
           </div>
 
           <div className="p-6 space-y-5">
-            {/* Product Card Preview */}
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-200/80">
-              <div className="w-20 h-20 bg-white rounded-xl p-1.5 border border-gray-200 shrink-0 flex items-center justify-center overflow-hidden">
-                <img
-                  src={image || 'https://via.placeholder.com/150'}
-                  alt={product.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug">
-                  {product.name}
-                </h4>
-                {options?.variantName && (
-                  <p className="text-xs font-semibold text-emerald-600 mt-0.5">
-                    Variant: {options.variantName}
-                  </p>
-                )}
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-base font-black text-gray-900">{priceDisplay}</span>
-                  {originalPriceDisplay && (
-                    <span className="text-xs text-gray-400 line-through font-bold">{originalPriceDisplay}</span>
-                  )}
-                  {discountPercent > 0 && (
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
-                      {discountPercent}% OFF
-                    </span>
-                  )}
+            {/* Card Preview */}
+            {isReward && reward ? (
+              <div
+                onClick={() => {
+                  closeShare();
+                  navigate(`/rewards/${slug}`);
+                }}
+                className="p-4 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-900/5 rounded-2xl border border-amber-200/80 cursor-pointer hover:border-amber-400 hover:shadow-md transition-all group relative overflow-hidden"
+                title="Click to open Reward Page & view all associated products"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-amber-200/60 mb-3">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={reward.brandLogo || 'https://via.placeholder.com/50'}
+                      alt={reward.brandName}
+                      className="w-8 h-8 rounded-full object-cover border border-amber-300 bg-white"
+                    />
+                    <div>
+                      <span className="text-xs font-black text-amber-900 block leading-tight">{reward.brandName}</span>
+                      <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">{reward.category || 'Official Partner'}</span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 bg-amber-500 text-white font-black text-xs rounded-full shadow-xs">
+                    {discountText}
+                  </span>
+                </div>
+
+                <div className="flex gap-3 items-center">
+                  <div className="w-16 h-16 bg-white rounded-xl p-1 border border-amber-200 shrink-0 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={image || 'https://via.placeholder.com/150'}
+                      alt={reward.title}
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-black text-gray-900 line-clamp-2 leading-snug group-hover:text-amber-700 transition-colors">
+                      {reward.title}
+                    </h4>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-600 font-bold mt-1">
+                      <span>Buy: ₹{reward.buyNowPrice}</span>
+                      <span>•</span>
+                      <span>Min: ₹{reward.minOrderValue || 0}</span>
+                    </div>
+                    <div className="text-[10px] text-amber-800 font-medium mt-0.5">
+                      Valid Until: {new Date(reward.expiryDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-amber-200/50 flex items-center justify-between text-[11px] font-bold text-amber-800">
+                  <span className="flex items-center gap-1.5">
+                    <ShoppingBag className="w-3.5 h-3.5 text-amber-600" />
+                    Includes all associated products
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-700 group-hover:underline">
+                    View Products <ExternalLink className="w-3 h-3" />
+                  </span>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-200/80">
+                <div className="w-20 h-20 bg-white rounded-xl p-1.5 border border-gray-200 shrink-0 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={image || 'https://via.placeholder.com/150'}
+                    alt={product?.name || ''}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug">
+                    {product?.name}
+                  </h4>
+                  {options?.variantName && (
+                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">
+                      Variant: {options.variantName}
+                    </p>
+                  )}
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-base font-black text-gray-900">{priceDisplay}</span>
+                    {originalPriceDisplay && (
+                      <span className="text-xs text-gray-400 line-through font-bold">{originalPriceDisplay}</span>
+                    )}
+                    {discountPercent > 0 && (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                        {discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* Direct Specific URL Copy Box */}
+            {/* Direct Specific URL Copy Box (Strictly Single Canonical Link) */}
             <div>
               <label className="text-xs font-black text-gray-700 uppercase tracking-wider block mb-1.5">
-                Product Specific Link
+                {isReward ? 'Reward Specific Canonical Link' : 'Product Specific Link'}
               </label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-1.5 pl-3 focus-within:border-emerald-500 focus-within:bg-white transition-all">
+              <div className={`flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-1.5 pl-3 transition-all ${
+                isReward ? 'focus-within:border-amber-500 focus-within:bg-white' : 'focus-within:border-emerald-500 focus-within:bg-white'
+              }`}>
                 <input
                   type="text"
                   readOnly
@@ -301,8 +395,8 @@ export default function DesktopShareModal() {
                   onClick={handleCopyLink}
                   className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer ${
                     copied
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-gray-900 hover:bg-emerald-600 text-white active:scale-95'
+                      ? (isReward ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white')
+                      : (isReward ? 'bg-gray-900 hover:bg-amber-600 text-white active:scale-95' : 'bg-gray-900 hover:bg-emerald-600 text-white active:scale-95')
                   }`}
                 >
                   {copied ? (
@@ -341,38 +435,53 @@ export default function DesktopShareModal() {
               </div>
             </div>
 
-            {/* Image Actions Row */}
-            <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
-              <button
-                onClick={handleDownloadImage}
-                disabled={imageDownloading}
-                className="flex-1 py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <Download className="w-3.5 h-3.5 text-gray-500" />
-                <span>{imageDownloading ? 'Downloading...' : 'Save Product Image'}</span>
-              </button>
-
-              <button
-                onClick={handleCopyImage}
-                className="flex-1 py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <ImageIcon className="w-3.5 h-3.5 text-gray-500" />
-                <span>{imageCopied ? 'Image Copied!' : 'Copy Image'}</span>
-              </button>
-
-              {typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function' && (
+            {/* Product-Only Image Actions Row OR System Share for Rewards */}
+            {!isReward ? (
+              <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
                 <button
-                  onClick={handleSystemShare}
-                  title="System Share"
-                  className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                  onClick={handleDownloadImage}
+                  disabled={imageDownloading}
+                  className="flex-1 py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
                 >
-                  <ExternalLink className="w-4 h-4 text-gray-500" />
+                  <Download className="w-3.5 h-3.5 text-gray-500" />
+                  <span>{imageDownloading ? 'Downloading...' : 'Save Product Image'}</span>
                 </button>
-              )}
-            </div>
+
+                <button
+                  onClick={handleCopyImage}
+                  className="flex-1 py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-gray-500" />
+                  <span>{imageCopied ? 'Image Copied!' : 'Copy Image'}</span>
+                </button>
+
+                {typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function' && (
+                  <button
+                    onClick={handleSystemShare}
+                    title="System Share"
+                    className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function' && (
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    onClick={handleSystemShare}
+                    className="w-full py-2.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Share2 className="w-4 h-4 text-gray-500" />
+                    <span>System Share Sheet</span>
+                  </button>
+                </div>
+              )
+            )}
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
   );
 }
+

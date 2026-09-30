@@ -297,10 +297,12 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
 
 /**
  * Shares a coupon/reward with its permanent human-readable URL, reward image,
- * title, and discount details. Strictly omits any coupon code.
+ * title, discount details, and associated products. Strictly omits any coupon code.
  * Guarantees ONLY ONE canonical destination link.
  */
 export async function shareReward(reward: BrandCoupon): Promise<void> {
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+
   const slug = getRewardSlug(reward);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/rewards/${slug}`;
@@ -311,16 +313,27 @@ export async function shareReward(reward: BrandCoupon): Promise<void> {
     : `₹${reward.discountValue} OFF`;
 
   const title = `${reward.title} - ${reward.brandName} | ViBa Mart`;
-  const text = `Claim ${reward.title} (${discountText}) by ${reward.brandName} on ViBa Mart! Exclusive brand deal.`;
+  const priceInfo = reward.buyNowPrice ? ` | Buy Coupon: ₹${reward.buyNowPrice}` : '';
+  const minSpendInfo = reward.minOrderValue ? ` | Min Spend: ₹${reward.minOrderValue}` : '';
+  const expiryInfo = reward.expiryDate ? ` | Valid Until: ${new Date(reward.expiryDate).toLocaleDateString()}` : '';
+  const descInfo = reward.description ? `\n\n${reward.description}` : '';
 
-  // Update head tags for crawlers
+  const text = `🏷️ ${reward.title} (${discountText}) by ${reward.brandName}${priceInfo}${minSpendInfo}${expiryInfo}${descInfo}\n\nExplore all associated official products on ViBa Mart!`;
+
+  // Update head tags for rich previews
   updateOpenGraphTags(title, reward.description || reward.terms || text, image, shareUrl);
 
+  // Desktop mode: open dedicated Desktop Share Modal with full coupon card preview and single canonical link
+  if (isDesktop) {
+    useDesktopShareStore.getState().openRewardShare(reward);
+    return;
+  }
+
+  // Mobile mode: share single canonical link & card content without separate image file attachment
   await shareItem({
     title,
     text,
     url: shareUrl,
-    imageUrl: image,
     customToastMessage: 'Reward link copied to clipboard!',
   });
 }
