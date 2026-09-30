@@ -523,13 +523,15 @@ export default function ProductList() {
                       if (b.link) navigate(b.link);
                       else navigate(`/offers/${b.slug || b.id}`);
                     }}
-                    className="relative group rounded-2xl overflow-hidden border border-gray-200/80 shadow-md hover:shadow-xl transition-all cursor-pointer shrink-0 w-80 sm:w-96 aspect-[21/9] snap-start"
+                    className="relative group rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer shrink-0 w-80 sm:w-96 aspect-[21/9] snap-start bg-white"
                   >
                     <img src={b.image} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
-                      <h4 className="text-sm font-black text-white leading-tight">{b.title}</h4>
-                      {b.subtitle && <p className="text-[11px] text-gray-200 line-clamp-1">{b.subtitle}</p>}
-                    </div>
+                    {(b.title || b.subtitle) && (
+                      <div className="absolute inset-0 p-4 flex flex-col justify-end pointer-events-none">
+                        <h4 className="text-sm font-black text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">{b.title}</h4>
+                        {b.subtitle && <p className="text-[11px] text-white/90 line-clamp-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{b.subtitle}</p>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -413,7 +413,7 @@ export default function Home() {
                     navigate('/products');
                   }
                 }}
-                className={`relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl group border border-white/20 ${
+                className={`relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
                   activeBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                 } cursor-pointer`}
               >
@@ -422,29 +422,34 @@ export default function Home() {
                   alt={banner.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-                <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20">
-                  <div className="max-w-2xl">
-                    <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6">
-                      {banner.subtitle || 'Exclusive Offer'}
-                    </span>
-                    <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-sm">
-                      {banner.title}
-                    </h1>
-                    <div className="flex flex-wrap gap-4">
-                      <div className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-xl flex items-center gap-2">
-                        Explore Now <ArrowRight className="w-5 h-5" />
+                {(banner.title || banner.subtitle) && (
+                  <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20 pointer-events-none">
+                    <div className="max-w-2xl pointer-events-auto">
+                      {banner.subtitle && (
+                        <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6 shadow-sm">
+                          {banner.subtitle}
+                        </span>
+                      )}
+                      {banner.title && (
+                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+                          {banner.title}
+                        </h1>
+                      )}
+                      <div className="flex flex-wrap gap-4">
+                        <div className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-2">
+                          Explore Now <ArrowRight className="w-5 h-5" />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             ))
           ) : (
             <div
               onClick={() => navigate('/products')}
-              className="relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-2xl border border-white/20 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+              className="relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
             >
               <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
                 <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
@@ -465,13 +470,13 @@ export default function Home() {
           <>
             <button
               onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white hover:text-gray-900 transition-all border border-white/20 z-10 hidden sm:block"
+              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
             >
               <ChevronRight className="w-6 h-6" />
             </button>

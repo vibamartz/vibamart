@@ -767,7 +767,7 @@ export default function MobileHomepage() {
               <div
                 key={banner.id || i}
                 onClick={() => navigateBanner(banner)}
-                className={`relative rounded-[22px] overflow-hidden shadow-md border border-orange-100 aspect-[2/1] bg-gray-900 cursor-pointer group active:scale-[0.99] transition-transform ${activeCategoryBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
+                className={`relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform ${activeCategoryBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                   }`}
               >
                 <img
@@ -775,16 +775,20 @@ export default function MobileHomepage() {
                   alt={banner.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 sm:p-4 flex flex-col justify-end">
-                  {banner.subtitle && (
-                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-amber-300 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-md w-fit mb-1 border border-white/10">
-                      {banner.subtitle}
-                    </span>
-                  )}
-                  <h3 className="text-xs sm:text-base font-black text-white leading-tight line-clamp-1">
-                    {banner.title}
-                  </h3>
-                </div>
+                {(banner.title || banner.subtitle) && (
+                  <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-end pointer-events-none">
+                    {banner.subtitle && (
+                      <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-emerald-900 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md w-fit mb-1 border border-emerald-200/60 shadow-xs pointer-events-auto">
+                        {banner.subtitle}
+                      </span>
+                    )}
+                    {banner.title && (
+                      <h3 className="text-xs sm:text-base font-black text-white leading-tight line-clamp-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                        {banner.title}
+                      </h3>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
