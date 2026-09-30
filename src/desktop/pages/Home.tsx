@@ -400,7 +400,7 @@ export default function Home() {
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}
-          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 sm:gap-6 px-0.5 py-0.5 min-w-0 w-full"
+          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar px-0.5 py-0.5 min-w-0 w-full"
         >
           {activeBanners.length > 0 ? (
             activeBanners.map((banner, i) => (
@@ -413,9 +413,7 @@ export default function Home() {
                     navigate('/products');
                   }
                 }}
-                className={`relative h-[150px] sm:h-[190px] md:h-[225px] lg:h-[255px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
-                  activeBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
-                } cursor-pointer`}
+                className="relative h-[150px] sm:h-[180px] md:h-[220px] lg:h-[250px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm group border border-gray-100 bg-white w-full shrink-0 snap-center cursor-pointer"
               >
                 <img
                   src={banner.image}
@@ -424,21 +422,21 @@ export default function Home() {
                 />
 
                 {(banner.title || banner.subtitle) && (
-                  <div className="absolute inset-0 flex items-center px-6 sm:px-12 md:px-20 pointer-events-none">
-                    <div className="max-w-2xl pointer-events-auto">
+                  <div className="absolute inset-0 flex items-center px-6 sm:px-10 md:px-14 pointer-events-none">
+                    <div className="max-w-xl pointer-events-auto">
                       {banner.subtitle && (
-                        <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-3 sm:mb-6 shadow-sm">
+                        <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-2 sm:mb-4 shadow-sm">
                           {banner.subtitle}
                         </span>
                       )}
                       {banner.title && (
-                        <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1.1] mb-4 sm:mb-6 tracking-tighter drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+                        <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white leading-[1.1] mb-3 sm:mb-4 tracking-tighter drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
                           {banner.title}
                         </h1>
                       )}
                       <div className="flex flex-wrap gap-4">
-                        <div className="bg-white text-gray-900 touch-target min-h-[44px] px-5 py-2.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[9px] sm:text-[11px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-2">
-                          Explore Now <ArrowRight className="w-5 h-5" />
+                        <div className="bg-white text-gray-900 touch-target min-h-[38px] px-4 py-2 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[8px] sm:text-[10px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-2">
+                          Explore Now <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                         </div>
                       </div>
                     </div>
@@ -449,16 +447,16 @@ export default function Home() {
           ) : (
             <div
               onClick={() => navigate('/products')}
-              className="relative h-[150px] sm:h-[190px] md:h-[225px] lg:h-[255px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+              className="relative h-[150px] sm:h-[180px] md:h-[220px] lg:h-[250px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-10 md:px-14 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
             >
-              <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
+              <div className="max-w-xl text-white space-y-3 sm:space-y-4">
+                <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tight leading-none">
                   UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
                 </h1>
-                <p className="text-xs sm:text-lg text-white/80 max-w-lg">
+                <p className="text-xs sm:text-sm text-white/80 max-w-md">
                   Elevate your lifestyle with the latest tech and fashion.
                 </p>
-                <div className="inline-block bg-white text-primary touch-target px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-base">
+                <div className="inline-block bg-white text-primary touch-target px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-sm">
                   Shop Now
                 </div>
               </div>
@@ -470,15 +468,15 @@ export default function Home() {
           <>
             <button
               onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
+              className="absolute left-6 sm:left-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 p-3 sm:p-4 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
+              className="absolute right-6 sm:right-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             {/* Pagination Indicators directly below banner */}
