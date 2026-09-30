@@ -746,7 +746,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Delivery Details Section */}
-          <div className="space-y-2 pt-6 border-t border-gray-100">
+          <div className="space-y-2 pt-6 border-t border-gray-100 min-w-0 max-w-full overflow-hidden">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery Details</h3>
 
             {isLocationAvailable === false && (

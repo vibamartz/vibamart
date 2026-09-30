@@ -191,7 +191,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
   return (
     <div className="w-full min-w-0 max-w-full mt-2 overflow-hidden">
       <div
-        className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none hide-scrollbar snap-x snap-mandatory flex-nowrap w-full min-w-0 max-w-full touch-pan-x"
+        className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none hide-scrollbar snap-x snap-mandatory flex-nowrap w-full min-w-0 max-w-full touch-pan-x"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {cards.map((card) => {

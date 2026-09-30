@@ -633,7 +633,7 @@ export default function MobileProductDetailScreen() {
         )}
 
         {/* Delivery Details & Service Section (Requirement 4 & 5) */}
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0 max-w-full overflow-hidden">
           <div className="flex items-center gap-2 text-xs font-black text-gray-800 uppercase tracking-wider">
             <Truck className="w-4 h-4 text-emerald-600" />
             <span>Delivery Details</span>
