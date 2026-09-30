@@ -413,7 +413,7 @@ export default function Home() {
                     navigate('/products');
                   }
                 }}
-                className={`relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
+                className={`relative h-[160px] sm:h-[200px] md:h-[240px] lg:h-[280px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
                   activeBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
                 } cursor-pointer`}
               >
@@ -449,7 +449,7 @@ export default function Home() {
           ) : (
             <div
               onClick={() => navigate('/products')}
-              className="relative h-[180px] sm:h-[280px] md:h-[360px] lg:h-[420px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+              className="relative h-[160px] sm:h-[200px] md:h-[240px] lg:h-[280px] rounded-3xl sm:rounded-[40px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-12 md:px-20 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
             >
               <div className="max-w-2xl text-white space-y-4 sm:space-y-6">
                 <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-none">
