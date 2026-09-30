@@ -1,3 +1,5 @@
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Order } from '../types';
 
 export function getOrGenerateInvoiceNumber(order: Order): string {
@@ -10,9 +12,7 @@ export function getOrGenerateInvoiceNumber(order: Order): string {
   return `INV-${dateStr}-${cleanId || 'VBM1'}`;
 }
 
-export async function generateNativePDF(order: Order, invoiceNum: string): Promise<void> {
-  const jsPDFModule = await import('jspdf');
-  const jsPDF: any = jsPDFModule.default || (jsPDFModule as any).jsPDF || jsPDFModule;
+export function generateNativePDF(order: Order, invoiceNum: string): void {
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -170,8 +170,6 @@ export async function downloadInvoicePDF(order: Order, invoiceElement: HTMLEleme
   const invoiceNum = getOrGenerateInvoiceNumber(order);
 
   try {
-    const html2canvasModule = await import('html2canvas');
-    const html2canvas: any = html2canvasModule.default || html2canvasModule;
     let canvas: HTMLCanvasElement;
     
     try {
@@ -194,8 +192,6 @@ export async function downloadInvoicePDF(order: Order, invoiceElement: HTMLEleme
     }
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    const jsPDFModule = await import('jspdf');
-    const jsPDF: any = jsPDFModule.default || (jsPDFModule as any).jsPDF || jsPDFModule;
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',

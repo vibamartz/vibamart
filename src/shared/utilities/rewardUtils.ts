@@ -1,26 +1,11 @@
 import { db } from '../../backend/firebase/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Product, BrandCoupon } from '../types';
-import { useRewardsStore } from '../../backend/store';
 
 /**
  * Fetches all product IDs that are explicitly assigned to any Reward Product / Coupon Card.
- * Prioritizes in-memory active store cache for instant 0ms access.
  */
 export async function getRewardProductIds(): Promise<Set<string>> {
-  const storeOffers = useRewardsStore.getState().offers;
-  if (storeOffers && storeOffers.length > 0) {
-    const rewardIds = new Set<string>();
-    storeOffers.forEach(data => {
-      if (Array.isArray(data.productIds)) {
-        data.productIds.forEach(id => {
-          if (id) rewardIds.add(id);
-        });
-      }
-    });
-    return rewardIds;
-  }
-
   try {
     const snap = await getDocs(collection(db, 'reward_offers'));
     const rewardIds = new Set<string>();

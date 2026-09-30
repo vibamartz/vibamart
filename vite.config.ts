@@ -35,36 +35,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1200,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('@tensorflow') || id.includes('tesseract.js')) {
-                return 'vendor-ai';
-              }
-              if (id.includes('jspdf') || id.includes('html2canvas')) {
-                return 'vendor-pdf';
-              }
-              if (id.includes('recharts') || id.includes('d3-')) {
-                return 'vendor-charts';
-              }
-              if (id.includes('firebase')) {
-                return 'vendor-firebase';
-              }
-              if (id.includes('lucide-react')) {
-                return 'vendor-icons';
-              }
-              if (id.includes('motion') || id.includes('framer-motion')) {
-                return 'vendor-motion';
-              }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('zustand')) {
-                return 'vendor-react';
-              }
-            }
-          }
-        }
-      }
+      chunkSizeWarningLimit: 6000,
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

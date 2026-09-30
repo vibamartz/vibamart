@@ -9,8 +9,12 @@ const firebaseConfig = process.env.FIREBASE_CONFIG || {};
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with default fast transport
-export const db = initializeFirestore(app, {}, (firebaseConfig as any).firestoreDatabaseId);
+// Use initializeFirestore with settings to fix connectivity issues in restricted environments
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  // @ts-ignore
+  useFetchStreams: false,
+}, (firebaseConfig as any).firestoreDatabaseId);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
@@ -33,6 +37,22 @@ export const getFcmMessaging = async (): Promise<Messaging | null> => {
   }
   return null;
 };
+
+
+// Connectivity check
+async function testConnection() {
+  try {
+    // Attempting to reach the server specifically
+    await getDocFromServer(doc(db, "test", "connection"));
+    console.log("Firestore connection successful.");
+  } catch (error) {
+    console.error("Firestore connectivity error:", error);
+    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("10 seconds"))) {
+      console.error("Please check your Firebase configuration or network. If you just set up Firebase, it might take a moment to provision.");
+    }
+  }
+}
+testConnection();
 
 export enum OperationType {
   CREATE = "create",
