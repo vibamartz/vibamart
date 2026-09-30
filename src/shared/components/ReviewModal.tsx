@@ -82,7 +82,13 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    let addedCount = 0;
     Array.from(files).forEach((file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit`);
+        return;
+      }
+      addedCount++;
       const isVideo = file.type.startsWith('video/');
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -95,7 +101,9 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
       };
       reader.readAsDataURL(file);
     });
-    toast.success("Attachment added!");
+    if (addedCount > 0) {
+      toast.success("Attachment added!");
+    }
   };
 
   const removeMedia = (index: number) => {

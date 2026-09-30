@@ -76,6 +76,16 @@ export async function uploadProductImageToStorage(
     return trimmed;
   }
 
+  // Reject oversized data URLs (> 10MB raw binary size, approx 14MB in base64)
+  const MAX_BYTES = 10 * 1024 * 1024;
+  if (trimmed.startsWith('data:') || trimmed.length > 500) {
+    const approxBytes = Math.round((trimmed.length * 3) / 4);
+    if (approxBytes > MAX_BYTES * 1.5) {
+      console.warn('Image data exceeds 10 MB limit, skipping upload');
+      return '';
+    }
+  }
+
   // Attempt upload to Firebase Storage
   try {
     const timestamp = Date.now();
@@ -89,6 +99,10 @@ export async function uploadProductImageToStorage(
     } else if (trimmed.startsWith('blob:')) {
       const res = await fetch(trimmed);
       const blob = await res.blob();
+      if (blob.size > MAX_BYTES) {
+        console.warn('Blob exceeds 10 MB limit');
+        return '';
+      }
       await withTimeout(uploadBytes(storageRef, blob));
       const downloadUrl = await withTimeout(getDownloadURL(storageRef));
       if (downloadUrl) return downloadUrl;
@@ -117,18 +131,21 @@ export async function uploadProductImageToStorage(
 /**
  * Processes all product images (main images, primary image, and variant images),
  * uploading them to Storage (or compressing them as fallback) before saving to Firestore.
+ * Enforces a maximum of 10 images per product and per variant.
  */
 export async function processAllProductImages(formData: {
   images?: string[];
   primaryImage?: string;
   variants?: any[];
 }) {
-  // 1. Upload main product images
-  const rawImages = formData.images || [];
+  const MAX_PRODUCT_IMAGES = 10;
+
+  // 1. Upload main product images (max 10)
+  const rawImages = (formData.images || []).slice(0, MAX_PRODUCT_IMAGES);
   const processedImages = await Promise.all(
     rawImages.map((img) => uploadProductImageToStorage(img, 'products'))
   );
-  const finalImages = processedImages.filter(Boolean);
+  const finalImages = processedImages.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
 
   // 2. Upload primary image
   let finalPrimaryImage = await uploadProductImageToStorage(
@@ -139,16 +156,16 @@ export async function processAllProductImages(formData: {
     finalPrimaryImage = finalImages[0];
   }
 
-  // 3. Upload variant images
+  // 3. Upload variant images (max 10 per variant)
   const rawVariants = formData.variants || [];
   const processedVariants = await Promise.all(
     rawVariants.map(async (v) => {
       let vImages: string[] = [];
       if (Array.isArray(v.images) && v.images.length > 0) {
         const uploaded = await Promise.all(
-          v.images.map((img: string) => uploadProductImageToStorage(img, 'products/variants'))
+          v.images.slice(0, MAX_PRODUCT_IMAGES).map((img: string) => uploadProductImageToStorage(img, 'products/variants'))
         );
-        vImages = uploaded.filter(Boolean);
+        vImages = uploaded.filter(Boolean).slice(0, MAX_PRODUCT_IMAGES);
       }
 
       let vImage = await uploadProductImageToStorage(v.image || '', 'products/variants');
@@ -162,7 +179,7 @@ export async function processAllProductImages(formData: {
       return {
         ...v,
         image: vImage || '',
-        images: vImages,
+        images: vImages.slice(0, MAX_PRODUCT_IMAGES),
       };
     })
   );

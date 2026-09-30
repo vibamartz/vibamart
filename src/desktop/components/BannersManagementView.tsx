@@ -197,6 +197,10 @@ export default function BannersManagementView() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size exceeds 10 MB limit');
+        return;
+      }
       try {
         const compressedBase64 = await compressImage(file, 1200, 600, 0.8);
         setFormData(prev => ({ ...prev, image: compressedBase64 }));

@@ -4214,7 +4214,7 @@ export function ProductImageUploader({
   const [isDragging, setIsDragging] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState('');
-  const MAX_SLOTS = 8;
+  const MAX_SLOTS = 10;
 
   const processFiles = useCallback(
     (files: FileList | null) => {
@@ -4270,7 +4270,7 @@ export function ProductImageUploader({
     }
 
     if (images.length >= MAX_SLOTS) {
-      toast.error('Maximum 6 images allowed.');
+      toast.error(`Maximum ${MAX_SLOTS} images allowed.`);
       return;
     }
     onChange([...images, url]);
@@ -5601,6 +5601,10 @@ function CategoriesManagementView() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast.error('File size exceeds 10 MB limit');
+                        return;
+                      }
                       const reader = new FileReader();
                       reader.onload = (ev) => {
                         const dataUrl = ev.target?.result as string;
@@ -5646,6 +5650,10 @@ function CategoriesManagementView() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast.error('File size exceeds 10 MB limit');
+                        return;
+                      }
                       const reader = new FileReader();
                       reader.onload = (ev) => {
                         const dataUrl = ev.target?.result as string;
@@ -5746,6 +5754,10 @@ function CategoriesManagementView() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('File size exceeds 10 MB limit');
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             const dataUrl = ev.target?.result as string;
@@ -5790,6 +5802,10 @@ function CategoriesManagementView() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('File size exceeds 10 MB limit');
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             const dataUrl = ev.target?.result as string;
@@ -5971,6 +5987,10 @@ function CategoriesManagementView() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('File size exceeds 10 MB limit');
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             const dataUrl = ev.target?.result as string;
@@ -6048,6 +6068,10 @@ function CategoriesManagementView() {
                                         onChange={(e) => {
                                           const file = e.target.files?.[0];
                                           if (!file) return;
+                                          if (file.size > 10 * 1024 * 1024) {
+                                            toast.error('File size exceeds 10 MB limit');
+                                            return;
+                                          }
                                           const reader = new FileReader();
                                           reader.onload = (ev) => {
                                             const dataUrl = ev.target?.result as string;
@@ -6184,6 +6208,10 @@ function CategoriesManagementView() {
                                         onChange={(e) => {
                                           const file = e.target.files?.[0];
                                           if (!file) return;
+                                          if (file.size > 10 * 1024 * 1024) {
+                                            toast.error('File size exceeds 10 MB limit');
+                                            return;
+                                          }
                                           const reader = new FileReader();
                                           reader.onload = (ev) => {
                                             const dataUrl = ev.target?.result as string;

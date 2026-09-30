@@ -172,7 +172,7 @@ export interface VariantMultiImageInputProps {
   maxImages?: number;
 }
 
-export function VariantMultiImageInput({ images = [], onChange, disabled, maxImages = 8 }: VariantMultiImageInputProps) {
+export function VariantMultiImageInput({ images = [], onChange, disabled, maxImages = 10 }: VariantMultiImageInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
   const [urlInput, setUrlInput] = useState('');
@@ -276,6 +276,11 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
       return;
     }
 
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size exceeds 10 MB limit');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
@@ -302,7 +307,7 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
       <div className="flex items-center justify-between">
         <label className="text-[9px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
           <ImageIcon className="w-3.5 h-3.5 text-gray-400" />
-          Variant Gallery Images (Max 8 Images)
+          Variant Gallery Images (Max {maxImages} Images)
         </label>
         <span className={`text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-full border ${
           images.length >= maxImages
@@ -380,7 +385,7 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
       )}
 
       {images.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {images.map((imgUrl, idx) => {
             const isDataUrl = imgUrl.startsWith('data:image/');
             return (
@@ -454,7 +459,7 @@ export function VariantMultiImageInput({ images = [], onChange, disabled, maxIma
         </div>
       ) : (
         <div className="py-6 text-center text-xs font-bold text-gray-400 italic bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-          No variant images added yet. Upload files or paste links above (up to 8 images).
+          No variant images added yet. Upload files or paste links above (up to {maxImages} images).
         </div>
       )}
     </div>

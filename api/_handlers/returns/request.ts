@@ -27,6 +27,16 @@ export default async function handler(req: any, res: any) {
     if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ success: false, message: "At least one proof image is required" });
     }
+    if (images.length > 10) {
+      return res.status(400).json({ success: false, message: "Maximum 10 proof images allowed" });
+    }
+    // Validate each image size <= 10MB (approx 14MB base64 string)
+    const MAX_BASE64_LENGTH = 14 * 1024 * 1024;
+    for (const img of images) {
+      if (typeof img === 'string' && img.length > MAX_BASE64_LENGTH) {
+        return res.status(400).json({ success: false, message: "Uploaded proof image exceeds 10 MB limit" });
+      }
+    }
     if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
       return res.status(400).json({ success: false, message: "At least one product must be selected for return" });
     }

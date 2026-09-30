@@ -31,10 +31,21 @@ export async function uploadCategoryImageToStorage(
 ): Promise<string> {
   if (!imageInput) return '';
 
+  const MAX_BYTES = 10 * 1024 * 1024;
+
   if (typeof imageInput === 'string') {
     // Return standard HTTP/HTTPS URLs directly
     if (imageInput.startsWith('http://') || imageInput.startsWith('https://')) {
       return imageInput;
+    }
+
+    // Check size if base64 data string
+    if (imageInput.startsWith('data:') || imageInput.length > 500) {
+      const approxBytes = Math.round((imageInput.length * 3) / 4);
+      if (approxBytes > MAX_BYTES * 1.5) {
+        console.warn('Category image data exceeds 10 MB limit');
+        return '';
+      }
     }
 
     // Handle Blob URL (blob:http...)
@@ -42,6 +53,10 @@ export async function uploadCategoryImageToStorage(
       try {
         const res = await fetch(imageInput);
         const blob = await res.blob();
+        if (blob.size > MAX_BYTES) {
+          console.warn('Category blob exceeds 10 MB limit');
+          return '';
+        }
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
         const ext = blob.type ? blob.type.split('/')[1] || 'png' : 'png';
@@ -91,6 +106,10 @@ export async function uploadCategoryImageToStorage(
 
   // Handle File or Blob object
   if (imageInput instanceof File || imageInput instanceof Blob) {
+    if (imageInput.size > MAX_BYTES) {
+      console.warn('Category image file exceeds 10 MB limit');
+      return '';
+    }
     try {
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);

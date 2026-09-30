@@ -64,8 +64,14 @@ export default function MobileRequestScreens() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    let addedCount = 0;
     // Convert file to base64 preview for submission
     Array.from(files).forEach((file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit`);
+        return;
+      }
+      addedCount++;
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
@@ -74,7 +80,9 @@ export default function MobileRequestScreens() {
       };
       reader.readAsDataURL(file);
     });
-    toast.success("Image uploaded!");
+    if (addedCount > 0) {
+      toast.success("Image uploaded!");
+    }
   };
 
   const handleSubmitRequest = async (e: React.FormEvent) => {

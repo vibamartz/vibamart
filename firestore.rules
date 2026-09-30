@@ -45,7 +45,8 @@ service cloud.firestore {
              data.price is number && data.price >= 0 &&
              data.categoryId is string &&
              data.vendorId is string &&
-             data.stock is number && data.stock >= 0;
+             data.stock is number && data.stock >= 0 &&
+             (!('images' in data) || (data.images is list && data.images.size() <= 10));
     }
 
     function isValidOrder(data) {

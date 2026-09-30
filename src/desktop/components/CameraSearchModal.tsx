@@ -133,6 +133,10 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size exceeds 10 MB limit');
+        return;
+      }
       processImage(file);
     }
   };

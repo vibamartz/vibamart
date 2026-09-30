@@ -130,7 +130,13 @@ export default function MobileOrderDetailsScreen() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    let addedCount = 0;
     Array.from(files).forEach((file: File) => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 10 MB limit`);
+        return;
+      }
+      addedCount++;
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
@@ -139,7 +145,9 @@ export default function MobileOrderDetailsScreen() {
       };
       reader.readAsDataURL(file);
     });
-    toast.success("Image added!");
+    if (addedCount > 0) {
+      toast.success("Image added!");
+    }
   };
 
   const removeReturnImage = (index: number) => {

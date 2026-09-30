@@ -90,8 +90,8 @@ function BrandLogoInput({ value, onChange, brandName, label = "Brand Logo Image 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Logo file size must be less than 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size exceeds 10 MB limit');
       return;
     }
     setIsUploading(true);
@@ -252,8 +252,8 @@ function CouponCardProductImagesManager({ images = [], onChange, accentColor = '
     try {
       const processedBase64List: string[] = [];
       for (const file of filesToProcess) {
-        if (file.size > 8 * 1024 * 1024) {
-          toast.error(`File "${file.name}" exceeds 8MB limit. Skipped.`);
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`File "${file.name}" exceeds 10 MB limit. Skipped.`);
           continue;
         }
         const base64 = await compressImage(file, 800, 800, 0.8);
@@ -298,6 +298,10 @@ function CouponCardProductImagesManager({ images = [], onChange, accentColor = '
   const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || replaceTargetIndex === null) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size exceeds 10 MB limit');
+      return;
+    }
     setIsProcessing(true);
     try {
       const base64 = await compressImage(file, 800, 800, 0.8);
