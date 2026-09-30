@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { Product, ProductVariant } from '../../shared/types';
+import { Product } from '../../shared/types';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, ShoppingCart, Heart, ChevronDown, Eye, Truck, Share2 } from 'lucide-react';
-import { useCartStore, useAuthStore } from '../../backend/store';
+import { ChevronDown } from 'lucide-react';
+import { useCartStore } from '../../backend/store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
-import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
 import { getProductSlug } from '../../shared/utilities/slug';
-import { shareProduct } from '../../shared/utilities/shareUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -19,7 +16,6 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, showActionsAlways = false, hideButtons = false }: ProductCardProps) {
   const { addItem, items } = useCartStore();
-  const { user } = useAuthStore();
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
     product.variants && product.variants.length > 0 ? product.variants[0].id : undefined
@@ -64,34 +60,6 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     }
   };
 
-  const isWishlisted = user?.wishlist?.includes(product.id);
-
-  const handleToggleWishlist = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) {
-      toast.error('Please login to use wishlist');
-      return;
-    }
-
-    const currentWishlist = user.wishlist || [];
-    const newWishlist = isWishlisted
-      ? currentWishlist.filter(id => id !== product.id)
-      : Array.from(new Set([...currentWishlist, product.id]));
-
-    useAuthStore.getState().setUser({ ...user, wishlist: newWishlist });
-
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        wishlist: isWishlisted ? arrayRemove(product.id) : arrayUnion(product.id)
-      });
-      toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
-    } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
-    }
-  };
-
   const discountAmount = product.discountPrice && product.price ? product.price - product.discountPrice : 0;
   const discountPercentage = product.discountPrice && product.price ? Math.round((discountAmount / product.price) * 100) : 0;
 
@@ -116,35 +84,6 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
               {discountPercentage}% OFF
             </span>
           )}
-          <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10">
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleToggleWishlist(e); }}
-              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-              className={`p-2 touch-target rounded-full transition-all shadow-sm flex items-center justify-center ${
-                isWishlisted 
-                  ? 'bg-rose-500 text-white' 
-                  : 'bg-white/80 backdrop-blur-sm text-gray-400 hover:text-rose-500 hover:bg-white'
-              }`}
-            >
-              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
-            </button>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                shareProduct(product, {
-                  specificImage: selectedVariant?.image || product.images?.[0],
-                  variantName: selectedVariant?.name
-                });
-              }}
-              aria-label="Share product"
-              title="Share product with image and link"
-              className="p-2 touch-target rounded-full transition-all shadow-sm flex items-center justify-center bg-white/80 backdrop-blur-sm text-gray-400 hover:text-green-600 hover:bg-white active:scale-95"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-          </div>
         </div>
 
         <div className="p-2 flex flex-col flex-1">
