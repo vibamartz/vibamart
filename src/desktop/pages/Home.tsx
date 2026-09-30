@@ -317,10 +317,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (activeBanners.length <= 1) return;
+    if (activeBanners.length <= 2) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => {
-        const next = (prev + 1) % activeBanners.length;
+        const next = (prev + 2 >= activeBanners.length) ? 0 : prev + 2;
         scrollToBannerSlide(next);
         return next;
       });
@@ -329,12 +329,12 @@ export default function Home() {
   }, [activeBanners.length]);
 
   const nextSlide = () => {
-    const next = (currentSlide + 1) % activeBanners.length;
+    const next = (currentSlide + 2 >= activeBanners.length) ? 0 : currentSlide + 2;
     scrollToBannerSlide(next);
   };
 
   const prevSlide = () => {
-    const prev = (currentSlide - 1 + activeBanners.length) % activeBanners.length;
+    const prev = (currentSlide - 2 < 0) ? Math.max(0, activeBanners.length - 2) : currentSlide - 2;
     scrollToBannerSlide(prev);
   };
 
@@ -396,11 +396,11 @@ export default function Home() {
       </section>
 
       {/* 2. Category Banners Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto overflow-hidden -mt-4 sm:-mt-6">
+      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden -mt-4 sm:-mt-6">
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}
-          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar px-0.5 py-0.5 min-w-0 w-full"
+          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 lg:gap-6 px-0.5 py-0.5 min-w-0 w-full"
         >
           {activeBanners.length > 0 ? (
             activeBanners.map((banner, i) => (
@@ -413,7 +413,9 @@ export default function Home() {
                     navigate('/products');
                   }
                 }}
-                className="relative h-[150px] sm:h-[180px] md:h-[220px] lg:h-[250px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm group border border-gray-100 bg-white w-full shrink-0 snap-center cursor-pointer"
+                className={`relative h-[160px] sm:h-[190px] md:h-[220px] lg:h-[240px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
+                  activeBanners.length > 1 ? 'w-full sm:w-[calc(50%-8px)] lg:w-[calc(50%-12px)] shrink-0 snap-start' : 'w-full'
+                } cursor-pointer`}
               >
                 <img
                   src={banner.image}
@@ -422,21 +424,21 @@ export default function Home() {
                 />
 
                 {(banner.title || banner.subtitle) && (
-                  <div className="absolute inset-0 flex items-center px-6 sm:px-10 md:px-14 pointer-events-none">
-                    <div className="max-w-xl pointer-events-auto">
+                  <div className="absolute inset-0 flex items-center px-4 sm:px-6 md:px-8 pointer-events-none">
+                    <div className="max-w-xs sm:max-w-sm pointer-events-auto">
                       {banner.subtitle && (
-                        <span className="inline-block px-3 py-1 sm:px-4 sm:py-1 bg-primary text-white text-[8px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-2 sm:mb-4 shadow-sm">
+                        <span className="inline-block px-2.5 py-0.5 sm:px-3 sm:py-1 bg-primary text-white text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] rounded-full mb-1.5 sm:mb-2.5 shadow-sm">
                           {banner.subtitle}
                         </span>
                       )}
                       {banner.title && (
-                        <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white leading-[1.1] mb-3 sm:mb-4 tracking-tighter drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+                        <h1 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight mb-2 sm:mb-3 tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] line-clamp-2">
                           {banner.title}
                         </h1>
                       )}
-                      <div className="flex flex-wrap gap-4">
-                        <div className="bg-white text-gray-900 touch-target min-h-[38px] px-4 py-2 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[8px] sm:text-[10px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-2">
-                          Explore Now <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <div className="flex flex-wrap gap-2">
+                        <div className="bg-white text-gray-900 touch-target min-h-[32px] px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black uppercase tracking-widest text-[8px] sm:text-[9px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5">
+                          Explore Now <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
                       </div>
                     </div>
@@ -447,7 +449,7 @@ export default function Home() {
           ) : (
             <div
               onClick={() => navigate('/products')}
-              className="relative h-[150px] sm:h-[180px] md:h-[220px] lg:h-[250px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-10 md:px-14 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
+              className="relative h-[160px] sm:h-[190px] md:h-[220px] lg:h-[240px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-10 md:px-14 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
             >
               <div className="max-w-xl text-white space-y-3 sm:space-y-4">
                 <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tight leading-none">
@@ -464,7 +466,7 @@ export default function Home() {
           )}
         </div>
 
-        {activeBanners.length > 1 && (
+        {activeBanners.length > 2 && (
           <>
             <button
               onClick={(e) => { e.stopPropagation(); prevSlide(); }}
@@ -481,12 +483,12 @@ export default function Home() {
 
             {/* Pagination Indicators directly below banner */}
             <div className="flex justify-center items-center gap-2 pt-3">
-              {activeBanners.map((_, i) => (
+              {Array.from({ length: Math.ceil(activeBanners.length / 2) }).map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => scrollToBannerSlide(i)}
+                  onClick={() => scrollToBannerSlide(i * 2)}
                   className={`h-2 rounded-full transition-all ${
-                    currentSlide === i ? 'w-8 bg-primary' : 'w-2 bg-gray-300'
+                    Math.floor(currentSlide / 2) === i ? 'w-8 bg-primary' : 'w-2 bg-gray-300'
                   }`}
                 />
               ))}
