@@ -90,7 +90,7 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 
 /**
  * Main share function supporting native Web Share API (mobile share sheet & desktop Web Share API)
- * with single canonical URL sharing and copy-to-clipboard fallback.
+ * with image/banner file attachments when available, single canonical URL sharing, and copy-to-clipboard fallback.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
   const { title, text, url, imageUrl } = options;
@@ -105,13 +105,41 @@ export async function shareItem(options: ShareOptions): Promise<void> {
 
   // 1. Try native Web Share API (Mobile system share sheet / Desktop Web Share API)
   if (typeof navigator !== 'undefined' && navigator.share) {
+    let filesToShare: File[] = [];
+
+    if (fullImageUrl && navigator.canShare) {
+      try {
+        const response = await fetch(fullImageUrl, { mode: 'cors' });
+        if (response.ok) {
+          const blob = await response.blob();
+          const ext = blob.type.split('/')[1]?.split(';')[0] || 'png';
+          const file = new File([blob], `share-preview.${ext}`, { type: blob.type || 'image/png' });
+          if (navigator.canShare({ files: [file] })) {
+            filesToShare = [file];
+          }
+        }
+      } catch (_) {
+        // Fall back to title/text/url sharing if image fetch fails (e.g. CORS)
+      }
+    }
+
     try {
-      await navigator.share({
-        title,
-        text: cleanText,
-        url: fullUrl,
-      });
-      return;
+      if (filesToShare.length > 0) {
+        await navigator.share({
+          title,
+          text: cleanText,
+          url: fullUrl,
+          files: filesToShare,
+        });
+        return;
+      } else {
+        await navigator.share({
+          title,
+          text: cleanText,
+          url: fullUrl,
+        });
+        return;
+      }
     } catch (err: any) {
       // User cancelled native share sheet
       if (err.name === 'AbortError') {
