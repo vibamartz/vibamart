@@ -8,7 +8,6 @@ import { useIsMobile } from './shared/utilities/useIsMobile';
 import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
 import GlobalPushNotificationListener from './shared/components/GlobalPushNotificationListener';
-import GlobalShareModal from './shared/components/GlobalShareModal';
 
 // Desktop UI (Isolated Desktop Fronted)
 import Navbar from './desktop/components/Navbar';
@@ -372,7 +371,6 @@ export default function App() {
           onClose={() => setShowPermissions(false)}
           onAccept={handlePermissionsAccept}
         />
-        <GlobalShareModal />
       </Router>
     </ErrorBoundary>
   );
