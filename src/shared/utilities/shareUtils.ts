@@ -1,5 +1,6 @@
 import { Product, BrandCoupon, Deal259PageConfig } from '../types';
 import { getProductSlug, getRewardSlug } from './slug';
+import { useShareModalStore } from './useShareModalStore';
 import toast from 'react-hot-toast';
 
 export interface ShareOptions {
@@ -7,6 +8,9 @@ export interface ShareOptions {
   text: string;
   url: string;
   imageUrl?: string;
+  price?: number;
+  discountPrice?: number;
+  category?: string;
   customToastMessage?: string;
 }
 
@@ -48,99 +52,43 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 }
 
 /**
- * Main share function supporting Web Share API with native share sheet,
- * optional image attachments, and automatic copy-to-clipboard fallback.
+ * Main share function supporting rich desktop share modal, Web Share API,
+ * and automatic copy-to-clipboard fallback.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
-  const { title, text, url, imageUrl, customToastMessage } = options;
+  const { title, text, url, imageUrl, price, discountPrice, category, customToastMessage } = options;
 
-  // Build full text ensuring the canonical URL is explicitly embedded within the message.
-  // This ensures desktop and mobile share targets (WhatsApp, Telegram, Discord, Mail, Windows Share, etc.)
-  // include the product URL even when the platform prioritizes image file attachments or drops the standalone URL field.
+  // On desktop mode, launch the high-converting Share Modal with 1-click WhatsApp,
+  // Socials, direct specific URL copy, image download, and device share
+  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+    useShareModalStore.getState().openModal({
+      title,
+      text,
+      url,
+      imageUrl,
+      price,
+      discountPrice,
+      category,
+      customToastMessage,
+    });
+    return;
+  }
+
+  // On mobile devices, use native Web Share API
   const textWithUrl = text ? (text.includes(url) ? text : `${text}\n\n${url}`) : url;
 
-  // 1. Try native Web Share API
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    let filesToShare: File[] = [];
-
-    if (imageUrl && typeof navigator.canShare === 'function') {
-      try {
-        let blob: Blob | null = null;
-        let mimeType = 'image/png';
-        let ext = 'png';
-
-        if (imageUrl.startsWith('data:')) {
-          const arr = imageUrl.split(',');
-          const mimeMatch = arr[0].match(/:(.*?);/);
-          mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
-          ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
-          const bstr = atob(arr[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-          }
-          blob = new Blob([u8arr], { type: mimeType });
-        } else {
-          const response = await fetch(imageUrl, { mode: 'cors' });
-          if (response.ok) {
-            blob = await response.blob();
-            mimeType = blob.type || 'image/png';
-            ext = mimeType.split('/')[1]?.split(';')[0] || 'png';
-          }
-        }
-
-        if (blob) {
-          const file = new File([blob], `product-share.${ext}`, { type: mimeType });
-          if (navigator.canShare({ files: [file], title, text: textWithUrl, url })) {
-            filesToShare = [file];
-          } else if (navigator.canShare({ files: [file] })) {
-            filesToShare = [file];
-          }
-        }
-      } catch (_) {
-        // Fallback to text/url sharing if image fetch fails (e.g., CORS)
-      }
-    }
-
     try {
-      if (filesToShare.length > 0) {
-        await navigator.share({
-          title,
-          text: textWithUrl,
-          url,
-          files: filesToShare,
-        });
-        return;
-      } else {
-        await navigator.share({
-          title,
-          text: textWithUrl,
-          url,
-        });
-        return;
-      }
+      await navigator.share({
+        title,
+        text: textWithUrl,
+        url,
+      });
+      return;
     } catch (err: any) {
       // User cancelled native share sheet
       if (err && (err.name === 'AbortError' || err.code === 20)) {
         return;
-      }
-
-      // If sharing with files failed on this platform, retry without files
-      // to ensure the product URL and description are successfully shared.
-      if (filesToShare.length > 0) {
-        try {
-          await navigator.share({
-            title,
-            text: textWithUrl,
-            url,
-          });
-          return;
-        } catch (retryErr: any) {
-          if (retryErr && (retryErr.name === 'AbortError' || retryErr.code === 20)) {
-            return;
-          }
-        }
       }
     }
   }
@@ -184,7 +132,8 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
   const shareUrl = options?.specificUrl || `${origin}/products/${slug}`;
 
   const image = options?.specificImage || ((product.images && product.images.length > 0) ? product.images[0] : (product as any).image);
-  const priceDisplay = product.price ? ` - ₹${product.price}` : '';
+  const effectivePrice = product.discountPrice || product.price;
+  const priceDisplay = effectivePrice ? ` - ₹${effectivePrice.toLocaleString()}` : '';
   const variantDisplay = options?.variantName ? ` (${options.variantName})` : '';
   const descSnippet = product.description ? `\n\n${product.description.slice(0, 150)}` : '';
 
@@ -199,6 +148,9 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
     text,
     url: shareUrl,
     imageUrl: image,
+    price: product.price,
+    discountPrice: product.discountPrice,
+    category: (product as any).category || product.categoryId,
     customToastMessage: 'Product link copied to clipboard!',
   });
 }

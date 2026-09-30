@@ -7,6 +7,7 @@ import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useR
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
+import ShareModal from './desktop/components/ShareModal';
 import GlobalPushNotificationListener from './shared/components/GlobalPushNotificationListener';
 
 // Desktop UI (Isolated Desktop Fronted)
@@ -371,6 +372,7 @@ export default function App() {
           onClose={() => setShowPermissions(false)}
           onAccept={handlePermissionsAccept}
         />
+        <ShareModal />
       </Router>
     </ErrorBoundary>
   );
