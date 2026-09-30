@@ -4,6 +4,7 @@ import { X, Check, Copy, Download, Share2, Mail, ExternalLink, Image as ImageIco
 import toast from 'react-hot-toast';
 import { Product } from '../../shared/types';
 import { getProductSlug } from '../../shared/utilities/slug';
+import { deduplicateShareContent } from '../../shared/utilities/shareUtils';
 import { useDesktopShareStore } from './useDesktopShareStore';
 
 export { useDesktopShareStore };
@@ -28,16 +29,19 @@ export default function DesktopShareModal() {
     ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
     : 0;
 
-  const title = `${product.name}${variantDisplay}`;
-  const shareMessage = `Check out ${product.name}${variantDisplay}${priceDisplay ? ` at ${priceDisplay}` : ''} on ViBa Mart!\n${shareUrl}`;
+  const title = `${product.name}${variantDisplay} | ViBa Mart`;
+  const rawText = `Check out ${product.name}${variantDisplay}${priceDisplay ? ` at ${priceDisplay}` : ''} on ViBa Mart!`;
+
+  // Deduplicate and enforce strictly ONE canonical destination link
+  const { cleanText, combinedTextWithSingleUrl, canonicalUrl } = deduplicateShareContent(rawText, shareUrl);
 
   const handleCopyLink = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(canonicalUrl);
       } else {
         const textarea = document.createElement('textarea');
-        textarea.value = shareUrl;
+        textarea.value = canonicalUrl;
         textarea.style.position = 'fixed';
         textarea.style.opacity = '0';
         document.body.appendChild(textarea);
@@ -136,8 +140,8 @@ export default function DesktopShareModal() {
         // Share text + url directly (without files array) so OS/Windows doesn't drop the canonical link
         await navigator.share({
           title,
-          text: `Check out ${product.name}${variantDisplay}${priceDisplay ? ` at ${priceDisplay}` : ''} on ViBa Mart!`,
-          url: shareUrl,
+          text: cleanText,
+          url: canonicalUrl,
         });
       } catch (err: any) {
         if (err && (err.name === 'AbortError' || err.code === 20)) return;
@@ -148,10 +152,10 @@ export default function DesktopShareModal() {
     }
   };
 
-  // Pre-configured social share URLs
-  const encodedUrl = encodeURIComponent(shareUrl);
-  const encodedText = encodeURIComponent(`Check out ${product.name}${variantDisplay}${priceDisplay ? ` - ₹${priceDisplay}` : ''} on ViBa Mart!`);
-  const encodedFullMessage = encodeURIComponent(`Check out ${product.name}${variantDisplay}${priceDisplay ? ` - ${priceDisplay}` : ''} on ViBa Mart!\n\n${shareUrl}`);
+  // Pre-configured social share URLs ensuring ONLY ONE canonical link
+  const encodedUrl = encodeURIComponent(canonicalUrl);
+  const encodedText = encodeURIComponent(cleanText);
+  const encodedFullMessage = encodeURIComponent(combinedTextWithSingleUrl);
 
   const shareChannels = [
     {
@@ -290,7 +294,7 @@ export default function DesktopShareModal() {
                 <input
                   type="text"
                   readOnly
-                  value={shareUrl}
+                  value={canonicalUrl}
                   className="w-full text-xs text-gray-700 font-mono bg-transparent outline-none truncate select-all"
                 />
                 <button

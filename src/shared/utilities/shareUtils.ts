@@ -49,16 +49,95 @@ export function updateOpenGraphTags(title: string, description?: string, imageUr
 }
 
 /**
+ * Normalizes and deduplicates URLs in share text content.
+ * Guarantees the shared content contains EXACTLY ONE canonical destination link.
+ * Prevents the same destination URL from appearing multiple times.
+ */
+export function deduplicateShareContent(text: string | undefined | null, canonicalUrl: string): {
+  cleanText: string;
+  combinedTextWithSingleUrl: string;
+  canonicalUrl: string;
+} {
+  const targetUrl = (canonicalUrl || '').trim();
+  if (!text) {
+    return {
+      cleanText: '',
+      combinedTextWithSingleUrl: targetUrl,
+      canonicalUrl: targetUrl,
+    };
+  }
+
+  // Normalize URL for comparison (removes protocol, trailing slashes, www, lowercase)
+  const normalizeUrl = (u: string) => {
+    return u
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/\/+$/, '')
+      .toLowerCase();
+  };
+
+  const targetNormalized = normalizeUrl(targetUrl);
+
+  // Match all URLs in text
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const seenUrls = new Set<string>();
+
+  let cleaned = text.replace(urlRegex, (match) => {
+    const stripped = match.replace(/[.,;:!?)\]]+$/, '');
+    const trailingPunct = match.slice(stripped.length);
+    const normalized = normalizeUrl(stripped);
+
+    // If matches target canonical destination URL or is duplicate, strip from body text
+    if (
+      normalized === targetNormalized ||
+      (targetNormalized && (targetNormalized.endsWith(normalized) || normalized.endsWith(targetNormalized)))
+    ) {
+      return trailingPunct.replace(/[()\[\]]/g, '');
+    }
+
+    // If duplicate of an already seen URL in the text, strip it
+    if (seenUrls.has(normalized)) {
+      return trailingPunct.replace(/[()\[\]]/g, '');
+    }
+    seenUrls.add(normalized);
+
+    return match;
+  });
+
+  // Clean up whitespace, empty parentheses, and extra newlines
+  const cleanedLines = cleaned
+    .replace(/\(\s*\)|\[\s*\]/g, '')
+    .split('\n')
+    .map((l) => l.replace(/[ \t]+/g, ' ').trim())
+    .filter((line, idx, arr) => {
+      if (!line && idx > 0 && !arr[idx - 1]) return false;
+      return true;
+    });
+
+  const cleanText = cleanedLines.join('\n').trim();
+
+  const combinedTextWithSingleUrl = cleanText
+    ? (targetUrl ? `${cleanText}\n\n${targetUrl}` : cleanText)
+    : targetUrl;
+
+  return {
+    cleanText,
+    combinedTextWithSingleUrl,
+    canonicalUrl: targetUrl,
+  };
+}
+
+/**
  * Main share function supporting Web Share API with native share sheet,
  * optional image attachments, and automatic copy-to-clipboard fallback.
+ * Strictly guarantees only ONE canonical destination link is shared.
  */
 export async function shareItem(options: ShareOptions): Promise<void> {
   const { title, text, url, imageUrl, customToastMessage } = options;
 
-  // Build full text ensuring the canonical URL is explicitly embedded within the message.
-  // This ensures desktop and mobile share targets (WhatsApp, Telegram, Discord, Mail, Windows Share, etc.)
-  // include the product URL even when the platform prioritizes image file attachments or drops the standalone URL field.
-  const textWithUrl = text ? (text.includes(url) ? text : `${text}\n\n${url}`) : url;
+  // Deduplicate and ensure exactly ONE canonical URL
+  const { cleanText, combinedTextWithSingleUrl, canonicalUrl } = deduplicateShareContent(text, url);
 
   // 1. Try native Web Share API
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
@@ -92,8 +171,8 @@ export async function shareItem(options: ShareOptions): Promise<void> {
         }
 
         if (blob) {
-          const file = new File([blob], `product-share.${ext}`, { type: mimeType });
-          if (navigator.canShare({ files: [file], title, text: textWithUrl, url })) {
+          const file = new File([blob], `share-preview.${ext}`, { type: mimeType });
+          if (navigator.canShare({ files: [file], title, text: combinedTextWithSingleUrl })) {
             filesToShare = [file];
           } else if (navigator.canShare({ files: [file] })) {
             filesToShare = [file];
@@ -106,18 +185,21 @@ export async function shareItem(options: ShareOptions): Promise<void> {
 
     try {
       if (filesToShare.length > 0) {
+        // When sharing with attached files, include the single canonical URL in text
+        // without passing a separate 'url' field to prevent native share sheets from duplicating the link
         await navigator.share({
           title,
-          text: textWithUrl,
-          url,
+          text: combinedTextWithSingleUrl,
           files: filesToShare,
         });
         return;
       } else {
+        // When sharing without files, provide cleanText as text and canonicalUrl as url.
+        // The Web Share API will combine them natively with exactly ONE canonical link.
         await navigator.share({
           title,
-          text: textWithUrl,
-          url,
+          text: cleanText,
+          url: canonicalUrl,
         });
         return;
       }
@@ -128,13 +210,12 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       }
 
       // If sharing with files failed on this platform, retry without files
-      // to ensure the product URL and description are successfully shared.
       if (filesToShare.length > 0) {
         try {
           await navigator.share({
             title,
-            text: textWithUrl,
-            url,
+            text: cleanText,
+            url: canonicalUrl,
           });
           return;
         } catch (retryErr: any) {
@@ -149,12 +230,12 @@ export async function shareItem(options: ShareOptions): Promise<void> {
   // 2. Fallback to copy link to clipboard (for browsers without Web Share API)
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(url);
-      toast.success(customToastMessage || 'Product link copied to clipboard!');
+      await navigator.clipboard.writeText(canonicalUrl);
+      toast.success(customToastMessage || 'Share link copied to clipboard!');
     } else {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
-      textarea.value = url;
+      textarea.value = canonicalUrl;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -162,7 +243,7 @@ export async function shareItem(options: ShareOptions): Promise<void> {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      toast.success(customToastMessage || 'Product link copied to clipboard!');
+      toast.success(customToastMessage || 'Share link copied to clipboard!');
     }
   } catch (err) {
     toast.error('Failed to copy share link.');
@@ -177,7 +258,7 @@ export interface ProductShareOptions {
 
 /**
  * Shares a product with its permanent human-readable URL, product image,
- * title, and product details.
+ * title, and product details. Guarantees ONLY ONE canonical destination link.
  */
 export async function shareProduct(product: Product, options?: ProductShareOptions): Promise<void> {
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
@@ -187,7 +268,8 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
   const shareUrl = options?.specificUrl || `${origin}/products/${slug}`;
 
   const image = options?.specificImage || ((product.images && product.images.length > 0) ? product.images[0] : (product as any).image);
-  const priceDisplay = product.price ? ` - ₹${product.price}` : '';
+  const effectivePrice = product.discountPrice || product.price;
+  const priceDisplay = effectivePrice ? ` - ₹${effectivePrice.toLocaleString()}` : '';
   const variantDisplay = options?.variantName ? ` (${options.variantName})` : '';
   const descSnippet = product.description ? `\n\n${product.description.slice(0, 150)}` : '';
 
@@ -203,7 +285,7 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
     return;
   }
 
-  // Mobile mode: keep untouched
+  // Mobile mode
   await shareItem({
     title,
     text,
@@ -216,6 +298,7 @@ export async function shareProduct(product: Product, options?: ProductShareOptio
 /**
  * Shares a coupon/reward with its permanent human-readable URL, reward image,
  * title, and discount details. Strictly omits any coupon code.
+ * Guarantees ONLY ONE canonical destination link.
  */
 export async function shareReward(reward: BrandCoupon): Promise<void> {
   const slug = getRewardSlug(reward);
@@ -245,6 +328,7 @@ export async function shareReward(reward: BrandCoupon): Promise<void> {
 /**
  * Shares the Deal 259 Super Store page with title, description, and link.
  * Allows anyone (visitors/customers) to share the Deal 259 store.
+ * Guarantees ONLY ONE canonical destination link.
  */
 export async function shareDeal259Store(config?: Deal259PageConfig): Promise<void> {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -261,5 +345,3 @@ export async function shareDeal259Store(config?: Deal259PageConfig): Promise<voi
     customToastMessage: 'Deal 259 Store link copied to clipboard!',
   });
 }
-
-
