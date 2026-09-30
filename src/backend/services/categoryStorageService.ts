@@ -22,8 +22,80 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 8000): Promise<
 };
 
 /**
+ * Compresses a base64 Data URL or Blob URL to a lightweight data URL (~15-40KB).
+ */
+export async function compressDataUrl(
+  dataUrl: string,
+  maxWidth = 600,
+  maxHeight = 600,
+  quality = 0.8
+): Promise<string> {
+  if (
+    !dataUrl ||
+    typeof dataUrl !== 'string' ||
+    (!dataUrl.startsWith('data:') && !dataUrl.startsWith('blob:') && dataUrl.length <= 500)
+  ) {
+    return dataUrl;
+  }
+
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return dataUrl;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      let width = img.width || maxWidth;
+      let height = img.height || maxHeight;
+      if (width > maxWidth || height > maxHeight) {
+        if (width / height > maxWidth / maxHeight) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      let compressed = '';
+      try {
+        compressed = canvas.toDataURL('image/webp', quality);
+      } catch {
+        compressed = '';
+      }
+      if (!compressed || !compressed.startsWith('data:image/webp')) {
+        try {
+          compressed = canvas.toDataURL('image/jpeg', quality);
+        } catch {
+          compressed = dataUrl;
+        }
+      }
+      resolve(compressed || dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+
+    if (!dataUrl.startsWith('data:') && !dataUrl.startsWith('blob:')) {
+      img.src = `data:image/png;base64,${dataUrl}`;
+    } else {
+      img.src = dataUrl;
+    }
+  });
+}
+
+/**
  * Uploads a base64 data URL, Blob, or File to Firebase Storage and returns the download URL.
- * If it's already an HTTP/HTTPS URL, returns it as-is.
+ * If Storage fails or is unavailable, compresses the image to a compact data URL to ensure
+ * Firestore 1 MiB document limits are never breached.
  */
 export async function uploadCategoryImageToStorage(
   imageInput: string | File | Blob | null | undefined,
@@ -31,7 +103,7 @@ export async function uploadCategoryImageToStorage(
 ): Promise<string> {
   if (!imageInput) return '';
 
-  const MAX_BYTES = 10 * 1024 * 1024;
+  const MAX_BYTES = 10 * 1024 * 1024; // 10 MB system max ceiling
 
   if (typeof imageInput === 'string') {
     // Return standard HTTP/HTTPS URLs directly
@@ -43,7 +115,7 @@ export async function uploadCategoryImageToStorage(
     if (imageInput.startsWith('data:') || imageInput.length > 500) {
       const approxBytes = Math.round((imageInput.length * 3) / 4);
       if (approxBytes > MAX_BYTES * 1.5) {
-        console.warn('Category image data exceeds 10 MB limit');
+        console.warn('Category image data exceeds max limit');
         return '';
       }
     }
@@ -54,7 +126,7 @@ export async function uploadCategoryImageToStorage(
         const res = await fetch(imageInput);
         const blob = await res.blob();
         if (blob.size > MAX_BYTES) {
-          console.warn('Category blob exceeds 10 MB limit');
+          console.warn('Category blob exceeds limit');
           return '';
         }
         const timestamp = Date.now();
@@ -64,8 +136,8 @@ export async function uploadCategoryImageToStorage(
         await withTimeout(uploadBytes(storageRef, blob));
         return await withTimeout(getDownloadURL(storageRef));
       } catch (blobErr) {
-        console.warn('Failed to upload blob URL to Firebase Storage, using fallback:', blobErr);
-        return imageInput;
+        console.warn('Failed to upload blob URL to Firebase Storage, compressing fallback:', blobErr);
+        return await compressDataUrl(imageInput, 600, 600, 0.8);
       }
     }
 
@@ -74,15 +146,15 @@ export async function uploadCategoryImageToStorage(
       try {
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
-        const formatMatch = imageInput.match(/data:image\/([a-zA-Z0-9]+);base64,/);
-        const ext = formatMatch ? formatMatch[1] : 'png';
+        const formatMatch = imageInput.match(/data:image\/([a-zA-Z0-9\+\-]+);base64,/);
+        const ext = formatMatch ? formatMatch[1].replace('svg+xml', 'svg') : 'jpg';
         const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.${ext}`);
         
         await withTimeout(uploadString(storageRef, imageInput, 'data_url'));
         return await withTimeout(getDownloadURL(storageRef));
       } catch (err) {
-        console.warn('Failed to upload base64 image to Firebase Storage, falling back to data URL:', err);
-        return imageInput;
+        console.warn('Failed to upload base64 image to Firebase Storage, compressing fallback for Firestore:', err);
+        return await compressDataUrl(imageInput, 600, 600, 0.8);
       }
     }
 
@@ -92,12 +164,13 @@ export async function uploadCategoryImageToStorage(
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(2, 8);
         const dataUrl = imageInput.includes(';base64,') ? imageInput : `data:image/png;base64,${imageInput}`;
-        const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.png`);
+        const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.jpg`);
         await withTimeout(uploadString(storageRef, dataUrl, 'data_url'));
         return await withTimeout(getDownloadURL(storageRef));
       } catch (err) {
-        console.warn('Failed to upload raw base64 to Firebase Storage, falling back:', err);
-        return imageInput;
+        console.warn('Failed to upload raw base64 to Firebase Storage, compressing fallback:', err);
+        const dataUrl = imageInput.includes(';base64,') ? imageInput : `data:image/png;base64,${imageInput}`;
+        return await compressDataUrl(dataUrl, 600, 600, 0.8);
       }
     }
 
@@ -107,19 +180,27 @@ export async function uploadCategoryImageToStorage(
   // Handle File or Blob object
   if (imageInput instanceof File || imageInput instanceof Blob) {
     if (imageInput.size > MAX_BYTES) {
-      console.warn('Category image file exceeds 10 MB limit');
+      console.warn('Category image file exceeds limit');
       return '';
     }
     try {
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
-      const ext = (imageInput as File).name ? (imageInput as File).name.split('.').pop() || 'png' : 'png';
+      const ext = (imageInput as File).name ? (imageInput as File).name.split('.').pop() || 'jpg' : 'jpg';
       const storageRef = ref(storage, `${folderPath}/file_${timestamp}_${randomStr}.${ext}`);
       await withTimeout(uploadBytes(storageRef, imageInput));
       return await withTimeout(getDownloadURL(storageRef));
     } catch (err) {
-      console.warn('Failed to upload image file to Firebase Storage:', err);
-      return '';
+      console.warn('Failed to upload image file to Firebase Storage, converting to compressed data URL:', err);
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const res = reader.result as string;
+          resolve(await compressDataUrl(res, 600, 600, 0.8));
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(imageInput);
+      });
     }
   }
 
@@ -128,8 +209,8 @@ export async function uploadCategoryImageToStorage(
 
 /**
  * Recursively scans a category document and its subcategories,
- * uploading base64 images to Firebase Storage, replacing them with Storage URLs,
- * and stripping out embedded product arrays to keep Firestore document size small.
+ * uploading base64 images to Firebase Storage (or compressing them to tiny data URLs),
+ * replacing them with Storage/compressed URLs, and stripping out embedded product arrays to keep Firestore document size small.
  */
 export async function sanitizeAndUploadCategoryDoc(
   category: Partial<Category>
@@ -199,10 +280,42 @@ export async function sanitizeAndUploadCategoryDoc(
   }
 
   // 4. Remove undefined fields
-  const finalCleaned = cleanForFirestore(cleaned);
+  let finalCleaned = cleanForFirestore(cleaned);
 
-  // 5. Verify byte size stays under 1 MiB limit (1,048,576 bytes)
-  const encodedLength = new TextEncoder().encode(JSON.stringify(finalCleaned)).length;
+  // 5. Size check and aggressive second-pass compression if still large
+  let encodedLength = new TextEncoder().encode(JSON.stringify(finalCleaned)).length;
+  if (encodedLength > 500000) {
+    // Secondary aggressive compression pass
+    if (isBase64OrDataUrl(finalCleaned.image)) {
+      finalCleaned.image = await compressDataUrl(finalCleaned.image, 300, 300, 0.7);
+    }
+    if (isBase64OrDataUrl(finalCleaned.icon)) {
+      finalCleaned.icon = await compressDataUrl(finalCleaned.icon, 200, 200, 0.7);
+    }
+    if (Array.isArray(finalCleaned.subcategories)) {
+      for (const sub of finalCleaned.subcategories) {
+        if (isBase64OrDataUrl(sub.image)) {
+          sub.image = await compressDataUrl(sub.image, 300, 300, 0.7);
+        }
+        if (isBase64OrDataUrl(sub.icon)) {
+          sub.icon = await compressDataUrl(sub.icon, 200, 200, 0.7);
+        }
+        if (Array.isArray(sub.subcategories)) {
+          for (const nested of sub.subcategories) {
+            if (isBase64OrDataUrl(nested.image)) {
+              nested.image = await compressDataUrl(nested.image, 300, 300, 0.7);
+            }
+            if (isBase64OrDataUrl(nested.icon)) {
+              nested.icon = await compressDataUrl(nested.icon, 200, 200, 0.7);
+            }
+          }
+        }
+      }
+    }
+    finalCleaned = cleanForFirestore(finalCleaned);
+    encodedLength = new TextEncoder().encode(JSON.stringify(finalCleaned)).length;
+  }
+
   if (encodedLength > 1000000) {
     console.warn(`Category document ${catId} size is ${encodedLength} bytes, approaching 1 MiB limit.`);
     if (encodedLength > 1048000) {

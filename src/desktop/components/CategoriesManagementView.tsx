@@ -9,7 +9,7 @@ import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
-import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded } from '../../backend/services/categoryStorageService';
+import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -171,13 +171,19 @@ export default function CategoriesManagementView() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB max
-        toast.error('File size exceeds 10 MB limit');
+      if (file.size > 5 * 1024 * 1024) { // 5MB max
+        toast.error('File size exceeds 5 MB limit');
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
+      reader.onloadend = async () => {
+        const rawResult = reader.result as string;
+        try {
+          const compressed = await compressDataUrl(rawResult, 600, 600, 0.8);
+          setFormData(prev => ({ ...prev, image: compressed }));
+        } catch {
+          setFormData(prev => ({ ...prev, image: rawResult }));
+        }
       };
       reader.readAsDataURL(file);
     }
