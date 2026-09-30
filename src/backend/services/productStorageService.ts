@@ -12,14 +12,12 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 8000): Promise<
 
 /**
  * Compresses a base64 Data URL or Blob URL to a lightweight JPEG data URL (~30-60KB).
- * Always paints a solid white (#FFFFFF) background so transparent/no-background images
- * never turn dark or black when converted to JPEG.
  */
 export async function compressDataUrl(
   dataUrl: string,
   maxWidth = 1000,
   maxHeight = 1000,
-  quality = 0.8
+  quality = 0.7
 ): Promise<string> {
   if (
     !dataUrl ||
@@ -44,17 +42,14 @@ export async function compressDataUrl(
         }
       }
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, width);
-      canvas.height = Math.max(1, height);
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         resolve(dataUrl);
         return;
       }
-      // Fill canvas with pure white background so transparent images never turn dark/black
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, width, height);
       const compressed = canvas.toDataURL('image/jpeg', quality);
       resolve(compressed);
     };
@@ -65,9 +60,8 @@ export async function compressDataUrl(
 
 /**
  * Uploads a base64 Data URL, Blob URL, or raw base64 string to Firebase Storage under `folderPath`.
- * Ensures images with no background (transparent PNG/WebP) are converted onto a solid white background.
  * Returns the public Firebase Storage HTTP download URL.
- * If Storage fails or is unavailable, returns a compressed white-backed data URL (< 100KB) to ensure Firestore write limits are never exceeded.
+ * If Storage fails or is unavailable, returns a compressed data URL (< 100KB) to ensure Firestore write limits are never exceeded.
  */
 export async function uploadProductImageToStorage(
   imageInput: string | null | undefined,
@@ -92,28 +86,18 @@ export async function uploadProductImageToStorage(
     }
   }
 
-  // Ensure image has a solid white background (replaces missing/transparent background with pure white)
-  let whiteBackedDataUrl = trimmed;
-  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.length > 500) {
-    try {
-      whiteBackedDataUrl = await compressDataUrl(trimmed);
-    } catch (e) {
-      console.warn('Failed to apply white background to data URL:', e);
-    }
-  }
-
   // Attempt upload to Firebase Storage
   try {
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const storageRef = ref(storage, `${folderPath}/img_${timestamp}_${randomStr}.jpg`);
 
-    if (whiteBackedDataUrl.startsWith('data:')) {
-      await withTimeout(uploadString(storageRef, whiteBackedDataUrl, 'data_url'));
+    if (trimmed.startsWith('data:')) {
+      await withTimeout(uploadString(storageRef, trimmed, 'data_url'));
       const downloadUrl = await withTimeout(getDownloadURL(storageRef));
       if (downloadUrl) return downloadUrl;
-    } else if (whiteBackedDataUrl.startsWith('blob:')) {
-      const res = await fetch(whiteBackedDataUrl);
+    } else if (trimmed.startsWith('blob:')) {
+      const res = await fetch(trimmed);
       const blob = await res.blob();
       if (blob.size > MAX_BYTES) {
         console.warn('Blob exceeds 10 MB limit');
@@ -122,18 +106,26 @@ export async function uploadProductImageToStorage(
       await withTimeout(uploadBytes(storageRef, blob));
       const downloadUrl = await withTimeout(getDownloadURL(storageRef));
       if (downloadUrl) return downloadUrl;
-    } else if (whiteBackedDataUrl.length > 500 && !whiteBackedDataUrl.startsWith('http')) {
-      const dataUrl = whiteBackedDataUrl.includes(';base64,') ? whiteBackedDataUrl : `data:image/jpeg;base64,${whiteBackedDataUrl}`;
+    } else if (trimmed.length > 500 && !trimmed.startsWith('http')) {
+      const dataUrl = trimmed.includes(';base64,') ? trimmed : `data:image/jpeg;base64,${trimmed}`;
       await withTimeout(uploadString(storageRef, dataUrl, 'data_url'));
       const downloadUrl = await withTimeout(getDownloadURL(storageRef));
       if (downloadUrl) return downloadUrl;
     }
   } catch (err) {
-    console.warn('Firebase Storage upload failed/bypassed, using white-background image data URL for Firestore:', err);
+    console.warn('Firebase Storage upload failed/bypassed, compressing image data URL for Firestore:', err);
   }
 
-  // Fallback: Return white-background JPEG data URL (< 60KB) so Firestore write never fails
-  return whiteBackedDataUrl;
+  // Fallback: Compress data URL to lightweight JPEG (< 60KB) so Firestore write never fails
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.length > 500) {
+    try {
+      return await compressDataUrl(trimmed);
+    } catch (compressErr) {
+      console.error('Data URL compression error:', compressErr);
+    }
+  }
+
+  return trimmed;
 }
 
 /**
