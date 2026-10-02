@@ -31,6 +31,8 @@ export async function getRewardProductIds(): Promise<Set<string>> {
 export function filterOutRewardProducts(products: Product[], rewardProductIds?: Set<string>): Product[] {
   if (!products || !Array.isArray(products)) return [];
   return products.filter(p => {
+    if (p.isVisible === false) return false;
+    if (p.status === 'inactive') return false;
     if (rewardProductIds && rewardProductIds.has(p.id)) return false;
     if ((p as any).isRewardProduct) return false;
     // Deal 259 products must NOT appear on general store pages unless explicitly enabled by Admin via showInGeneralStore

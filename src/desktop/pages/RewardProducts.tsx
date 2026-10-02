@@ -155,6 +155,8 @@ export default function RewardProducts() {
           resultProds = resultProds.filter(p => !rewardCard.disabledProductIds?.includes(p.id));
         }
 
+        resultProds = resultProds.filter(p => p.isVisible !== false && p.status !== 'inactive');
+
         setProducts(resultProds);
       } catch (err) {
         console.error("Error fetching reward products:", err);

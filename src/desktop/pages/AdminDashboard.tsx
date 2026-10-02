@@ -6,7 +6,7 @@ import {
   Settings, LogOut, ChevronRight, TrendingUp,
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
-  Shield, ShieldCheck, UserPlus, Check, X, Eye, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
+  Shield, ShieldCheck, UserPlus, Check, X, Eye, EyeOff, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
   Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock
 } from 'lucide-react';
 import {
@@ -2474,6 +2474,29 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
     }
   };
 
+  const handleToggleVisibility = async (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const currentVisible = product.isVisible !== false;
+    const nextVisible = !currentVisible;
+
+    const toastId = toast.loading(`${nextVisible ? 'Enabling' : 'Disabling'} visibility for ${product.name}...`);
+    try {
+      await updateDoc(doc(db, 'products', product.id), {
+        isVisible: nextVisible
+      });
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `${nextVisible ? 'Enabled' : 'Disabled'} storefront visibility for product: ${product.name}`,
+        product.id,
+        'products'
+      );
+      toast.success(`Product ${nextVisible ? 'is now visible to customers' : 'is now hidden from customers'}`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update product visibility', { id: toastId });
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -2501,7 +2524,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                 <th className="px-6 py-4">Product Info</th>
                 <th className="px-6 py-4">Total Stock</th>
                 <th className="px-6 py-4">Variants Count</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -2538,6 +2561,27 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleToggleVisibility(e, product)}
+                            title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                              product.isVisible !== false
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                            }`}
+                          >
+                            {product.isVisible !== false ? (
+                              <>
+                                <Eye className="w-3.5 h-3.5 shrink-0" />
+                                <span>Visible</span>
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                                <span>Hidden</span>
+                              </>
+                            )}
+                          </button>
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
                             {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                           </span>

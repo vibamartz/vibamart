@@ -99,6 +99,7 @@ export interface Product {
   isCodAllowed?: boolean; // Admin toggle for COD availability (default true)
   isStockVisible?: boolean; // Admin toggle for stock visibility (default true)
   isFreeDelivery?: boolean; // Admin toggle for free delivery eligibility on this product (default true)
+  isVisible?: boolean; // Admin toggle for customer storefront visibility (default true)
   enableCustomerSupport?: boolean;
   customerSupportText?: string;
   enableReturnPeriod?: boolean;

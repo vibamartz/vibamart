@@ -5,7 +5,7 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, ProductVariant } from '../../shared/types';
 import toast from 'react-hot-toast';
-import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
 
@@ -212,6 +212,29 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     }
   };
 
+  const handleToggleVisibility = async (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    const currentVisible = product.isVisible !== false;
+    const nextVisible = !currentVisible;
+
+    const toastId = toast.loading(`${nextVisible ? 'Enabling' : 'Disabling'} visibility for ${product.name}...`);
+    try {
+      await updateDoc(doc(db, 'products', product.id), {
+        isVisible: nextVisible
+      });
+      await logAdminAction(
+        AdminAction.PRODUCT_UPDATE,
+        `${nextVisible ? 'Enabled' : 'Disabled'} storefront visibility for product: ${product.name}`,
+        product.id,
+        'products'
+      );
+      toast.success(`Product ${nextVisible ? 'is now visible to customers' : 'is now hidden from customers'}`, { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update product visibility', { id: toastId });
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -271,7 +294,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 <th className="px-6 py-4">Variants Count</th>
                 <th className="px-6 py-4">GST Tax</th>
                 <th className="px-6 py-4">Delivery</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -379,6 +402,27 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleToggleVisibility(e, product)}
+                            title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                              product.isVisible !== false
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                            }`}
+                          >
+                            {product.isVisible !== false ? (
+                              <>
+                                <Eye className="w-3.5 h-3.5 shrink-0" />
+                                <span>Visible</span>
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                                <span>Hidden</span>
+                              </>
+                            )}
+                          </button>
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
                             {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                           </span>
@@ -387,7 +431,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                               e.stopPropagation();
                               onEditProduct?.(product);
                             }}
-                            className="p-1 text-gray-400 hover:text-primary transition-colors"
+                            className="p-1 text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                            title="Edit Product"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
@@ -398,7 +443,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 await onDeleteProduct(product.id, product.name);
                               }
                             }}
-                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                            title="Delete Product"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -408,7 +454,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
                     {isExpanded && (
                       <tr className="bg-gray-50/30">
-                        <td colSpan={7} className="px-8 py-6">
+                        <td colSpan={8} className="px-8 py-6">
                           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                               <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Variants Table</h4>

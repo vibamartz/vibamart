@@ -139,7 +139,7 @@ export default function ProductDetail() {
           }
         }
 
-        if (foundProduct) {
+        if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
           // Auto select first enabled variant
           const firstValidVariant = foundProduct.variants?.find(v => !v.disabled);

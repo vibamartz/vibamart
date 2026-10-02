@@ -183,7 +183,7 @@ export class EngagementMLEngine {
     if (!products || products.length === 0) return [];
 
     const scored = products
-      .filter(p => p.status === 'active' && p.inStock !== false && p.stock > 0)
+      .filter(p => p.isVisible !== false && p.status === 'active' && p.inStock !== false && p.stock > 0)
       .map(product => {
         let score = 50; // base score
         let reason = 'Trending pick for you';

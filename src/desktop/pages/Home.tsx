@@ -102,9 +102,9 @@ export default function Home() {
 
   // Filter products by active category, subcategory, and nested subcategory hierarchy
   const filteredProducts = useMemo(() => {
-    if (activeCategorySlug === 'for-you') return products;
+    if (activeCategorySlug === 'for-you') return products.filter(p => p.isVisible !== false && p.status !== 'inactive');
     return products.filter(p => {
-      if (p.status === 'inactive') return false;
+      if (p.isVisible === false || p.status === 'inactive') return false;
 
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {

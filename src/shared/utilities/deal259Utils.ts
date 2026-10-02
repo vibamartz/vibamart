@@ -49,7 +49,7 @@ export const DEFAULT_DEAL259_CONFIG: Deal259PageConfig = {
 export function getDeal259Products(products: Product[]): Product[] {
   if (!products || !Array.isArray(products)) return [];
   return products
-    .filter(p => p.isDeal259 === true && p.deal259Status !== 'disabled')
+    .filter(p => p.isVisible !== false && p.status !== 'inactive' && p.isDeal259 === true && p.deal259Status !== 'disabled')
     .sort((a, b) => (a.deal259Order || 999) - (b.deal259Order || 999));
 }
 

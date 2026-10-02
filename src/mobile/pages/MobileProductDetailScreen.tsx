@@ -144,7 +144,7 @@ export default function MobileProductDetailScreen() {
           }
         }
 
-        if (foundProduct) {
+        if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
           const canonicalSlug = getProductSlug(foundProduct);
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
