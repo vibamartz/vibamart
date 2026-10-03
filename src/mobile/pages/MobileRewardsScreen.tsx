@@ -358,7 +358,7 @@ export default function MobileRewardsScreen() {
                 key={coupon.id}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(`/rewards/${getRewardSlug(coupon)}`)}
-                className="bg-white rounded-3xl p-4 border border-amber-100 shadow-md space-y-3 relative overflow-hidden cursor-pointer"
+                className="bg-white rounded-3xl p-3.5 border border-amber-100 shadow-md space-y-2.5 relative overflow-hidden cursor-pointer"
               >
                 {/* Brand Header */}
                 <div className="flex items-center justify-between">
@@ -376,9 +376,10 @@ export default function MobileRewardsScreen() {
                 </div>
 
                 {/* Main Image */}
-                <div className="h-36 rounded-2xl overflow-hidden bg-gray-100 relative">
+                <div className="h-44 rounded-2xl overflow-hidden bg-slate-900 relative">
                   <img src={coupon.productImage} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute left-2 bottom-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute left-2.5 bottom-2.5">
                     <ExpiryCountdownMobile expiryDate={coupon.expiryDate} />
                   </div>
                 </div>

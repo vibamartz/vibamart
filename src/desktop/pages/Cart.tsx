@@ -250,8 +250,8 @@ export default function Cart() {
                               {item.variantId && (() => {
                                 const variant = item.product.variants?.find(v => v.id === item.variantId);
                                 return (
-                                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 font-bold">
-                                    Option: <span className="text-primary">{variant?.name || item.variantId}</span>
+                                  <p className="text-[10px] sm:text-xs text-primary mt-1 font-bold">
+                                    {variant?.name || item.variantId}
                                   </p>
                                 );
                               })()}

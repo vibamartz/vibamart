@@ -482,13 +482,13 @@ export default function Rewards() {
                   >
                     <div>
                       {/* Product & Brand Image Header */}
-                      <div className="h-48 relative overflow-hidden bg-gray-50 p-2 flex items-center justify-center">
+                      <div className="h-56 relative overflow-hidden bg-slate-900 flex items-center justify-center">
                         <img
                           src={coupon.productImage || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'}
                           alt={coupon.title}
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
                         {/* Brand Logo & Name */}
                         <div className="absolute left-4 bottom-3 flex items-center gap-2.5 z-10">

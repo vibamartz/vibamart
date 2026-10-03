@@ -359,7 +359,7 @@ export default function DesktopShareModal() {
                   </h4>
                   {options?.variantName && (
                     <p className="text-xs font-semibold text-emerald-600 mt-0.5">
-                      Variant: {options.variantName}
+                      {options.variantName}
                     </p>
                   )}
                   <div className="flex items-baseline gap-2 mt-1">

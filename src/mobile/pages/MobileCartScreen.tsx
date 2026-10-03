@@ -378,8 +378,8 @@ export default function MobileCartScreen() {
                           {product.name}
                         </h4>
                         {variant && (
-                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded mt-0.5 inline-block">
-                            Variant: {variant.name || variant.color || variant.size}
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                            {variant.name || variant.color || variant.size}
                           </span>
                         )}
 

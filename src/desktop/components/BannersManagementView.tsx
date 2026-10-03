@@ -46,6 +46,7 @@ export default function BannersManagementView() {
   });
   const [productSearch, setProductSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [imageInputMode, setImageInputMode] = useState<'file' | 'url'>('file');
 
   // Drag and Drop refs
   const dragItem = useRef<number | null>(null);
@@ -125,6 +126,7 @@ export default function BannersManagementView() {
     setProductSearch('');
     if (banner) {
       setEditingBanner(banner);
+      setImageInputMode(banner.image && !banner.image.startsWith('data:') ? 'url' : 'file');
       setFormData({
         title: banner.title || '',
         subtitle: banner.subtitle || '',
@@ -140,6 +142,7 @@ export default function BannersManagementView() {
       });
     } else {
       setEditingBanner(null);
+      setImageInputMode('file');
       setFormData({
         title: '',
         subtitle: '',
@@ -555,33 +558,106 @@ export default function BannersManagementView() {
                 <form id="banner-form" onSubmit={handleSave} className="space-y-8">
                   
                   {/* Image Upload Area */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 flex justify-between">
-                      Banner Image <span className="text-rose-500">*</span>
-                      <span className="text-xs text-gray-400 font-normal">Max size: 5MB</span>
-                    </label>
-                    <div className="flex justify-center">
-                      {formData.image ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-indigo-600" />
+                        Banner Image <span className="text-rose-500">*</span>
+                      </label>
+
+                      {/* Image Source Mode Toggle: File Upload vs URL Link */}
+                      <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setImageInputMode('file')}
+                          className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                            imageInputMode === 'file'
+                              ? 'bg-white text-indigo-600 shadow-xs'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          <UploadCloud className="w-3.5 h-3.5" /> File Upload
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImageInputMode('url')}
+                          className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                            imageInputMode === 'url'
+                              ? 'bg-white text-indigo-600 shadow-xs'
+                              : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          <LinkIcon className="w-3.5 h-3.5" /> Image URL / Link
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Image Preview / Input Area */}
+                    {formData.image ? (
+                      <div className="space-y-3">
                         <div className={`relative group w-full ${formData.platform === 'desktop' ? 'aspect-[21/9] md:aspect-[3/1]' : 'aspect-[4/5] max-w-sm mx-auto'} rounded-2xl overflow-hidden border-2 border-indigo-100 shadow-sm bg-gray-50 flex items-center justify-center`}>
                           <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <label className="cursor-pointer bg-white text-gray-900 px-4 py-2 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
-                              <UploadCloud className="w-4 h-4" /> Change Image
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2.5 p-4">
+                            <label className="cursor-pointer bg-white text-gray-900 px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-1.5">
+                              <UploadCloud className="w-3.5 h-3.5 text-indigo-600" /> Upload File
                               <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                             </label>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-1.5 cursor-pointer border border-rose-200"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Remove
+                            </button>
                           </div>
                         </div>
-                      ) : (
-                        <label className={`w-full ${formData.platform === 'desktop' ? 'aspect-[21/9] md:aspect-[3/1]' : 'aspect-[4/5] max-w-sm mx-auto'} rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-colors group`}>
-                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 group-hover:scale-110 transition-transform">
-                            <ImageIcon className="w-8 h-8 text-gray-400 group-hover:text-indigo-500" />
+
+                        {imageInputMode === 'url' && (
+                          <div className="space-y-1">
+                            <div className="relative">
+                              <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+                              <input
+                                type="url"
+                                value={formData.image}
+                                onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                                placeholder="https://example.com/banner-image.jpg"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-xs font-medium"
+                              />
+                            </div>
+                            <p className="text-[11px] text-gray-400">Direct image link (HTTPS). Changes preview immediately.</p>
                           </div>
-                          <p className="text-sm font-bold text-gray-700">Click to upload image</p>
-                          <p className="text-xs text-gray-500 mt-1">Recommended ratio: 3:1 (Desktop) / 2:1 (Mobile)</p>
-                          <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                        </label>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {imageInputMode === 'file' ? (
+                          <label className={`w-full ${formData.platform === 'desktop' ? 'aspect-[21/9] md:aspect-[3/1]' : 'aspect-[4/5] max-w-sm mx-auto'} rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-colors group`}>
+                            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                              <UploadCloud className="w-7 h-7 text-gray-400 group-hover:text-indigo-500" />
+                            </div>
+                            <p className="text-sm font-bold text-gray-700">Click or drag image file to upload</p>
+                            <p className="text-xs text-gray-500 mt-1">Supports JPG, PNG, WebP, GIF (Max 5MB)</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Recommended ratio: 3:1 (Desktop) / 2:1 (Mobile)</p>
+                            <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                          </label>
+                        ) : (
+                          <div className="space-y-2 bg-gray-50 p-5 rounded-2xl border border-gray-200">
+                            <label className="text-xs font-bold text-gray-700">Paste Image URL / Link</label>
+                            <div className="relative">
+                              <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+                              <input
+                                type="url"
+                                value={formData.image || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                                placeholder="https://example.com/banner-image.jpg"
+                                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-xs font-medium"
+                              />
+                            </div>
+                            <p className="text-[11px] text-gray-400">Paste a link to any public image (e.g. Unsplash, CDN, or Cloud Storage).</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Settings Grid */}

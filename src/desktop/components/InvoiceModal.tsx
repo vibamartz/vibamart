@@ -200,7 +200,7 @@ export default function InvoiceModal({ order, isOpen, onClose }: InvoiceModalPro
                             <div>
                               <p className="font-bold text-gray-900 leading-tight">{item.name}</p>
                               {item.selectedVariant && (
-                                <p className="text-[9px] text-gray-400">Variant: {item.selectedVariant}</p>
+                                <p className="text-[9px] text-gray-400">{item.selectedVariant}</p>
                               )}
                             </div>
                           </div>

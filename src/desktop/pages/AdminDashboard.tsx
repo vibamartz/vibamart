@@ -6651,13 +6651,11 @@ function AddBannerModal({ banner, onClose }: { banner: Banner | null, onClose: (
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Banner Image URL</label>
-            <input
-              required
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl px-5 py-3 outline-none focus:bg-white focus:border-primary/20 transition-all"
-              value={formData.image}
-              onChange={e => setFormData(p => ({ ...p, image: e.target.value }))}
-              placeholder="https://..."
+            <VariantImageInput
+              value={formData.image || ''}
+              onChange={(val) => setFormData(p => ({ ...p, image: val }))}
+              label="Banner Image (Upload File or Enter URL)"
+              imageTypeLabel="Banner Image"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
