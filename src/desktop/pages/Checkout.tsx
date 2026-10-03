@@ -347,25 +347,52 @@ export default function Checkout() {
 
     try {
       const orderItems: OrderItem[] = items.map(item => {
-        const basePrice = item.product.discountPrice || item.product.price;
         const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
-        const finalPrice = basePrice + (variant?.extraPrice || 0);
+        const basePrice = (variant?.price && variant.price > 0)
+          ? variant.price
+          : (item.product.discountPrice || item.product.price);
+        const finalPrice = (variant?.price && variant.price > 0)
+          ? variant.price
+          : (basePrice + (variant?.extraPrice || 0));
+
+        let selectedAttrs: Record<string, string> = {};
+        if (variant?.attributes && Object.keys(variant.attributes).length > 0) {
+          selectedAttrs = { ...variant.attributes };
+        } else if (variant?.attributeValues && Object.keys(variant.attributeValues).length > 0) {
+          selectedAttrs = { ...variant.attributeValues };
+        } else if (variant) {
+          if (variant.color || variant.colorName) selectedAttrs['Color'] = variant.color || variant.colorName || '';
+          if (variant.size || variant.shoeSize) selectedAttrs['Size'] = variant.size || variant.shoeSize || '';
+          if (variant.storage) selectedAttrs['Storage'] = variant.storage;
+          if (variant.ram) selectedAttrs['RAM'] = variant.ram;
+          if (variant.shade) selectedAttrs['Shade'] = variant.shade;
+          if (variant.volume) selectedAttrs['Volume'] = variant.volume;
+          if (variant.material) selectedAttrs['Material'] = variant.material;
+          if (variant.model) selectedAttrs['Model'] = variant.model;
+        }
+
+        const variantTitle = variant?.name || (
+          Object.keys(selectedAttrs).length > 0
+            ? Object.values(selectedAttrs).filter(Boolean).join(' / ')
+            : [variant?.color || variant?.colorName, variant?.size || variant?.shoeSize, variant?.storage, variant?.ram, variant?.shade, variant?.volume, variant?.material, variant?.model].filter(Boolean).join(' / ')
+        );
 
         const oi: OrderItem = {
           productId: item.productId,
           name: item.product.name,
           price: finalPrice,
+          mrp: variant?.mrp || item.product.mrp || item.product.price,
           quantity: item.quantity,
-          image: variant?.image || item.product.images?.[0] || "",
+          image: variant?.image || variant?.images?.[0] || item.product.images?.[0] || "",
           gst: item.product.gst || 0,
           enableGst: item.product.enableGst !== false
         };
 
         if (item.variantId) {
           oi.variantId = item.variantId;
-          if (variant) {
-            oi.selectedVariant = variant.name || [variant.color || variant.colorName, variant.size || variant.shoeSize, variant.storage, variant.ram, variant.shade, variant.volume, variant.material, variant.model].filter(Boolean).join(' / ') || item.variantId;
-          }
+          oi.selectedVariant = variantTitle || item.variantId;
+          oi.selectedAttributes = selectedAttrs;
+          if (variant?.sku) oi.sku = variant.sku;
         }
 
         return oi;
@@ -429,17 +456,25 @@ export default function Checkout() {
             const prodSnap = await getDoc(prodRef);
             if (prodSnap.exists()) {
               const pData = prodSnap.data();
-              const currentStock = pData.stock || 0;
-              const updatedStock = Math.max(0, currentStock - item.quantity);
-              const updates: any = { stock: updatedStock };
-              if (updatedStock === 0) updates.inStock = false;
+              const updates: any = {};
               if (item.variantId && pData.variants && Array.isArray(pData.variants)) {
-                updates.variants = pData.variants.map((v: any) => {
+                const updatedVariants = pData.variants.map((v: any) => {
                   if (v.id === item.variantId) {
                     return { ...v, stock: Math.max(0, (v.stock || 0) - item.quantity) };
                   }
                   return v;
                 });
+                updates.variants = updatedVariants;
+                const totalStock = updatedVariants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+                updates.stock = totalStock;
+                updates.inStock = totalStock > 0;
+                if (totalStock === 0) updates.status = 'out_of_stock';
+              } else {
+                const currentStock = pData.stock || 0;
+                const updatedStock = Math.max(0, currentStock - item.quantity);
+                updates.stock = updatedStock;
+                updates.inStock = updatedStock > 0;
+                if (updatedStock === 0) updates.status = 'out_of_stock';
               }
               await updateDoc(prodRef, updates);
             }

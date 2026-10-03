@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw,
   ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle, Ruler, X
@@ -17,12 +17,15 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
+import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
+import { getBestInitialSelection } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 
 export default function MobileProductDetailScreen() {
   const params = useParams<{ id?: string; slug?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const targetSlugOrId = params.id || params.slug;
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -34,6 +37,7 @@ export default function MobileProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
@@ -55,17 +59,15 @@ export default function MobileProductDetailScreen() {
     }
   };
 
-  const getComboLabel = (v: ProductVariant) => {
-    if (v.name && v.name.trim()) return v.name.trim();
-    const parts: string[] = [];
-    if (v.storage) parts.push(v.storage);
-    if (v.ram) parts.push(v.ram);
-    if (v.size || v.shoeSize) parts.push(v.size || v.shoeSize || '');
-    if (v.shade) parts.push(v.shade);
-    if (v.volume) parts.push(v.volume);
-    if (v.material) parts.push(v.material);
-    if (v.model) parts.push(v.model);
-    return parts.length > 0 ? parts.join(' + ') : `Variant ${v.id}`;
+  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
+    setSelectedVariantId(variantId);
+    setSelectedAttributes(updatedAttributes);
+    setActiveImageIndex(0);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('variant', variantId);
+      return next;
+    }, { replace: true });
   };
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
@@ -165,9 +167,11 @@ export default function MobileProductDetailScreen() {
             console.error("Error updating recently viewed:", err);
           }
 
-          const firstValidVariant = foundProduct.variants?.find(v => !v.disabled);
-          if (firstValidVariant) {
-            setSelectedVariantId(firstValidVariant.id);
+          const urlVariantId = searchParams.get('variant') || undefined;
+          const initialSelection = getBestInitialSelection(foundProduct, urlVariantId);
+          if (initialSelection.variant) {
+            setSelectedVariantId(initialSelection.variant.id);
+            setSelectedAttributes(initialSelection.selectedAttributes);
           }
 
           if (targetSlugOrId !== canonicalSlug && (
@@ -175,7 +179,7 @@ export default function MobileProductDetailScreen() {
             /^\d+$/.test(targetSlugOrId) ||
             (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
           )) {
-            navigate(`/products/${canonicalSlug}`, { replace: true });
+            navigate(`/products/${canonicalSlug}${urlVariantId ? `?variant=${urlVariantId}` : ''}`, { replace: true });
           }
 
           const qReviews = query(collection(db, 'reviews'), where('productId', '==', foundProduct.id));
@@ -282,15 +286,18 @@ export default function MobileProductDetailScreen() {
     );
   }
 
-  const activeVariants = (product.variants || []).filter(v => !v.disabled);
+  const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
   const selectedVariant = activeVariants.find(v => v.id === selectedVariantId);
   const basePrice = (selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : (product.discountPrice || product.price);
-  const finalPrice = basePrice + (selectedVariant?.extraPrice || 0);
-  const originalPrice = product.mrp || product.price;
+  const finalPrice = (selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : (basePrice + (selectedVariant?.extraPrice || 0));
+  const originalPrice = selectedVariant?.mrp || product.mrp || product.price;
   const discountAmount = originalPrice > finalPrice ? originalPrice - finalPrice : 0;
   const discountPct = originalPrice > 0 && discountAmount > 0 ? Math.round((discountAmount / originalPrice) * 100) : 0;
-  const images = product.images?.length > 0 ? product.images : ['https://via.placeholder.com/600'];
-  const activeImageSrc = selectedVariant?.image || images[activeImageIndex];
+  const variantImages = selectedVariant?.images && selectedVariant.images.length > 0
+    ? selectedVariant.images
+    : (selectedVariant?.image ? [selectedVariant.image] : []);
+  const images = variantImages.length > 0 ? variantImages : (product.images?.length > 0 ? product.images : ['https://via.placeholder.com/600']);
+  const activeImageSrc = images[activeImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
 
   // Build specifications list excluding empty fields
@@ -459,176 +466,17 @@ export default function MobileProductDetailScreen() {
           )}
         </div>
 
-        {/* Product Variants (Requirement 1 & 2) */}
+        {/* Universal Variant Selector */}
         {activeVariants.length > 0 && (
           <div className="pb-4 border-b border-gray-100 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
-                Select Option / Variant
-              </span>
-              {product.sizeChart && (
-                <button
-                  type="button"
-                  onClick={() => setShowSizeChartModal(true)}
-                  className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 uppercase"
-                >
-                  <Ruler className="w-3.5 h-3.5" /> Size Chart
-                </button>
-              )}
-            </div>
-
-            {/* Color Selector */}
-            {activeVariants.some(v => v.color || v.colorName) && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase text-gray-500">
-                  Color: <span className="text-gray-900 font-extrabold">{selectedVariant?.color || selectedVariant?.colorName || 'Select'}</span>
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {activeVariants.map((v) => {
-                    if (!v.color && !v.colorName) return null;
-                    const isSelected = selectedVariantId === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        onClick={() => setSelectedVariantId(v.id)}
-                        disabled={v.stock === 0}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow'
-                            : v.stock === 0
-                            ? 'bg-gray-50 text-gray-300 border-gray-100 opacity-40 cursor-not-allowed'
-                            : 'bg-gray-50 text-gray-800 border-gray-200'
-                        }`}
-                      >
-                        {v.image ? (
-                          <img src={v.image} alt={v.color || v.colorName} className="w-5 h-5 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
-                        ) : v.colorHex ? (
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block shrink-0"
-                            style={{ backgroundColor: v.colorHex }}
-                          />
-                        ) : null}
-                        <span>{v.color || v.colorName}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Size Selector */}
-            {activeVariants.some(v => v.size || v.shoeSize) && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase text-gray-500">
-                  Size: <span className="text-gray-900 font-extrabold">{selectedVariant?.size || selectedVariant?.shoeSize || 'Select'}</span>
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {activeVariants.map((v) => {
-                    if (!v.size && !v.shoeSize) return null;
-                    const isSelected = selectedVariantId === v.id;
-                    const displaySize = v.size || v.shoeSize;
-                    return (
-                      <button
-                        key={v.id}
-                        onClick={() => setSelectedVariantId(v.id)}
-                        disabled={v.stock === 0}
-                        className={`px-3 py-2 rounded-xl text-xs font-black border transition-all ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow'
-                            : v.stock === 0
-                            ? 'bg-gray-50 text-gray-300 border-gray-100 opacity-40 cursor-not-allowed'
-                            : 'bg-gray-50 text-gray-800 border-gray-200'
-                        }`}
-                      >
-                        {displaySize}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Storage / RAM / Shade / Volume / Material / Model Selectors */}
-            {activeVariants.some(v => v.storage || v.ram || v.shade || v.volume || v.material || v.model) && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-black uppercase text-gray-500">Configuration</span>
-                <div className="flex flex-wrap gap-2">
-                  {activeVariants.map((v) => {
-                    const label = getComboLabel(v);
-                    if (!label) return null;
-                    const isSelected = selectedVariantId === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        onClick={() => setSelectedVariantId(v.id)}
-                        disabled={v.stock === 0}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow'
-                            : v.stock === 0
-                            ? 'bg-gray-50 text-gray-300 border-gray-100 opacity-40 cursor-not-allowed'
-                            : 'bg-gray-50 text-gray-800 border-gray-200'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Variant Prices - Scrollable Cards */}
-            <div className="space-y-1.5 pt-3 border-t border-gray-100">
-              <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 block">
-                Variant Prices & Options
-              </span>
-              <div
-                className="flex gap-2.5 overflow-x-auto pb-2 pt-1 scrollbar-none snap-x scroll-smooth touch-pan-x w-full"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-              >
-                {activeVariants.map((v) => {
-                  const isSelected = selectedVariantId === v.id;
-                  const vBasePrice = (v.price && v.price > 0) ? v.price : (product.discountPrice || product.price);
-                  const vTotalPrice = vBasePrice + (v.extraPrice || 0);
-                  const label = v.color || v.colorName || getComboLabel(v);
-
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariantId(v.id)}
-                      disabled={v.stock === 0}
-                      className={`flex-shrink-0 min-w-[125px] p-2.5 rounded-xl border text-left transition-all snap-start flex flex-col justify-between gap-1.5 ${
-                        isSelected
-                          ? 'border-emerald-600 bg-emerald-50/80 shadow-xs ring-1 ring-emerald-600'
-                          : v.stock === 0
-                          ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
-                          : 'border-gray-200 bg-white text-gray-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        {v.image ? (
-                          <img src={v.image} alt={label} className="w-6 h-6 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
-                        ) : v.colorHex ? (
-                          <span className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0" style={{ backgroundColor: v.colorHex }} />
-                        ) : null}
-                        <span className="text-xs font-bold truncate max-w-[85px]">{label}</span>
-                      </div>
-                      <div>
-                        <span className="text-xs font-black text-gray-900 block">₹{vTotalPrice.toLocaleString()}</span>
-                        {v.stock === 0 ? (
-                          <span className="text-[8px] font-extrabold text-rose-500 uppercase">Out of Stock</span>
-                        ) : v.stock <= 5 ? (
-                          <span className="text-[8px] font-extrabold text-amber-700 uppercase">{v.stock} Left</span>
-                        ) : (
-                          <span className="text-[8px] font-extrabold text-emerald-600 uppercase">In Stock</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <UniversalVariantSelector
+              product={product}
+              selectedAttributes={selectedAttributes}
+              selectedVariantId={selectedVariantId}
+              onSelectVariant={handleVariantSelection}
+              onOpenSizeChart={() => setShowSizeChartModal(true)}
+              showSizeChartButton={true}
+            />
           </div>
         )}
 

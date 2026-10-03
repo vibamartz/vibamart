@@ -170,7 +170,7 @@ const syncCartToFirebase = (items: CartItem[]) => {
         price: item.product.price || 0,
         discountPrice: item.product.discountPrice || item.product.price || 0,
         mrp: item.product.mrp || item.product.price || 0,
-        images: (item.product.images || []).slice(0, 2),
+        images: (item.product.images || []).slice(0, 4),
         primaryImage: item.product.primaryImage || item.product.images?.[0] || '',
         stock: item.product.stock || 0,
         inStock: item.product.inStock !== false,
@@ -179,10 +179,15 @@ const syncCartToFirebase = (items: CartItem[]) => {
         isFreeDelivery: item.product.isFreeDelivery !== false,
         brand: item.product.brand || '',
         categoryId: item.product.categoryId || '',
+        variantAttributesList: item.product.variantAttributesList || [],
         variants: (item.product.variants || []).map(v => ({
           id: v.id,
+          name: v.name || '',
+          sku: v.sku || '',
+          barcode: v.barcode || '',
           color: v.color || '',
           colorName: v.colorName || '',
+          colorHex: v.colorHex || '',
           size: v.size || '',
           shoeSize: v.shoeSize || '',
           storage: v.storage || '',
@@ -192,9 +197,19 @@ const syncCartToFirebase = (items: CartItem[]) => {
           material: v.material || '',
           model: v.model || '',
           price: v.price || 0,
+          mrp: v.mrp || 0,
+          discountPrice: v.discountPrice || 0,
           extraPrice: v.extraPrice || 0,
           stock: v.stock || 0,
-          disabled: v.disabled || false
+          lowStockThreshold: v.lowStockThreshold || 0,
+          weight: v.weight || '',
+          dimensions: v.dimensions || '',
+          image: v.image || '',
+          images: v.images || [],
+          attributes: v.attributes || {},
+          attributeValues: v.attributeValues || {},
+          disabled: v.disabled || false,
+          status: v.status || 'active'
         }))
       } : null
     }));
@@ -327,9 +342,13 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
   total: () => {
     return get().items.reduce((acc, item) => {
-      const basePrice = item.product.discountPrice || item.product.price;
       const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
-      const finalPrice = basePrice + (variant?.extraPrice || 0);
+      const basePrice = (variant?.price && variant.price > 0)
+        ? variant.price
+        : (item.product.discountPrice || item.product.price);
+      const finalPrice = (variant?.price && variant.price > 0)
+        ? variant.price
+        : (basePrice + (variant?.extraPrice || 0));
       return acc + finalPrice * item.quantity;
     }, 0);
   }

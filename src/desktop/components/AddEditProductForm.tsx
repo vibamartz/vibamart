@@ -12,6 +12,12 @@ import { useCategoryStore, useSettingsStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 import { VariantImageInput, VariantMultiImageInput } from './VariantImageInput';
 import ProductLocationManager from './ProductLocationManager';
+import VariantMatrixManager from './VariantMatrixManager';
+import {
+  getProductVariantAttributes,
+  extractVariantAttributes,
+  getVariantCombinationTitle
+} from '../../shared/utilities/variantMatrixUtils';
 
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
@@ -142,6 +148,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       rating: 5,
       numReviews: 0,
       variants: [],
+      variantAttributesList: [],
       variantAttributes: ['color', 'size'],
       sizeChart: '',
       specifications: [],
@@ -170,6 +177,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       createdAt: new Date().toISOString(),
     };
     if (product) {
+      const derivedAttrs = getProductVariantAttributes(product);
       return {
         ...defaults,
         ...product,
@@ -183,6 +191,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         color: product.color || '',
         size: product.size || '',
         sizeChart: product.sizeChart || '',
+        variantAttributesList: product.variantAttributesList || derivedAttrs,
         variantAttributes: product.variantAttributes || ['color', 'size'],
         specifications: product.specifications || [],
         categoryId: product.categoryId || '',
@@ -207,28 +216,40 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         brandSupportText: product.brandSupportText || '7-Day Brand Support',
         variants: (product.variants || []).map(v => {
           const vImages = Array.isArray(v.images) && v.images.length > 0
-            ? v.images.slice(0, 8)
+            ? v.images.slice(0, 10)
             : (v.image ? [v.image] : []);
+          const attrs = extractVariantAttributes(v);
           return {
             ...v,
-            name: v.name || '',
-            color: v.color || '',
+            name: v.name || getVariantCombinationTitle(attrs),
+            attributes: v.attributes || attrs,
+            attributeValues: v.attributeValues || attrs,
+            color: v.color || attrs['Color'] || '',
             colorHex: v.colorHex || '#000000',
-            colorName: v.colorName || '',
-            size: v.size || '',
+            colorName: v.colorName || attrs['Color'] || '',
+            size: v.size || attrs['Size'] || '',
             shoeSize: v.shoeSize || '',
-            storage: v.storage || '',
-            ram: v.ram || '',
-            shade: v.shade || '',
-            volume: v.volume || '',
-            material: v.material || '',
-            model: v.model || '',
+            storage: v.storage || attrs['Storage'] || '',
+            ram: v.ram || attrs['RAM'] || '',
+            shade: v.shade || attrs['Shade'] || '',
+            volume: v.volume || attrs['Volume'] || '',
+            material: v.material || attrs['Material'] || '',
+            model: v.model || attrs['Model'] || '',
             sku: v.sku || '',
+            barcode: v.barcode || '',
             image: vImages[0] || '',
             images: vImages,
-            price: v.price || 0,
-            stock: v.stock || 0,
+            price: v.price || product.discountPrice || product.price || 0,
+            mrp: v.mrp || product.mrp || product.price || 0,
+            discountPrice: v.price || product.discountPrice || product.price || 0,
+            discountPercentage: v.discountPercentage || 0,
+            stock: v.stock ?? 0,
+            lowStockThreshold: v.lowStockThreshold ?? 2,
+            inStock: (v.stock ?? 0) > 0 && !v.disabled,
+            status: v.disabled ? 'disabled' : ((v.stock ?? 0) > 0 ? 'active' : 'out_of_stock'),
             disabled: v.disabled || false,
+            weight: v.weight || '',
+            dimensions: v.dimensions || '',
           };
         }),
         images: product.images || [],
@@ -838,274 +859,25 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
 
 
-          {/* Variant Matrix */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">Variant Matrix</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
-                  Manage variant values, prices, stock, images & availability
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={addVariant}
-                className="px-6 py-3 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded-2xl hover:bg-black transition-all flex items-center gap-2"
-              >
-                <Plus className="w-3.5 h-3.5" /> Append Variant
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {(formData.variants || []).map((v, idx) => {
-                const attrs = formData.variantAttributes || ['color', 'size'];
-                return (
-                  <div
-                    key={v.id}
-                    className={`p-8 rounded-[32px] border-2 transition-all relative space-y-6 ${v.disabled ? 'bg-gray-100/60 border-gray-200 opacity-70' : 'bg-gray-50 border-gray-100'
-                      }`}
-                  >
-                    {/* Top Action Header */}
-                    <div className="flex items-center justify-between border-b border-gray-200/60 pb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-black flex items-center justify-center">
-                          #{idx + 1}
-                        </span>
-                        <span className="text-xs font-black uppercase tracking-wider text-gray-700">
-                          {v.name || v.color || v.size || `Variant ${idx + 1}`}
-                        </span>
-                        {v.disabled && (
-                          <span className="px-2.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-full">
-                            Disabled
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => moveVariant(idx, 'up')}
-                          disabled={idx === 0}
-                          className="p-2 bg-white rounded-xl text-gray-500 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveVariant(idx, 'down')}
-                          disabled={idx === (formData.variants || []).length - 1}
-                          className="p-2 bg-white rounded-xl text-gray-500 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleVariantDisabled(v.id)}
-                          className={`p-2 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 ${v.disabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                        >
-                          {v.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                          {v.disabled ? 'Enable' : 'Disable'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeVariant(v.id)}
-                          className="p-2 bg-white text-rose-500 rounded-xl border border-rose-200 hover:bg-rose-500 hover:text-white transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Form Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 items-end">
-                      <div className="col-span-2 lg:col-span-4 space-y-2">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Variant Display Name / Label</label>
-                        <input
-                          className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                          placeholder="e.g. Midnight Blue / 128GB"
-                          value={v.name || ''}
-                          onChange={e => updateVariant(v.id, 'name', e.target.value)}
-                        />
-                      </div>
-
-                      {attrs.includes('color') && (
-                        <>
-                          <div className="space-y-2">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Color Name</label>
-                            <input
-                              className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                              placeholder="e.g. Midnight Blue"
-                              value={v.color || v.colorName || ''}
-                              onChange={e => {
-                                updateVariant(v.id, 'color', e.target.value);
-                                updateVariant(v.id, 'colorName', e.target.value);
-                              }}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Color Hex Code</label>
-                            <div className="flex gap-2 items-center">
-                              <input
-                                type="color"
-                                value={v.colorHex || '#000000'}
-                                onChange={e => updateVariant(v.id, 'colorHex', e.target.value)}
-                                className="w-10 h-10 rounded-xl cursor-pointer border-0"
-                              />
-                              <input
-                                className="flex-1 bg-white rounded-xl px-3 py-2.5 text-xs font-mono font-bold outline-none border border-gray-200 uppercase"
-                                placeholder="#000000"
-                                value={v.colorHex || ''}
-                                onChange={e => updateVariant(v.id, 'colorHex', e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {attrs.includes('size') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Size</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. S, M, L, XL"
-                            value={v.size || ''}
-                            onChange={e => updateVariant(v.id, 'size', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('shoeSize') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Shoe Size (UK/US)</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. UK 8 / EU 42"
-                            value={v.shoeSize || ''}
-                            onChange={e => updateVariant(v.id, 'shoeSize', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('storage') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Storage Capacity</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. 128GB, 256GB"
-                            value={v.storage || ''}
-                            onChange={e => updateVariant(v.id, 'storage', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('ram') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">RAM</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. 8GB, 16GB"
-                            value={v.ram || ''}
-                            onChange={e => updateVariant(v.id, 'ram', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('shade') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Beauty Shade</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. Ruby Red, Nude 02"
-                            value={v.shade || ''}
-                            onChange={e => updateVariant(v.id, 'shade', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('volume') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Volume / Size</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. 50ml, 100ml"
-                            value={v.volume || ''}
-                            onChange={e => updateVariant(v.id, 'volume', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('material') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Material</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. Teak Wood, Cotton"
-                            value={v.material || ''}
-                            onChange={e => updateVariant(v.id, 'material', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      {attrs.includes('model') && (
-                        <div className="space-y-2">
-                          <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Model / Variant</label>
-                          <input
-                            className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                            placeholder="e.g. Pro, Ultra"
-                            value={v.model || ''}
-                            onChange={e => updateVariant(v.id, 'model', e.target.value)}
-                          />
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Selling Price (₹)</label>
-                        <input
-                          type="number"
-                          className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                          value={v.price ?? 0}
-                          onChange={e => updateVariant(v.id, 'price', Number(e.target.value))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Stock Units</label>
-                        <input
-                          type="number"
-                          className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                          value={v.stock ?? 0}
-                          onChange={e => updateVariant(v.id, 'stock', Number(e.target.value))}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[8px] font-black uppercase tracking-widest text-gray-400">Variant SKU</label>
-                        <input
-                          className="w-full bg-white rounded-xl px-4 py-2.5 text-xs font-bold outline-none border border-gray-200"
-                          value={v.sku || ''}
-                          onChange={e => updateVariant(v.id, 'sku', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="col-span-2 lg:col-span-4">
-                        <VariantMultiImageInput
-                          images={v.images || (v.image ? [v.image] : [])}
-                          onChange={imgs => updateVariant(v.id, 'images', imgs)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {(!formData.variants || formData.variants.length === 0) && (
-                <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[32px]">
-                  No sub-variants initialized. Click "Append Variant" to add options.
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Universal Variant Matrix Manager */}
+          <VariantMatrixManager
+            attributes={formData.variantAttributesList || []}
+            variants={formData.variants || []}
+            baseProduct={formData}
+            onAttributesChange={(newAttrs) =>
+              setFormData((prev) => ({
+                ...prev,
+                variantAttributesList: newAttrs,
+                variantAttributes: newAttrs.map((a) => a.name.toLowerCase()),
+              }))
+            }
+            onVariantsChange={(newVariants) =>
+              setFormData((prev) => ({
+                ...prev,
+                variants: newVariants,
+              }))
+            }
+          />
 
           {/* Specifications Management Section */}
           <div className="bg-white p-6 sm:p-10 rounded-[36px] sm:rounded-[48px] border border-gray-100 shadow-sm space-y-6 sm:space-y-8">

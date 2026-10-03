@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Product, ProductVariant, WaitlistItem } from '../../shared/types';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle, Ruler, X, Check } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
+import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
+import {
+  getBestInitialSelection,
+  extractVariantAttributes,
+  getVariantCombinationTitle,
+  getProductVariantAttributes
+} from '../../shared/utilities/variantMatrixUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
 import toast from 'react-hot-toast';
@@ -25,6 +32,7 @@ import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/u
 
 export default function ProductDetail() {
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const targetSlugOrId = params.id || params.slug;
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
@@ -36,6 +44,7 @@ export default function ProductDetail() {
   const { selectedAddress } = useLocationStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const galleryRef = React.useRef<HTMLDivElement>(null);
   const [notFound, setNotFound] = useState(false);
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
@@ -62,17 +71,15 @@ export default function ProductDetail() {
     }
   };
 
-  const getComboLabel = (v: ProductVariant) => {
-    if (v.name && v.name.trim()) return v.name.trim();
-    const parts: string[] = [];
-    if (v.storage) parts.push(v.storage);
-    if (v.ram) parts.push(v.ram);
-    if (v.size || v.shoeSize) parts.push(v.size || v.shoeSize || '');
-    if (v.shade) parts.push(v.shade);
-    if (v.volume) parts.push(v.volume);
-    if (v.material) parts.push(v.material);
-    if (v.model) parts.push(v.model);
-    return parts.length > 0 ? parts.join(' + ') : `Variant ${v.id}`;
+  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
+    setSelectedVariant(variantId);
+    setSelectedAttributes(updatedAttributes);
+    setSelectedImage(0);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('variant', variantId);
+      return next;
+    }, { replace: true });
   };
 
   // Evaluate location availability when product or selectedAddress changes
@@ -141,11 +148,15 @@ export default function ProductDetail() {
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
-          // Auto select first enabled variant
-          const firstValidVariant = foundProduct.variants?.find(v => !v.disabled);
-          if (firstValidVariant) {
-            setSelectedVariant(firstValidVariant.id);
+
+          // Combination-aware best initial variant selection & URL restoration
+          const urlVariantId = searchParams.get('variant') || undefined;
+          const initialSelection = getBestInitialSelection(foundProduct, urlVariantId);
+          if (initialSelection.variant) {
+            setSelectedVariant(initialSelection.variant.id);
+            setSelectedAttributes(initialSelection.selectedAttributes);
           }
+
           const canonicalSlug = getProductSlug(foundProduct);
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
           const img = (foundProduct.images && foundProduct.images.length > 0) ? foundProduct.images[0] : (foundProduct as any).image;
@@ -161,7 +172,7 @@ export default function ProductDetail() {
             /^\d+$/.test(targetSlugOrId) ||
             (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
           )) {
-            navigate(`/products/${canonicalSlug}`, { replace: true });
+            navigate(`/products/${canonicalSlug}${urlVariantId ? `?variant=${urlVariantId}` : ''}`, { replace: true });
           }
         } else {
           setNotFound(true);
@@ -218,10 +229,15 @@ export default function ProductDetail() {
 
   if (notFound || !product) return <Navigate to="/product-not-found" replace />;
 
-  const currentVariant = product.variants?.find(v => v.id === selectedVariant);
-  const basePrice = (currentVariant?.price && currentVariant.price > 0) ? currentVariant.price : (product.discountPrice || product.price);
+  const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
+  const currentVariant = activeVariants.find(v => v.id === selectedVariant);
+  const basePrice = (currentVariant?.price && currentVariant.price > 0)
+    ? currentVariant.price
+    : (currentVariant?.discountPrice && currentVariant.discountPrice > 0)
+    ? currentVariant.discountPrice
+    : (product.discountPrice || product.price);
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
-  const originalPrice = product.mrp || product.price;
+  const originalPrice = currentVariant?.mrp || product.mrp || product.price;
   const discountPercentage = originalPrice > totalPrice ? Math.round(((originalPrice - totalPrice) / originalPrice) * 100) : 0;
   const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
@@ -229,6 +245,10 @@ export default function ProductDetail() {
   const handleBuyNow = () => {
     if (isInCart) {
       navigate('/checkout');
+      return;
+    }
+    if (activeVariants.length > 0 && !selectedVariant) {
+      toast.error('Please select an available variant.');
       return;
     }
     const result = addItem(product, 1, selectedVariant);
@@ -242,6 +262,10 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     if (isInCart) {
       navigate('/cart');
+      return;
+    }
+    if (activeVariants.length > 0 && !selectedVariant) {
+      toast.error('Please select an available variant.');
       return;
     }
     const result = addItem(product, 1, selectedVariant);
@@ -309,9 +333,6 @@ export default function ProductDetail() {
   const categoryObj = categories.find(c => c.id === product.categoryId);
   const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
   const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
-
-  // Group variants by color, size, etc.
-  const activeVariants = (product.variants || []).filter(v => !v.disabled);
 
   // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
@@ -421,90 +442,102 @@ export default function ProductDetail() {
             
             {/* Left: Image Gallery */}
             <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-3 lg:sticky lg:top-24">
-              <div className="relative aspect-square w-full max-h-[480px] overflow-hidden rounded-2xl bg-white border border-gray-100 flex items-center justify-center p-2 sm:p-3 shadow-xs">
-                <div
-                  ref={galleryRef}
-                  onScroll={handleGalleryScroll}
-                  className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {(product.images && product.images.length > 0 ? product.images : [activeImageSrc]).map((img, idx) => (
-                    <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center bg-white">
-                      <img
-                        src={currentVariant?.image && idx === selectedImage ? currentVariant.image : img}
-                        alt={`${product.name} - ${idx + 1}`}
-                        className="w-full h-full max-h-full max-w-full object-contain transition-all duration-300 bg-white"
-                      />
-                    </div>
-                  ))}
-                </div>
+              {(() => {
+                const variantImages = (currentVariant?.images && currentVariant.images.length > 0)
+                  ? currentVariant.images
+                  : (currentVariant?.image ? [currentVariant.image] : []);
+                const displayImages = variantImages.length > 0
+                  ? [...variantImages, ...(product.images || []).filter(img => !variantImages.includes(img))]
+                  : (product.images || []);
+                const currentDisplayList = displayImages.length > 0 ? displayImages : [activeImageSrc];
 
-                {/* Discount Tag on Image */}
-                {discountPercentage > 0 && (
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className="bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-sm tracking-wider uppercase">
-                      {discountPercentage}% OFF
-                    </span>
-                  </div>
-                )}
-
-                {/* Top Right Floating Actions: Wishlist & Share */}
-                <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
-                  <button
-                    onClick={handleToggleWishlist}
-                    aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    className={`p-2.5 rounded-full border transition-all active:scale-95 flex items-center justify-center shadow-sm ${
-                      isWishlisted
-                        ? 'bg-rose-50 border-rose-200 text-rose-500'
-                        : 'bg-white/95 backdrop-blur-xs border-gray-100 text-gray-500 hover:text-rose-500 hover:bg-rose-50'
-                    }`}
-                  >
-                    <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (product) {
-                        const currentImg = currentVariant?.image && selectedImage === 0
-                          ? currentVariant.image
-                          : (product.images && product.images[selectedImage]) || product.images?.[0] || (product as any).image;
-                        shareProduct(product, {
-                          specificImage: currentImg,
-                          variantName: currentVariant?.name
-                        });
-                      }
-                    }}
-                    aria-label="Share product"
-                    title="Share product"
-                    className="p-2.5 rounded-full bg-white/95 backdrop-blur-xs border border-gray-100 text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Thumbnails Row */}
-              {(product.images || []).length > 1 && (
-                <div className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none snap-x touch-pan-x">
-                  {(product.images || []).map((img, idx) => {
-                    const isSelected = selectedImage === idx && !currentVariant?.image;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => scrollToImage(idx)}
-                        className={`w-16 h-16 sm:w-18 sm:h-18 shrink-0 snap-start rounded-xl overflow-hidden border-2 transition-all bg-white p-1 flex items-center justify-center cursor-pointer ${
-                          isSelected
-                            ? 'border-green-600 ring-2 ring-green-600/20 shadow-xs'
-                            : 'border-gray-200 opacity-60 hover:opacity-100 hover:border-gray-300'
-                        }`}
+                return (
+                  <>
+                    <div className="relative aspect-square w-full max-h-[480px] overflow-hidden rounded-2xl bg-white border border-gray-100 flex items-center justify-center p-2 sm:p-3 shadow-xs">
+                      <div
+                        ref={galleryRef}
+                        onScroll={handleGalleryScroll}
+                        className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x"
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                       >
-                        <img src={img} alt="" className="w-full h-full object-contain bg-white" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                        {currentDisplayList.map((img, idx) => (
+                          <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center bg-white">
+                            <img
+                              src={img}
+                              alt={`${product.name} - ${idx + 1}`}
+                              className="w-full h-full max-h-full max-w-full object-contain transition-all duration-300 bg-white"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Discount Tag on Image */}
+                      {discountPercentage > 0 && (
+                        <div className="absolute top-3 left-3 z-10">
+                          <span className="bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-sm tracking-wider uppercase">
+                            {discountPercentage}% OFF
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Top Right Floating Actions: Wishlist & Share */}
+                      <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
+                        <button
+                          onClick={handleToggleWishlist}
+                          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                          title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                          className={`p-2.5 rounded-full border transition-all active:scale-95 flex items-center justify-center shadow-sm ${
+                            isWishlisted
+                              ? 'bg-rose-50 border-rose-200 text-rose-500'
+                              : 'bg-white/95 backdrop-blur-xs border-gray-100 text-gray-500 hover:text-rose-500 hover:bg-rose-50'
+                          }`}
+                        >
+                          <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (product) {
+                              const currentImg = currentDisplayList[selectedImage] || currentDisplayList[0] || (product as any).image;
+                              shareProduct(product, {
+                                specificImage: currentImg,
+                                variantName: currentVariant?.name
+                              });
+                            }
+                          }}
+                          aria-label="Share product"
+                          title="Share product"
+                          className="p-2.5 rounded-full bg-white/95 backdrop-blur-xs border border-gray-100 text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Thumbnails Row */}
+                    {currentDisplayList.length > 1 && (
+                      <div className="flex gap-2.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none snap-x touch-pan-x">
+                        {currentDisplayList.map((img, idx) => {
+                          const isSelected = selectedImage === idx;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => scrollToImage(idx)}
+                              className={`w-16 h-16 sm:w-18 sm:h-18 shrink-0 snap-start rounded-xl overflow-hidden border-2 transition-all bg-white p-1 flex items-center justify-center cursor-pointer ${
+                                isSelected
+                                  ? 'border-green-600 ring-2 ring-green-600/20 shadow-xs'
+                                  : 'border-gray-200 opacity-60 hover:opacity-100 hover:border-gray-300'
+                              }`}
+                            >
+                              <img src={img} alt="" className="w-full h-full object-contain bg-white" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Right: Info, Variants, Actions, Delivery */}
@@ -548,6 +581,11 @@ export default function ProductDetail() {
                       Code: {formatProductCode(product.productCode)}
                     </span>
                   )}
+                  {currentVariant?.sku && (
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      SKU: {currentVariant.sku}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -575,192 +613,17 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {/* Variants Section */}
+              {/* Universal Variant Selector */}
               {activeVariants.length > 0 && (
                 <div className="space-y-4 pt-2 border-t border-gray-100">
-                  {/* Selected Variant Summary */}
-                  {currentVariant && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                        Selected: <span className="text-gray-900 font-extrabold">{currentVariant.name || currentVariant.color || getComboLabel(currentVariant)}</span>
-                      </span>
-                      {product.sizeChart && (
-                        <button
-                          type="button"
-                          onClick={() => setShowSizeChartModal(true)}
-                          className="inline-flex items-center gap-1.5 text-xs font-black text-green-600 bg-green-50 px-3 py-1 rounded-xl hover:bg-green-100 transition-colors uppercase tracking-wider"
-                        >
-                          <Ruler className="w-3.5 h-3.5" /> Size Chart
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Color Selection */}
-                  {activeVariants.some(v => v.color || v.colorName) && (
-                    <div className="space-y-2">
-                      <span className="text-xs font-black text-gray-500 uppercase tracking-wider block">
-                        Color: <span className="text-gray-900 font-extrabold">{currentVariant?.color || currentVariant?.colorName || 'Select Color'}</span>
-                      </span>
-                      <div className="flex flex-wrap gap-2.5">
-                        {activeVariants.map((v) => {
-                          if (!v.color && !v.colorName) return null;
-                          const isSelected = selectedVariant === v.id;
-                          return (
-                            <button
-                              key={v.id}
-                              onClick={() => setSelectedVariant(v.id)}
-                              disabled={v.stock === 0}
-                              className={`px-3 py-2 rounded-xl border-2 font-bold text-xs transition-all flex items-center gap-2 ${
-                                isSelected
-                                  ? 'border-green-600 bg-green-50 text-green-700 shadow-xs'
-                                  : v.stock === 0
-                                    ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-50 cursor-not-allowed'
-                                    : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
-                              }`}
-                            >
-                              {v.image ? (
-                                <img src={v.image} alt={v.color || v.colorName} className="w-6 h-6 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
-                              ) : v.colorHex ? (
-                                <span
-                                  className="w-3.5 h-3.5 rounded-full border border-gray-300 inline-block shrink-0 shadow-xs"
-                                  style={{ backgroundColor: v.colorHex }}
-                                />
-                              ) : null}
-                              <span>{v.color || v.colorName}</span>
-                              {v.stock === 0 && <span className="text-[8px] text-rose-500 uppercase">(Out of stock)</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Size Selection */}
-                  {activeVariants.some(v => v.size || v.shoeSize) && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                          Size: <span className="text-gray-900 font-extrabold">{currentVariant?.size || currentVariant?.shoeSize || 'Select Size'}</span>
-                        </span>
-                        {product.sizeChart && !activeVariants.some(v => v.color) && (
-                          <button
-                            type="button"
-                            onClick={() => setShowSizeChartModal(true)}
-                            className="inline-flex items-center gap-1.5 text-xs font-black text-green-600 bg-green-50 px-3 py-1 rounded-xl hover:bg-green-100 transition-colors uppercase tracking-wider"
-                          >
-                            <Ruler className="w-3.5 h-3.5" /> Size Chart
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {activeVariants.map((v) => {
-                          if (!v.size && !v.shoeSize) return null;
-                          const isSelected = selectedVariant === v.id;
-                          const displaySize = v.size || v.shoeSize;
-                          return (
-                            <button
-                              key={v.id}
-                              onClick={() => setSelectedVariant(v.id)}
-                              disabled={v.stock === 0}
-                              className={`min-w-[44px] px-3.5 py-2.5 rounded-xl border-2 text-xs font-black transition-all ${
-                                isSelected
-                                  ? 'border-green-600 bg-green-600 text-white shadow-xs'
-                                  : v.stock === 0
-                                    ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
-                                    : 'border-gray-200 text-gray-800 hover:border-gray-300 bg-white'
-                              }`}
-                            >
-                              {displaySize}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Storage / RAM / Shade / Volume / Material / Model Variants */}
-                  {activeVariants.some(v => v.storage || v.ram || v.shade || v.volume || v.material || v.model) && (
-                    <div className="space-y-2">
-                      <span className="text-xs font-black text-gray-500 uppercase tracking-wider block">Options & Configuration</span>
-                      <div className="flex flex-wrap gap-2">
-                        {activeVariants.map((v) => {
-                          const label = getComboLabel(v);
-                          if (!label) return null;
-                          const isSelected = selectedVariant === v.id;
-                          return (
-                            <button
-                              key={v.id}
-                              onClick={() => setSelectedVariant(v.id)}
-                              disabled={v.stock === 0}
-                              className={`px-3.5 py-2.5 rounded-xl border-2 text-xs font-bold transition-all ${
-                                isSelected
-                                  ? 'border-green-600 bg-green-50 text-green-700 shadow-xs'
-                                  : v.stock === 0
-                                    ? 'border-gray-100 bg-gray-50 text-gray-300 opacity-40 cursor-not-allowed'
-                                    : 'border-gray-200 text-gray-800 hover:border-gray-300 bg-white'
-                              }`}
-                            >
-                              {label}
-                              {v.stock === 0 && <span className="block text-[8px] uppercase text-rose-500">Out of Stock</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Variant Pricing & Options Cards */}
-                  <div className="space-y-2 pt-2">
-                    <span className="text-xs font-black text-gray-500 uppercase tracking-wider block">
-                      Variant Pricing & Options
-                    </span>
-                    <div
-                      className="flex gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-none snap-x scroll-smooth touch-pan-x w-full"
-                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-                    >
-                      {activeVariants.map((v) => {
-                        const isSelected = selectedVariant === v.id;
-                        const vBasePrice = (v.price && v.price > 0) ? v.price : (product.discountPrice || product.price);
-                        const vTotalPrice = vBasePrice + (v.extraPrice || 0);
-                        const label = v.color || v.colorName || getComboLabel(v);
-
-                        return (
-                          <button
-                            key={v.id}
-                            onClick={() => setSelectedVariant(v.id)}
-                            disabled={v.stock === 0}
-                            className={`flex-shrink-0 min-w-[130px] p-2.5 rounded-xl border-2 text-left transition-all snap-start flex flex-col justify-between gap-1.5 ${
-                              isSelected
-                                ? 'border-green-600 bg-green-50/80 shadow-xs'
-                                : v.stock === 0
-                                  ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-50 cursor-not-allowed'
-                                  : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              {v.image ? (
-                                <img src={v.image} alt={label} className="w-7 h-7 object-contain rounded-md border border-gray-200 bg-white shrink-0" />
-                              ) : v.colorHex ? (
-                                <span className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0" style={{ backgroundColor: v.colorHex }} />
-                              ) : null}
-                              <span className="text-xs font-black truncate max-w-[90px]">{label}</span>
-                            </div>
-                            <div>
-                              <span className="text-sm font-black text-gray-900 block">₹{vTotalPrice.toLocaleString()}</span>
-                              {v.stock === 0 ? (
-                                <span className="text-[9px] font-extrabold text-rose-500 uppercase">Out of Stock</span>
-                              ) : v.stock <= 5 ? (
-                                <span className="text-[9px] font-extrabold text-amber-700 uppercase">{v.stock} Left</span>
-                              ) : (
-                                <span className="text-[9px] font-extrabold text-green-600 uppercase">In Stock</span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <UniversalVariantSelector
+                    product={product}
+                    selectedAttributes={selectedAttributes}
+                    selectedVariantId={selectedVariant}
+                    onSelectVariant={handleVariantSelection}
+                    onOpenSizeChart={() => setShowSizeChartModal(true)}
+                    showSizeChartButton={true}
+                  />
                 </div>
               )}
 

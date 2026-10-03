@@ -94,7 +94,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
           {product.variants && product.variants.length > 0 ? (
             <div className="mb-1.5 space-y-0.5" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
-                <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Select Variant</label>
+                <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Select Option</label>
               </div>
               <div className="relative group/select">
                 <select 
@@ -103,11 +103,15 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                   onClick={(e) => e.stopPropagation()}
                   className="w-full text-[11px] border border-gray-200 rounded-lg py-1 px-2 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-bold appearance-none cursor-pointer pr-6"
                 >
-                  {product.variants.map((v) => (
-                    <option key={v.id} value={v.id} disabled={v.stock === 0}>
-                      {v.name} {v.extraPrice > 0 ? `(+₹${v.extraPrice})` : ''} {v.stock === 0 ? '(Out of Stock)' : ''}
-                    </option>
-                  ))}
+                  {product.variants.map((v) => {
+                    const vTitle = v.name || Object.values(v.attributes || v.attributeValues || {}).filter(Boolean).join(' / ') || [v.color || v.colorName, v.size || v.shoeSize, v.storage, v.ram, v.shade, v.volume, v.material, v.model].filter(Boolean).join(' / ') || `Option ${v.id}`;
+                    const vPrice = (v.price && v.price > 0) ? v.price : ((product.discountPrice || product.price || 0) + (v.extraPrice || 0));
+                    return (
+                      <option key={v.id} value={v.id} disabled={v.stock === 0 || v.disabled || v.status === 'disabled'}>
+                        {vTitle} - ₹{vPrice.toLocaleString()} {v.stock === 0 ? '(Out of Stock)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
                   <ChevronDown className="w-3.5 h-3.5" />
@@ -120,10 +124,10 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
             <div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-sm sm:text-base font-bold text-gray-900">
-                  ₹{((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)).toLocaleString()}
+                  ₹{((selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : ((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0))).toLocaleString()}
                 </span>
                 {product.discountPrice && product.price && (
-                  <span className="text-[11px] text-gray-400 line-through">₹{product.price.toLocaleString()}</span>
+                  <span className="text-[11px] text-gray-400 line-through">₹{(selectedVariant?.mrp || product.mrp || product.price).toLocaleString()}</span>
                 )}
               </div>
               <div className="flex items-center gap-1 mt-0.5 flex-wrap">
@@ -132,7 +136,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                 )}
                 {product.discountPrice && product.price && (
                   <span className="text-[9px] text-green-600 font-black">
-                    • Save ₹{(product.price - product.discountPrice).toLocaleString()}
+                    • Save ₹{((selectedVariant?.mrp || product.mrp || product.price) - ((selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : ((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)))).toLocaleString()}
                   </span>
                 )}
               </div>

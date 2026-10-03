@@ -548,7 +548,9 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                               onChange={e => setEditingVariant(p => p ? { ...p, name: e.target.value } : null)}
                                             />
                                           ) : (
-                                            <span className="text-xs font-bold text-gray-700">{variant.name}</span>
+                                            <span className="text-xs font-bold text-gray-700">
+                                              {variant.name || Object.values(variant.attributes || variant.attributeValues || {}).filter(Boolean).join(' / ') || [variant.color || variant.colorName, variant.size || variant.shoeSize, variant.storage, variant.ram, variant.shade, variant.volume, variant.material, variant.model].filter(Boolean).join(' / ') || `Variant ${variant.id}`}
+                                            </span>
                                           )}
                                         </td>
                                         <td className="px-6 py-3">

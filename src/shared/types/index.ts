@@ -84,6 +84,7 @@ export interface Product {
   rating: number;
   numReviews: number;
   variants?: ProductVariant[];
+  variantAttributesList?: VariantAttribute[]; // Dynamic Universal Attribute Definitions (Unlimited attributes & values)
   features?: string[];
   color?: string; // Common color if no variants or default
   size?: string; // Common size if no variants or default
@@ -123,6 +124,63 @@ export interface Product {
   createdAt: string;
 }
 
+export interface VariantAttributeValue {
+  id: string;
+  name: string; // e.g. "Midnight Blue", "128GB", "XL"
+  value?: string; // Optional raw value
+  hex?: string; // Optional hex code for colors
+  image?: string; // Optional image / swatch preview
+  disabled?: boolean;
+}
+
+export interface VariantAttribute {
+  id: string; // e.g. "attr_color", "attr_size", or unique string
+  name: string; // e.g. "Color", "Size", "RAM", "Storage", "Capacity", "Pack Size", "Material", "Style", "Model"
+  type?: 'color' | 'text' | 'button' | 'select' | 'image';
+  values: VariantAttributeValue[];
+  disabled?: boolean;
+}
+
+export interface ProductVariant {
+  id: string;
+  name?: string; // Combination display title e.g. "Midnight Blue / 128GB / 8GB"
+  attributes?: Record<string, string>; // Canonical attribute map: { [attributeName: string]: valueName }
+  attributeValues?: Record<string, string>; // Map of attributeId -> valueId or valueName
+  sku?: string;
+  barcode?: string;
+  price?: number; // Selling price
+  mrp?: number; // Maximum retail price
+  discountPrice?: number; // Selling price (alias for price)
+  discountPercentage?: number;
+  extraPrice?: number; // Legacy extra price offset
+  stock: number;
+  lowStockThreshold?: number;
+  inStock?: boolean;
+  status?: 'active' | 'disabled' | 'out_of_stock';
+  disabled?: boolean;
+  image?: string;
+  images?: string[];
+  weight?: number | string;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    unit?: string;
+  } | string;
+  // Legacy product attributes (for backward compatibility)
+  color?: string;
+  colorHex?: string;
+  colorName?: string;
+  size?: string;
+  shoeSize?: string;
+  storage?: string;
+  ram?: string;
+  shade?: string;
+  volume?: string;
+  material?: string;
+  model?: string;
+}
+
 export interface Deal259SubDeal {
   id: string;
   title: string;
@@ -144,29 +202,6 @@ export interface Deal259PageConfig {
   subDeals?: Deal259SubDeal[];
   categories?: string[];
   updatedAt?: string;
-}
-
-export interface ProductVariant {
-  id: string;
-  name?: string;
-  color?: string;
-  colorHex?: string;
-  colorName?: string;
-  size?: string;
-  shoeSize?: string;
-  storage?: string;
-  ram?: string;
-  shade?: string;
-  volume?: string;
-  material?: string;
-  model?: string;
-  price?: number;
-  extraPrice?: number;
-  stock: number;
-  sku?: string;
-  image?: string;
-  images?: string[];
-  disabled?: boolean;
 }
 
 export interface Category {
@@ -265,8 +300,11 @@ export interface OrderItem {
   productId: string;
   variantId?: string;
   selectedVariant?: string;
+  selectedAttributes?: Record<string, string>;
+  sku?: string;
   name: string;
   price: number;
+  mrp?: number;
   quantity: number;
   image: string;
   gst?: number;
@@ -278,6 +316,7 @@ export type OrderStatus = "pending" | "confirmed" | "packed" | "shipped" | "out_
 export interface CartItem {
   productId: string;
   variantId?: string;
+  selectedAttributes?: Record<string, string>;
   quantity: number;
   product: Product; // Normalized for UI
 }
