@@ -18,7 +18,7 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
-import { getBestInitialSelection } from '../../shared/utilities/variantMatrixUtils';
+import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
@@ -243,12 +243,27 @@ export default function MobileProductDetailScreen() {
     }
   };
 
+  const validateVariantSelection = (): boolean => {
+    if (product && product.variants && product.variants.some(v => !v.disabled && v.status !== 'disabled') && !selectedVariantId) {
+      const attributes = getProductVariantAttributes(product);
+      const missingAttr = attributes.find(a => !selectedAttributes[normalizeAttributeKey(a.name)]);
+      if (missingAttr) {
+        toast.error(`Please select ${missingAttr.name}`);
+      } else {
+        toast.error('Please select an available variant.');
+      }
+      return false;
+    }
+    return true;
+  };
+
   const handleAddToCart = () => {
     if (!product) return;
     if (isInCart) {
       navigate('/cart');
       return;
     }
+    if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
       toast.success("Added to Cart!", { icon: '🛒' });
@@ -267,6 +282,7 @@ export default function MobileProductDetailScreen() {
       navigate('/checkout');
       return;
     }
+    if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariantId);
     if (result.success || result.exists) {
       navigate('/checkout');

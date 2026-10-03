@@ -136,7 +136,8 @@ export interface VariantAttributeValue {
 export interface VariantAttribute {
   id: string; // e.g. "attr_color", "attr_size", or unique string
   name: string; // e.g. "Color", "Size", "RAM", "Storage", "Capacity", "Pack Size", "Material", "Style", "Model"
-  type?: 'color' | 'text' | 'button' | 'select' | 'image';
+  type?: 'color' | 'text' | 'button' | 'select' | 'image' | 'dropdown' | 'swatch';
+  displayType?: 'image' | 'button' | 'dropdown' | 'text' | 'swatch';
   values: VariantAttributeValue[];
   disabled?: boolean;
 }

@@ -9,7 +9,8 @@ import {
   getBestInitialSelection,
   extractVariantAttributes,
   getVariantCombinationTitle,
-  getProductVariantAttributes
+  getProductVariantAttributes,
+  normalizeAttributeKey
 } from '../../shared/utilities/variantMatrixUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
@@ -242,15 +243,26 @@ export default function ProductDetail() {
   const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
 
+  const validateVariantSelection = (): boolean => {
+    if (activeVariants.length > 0 && !selectedVariant) {
+      const attributes = getProductVariantAttributes(product);
+      const missingAttr = attributes.find(a => !selectedAttributes[normalizeAttributeKey(a.name)]);
+      if (missingAttr) {
+        toast.error(`Please select ${missingAttr.name}`);
+      } else {
+        toast.error('Please select an available variant combination.');
+      }
+      return false;
+    }
+    return true;
+  };
+
   const handleBuyNow = () => {
     if (isInCart) {
       navigate('/checkout');
       return;
     }
-    if (activeVariants.length > 0 && !selectedVariant) {
-      toast.error('Please select an available variant.');
-      return;
-    }
+    if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariant);
     if (result.success || result.exists) {
       navigate('/checkout');
@@ -264,10 +276,7 @@ export default function ProductDetail() {
       navigate('/cart');
       return;
     }
-    if (activeVariants.length > 0 && !selectedVariant) {
-      toast.error('Please select an available variant.');
-      return;
-    }
+    if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariant);
     if (result.success) {
       toast.success('Product added to cart');

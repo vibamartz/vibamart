@@ -146,12 +146,17 @@ export default function VariantMatrixManager({
     onAttributesChange(updated);
   };
 
+  const updateAttributeDisplayType = (attrId: string, displayType: 'image' | 'button' | 'dropdown' | 'text' | 'swatch') => {
+    const updated = attributes.map(a => (a.id === attrId ? { ...a, displayType } : a));
+    onAttributesChange(updated);
+  };
+
   const toggleAttributeValueDisabled = (attrId: string, valId: string) => {
     const updated = attributes.map(a => {
       if (a.id !== attrId) return a;
       return {
         ...a,
-        values: a.values.map(v => v.id === valId ? { ...v, disabled: !v.disabled } : v)
+        values: a.values.map(v => (v.id === valId ? { ...v, disabled: !v.disabled } : v))
       };
     });
     onAttributesChange(updated);
@@ -481,7 +486,23 @@ export default function VariantMatrixManager({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Display Type Selector */}
+                      <div className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-gray-200">
+                        <span className="text-[9px] font-black uppercase text-gray-400">Display:</span>
+                        <select
+                          value={attr.displayType || (isColor ? 'image' : 'button')}
+                          onChange={e => updateAttributeDisplayType(attr.id, e.target.value as any)}
+                          className="text-[11px] font-bold bg-transparent border-0 outline-none text-gray-700 cursor-pointer"
+                        >
+                          <option value="image">Image / Thumbnail</option>
+                          <option value="swatch">Color Swatch</option>
+                          <option value="button">Button / Pill</option>
+                          <option value="dropdown">Dropdown</option>
+                          <option value="text">Text</option>
+                        </select>
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => moveAttribute(idx, 'up')}
