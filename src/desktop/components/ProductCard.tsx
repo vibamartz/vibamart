@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Product } from '../../shared/types';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
 import { useCartStore } from '../../backend/store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -16,13 +15,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, showActionsAlways = false, hideButtons = false }: ProductCardProps) {
   const { addItem, items } = useCartStore();
-
-  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(
-    product.variants && product.variants.length > 0 ? product.variants[0].id : undefined
-  );
-
-  const selectedVariant = product.variants?.find(v => v.id === selectedVariantId);
-  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariantId);
+  const isInCart = items.some(item => item.productId === product.id);
 
   const navigate = useNavigate();
 
@@ -33,7 +26,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
       navigate('/checkout');
       return;
     }
-    const result = addItem(product, 1, selectedVariantId);
+    const result = addItem(product, 1);
     if (result.success || result.exists) {
       navigate('/checkout');
     } else {
@@ -48,7 +41,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
       navigate('/cart');
       return;
     }
-    const result = addItem(product, 1, selectedVariantId);
+    const result = addItem(product, 1);
     if (result.success) {
       toast.success('Product added to cart');
     } else if (result.exists) {
@@ -91,43 +84,14 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
             {product.name}
           </span>
 
-          {product.variants && product.variants.length > 0 ? (
-            <div className="mb-1.5 space-y-0.5" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center">
-                <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Select Option</label>
-              </div>
-              <div className="relative group/select">
-                <select 
-                  value={selectedVariantId}
-                  onChange={(e) => setSelectedVariantId(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full text-[11px] border border-gray-200 rounded-lg py-1 px-2 bg-gray-50 focus:outline-none focus:border-green-600/30 focus:bg-white transition-all font-bold appearance-none cursor-pointer pr-6"
-                >
-                  {product.variants.map((v) => {
-                    const vTitle = v.name || Object.values(v.attributes || v.attributeValues || {}).filter(Boolean).join(' / ') || [v.color || v.colorName, v.size || v.shoeSize, v.storage, v.ram, v.shade, v.volume, v.material, v.model].filter(Boolean).join(' / ') || `Option ${v.id}`;
-                    const vPrice = (v.price && v.price > 0) ? v.price : ((product.discountPrice || product.price || 0) + (v.extraPrice || 0));
-                    return (
-                      <option key={v.id} value={v.id} disabled={v.stock === 0 || v.disabled || v.status === 'disabled'}>
-                        {vTitle} - ₹{vPrice.toLocaleString()} {v.stock === 0 ? '(Out of Stock)' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover/select:text-green-600 transition-colors">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           <div className="mt-auto flex items-end justify-between pt-1 border-t border-gray-50">
             <div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-sm sm:text-base font-bold text-gray-900">
-                  ₹{((selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : ((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0))).toLocaleString()}
+                  ₹{(product.discountPrice || product.price || 0).toLocaleString()}
                 </span>
                 {product.discountPrice && product.price && (
-                  <span className="text-[11px] text-gray-400 line-through">₹{(selectedVariant?.mrp || product.mrp || product.price).toLocaleString()}</span>
+                  <span className="text-[11px] text-gray-400 line-through">₹{(product.mrp || product.price).toLocaleString()}</span>
                 )}
               </div>
               <div className="flex items-center gap-1 mt-0.5 flex-wrap">
@@ -136,7 +100,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                 )}
                 {product.discountPrice && product.price && (
                   <span className="text-[9px] text-green-600 font-black">
-                    • Save ₹{((selectedVariant?.mrp || product.mrp || product.price) - ((selectedVariant?.price && selectedVariant.price > 0) ? selectedVariant.price : ((product.discountPrice || product.price || 0) + (selectedVariant?.extraPrice || 0)))).toLocaleString()}
+                    • Save ₹{((product.mrp || product.price) - (product.discountPrice || product.price)).toLocaleString()}
                   </span>
                 )}
               </div>
@@ -147,3 +111,4 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     </Link>
   );
 }
+

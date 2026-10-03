@@ -1,5 +1,6 @@
 import React from 'react';
 import { Product, ProductVariant, VariantAttribute } from '../types';
+import { useNavigate } from 'react-router-dom';
 import {
   getProductVariantAttributes,
   calculateAttributeAvailability,
@@ -26,6 +27,7 @@ export default function UniversalVariantSelector({
   onOpenSizeChart,
   showSizeChartButton = true
 }: UniversalVariantSelectorProps) {
+  const navigate = useNavigate();
   const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
   const attributes = getProductVariantAttributes(product);
 
@@ -38,6 +40,9 @@ export default function UniversalVariantSelector({
   const availabilityMatrix = calculateAttributeAvailability(activeVariants, attributes, selectedAttributes);
 
   const handleAttributeValueClick = (attrName: string, valName: string) => {
+    const attr = attributes.find(a => normalizeAttributeKey(a.name) === normalizeAttributeKey(attrName));
+    const valObj = attr?.values?.find(v => normalizeAttributeVal(v.name) === normalizeAttributeVal(valName));
+
     const { selectedAttributes: newSelection, variant } = resolveValidVariantSelection(
       activeVariants,
       attributes,
@@ -46,6 +51,16 @@ export default function UniversalVariantSelector({
       valName
     );
 
+    // Check for Linked Product ID across attribute value or variant
+    const targetLinkedProductId = valObj?.linkedProductId || variant?.linkedProductId;
+
+    if (targetLinkedProductId && targetLinkedProductId !== product.id && targetLinkedProductId !== product.slug) {
+      // Direct navigation to canonical product detail route
+      navigate(`/products/${targetLinkedProductId}`);
+      return;
+    }
+
+    // Fallback: local variant state switch within current product
     if (variant) {
       onSelectVariant(variant.id, newSelection);
     }

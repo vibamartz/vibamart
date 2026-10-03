@@ -99,7 +99,9 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
       name: normalizeAttributeKey(attr.name),
       values: (attr.values || []).map(val => ({
         ...val,
-        name: normalizeAttributeVal(val.name)
+        name: normalizeAttributeVal(val.name),
+        linkedProductId: val.linkedProductId,
+        linkedProductName: val.linkedProductName
       }))
     }));
   }
@@ -129,7 +131,9 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
             id: `val_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             name: cleanVal,
             hex: (cleanName.toLowerCase().includes('color') && v.colorHex) ? v.colorHex : undefined,
-            image: (v.image || v.images?.[0]) ? (v.image || v.images?.[0]) : undefined
+            image: (v.image || v.images?.[0]) ? (v.image || v.images?.[0]) : undefined,
+            linkedProductId: v.linkedProductId,
+            linkedProductName: v.linkedProductName
           });
         }
       });
@@ -226,11 +230,17 @@ export function generateVariantMatrix(
     const attrsRecord: Record<string, string> = {};
     let matchedHex = '#000000';
     let matchedSwatchImage = '';
+    let matchedLinkedProductId: string | undefined = undefined;
+    let matchedLinkedProductName: string | undefined = undefined;
 
     combo.forEach(item => {
       attrsRecord[item.attributeName] = item.valueName;
       if (item.hex) matchedHex = item.hex;
       if (item.image) matchedSwatchImage = item.image;
+      if (item.linkedProductId) {
+        matchedLinkedProductId = item.linkedProductId;
+        matchedLinkedProductName = item.linkedProductName;
+      }
     });
 
     const canonicalKey = getCanonicalVariantKey(attrsRecord);
@@ -246,6 +256,8 @@ export function generateVariantMatrix(
         attributes: attrsRecord,
         attributeValues: attrsRecord,
         colorHex: existing.colorHex || matchedHex,
+        linkedProductId: existing.linkedProductId || matchedLinkedProductId,
+        linkedProductName: existing.linkedProductName || matchedLinkedProductName,
         // Legacy mapping sync
         color: attrsRecord['Color'] || attrsRecord['Shade'] || existing.color || '',
         colorName: attrsRecord['Color'] || attrsRecord['Shade'] || existing.colorName || '',
@@ -280,6 +292,8 @@ export function generateVariantMatrix(
       image: variantImg,
       images: variantImg ? [variantImg] : [],
       colorHex: matchedHex,
+      linkedProductId: matchedLinkedProductId,
+      linkedProductName: matchedLinkedProductName,
       // Legacy support fields
       color: attrsRecord['Color'] || attrsRecord['Shade'] || '',
       colorName: attrsRecord['Color'] || attrsRecord['Shade'] || '',

@@ -131,6 +131,8 @@ export interface VariantAttributeValue {
   hex?: string; // Optional hex code for colors
   image?: string; // Optional image / swatch preview
   disabled?: boolean;
+  linkedProductId?: string; // Optional Linked Product ID for linked product navigation
+  linkedProductName?: string; // Optional display name for the linked product
 }
 
 export interface VariantAttribute {
@@ -168,6 +170,8 @@ export interface ProductVariant {
     height?: number;
     unit?: string;
   } | string;
+  linkedProductId?: string; // Optional Linked Product ID for the specific variant
+  linkedProductName?: string; // Optional display name for the linked product
   // Legacy product attributes (for backward compatibility)
   color?: string;
   colorHex?: string;

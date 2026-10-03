@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, ProductVariant, VariantAttribute, VariantAttributeValue } from '../../shared/types';
+import { db } from '../../backend/firebase/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import {
   generateVariantMatrix,
   getVariantCombinationTitle,
@@ -12,7 +14,7 @@ import { VariantMultiImageInput } from './VariantImageInput';
 import {
   Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, Sparkles,
   Copy, Tag, Check, AlertCircle, RefreshCw, SlidersHorizontal, Image as ImageIcon,
-  CheckCircle2, X, ChevronDown, ChevronUp, Package
+  CheckCircle2, X, ChevronDown, ChevronUp, Package, Link2, ExternalLink, Search, Unlink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -44,6 +46,121 @@ export default function VariantMatrixManager({
   const [bulkMrp, setBulkMrp] = useState<string>('');
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [expandedVariantId, setExpandedVariantId] = useState<string | null>(null);
+
+  // --- LINKED PRODUCTS CATALOG STATE & MODAL ---
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [linkedProductModalTarget, setLinkedProductModalTarget] = useState<{
+    type: 'attributeValue' | 'variant';
+    attrId?: string;
+    valId?: string;
+    variantId?: string;
+    currentLinkedId?: string;
+    title?: string;
+  } | null>(null);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalog = async () => {
+      try {
+        setLoadingProducts(true);
+        const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        if (isMounted) {
+          const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+          setAvailableProducts(prods);
+        }
+      } catch (err) {
+        console.warn('Error fetching products for variant linking:', err);
+      } finally {
+        if (isMounted) setLoadingProducts(false);
+      }
+    };
+    fetchCatalog();
+    return () => { isMounted = false; };
+  }, []);
+
+  const assignLinkedProductToValue = (attrId: string, valId: string, productToLink: Product) => {
+    const updated = attributes.map(a => {
+      if (a.id !== attrId) return a;
+      return {
+        ...a,
+        values: a.values.map(v => {
+          if (v.id !== valId) return v;
+          return {
+            ...v,
+            linkedProductId: productToLink.id,
+            linkedProductName: productToLink.name,
+            image: v.image || productToLink.primaryImage || productToLink.images?.[0] || undefined
+          };
+        })
+      };
+    });
+    onAttributesChange(updated);
+    setLinkedProductModalTarget(null);
+    toast.success(`Linked product "${productToLink.name}" to variant value.`);
+  };
+
+  const removeLinkedProductFromValue = (attrId: string, valId: string) => {
+    const updated = attributes.map(a => {
+      if (a.id !== attrId) return a;
+      return {
+        ...a,
+        values: a.values.map(v => {
+          if (v.id !== valId) return v;
+          const copy = { ...v };
+          delete copy.linkedProductId;
+          delete copy.linkedProductName;
+          return copy;
+        })
+      };
+    });
+    onAttributesChange(updated);
+    toast.success('Removed linked product.');
+  };
+
+  const assignLinkedProductToVariant = (variantId: string, productToLink: Product) => {
+    onVariantsChange(
+      variants.map(v => {
+        if (v.id !== variantId) return v;
+        return {
+          ...v,
+          linkedProductId: productToLink.id,
+          linkedProductName: productToLink.name,
+          image: v.image || productToLink.primaryImage || productToLink.images?.[0] || undefined
+        };
+      })
+    );
+    setLinkedProductModalTarget(null);
+    toast.success(`Linked product "${productToLink.name}" to variant combination.`);
+  };
+
+  const removeLinkedProductFromVariant = (variantId: string) => {
+    onVariantsChange(
+      variants.map(v => {
+        if (v.id !== variantId) return v;
+        const copy = { ...v };
+        delete copy.linkedProductId;
+        delete copy.linkedProductName;
+        return copy;
+      })
+    );
+    toast.success('Removed linked product from variant.');
+  };
+
+  const filteredCatalogProducts = availableProducts.filter(p => {
+    if (baseProduct.id && p.id === baseProduct.id) return false;
+    if (!productSearchTerm.trim()) return true;
+    const term = productSearchTerm.toLowerCase();
+    return (
+      (p.name && p.name.toLowerCase().includes(term)) ||
+      (p.id && p.id.toLowerCase().includes(term)) ||
+      (p.sku && p.sku.toLowerCase().includes(term)) ||
+      (p.productCode && p.productCode.toLowerCase().includes(term)) ||
+      (p.brand && p.brand.toLowerCase().includes(term))
+    );
+  });
 
   // --- ATTRIBUTE ACTIONS ---
 
@@ -550,48 +667,110 @@ export default function VariantMatrixManager({
                       Configured Values ({attr.name})
                     </span>
 
-                    <div className="flex flex-wrap gap-2.5">
+                    <div className="flex flex-wrap gap-3">
                       {attr.values.map(val => (
                         <div
                           key={val.id}
-                          className={`group flex items-center gap-2 px-3.5 py-2 rounded-2xl border text-xs font-bold bg-white transition-all shadow-2xs ${
-                            val.disabled ? 'opacity-40 border-gray-200 bg-gray-50' : 'border-gray-200 hover:border-emerald-400'
+                          className={`group flex flex-col gap-2 p-3 rounded-2xl border text-xs bg-white transition-all shadow-2xs min-w-[200px] max-w-xs ${
+                            val.disabled ? 'opacity-50 border-gray-200 bg-gray-50' : 'border-gray-200 hover:border-emerald-400'
                           }`}
                         >
-                          {isColor && (
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="color"
-                                value={val.hex || '#000000'}
-                                onChange={e => updateAttributeValueHex(attr.id, val.id, e.target.value)}
-                                className="w-5 h-5 rounded-md cursor-pointer border-0 p-0"
-                                title="Pick Color Hex"
-                              />
-                              <span className="text-[9px] font-mono font-bold text-gray-400 uppercase">
-                                {val.hex || '#000000'}
-                              </span>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isColor && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <input
+                                    type="color"
+                                    value={val.hex || '#000000'}
+                                    onChange={e => updateAttributeValueHex(attr.id, val.id, e.target.value)}
+                                    className="w-5 h-5 rounded-md cursor-pointer border-0 p-0"
+                                    title="Pick Color Hex"
+                                  />
+                                  <span className="text-[9px] font-mono font-bold text-gray-400 uppercase">
+                                    {val.hex || '#000000'}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-gray-900 font-black truncate">{val.name}</span>
                             </div>
-                          )}
 
-                          <span className="text-gray-900">{val.name}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleAttributeValueDisabled(attr.id, val.id)}
+                                className="text-gray-300 hover:text-amber-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                                title={val.disabled ? 'Enable Value' : 'Disable Value'}
+                              >
+                                {val.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                              </button>
 
-                          <button
-                            type="button"
-                            onClick={() => toggleAttributeValueDisabled(attr.id, val.id)}
-                            className="text-gray-300 hover:text-amber-600 transition-colors ml-1"
-                            title={val.disabled ? 'Enable Value' : 'Disable Value'}
-                          >
-                            {val.disabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          </button>
+                              <button
+                                type="button"
+                                onClick={() => removeAttributeValue(attr.id, val.id)}
+                                className="text-gray-300 hover:text-rose-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                                title="Remove Value"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => removeAttributeValue(attr.id, val.id)}
-                            className="text-gray-300 hover:text-rose-600 transition-colors ml-0.5"
-                            title="Remove Value"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Linked Product Selection */}
+                          <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                            {val.linkedProductId ? (
+                              <div className="flex items-center justify-between w-full bg-emerald-50 text-emerald-900 px-2.5 py-1.5 rounded-xl border border-emerald-200 gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="text-[11px] font-bold truncate" title={val.linkedProductName || val.linkedProductId}>
+                                    {val.linkedProductName || `ID: ${val.linkedProductId}`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProductSearchTerm('');
+                                      setLinkedProductModalTarget({
+                                        type: 'attributeValue',
+                                        attrId: attr.id,
+                                        valId: val.id,
+                                        currentLinkedId: val.linkedProductId,
+                                        title: `${attr.name}: ${val.name}`
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-300 shadow-2xs cursor-pointer"
+                                  >
+                                    Change
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeLinkedProductFromValue(attr.id, val.id)}
+                                    className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded-md cursor-pointer"
+                                    title="Unlink Product"
+                                  >
+                                    <Unlink className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setLinkedProductModalTarget({
+                                    type: 'attributeValue',
+                                    attrId: attr.id,
+                                    valId: val.id,
+                                    title: `${attr.name}: ${val.name}`
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-dashed border-gray-300 transition-colors cursor-pointer"
+                              >
+                                <Link2 className="w-3 h-3 text-gray-400" />
+                                Linked Product: [Search existing products]
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
 
@@ -1012,6 +1191,61 @@ export default function VariantMatrixManager({
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
                           />
                         </div>
+
+                        {/* Linked Product (Optional) */}
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
+                            <Link2 className="w-3 h-3 text-emerald-600" /> Linked Product (Optional)
+                          </label>
+                          {v.linkedProductId ? (
+                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-xs font-bold text-emerald-900 truncate">
+                                  {v.linkedProductName || `Product ID: ${v.linkedProductId}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductSearchTerm('');
+                                    setLinkedProductModalTarget({
+                                      type: 'variant',
+                                      variantId: v.id,
+                                      currentLinkedId: v.linkedProductId,
+                                      title: comboTitle
+                                    });
+                                  }}
+                                  className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs cursor-pointer"
+                                >
+                                  Change
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeLinkedProductFromVariant(v.id)}
+                                  className="text-[10px] font-black uppercase text-rose-600 hover:text-rose-800 bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-2xs cursor-pointer"
+                                >
+                                  Unlink
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProductSearchTerm('');
+                                setLinkedProductModalTarget({
+                                  type: 'variant',
+                                  variantId: v.id,
+                                  title: comboTitle
+                                });
+                              }}
+                              className="w-full bg-gray-50 border border-dashed border-gray-300 hover:border-emerald-500 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-emerald-700 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                            >
+                              <Link2 className="w-3.5 h-3.5" /> Linked Product: [Search existing products]
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Variant Images Gallery */}
@@ -1035,6 +1269,183 @@ export default function VariantMatrixManager({
                 No variants generated. Go to "1. Attributes" tab and click "Generate Matrix", or click "Add Variant" above.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* --- LINKED PRODUCT SELECTION MODAL --- */}
+      {linkedProductModalTarget && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] border border-gray-100 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 sm:p-7 border-b border-gray-100 flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <Link2 className="w-4 h-4" />
+                  </span>
+                  <h4 className="text-lg font-black text-gray-900 tracking-tight">
+                    Link ViBa Mart Product
+                  </h4>
+                </div>
+                <p className="text-xs text-gray-400 font-bold mt-1">
+                  Target: <span className="text-emerald-700 font-black">{linkedProductModalTarget.title || 'Variant Item'}</span>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setLinkedProductModalTarget(null)}
+                className="p-2.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Search Bar */}
+            <div className="p-5 sm:p-6 border-b border-gray-100 bg-gray-50/70">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={productSearchTerm}
+                  onChange={e => setProductSearchTerm(e.target.value)}
+                  placeholder="Search products by name, product code, SKU, or ID..."
+                  autoFocus
+                  className="w-full bg-white border border-gray-200 rounded-2xl pl-11 pr-10 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                />
+                {productSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setProductSearchTerm('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-2 px-1 text-[11px] font-bold text-gray-400">
+                <span>Showing {filteredCatalogProducts.length} existing products</span>
+                {loadingProducts && <span className="text-emerald-600 animate-pulse">Loading catalog...</span>}
+              </div>
+            </div>
+
+            {/* Modal Product List */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5">
+              {filteredCatalogProducts.map(prod => {
+                const isSelected = prod.id === linkedProductModalTarget.currentLinkedId;
+                const prodImg = prod.primaryImage || (prod.images && prod.images[0]) || '';
+                const price = prod.discountPrice || prod.price || 0;
+
+                return (
+                  <div
+                    key={prod.id}
+                    className={`flex items-center justify-between gap-4 p-3.5 rounded-2xl border transition-all ${
+                      isSelected
+                        ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/20'
+                        : 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-xs'
+                    }`}
+                  >
+                    {/* Thumbnail & Product Details */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden flex items-center justify-center shrink-0">
+                        {prodImg ? (
+                          <img src={prodImg} alt={prod.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <ImageIcon className="w-5 h-5 text-gray-300" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-gray-900 truncate">
+                            {prod.name}
+                          </span>
+                          {prod.status === 'active' ? (
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase rounded-md shrink-0">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[9px] font-black uppercase rounded-md shrink-0">
+                              {prod.status}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 mt-0.5 flex-wrap">
+                          <span className="text-gray-900 font-extrabold">₹{price.toLocaleString()}</span>
+                          {prod.mrp && prod.mrp > price && (
+                            <span className="line-through text-gray-400">₹{prod.mrp.toLocaleString()}</span>
+                          )}
+                          <span>•</span>
+                          <span>Stock: {prod.stock ?? 0}</span>
+                          <span>•</span>
+                          <span className="font-mono">{prod.sku || prod.id}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isSelected ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Selected
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (linkedProductModalTarget.type === 'attributeValue' && linkedProductModalTarget.attrId && linkedProductModalTarget.valId) {
+                              assignLinkedProductToValue(linkedProductModalTarget.attrId, linkedProductModalTarget.valId, prod);
+                            } else if (linkedProductModalTarget.type === 'variant' && linkedProductModalTarget.variantId) {
+                              assignLinkedProductToVariant(linkedProductModalTarget.variantId, prod);
+                            }
+                          }}
+                          className="px-4 py-2 bg-gray-900 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                        >
+                          Select Product
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredCatalogProducts.length === 0 && (
+                <div className="py-12 text-center text-gray-400 font-bold italic">
+                  No existing products matched your search "{productSearchTerm}".
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+              {linkedProductModalTarget.currentLinkedId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (linkedProductModalTarget.type === 'attributeValue' && linkedProductModalTarget.attrId && linkedProductModalTarget.valId) {
+                      removeLinkedProductFromValue(linkedProductModalTarget.attrId, linkedProductModalTarget.valId);
+                    } else if (linkedProductModalTarget.type === 'variant' && linkedProductModalTarget.variantId) {
+                      removeLinkedProductFromVariant(linkedProductModalTarget.variantId);
+                    }
+                    setLinkedProductModalTarget(null);
+                  }}
+                  className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Remove Current Link
+                </button>
+              ) : <div />}
+
+              <button
+                type="button"
+                onClick={() => setLinkedProductModalTarget(null)}
+                className="px-5 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
