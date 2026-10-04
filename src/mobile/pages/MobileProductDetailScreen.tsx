@@ -63,7 +63,22 @@ export default function MobileProductDetailScreen() {
   const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
     setSelectedVariantId(variantId);
     setSelectedAttributes(updatedAttributes);
-    setActiveImageIndex(0);
+    
+    // Check if variant has a specific image matching one in the product gallery
+    const targetVariant = product?.variants?.find(v => v.id === variantId);
+    const targetImg = targetVariant?.images?.[0] || targetVariant?.image;
+    if (targetImg && typeof targetImg === 'string' && targetImg.trim()) {
+      const trimmed = targetImg.trim();
+      const foundIdx = images.indexOf(trimmed);
+      if (foundIdx >= 0) {
+        scrollToMobileImage(foundIdx);
+      } else {
+        scrollToMobileImage(0);
+      }
+    } else {
+      scrollToMobileImage(0);
+    }
+
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('variant', variantId);
@@ -149,6 +164,10 @@ export default function MobileProductDetailScreen() {
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
+          setActiveImageIndex(0);
+          if (mobileGalleryRef.current) {
+            mobileGalleryRef.current.scrollTo({ left: 0 });
+          }
 
           // Fetch family color matrix if familyId is set
           if (foundProduct.familyId) {
@@ -331,10 +350,54 @@ export default function MobileProductDetailScreen() {
   const originalPrice = selectedVariant?.mrp || product.mrp || product.price;
   const discountAmount = originalPrice > finalPrice ? originalPrice - finalPrice : 0;
   const discountPct = originalPrice > 0 && discountAmount > 0 ? Math.round((discountAmount / originalPrice) * 100) : 0;
-  const variantImages = selectedVariant?.images && selectedVariant.images.length > 0
-    ? selectedVariant.images
-    : (selectedVariant?.image ? [selectedVariant.image] : []);
-  const images = variantImages.length > 0 ? variantImages : (product.images?.length > 0 ? product.images : ['https://via.placeholder.com/600']);
+  // Load and display every valid product image saved for the current product
+  const rawProductImages = (Array.isArray(product.images) ? product.images : [])
+    .filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+    .map(img => img.trim());
+
+  const allProductImages: string[] = [...rawProductImages];
+  if (product.primaryImage && typeof product.primaryImage === 'string' && product.primaryImage.trim()) {
+    const pImg = product.primaryImage.trim();
+    if (!allProductImages.includes(pImg)) {
+      allProductImages.unshift(pImg);
+    }
+  }
+  if ((product as any).image && typeof (product as any).image === 'string' && (product as any).image.trim()) {
+    const legacyImg = (product as any).image.trim();
+    if (!allProductImages.includes(legacyImg)) {
+      allProductImages.push(legacyImg);
+    }
+  }
+
+  // Variant-specific images if any additional exist
+  const variantImages: string[] = [];
+  if (selectedVariant) {
+    if (Array.isArray(selectedVariant.images)) {
+      selectedVariant.images.forEach(img => {
+        if (typeof img === 'string' && img.trim()) {
+          const trimmed = img.trim();
+          if (!variantImages.includes(trimmed)) {
+            variantImages.push(trimmed);
+          }
+        }
+      });
+    }
+    if (selectedVariant.image && typeof selectedVariant.image === 'string' && selectedVariant.image.trim()) {
+      const vImg = selectedVariant.image.trim();
+      if (!variantImages.includes(vImg)) {
+        variantImages.push(vImg);
+      }
+    }
+  }
+
+  const combinedImages: string[] = [...allProductImages];
+  variantImages.forEach(vImg => {
+    if (!combinedImages.includes(vImg)) {
+      combinedImages.push(vImg);
+    }
+  });
+
+  const images = combinedImages.length > 0 ? combinedImages : ['https://via.placeholder.com/600?text=No+Image'];
   const activeImageSrc = images[activeImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
 
@@ -421,9 +484,12 @@ export default function MobileProductDetailScreen() {
             {images.map((img, idx) => (
               <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1 bg-white">
                 <img
-                  src={selectedVariant?.image && idx === activeImageIndex ? selectedVariant.image : img}
+                  src={img}
                   alt={`${product.name} - ${idx + 1}`}
                   className="w-full h-full object-contain bg-white"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=Image+Unavailable';
+                  }}
                 />
               </div>
             ))}
@@ -452,11 +518,20 @@ export default function MobileProductDetailScreen() {
             {images.map((img, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => scrollToMobileImage(idx)}
-                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start ${activeImageIndex === idx && !selectedVariant?.image ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
-                  }`}
+                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start ${
+                  activeImageIndex === idx ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
+                }`}
               >
-                <img src={img} alt="" className="w-full h-full object-contain" />
+                <img
+                  src={img}
+                  alt=""
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image';
+                  }}
+                />
               </button>
             ))}
           </div>
