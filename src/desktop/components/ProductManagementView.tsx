@@ -52,20 +52,29 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
         name: newVariant.name,
         material: newVariant.material,
         price: newVariant.price,
-        stock: newVariant.stock
+        stock: newVariant.stock,
+        inStock: newVariant.stock > 0,
+        status: newVariant.stock > 0 ? 'active' : 'out_of_stock'
       };
 
       const updatedVariants = [...(product.variants || []), v];
-      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+      const activeVars = updatedVariants.filter((item: any) => !item.disabled && item.status !== 'disabled');
+      const totalStock = activeVars.reduce((sum, item) => sum + (Number(item.stock) || 0), 0);
+
+      await updateDoc(doc(db, 'products', productId), {
+        variants: updatedVariants,
+        stock: totalStock,
+        updatedAt: new Date().toISOString()
+      });
 
       await logAdminAction(
         AdminAction.PRODUCT_UPDATE,
-        `Added new variant "${v.name}" to product: ${product.name}`,
+        `Added new variant "${v.name}" to product: ${product.name} (Total stock: ${totalStock})`,
         productId,
         'products'
       );
 
-      toast.success('Variant added', { id: toastId });
+      toast.success('Variant added & product stock updated', { id: toastId });
       setNewVariant({ name: '', material: '', price: 0, stock: 0 });
       setAddingVariantTo(null);
     } catch (err) {
@@ -82,14 +91,31 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     const toastId = toast.loading('Updating variant...');
     try {
       const updatedVariants = (product.variants || []).map(v =>
-        v.id === variantId ? { ...v, name: editingVariant.name, material: editingVariant.material, price: editingVariant.price, stock: editingVariant.stock } : v
+        v.id === variantId
+          ? {
+              ...v,
+              name: editingVariant.name,
+              material: editingVariant.material,
+              price: editingVariant.price,
+              stock: editingVariant.stock,
+              inStock: editingVariant.stock > 0,
+              status: v.disabled ? 'disabled' : (editingVariant.stock > 0 ? 'active' : 'out_of_stock')
+            }
+          : v
       );
 
-      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+      const activeVars = updatedVariants.filter((item: any) => !item.disabled && item.status !== 'disabled');
+      const totalStock = activeVars.reduce((sum, item) => sum + (Number(item.stock) || 0), 0);
+
+      await updateDoc(doc(db, 'products', productId), {
+        variants: updatedVariants,
+        stock: totalStock,
+        updatedAt: new Date().toISOString()
+      });
 
       await logAdminAction(
         AdminAction.PRODUCT_UPDATE,
-        `Updated variant "${editingVariant.name}" for product: ${product.name}`,
+        `Updated variant "${editingVariant.name}" for product: ${product.name} (Total stock: ${totalStock})`,
         productId,
         'products'
       );
@@ -110,19 +136,33 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
     try {
       const updatedVariants = (product.variants || []).map(v =>
-        v.id === variantId ? { ...v, stock: newStock } : v
+        v.id === variantId
+          ? {
+              ...v,
+              stock: newStock,
+              inStock: newStock > 0,
+              status: v.disabled ? 'disabled' : (newStock > 0 ? 'active' : 'out_of_stock')
+            }
+          : v
       );
 
-      await updateDoc(doc(db, 'products', productId), { variants: updatedVariants });
+      const activeVars = updatedVariants.filter((item: any) => !item.disabled && item.status !== 'disabled');
+      const totalStock = activeVars.reduce((sum, item) => sum + (Number(item.stock) || 0), 0);
+
+      await updateDoc(doc(db, 'products', productId), {
+        variants: updatedVariants,
+        stock: totalStock,
+        updatedAt: new Date().toISOString()
+      });
 
       await logAdminAction(
         AdminAction.PRODUCT_UPDATE,
-        `Directly updated stock for variant "${variant.name}" (Product: ${product.name}) to ${newStock}`,
+        `Directly updated stock for variant "${variant.name}" (Product: ${product.name}) to ${newStock} (Total product stock: ${totalStock})`,
         productId,
         'products'
       );
 
-      toast.success('Stock updated');
+      toast.success(`Variant & product total stock updated (${totalStock} units)`);
     } catch (err) {
       console.error(err);
       toast.error('Failed to update stock');
@@ -140,15 +180,21 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     const toastId = toast.loading('Deleting variant...');
     try {
       const updatedVariants = (product.variants || []).filter(v => v.id !== variantId);
+      const activeVars = updatedVariants.filter((item: any) => !item.disabled && item.status !== 'disabled');
+      const totalStock = updatedVariants.length > 0
+        ? activeVars.reduce((sum, item) => sum + (Number(item.stock) || 0), 0)
+        : (product.stock || 0);
+
       await updateDoc(doc(db, 'products', productId), {
         variants: updatedVariants,
+        stock: totalStock,
         updatedAt: new Date().toISOString()
       });
 
       try {
         await logAdminAction(
           AdminAction.PRODUCT_UPDATE,
-          `Deleted variant "${variant.name}" from product: ${product.name}`,
+          `Deleted variant "${variant.name}" from product: ${product.name} (Total stock: ${totalStock})`,
           productId,
           'products'
         );
@@ -156,7 +202,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
         console.warn('Logging failed but variant deletion succeeded:', logErr);
       }
 
-      toast.success('Variant deleted successfully', { id: toastId });
+      toast.success('Variant deleted & stock updated', { id: toastId });
     } catch (err) {
       console.error('Variant deletion failed:', err);
       toast.error('Failed to delete variant: ' + (err instanceof Error ? err.message : 'Unknown error'), { id: toastId });

@@ -1049,6 +1049,9 @@ export default function VariantMatrixManager({
               <span className="text-xs font-black uppercase tracking-wider text-gray-700">
                 Total Combinations: <span className="text-emerald-700 font-black">{variants.length}</span>
               </span>
+              <span className="text-xs font-black uppercase tracking-wider text-gray-700">
+                Total Stock: <span className="text-emerald-700 font-black">{variants.filter(v => !v.disabled && v.status !== 'disabled').reduce((sum, v) => sum + (Number(v.stock) || 0), 0)} units</span>
+              </span>
 
               {/* View Mode Switcher */}
               <div className="flex p-0.5 bg-gray-200/80 rounded-xl">

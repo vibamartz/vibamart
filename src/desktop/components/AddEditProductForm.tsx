@@ -520,6 +520,12 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
         .filter(s => s.key.length > 0);
 
+      // Auto calculate product total stock from active variants if variants exist
+      const activeVars = (finalizedVariants || []).filter((v: any) => !v.disabled && v.status !== 'disabled');
+      const calculatedStock = finalizedVariants && finalizedVariants.length > 0
+        ? activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0)
+        : Number(formData.stock) || 0;
+
       const rawData = {
         ...formData,
         specifications: cleanedSpecs,
@@ -528,6 +534,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         images: processedImages,
         primaryImage: processedPrimaryImage,
         variants: finalizedVariants,
+        stock: calculatedStock,
         slug: product?.slug || generatedSlug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
@@ -582,11 +589,19 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       images: initialImg ? [initialImg] : [],
       disabled: false,
     };
-    setFormData(prev => ({ ...prev, variants: [...(prev.variants || []), newVariant] }));
+    const nextVariants = [...(formData.variants || []), newVariant];
+    const activeVars = nextVariants.filter((v: any) => !v.disabled && v.status !== 'disabled');
+    const totalStock = activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0);
+    setFormData(prev => ({ ...prev, variants: nextVariants, stock: totalStock }));
   };
 
   const removeVariant = (id: string) => {
-    setFormData(prev => ({ ...prev, variants: prev.variants?.filter(v => v.id !== id) }));
+    const nextVariants = formData.variants?.filter(v => v.id !== id) || [];
+    const activeVars = nextVariants.filter((v: any) => !v.disabled && v.status !== 'disabled');
+    const totalStock = nextVariants.length > 0
+      ? activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0)
+      : formData.stock;
+    setFormData(prev => ({ ...prev, variants: nextVariants, stock: totalStock }));
   };
 
   const moveVariant = (index: number, direction: 'up' | 'down') => {
@@ -600,33 +615,45 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
   };
 
   const toggleVariantDisabled = (id: string) => {
+    const nextVariants = formData.variants?.map(v => v.id === id ? { ...v, disabled: !v.disabled, status: !v.disabled ? 'disabled' : ((v.stock || 0) > 0 ? 'active' : 'out_of_stock') } : v) || [];
+    const activeVars = nextVariants.filter((v: any) => !v.disabled && v.status !== 'disabled');
+    const totalStock = nextVariants.length > 0
+      ? activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0)
+      : formData.stock;
     setFormData(prev => ({
       ...prev,
-      variants: prev.variants?.map(v => v.id === id ? { ...v, disabled: !v.disabled } : v)
+      variants: nextVariants,
+      stock: totalStock
     }));
   };
 
   const updateVariant = (id: string, field: keyof ProductVariant, value: any) => {
+    const nextVariants = formData.variants?.map(v => {
+      if (v.id !== id) return v;
+      const updated = { ...v, [field]: value };
+      if (field === 'images') {
+        const imgs = Array.isArray(value) ? value.slice(0, 8) : [];
+        updated.images = imgs;
+        updated.image = imgs[0] || '';
+      } else if (field === 'image') {
+        const singleImg = value || '';
+        updated.image = singleImg;
+        if (!updated.images || updated.images.length === 0) {
+          updated.images = singleImg ? [singleImg] : [];
+        } else {
+          updated.images[0] = singleImg;
+        }
+      }
+      return updated;
+    }) || [];
+    const activeVars = nextVariants.filter((v: any) => !v.disabled && v.status !== 'disabled');
+    const totalStock = nextVariants.length > 0
+      ? activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0)
+      : formData.stock;
     setFormData(prev => ({
       ...prev,
-      variants: prev.variants?.map(v => {
-        if (v.id !== id) return v;
-        const updated = { ...v, [field]: value };
-        if (field === 'images') {
-          const imgs = Array.isArray(value) ? value.slice(0, 8) : [];
-          updated.images = imgs;
-          updated.image = imgs[0] || '';
-        } else if (field === 'image') {
-          const singleImg = value || '';
-          updated.image = singleImg;
-          if (!updated.images || updated.images.length === 0) {
-            updated.images = singleImg ? [singleImg] : [];
-          } else {
-            updated.images[0] = singleImg;
-          }
-        }
-        return updated;
-      })
+      variants: nextVariants,
+      stock: totalStock
     }));
   };
 
@@ -895,12 +922,15 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 variantAttributes: newAttrs.map((a) => a.name.toLowerCase()),
               }))
             }
-            onVariantsChange={(newVariants) =>
+            onVariantsChange={(newVariants) => {
+              const activeVars = (newVariants || []).filter((v: any) => !v.disabled && v.status !== 'disabled');
+              const totalVariantStock = activeVars.reduce((sum: number, v: any) => sum + (Number(v.stock) || 0), 0);
               setFormData((prev) => ({
                 ...prev,
                 variants: newVariants,
-              }))
-            }
+                stock: newVariants && newVariants.length > 0 ? totalVariantStock : prev.stock,
+              }));
+            }}
             onBaseProductChange={(updates) =>
               setFormData((prev) => ({
                 ...prev,
@@ -1055,7 +1085,14 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Inventory Depth</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Inventory Depth</label>
+                  {formData.variants && formData.variants.length > 0 && (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      Auto-synced from {formData.variants.filter((v: any) => !v.disabled && v.status !== 'disabled').length} active variants ({formData.stock} units)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   value={formData.stock}
