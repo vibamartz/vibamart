@@ -126,14 +126,15 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
         }
 
         const attrEntry = attrMap.get(cleanName)!;
+        const isColorAttr = cleanName.toLowerCase().includes('color') || cleanName.toLowerCase().includes('colour') || cleanName.toLowerCase().includes('shade');
         if (!attrEntry.valuesMap.has(cleanVal)) {
           attrEntry.valuesMap.set(cleanVal, {
             id: `val_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             name: cleanVal,
-            hex: (cleanName.toLowerCase().includes('color') && v.colorHex) ? v.colorHex : undefined,
+            hex: (isColorAttr && v.colorHex) ? v.colorHex : undefined,
             image: (v.image || v.images?.[0]) ? (v.image || v.images?.[0]) : undefined,
-            linkedProductId: v.linkedProductId,
-            linkedProductName: v.linkedProductName
+            linkedProductId: isColorAttr ? v.linkedProductId : undefined,
+            linkedProductName: isColorAttr ? v.linkedProductName : undefined
           });
         }
       });
@@ -426,7 +427,10 @@ export function generateVariantMatrix(
       attrsRecord[item.attributeName] = item.valueName;
       if (item.hex) matchedHex = item.hex;
       if (item.image) matchedSwatchImage = item.image;
-      if (item.linkedProductId) {
+      const isColorAttr = item.attributeName.toLowerCase().includes('color') ||
+                          item.attributeName.toLowerCase().includes('colour') ||
+                          item.attributeName.toLowerCase().includes('shade');
+      if (isColorAttr && item.linkedProductId) {
         matchedLinkedProductId = item.linkedProductId;
         matchedLinkedProductName = item.linkedProductName;
       }

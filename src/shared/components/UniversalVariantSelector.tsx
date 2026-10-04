@@ -40,8 +40,22 @@ export default function UniversalVariantSelector({
   const availabilityMatrix = calculateAttributeAvailability(activeVariants, attributes, selectedAttributes);
 
   const handleAttributeValueClick = (attrName: string, valName: string) => {
-    const attr = attributes.find(a => normalizeAttributeKey(a.name) === normalizeAttributeKey(attrName));
+    const cleanKey = normalizeAttributeKey(attrName);
+    const attr = attributes.find(a => normalizeAttributeKey(a.name) === cleanKey);
     const valObj = attr?.values?.find(v => normalizeAttributeVal(v.name) === normalizeAttributeVal(valName));
+    const isColor = cleanKey.toLowerCase().includes('color') ||
+                    cleanKey.toLowerCase().includes('colour') ||
+                    cleanKey.toLowerCase().includes('shade') ||
+                    attr?.type === 'color';
+
+    // Direct navigation when customer clicks a Color variant that has a Product Link
+    if (isColor && valObj?.linkedProductId) {
+      const targetLinkedId = valObj.linkedProductId.trim();
+      if (targetLinkedId && targetLinkedId !== product.id && targetLinkedId !== product.slug) {
+        navigate(`/products/${targetLinkedId}`);
+        return;
+      }
+    }
 
     const { selectedAttributes: newSelection, variant } = resolveValidVariantSelection(
       activeVariants,
@@ -50,15 +64,6 @@ export default function UniversalVariantSelector({
       attrName,
       valName
     );
-
-    // Check for Linked Product ID across attribute value or variant
-    const targetLinkedProductId = valObj?.linkedProductId || variant?.linkedProductId;
-
-    if (targetLinkedProductId && targetLinkedProductId !== product.id && targetLinkedProductId !== product.slug) {
-      // Direct navigation to canonical product detail route
-      navigate(`/products/${targetLinkedProductId}`);
-      return;
-    }
 
     // Fallback: local variant state switch within current product
     if (variant) {
