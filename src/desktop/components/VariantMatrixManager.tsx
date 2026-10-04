@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ProductVariant, VariantAttribute, VariantAttributeValue } from '../../shared/types';
 import { db } from '../../backend/firebase/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import {
   generateVariantMatrix,
   getVariantCombinationTitle,
@@ -11,14 +11,16 @@ import {
   normalizeAttributeVal,
   CATEGORY_VARIANT_TEMPLATES,
   isCircularProductLink,
-  validateVariantMatrixUniqueness
+  validateVariantMatrixUniqueness,
+  buildFamilyColorMatrix
 } from '../../shared/utilities/variantMatrixUtils';
-import { VariantMultiImageInput } from './VariantImageInput';
+import { createSlug, getProductSlug } from '../../shared/utilities/slug';
+import { VariantMultiImageInput, VariantImageInput } from './VariantImageInput';
 import {
   Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, Sparkles,
   Copy, Tag, Check, AlertCircle, RefreshCw, SlidersHorizontal, Image as ImageIcon,
   CheckCircle2, X, ChevronDown, ChevronUp, Package, Link2, ExternalLink, Search, Unlink,
-  LayoutGrid, Table as TableIcon, Bookmark, ShieldAlert, CheckSquare, Square
+  LayoutGrid, Table as TableIcon, Bookmark, ShieldAlert, CheckSquare, Square, Palette, Hash
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -33,6 +35,7 @@ interface VariantMatrixManagerProps {
   baseProduct: Partial<Product>;
   onAttributesChange: (attributes: VariantAttribute[]) => void;
   onVariantsChange: (variants: ProductVariant[]) => void;
+  onBaseProductChange?: (updates: Partial<Product>) => void;
 }
 
 export default function VariantMatrixManager({
@@ -40,11 +43,12 @@ export default function VariantMatrixManager({
   variants,
   baseProduct,
   onAttributesChange,
-  onVariantsChange
+  onVariantsChange,
+  onBaseProductChange
 }: VariantMatrixManagerProps) {
   const [newAttributeName, setNewAttributeName] = useState('');
   const [newValueInputs, setNewValueInputs] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<'attributes' | 'matrix'>('attributes');
+  const [activeTab, setActiveTab] = useState<'attributes' | 'matrix' | 'family'>('attributes');
   const [matrixViewMode, setMatrixViewMode] = useState<'table' | 'cards'>('table');
   const [showCategoryTemplates, setShowCategoryTemplates] = useState(false);
   const [bulkPrice, setBulkPrice] = useState<string>('');
@@ -64,6 +68,16 @@ export default function VariantMatrixManager({
     title?: string;
   } | null>(null);
   const [productSearchTerm, setProductSearchTerm] = useState('');
+
+  // --- FAMILY PRODUCTS MANAGEMENT STATE ---
+  const [showAddFamilyProductModal, setShowAddFamilyProductModal] = useState(false);
+  const [familyProductSearch, setFamilyProductSearch] = useState('');
+  const [selectedProductToAdd, setSelectedProductToAdd] = useState<Product | null>(null);
+  const [familyColorInput, setFamilyColorInput] = useState('');
+  const [familyHexInput, setFamilyHexInput] = useState('#000000');
+  const [familyOrderInput, setFamilyOrderInput] = useState<number>(1);
+  const [familyThumbnailInput, setFamilyThumbnailInput] = useState('');
+  const [copiedFamilyId, setCopiedFamilyId] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -473,6 +487,113 @@ export default function VariantMatrixManager({
     toast.success('Generated canonical SKUs for all variants.');
   };
 
+  const cleanFamilyId = (baseProduct.familyId || '').trim();
+  const familyProductsInCatalog = cleanFamilyId
+    ? availableProducts.filter(p => p.familyId && p.familyId.trim().toLowerCase() === cleanFamilyId.toLowerCase())
+    : [];
+
+  // Merged list of all products in this family including baseProduct
+  const familyProductsList = buildFamilyColorMatrix(
+    familyProductsInCatalog,
+    baseProduct as Product
+  );
+
+  const generateNewFamilyId = () => {
+    const baseName = baseProduct.name ? createSlug(baseProduct.name).replace(/-/g, '_').toUpperCase().slice(0, 14) : 'PRODUCT';
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const newFamId = `FAM_${baseName}_${randomSuffix}`;
+    if (onBaseProductChange) {
+      onBaseProductChange({ familyId: newFamId });
+    }
+    toast.success(`Generated Family ID "${newFamId}"`);
+  };
+
+  const handleAddProductToFamily = async (prodToLink: Product, colorName: string, hex: string, order: number, thumbnail: string) => {
+    if (!cleanFamilyId) {
+      toast.error('Please set a Family ID first before linking products.');
+      return;
+    }
+    if (prodToLink.id === baseProduct.id) {
+      toast.error('This is the current product being edited.');
+      return;
+    }
+    if (prodToLink.familyId && prodToLink.familyId.trim().toLowerCase() === cleanFamilyId.toLowerCase()) {
+      toast.error(`"${prodToLink.name}" is already linked to this family.`);
+      return;
+    }
+
+    try {
+      const prodRef = doc(db, 'products', prodToLink.id);
+      const updates = {
+        familyId: cleanFamilyId,
+        familyColorName: colorName || prodToLink.familyColorName || prodToLink.color || prodToLink.name,
+        familyColorHex: hex || prodToLink.familyColorHex || '#000000',
+        familyColorOrder: Number(order) || (familyProductsList.length + 1),
+        familyThumbnail: thumbnail || prodToLink.familyThumbnail || prodToLink.primaryImage || prodToLink.images?.[0] || ''
+      };
+
+      await updateDoc(prodRef, updates);
+
+      setAvailableProducts(prev =>
+        prev.map(p => (p.id === prodToLink.id ? { ...p, ...updates } : p))
+      );
+
+      setShowAddFamilyProductModal(false);
+      setSelectedProductToAdd(null);
+      toast.success(`Linked "${prodToLink.name}" as ${updates.familyColorName} to family "${cleanFamilyId}".`);
+    } catch (err) {
+      console.error('Failed to link product to family:', err);
+      toast.error('Failed to link product to family');
+    }
+  };
+
+  const handleUnlinkProductFromFamily = async (prodId: string, prodName: string) => {
+    if (prodId === baseProduct.id) {
+      if (onBaseProductChange) {
+        onBaseProductChange({ familyId: '', familyColorName: '' });
+      }
+      toast.success('Removed current product from family.');
+      return;
+    }
+
+    try {
+      const prodRef = doc(db, 'products', prodId);
+      await updateDoc(prodRef, {
+        familyId: '',
+        familyColorName: '',
+        familyColorOrder: 1
+      });
+
+      setAvailableProducts(prev =>
+        prev.map(p => (p.id === prodId ? { ...p, familyId: '', familyColorName: '' } : p))
+      );
+
+      toast.success(`Unlinked "${prodName}" from family. (Product was NOT deleted).`);
+    } catch (err) {
+      console.error('Failed to unlink product from family:', err);
+      toast.error('Failed to unlink product from family');
+    }
+  };
+
+  const handleUpdateFamilyOrder = async (prodId: string, newOrder: number) => {
+    if (prodId === baseProduct.id) {
+      if (onBaseProductChange) {
+        onBaseProductChange({ familyColorOrder: newOrder });
+      }
+      return;
+    }
+
+    try {
+      const prodRef = doc(db, 'products', prodId);
+      await updateDoc(prodRef, { familyColorOrder: newOrder });
+      setAvailableProducts(prev =>
+        prev.map(p => (p.id === prodId ? { ...p, familyColorOrder: newOrder } : p))
+      );
+    } catch (err) {
+      console.error('Failed to update family color order:', err);
+    }
+  };
+
   const totalPossibleCombos = attributes
     .filter(a => !a.disabled)
     .reduce((acc, a) => {
@@ -525,6 +646,18 @@ export default function VariantMatrixManager({
               }`}
             >
               2. Matrix ({variants.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('family')}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'family'
+                  ? 'bg-white text-emerald-800 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5 text-emerald-600" />
+              3. Family Colors ({familyProductsList.length})
             </button>
           </div>
 
@@ -1519,6 +1652,607 @@ export default function VariantMatrixManager({
               No variants generated. Go to "1. Attributes" tab and click "Generate Matrix", or click "Add Variant" above.
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 3: PRODUCT FAMILY (LINKED COLOR PRODUCTS) */}
+      {activeTab === 'family' && (
+        <div className="space-y-8">
+          {/* Architectural Notice */}
+          <div className="bg-emerald-50/70 p-5 sm:p-6 rounded-3xl border border-emerald-200/80 space-y-2">
+            <div className="flex items-center gap-2">
+              <Palette className="w-5 h-5 text-emerald-700 shrink-0" />
+              <h4 className="text-sm font-black text-emerald-950 uppercase tracking-wider">
+                Linked Color Product System (Product Family)
+              </h4>
+            </div>
+            <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+              Each Color option displayed on the storefront Product Details page points to a <strong>REAL independent Product ID</strong>.
+              All connected products retain their own independent images, prices, inventory, size availability, delivery details, and ratings.
+              They are linked together via a common <strong>Family ID</strong> (e.g. <code className="bg-emerald-100 px-1.5 py-0.5 rounded font-bold font-mono">FORMAL_SHIRT_001</code>).
+            </p>
+          </div>
+
+          {/* 1. Family ID Configuration */}
+          <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <label className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                  <Hash className="w-4 h-4 text-emerald-600" />
+                  Product Family ID
+                </label>
+                <p className="text-[11px] font-bold text-gray-400 mt-0.5">
+                  Shared identifier grouping all color variants of this style together
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateNewFamilyId}
+                  className="px-3.5 py-2 bg-white text-emerald-700 border border-emerald-300 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-50 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Generate Family ID
+                </button>
+                {cleanFamilyId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(cleanFamilyId);
+                      setCopiedFamilyId(true);
+                      toast.success(`Copied Family ID "${cleanFamilyId}" to clipboard!`);
+                      setTimeout(() => setCopiedFamilyId(false), 2000);
+                    }}
+                    className="px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                  >
+                    {copiedFamilyId ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedFamilyId ? 'Copied' : 'Copy ID'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <input
+              type="text"
+              value={baseProduct.familyId || ''}
+              onChange={e => {
+                if (onBaseProductChange) {
+                  onBaseProductChange({ familyId: e.target.value.trim().toUpperCase() });
+                }
+              }}
+              placeholder="e.g. FORMAL_SHIRT_001, LUNAR_PRO_MAX_2026..."
+              className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 font-mono font-black text-sm tracking-wider text-emerald-950 uppercase outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 transition-all"
+            />
+          </div>
+
+          {/* 2. Current Product's Family Color Settings */}
+          <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-5">
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-900">
+                This Product's Color Identity in the Family
+              </h4>
+              <p className="text-[11px] font-bold text-gray-400 mt-0.5">
+                Define the color name, swatch hex, and thumbnail used when this product appears in the family color matrix
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Color Name */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Color Name
+                </label>
+                <input
+                  type="text"
+                  value={baseProduct.familyColorName || baseProduct.color || ''}
+                  onChange={e => {
+                    if (onBaseProductChange) {
+                      onBaseProductChange({
+                        familyColorName: e.target.value,
+                        color: baseProduct.color || e.target.value
+                      });
+                    }
+                  }}
+                  placeholder="e.g. Maroon, Midnight Black..."
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              {/* Color Hex */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Color Swatch Hex
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={baseProduct.familyColorHex || '#800000'}
+                    onChange={e => {
+                      if (onBaseProductChange) {
+                        onBaseProductChange({ familyColorHex: e.target.value });
+                      }
+                    }}
+                    className="w-9 h-9 rounded-xl border-0 cursor-pointer p-0 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={baseProduct.familyColorHex || '#800000'}
+                    onChange={e => {
+                      if (onBaseProductChange) {
+                        onBaseProductChange({ familyColorHex: e.target.value });
+                      }
+                    }}
+                    placeholder="#800000"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              {/* Display Order */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={baseProduct.familyColorOrder || 1}
+                  onChange={e => {
+                    if (onBaseProductChange) {
+                      onBaseProductChange({ familyColorOrder: Number(e.target.value) || 1 });
+                    }
+                  }}
+                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-emerald-600 text-center"
+                />
+              </div>
+
+              {/* Color Thumbnail */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Thumbnail Preview
+                </label>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                    {(baseProduct.familyThumbnail || baseProduct.primaryImage || baseProduct.images?.[0]) ? (
+                      <img
+                        src={baseProduct.familyThumbnail || baseProduct.primaryImage || baseProduct.images?.[0]}
+                        alt="Thumbnail"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <ImageIcon className="w-4 h-4 text-gray-300" />
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={baseProduct.familyThumbnail || ''}
+                    onChange={e => {
+                      if (onBaseProductChange) {
+                        onBaseProductChange({ familyThumbnail: e.target.value });
+                      }
+                    }}
+                    placeholder="Custom Thumbnail URL (optional)..."
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-emerald-600 truncate"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Connected Family Color Matrix List */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-wider text-gray-900">
+                  Family Color Matrix ({familyProductsList.length} Connected Products)
+                </h4>
+                <p className="text-xs text-gray-400 font-bold mt-0.5">
+                  Customers can switch seamlessly between these linked product records on the Product Details page
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!cleanFamilyId) {
+                    toast.error('Please enter or generate a Family ID above first.');
+                    return;
+                  }
+                  setFamilyProductSearch('');
+                  setSelectedProductToAdd(null);
+                  setFamilyColorInput('');
+                  setFamilyHexInput('#000000');
+                  setFamilyOrderInput(familyProductsList.length + 1);
+                  setFamilyThumbnailInput('');
+                  setShowAddFamilyProductModal(true);
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Add Color Product to Family
+              </button>
+            </div>
+
+            {/* Family Products Grid / Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {familyProductsList.map((item, idx) => {
+                const isCurrent = item.isCurrentProduct || item.productId === baseProduct.id;
+
+                return (
+                  <div
+                    key={item.productId}
+                    className={`p-4 rounded-3xl border-2 transition-all space-y-3 relative ${
+                      isCurrent
+                        ? 'bg-emerald-50/50 border-emerald-500 shadow-sm'
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Header: Color Swatch + Name + Badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt={item.color} className="w-full h-full object-contain" />
+                          ) : item.hex ? (
+                            <span className="w-5 h-5 rounded-full" style={{ backgroundColor: item.hex }} />
+                          ) : (
+                            <Palette className="w-4 h-4 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-black text-gray-900 block truncate">
+                            {item.color}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">
+                            Order #{item.displayOrder}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isCurrent ? (
+                        <span className="px-2.5 py-0.5 bg-emerald-600 text-white text-[9px] font-black uppercase rounded-full shadow-2xs shrink-0">
+                          This Product (Active)
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-[9px] font-black uppercase rounded-full shrink-0">
+                          Linked Product
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Product Details Meta */}
+                    <div className="p-3 bg-gray-50 rounded-2xl space-y-1 text-xs">
+                      <p className="font-extrabold text-gray-900 truncate" title={item.productName}>
+                        {item.productName}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-gray-500">
+                        <span className="font-mono text-gray-600">ID: {item.productId.slice(0, 10)}...</span>
+                        <span className="font-black text-gray-900">₹{(item.price || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span className={item.inStock ? 'text-emerald-700' : 'text-rose-600'}>
+                          {item.inStock ? `In Stock (${item.stock ?? 0})` : 'Out of Stock'}
+                        </span>
+                        {item.productSlug && (
+                          <span className="text-gray-400 font-mono truncate max-w-[120px]" title={item.productSlug}>
+                            /{item.productSlug}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Order Adjustment & Unlink Actions */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFamilyOrder(item.productId, Math.max(1, item.displayOrder - 1))}
+                          className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 cursor-pointer"
+                          title="Move Display Order Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFamilyOrder(item.productId, item.displayOrder + 1)}
+                          className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 cursor-pointer"
+                          title="Move Display Order Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleUnlinkProductFromFamily(item.productId, item.productName)}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
+                        title="Remove product from family (does NOT delete product)"
+                      >
+                        <Unlink className="w-3 h-3" /> Unlink
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {familyProductsList.length === 0 && (
+              <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-3xl space-y-2">
+                <p>No products linked to this family yet.</p>
+                <p className="text-xs text-gray-400 font-medium">
+                  Enter a Family ID above and click "Add Color Product to Family" to link products together.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD COLOR PRODUCT TO FAMILY MODAL --- */}
+      {showAddFamilyProductModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] sm:rounded-[40px] border border-gray-100 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 sm:p-7 border-b border-gray-100 flex items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <Palette className="w-4 h-4" />
+                  </span>
+                  <h4 className="text-lg font-black text-gray-900 tracking-tight">
+                    Add Existing Product as Color to Family
+                  </h4>
+                </div>
+                <p className="text-xs text-gray-400 font-bold mt-1">
+                  Family: <span className="font-mono text-emerald-700 font-black">{cleanFamilyId}</span>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddFamilyProductModal(false);
+                  setSelectedProductToAdd(null);
+                }}
+                className="p-2.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Step 1: Product Selection or Step 2: Color Configuration */}
+            {!selectedProductToAdd ? (
+              <>
+                {/* Search Bar */}
+                <div className="p-5 sm:p-6 border-b border-gray-100 bg-gray-50/70">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={familyProductSearch}
+                      onChange={e => setFamilyProductSearch(e.target.value)}
+                      placeholder="Search catalog products by name, brand, SKU, or ID..."
+                      autoFocus
+                      className="w-full bg-white border border-gray-200 rounded-2xl pl-11 pr-10 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                    />
+                    {familyProductSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setFamilyProductSearch('')}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between mt-2 px-1 text-[11px] font-bold text-gray-400">
+                    <span>Select an existing product to link as a color</span>
+                  </div>
+                </div>
+
+                {/* Candidate Products List */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2.5">
+                  {availableProducts
+                    .filter(p => p.id !== baseProduct.id)
+                    .filter(p => !p.familyId || p.familyId.trim().toLowerCase() !== cleanFamilyId.toLowerCase())
+                    .filter(p => {
+                      if (!familyProductSearch.trim()) return true;
+                      const q = familyProductSearch.toLowerCase();
+                      return (
+                        (p.name && p.name.toLowerCase().includes(q)) ||
+                        (p.id && p.id.toLowerCase().includes(q)) ||
+                        (p.sku && p.sku.toLowerCase().includes(q)) ||
+                        (p.brand && p.brand.toLowerCase().includes(q))
+                      );
+                    })
+                    .map(prod => {
+                      const prodImg = prod.primaryImage || (prod.images && prod.images[0]) || '';
+                      const price = prod.discountPrice || prod.price || 0;
+                      const prodColor = prod.familyColorName || prod.color || prod.name;
+
+                      return (
+                        <div
+                          key={prod.id}
+                          className="flex items-center justify-between gap-4 p-3.5 rounded-2xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-xs transition-all"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden flex items-center justify-center shrink-0">
+                              {prodImg ? (
+                                <img src={prodImg} alt={prod.name} className="w-full h-full object-contain" />
+                              ) : (
+                                <ImageIcon className="w-5 h-5 text-gray-300" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <span className="text-xs font-black text-gray-900 truncate block">
+                                {prod.name}
+                              </span>
+                              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 mt-0.5 flex-wrap">
+                                <span className="text-gray-900 font-extrabold">₹{price.toLocaleString()}</span>
+                                <span>•</span>
+                                <span>Stock: {prod.stock ?? 0}</span>
+                                {prod.color && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-emerald-700 font-extrabold">Color: {prod.color}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedProductToAdd(prod);
+                              setFamilyColorInput(prod.familyColorName || prod.color || prod.name);
+                              setFamilyHexInput(prod.familyColorHex || '#000000');
+                              setFamilyThumbnailInput(prod.familyThumbnail || prod.primaryImage || prod.images?.[0] || '');
+                              setFamilyOrderInput(familyProductsList.length + 1);
+                            }}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs shrink-0"
+                          >
+                            Configure Color & Link
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </>
+            ) : (
+              /* Step 2: Configure Color Details for the Selected Product */
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white border border-emerald-200 overflow-hidden flex items-center justify-center shrink-0">
+                    {(selectedProductToAdd.primaryImage || selectedProductToAdd.images?.[0]) ? (
+                      <img
+                        src={selectedProductToAdd.primaryImage || selectedProductToAdd.images?.[0]}
+                        alt={selectedProductToAdd.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-gray-300" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-gray-900 block">
+                      {selectedProductToAdd.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-800">
+                      Product ID: {selectedProductToAdd.id}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                      Color Variant Name
+                    </label>
+                    <input
+                      type="text"
+                      value={familyColorInput}
+                      onChange={e => setFamilyColorInput(e.target.value)}
+                      placeholder="e.g. Black, Midnight Blue, Burgundy..."
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                        Color Swatch Hex
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={familyHexInput}
+                          onChange={e => setFamilyHexInput(e.target.value)}
+                          className="w-9 h-9 rounded-xl border-0 cursor-pointer p-0 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={familyHexInput}
+                          onChange={e => setFamilyHexInput(e.target.value)}
+                          placeholder="#000000"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase outline-none focus:bg-white focus:border-emerald-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                        Display Order
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={familyOrderInput}
+                        onChange={e => setFamilyOrderInput(Number(e.target.value) || 1)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold text-center outline-none focus:bg-white focus:border-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                      Custom Thumbnail URL (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={familyThumbnailInput}
+                      onChange={e => setFamilyThumbnailInput(e.target.value)}
+                      placeholder="Image URL for swatch thumbnail..."
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-medium outline-none focus:bg-white focus:border-emerald-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between gap-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductToAdd(null)}
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    Back to Search
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!familyColorInput.trim()) {
+                        toast.error('Please enter a color name');
+                        return;
+                      }
+                      handleAddProductToFamily(
+                        selectedProductToAdd,
+                        familyColorInput.trim(),
+                        familyHexInput,
+                        familyOrderInput,
+                        familyThumbnailInput
+                      );
+                    }}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-emerald-500/20"
+                  >
+                    Confirm & Link Product to Family
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer (Search View) */}
+            {!selectedProductToAdd && (
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAddFamilyProductModal(false)}
+                  className="px-5 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

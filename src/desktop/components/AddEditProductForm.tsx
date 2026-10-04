@@ -148,6 +148,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       status: 'active' as const,
       rating: 5,
       numReviews: 0,
+      familyId: '',
+      familyColorName: '',
+      familyThumbnail: '',
+      familyColorHex: '',
+      familyColorOrder: 1,
       variants: [],
       variantAttributesList: [],
       variantAttributes: ['color', 'size'],
@@ -189,6 +194,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         primaryImage: product.primaryImage || '',
         sku: product.sku || '',
         productCode: product.productCode ? formatProductCode(product.productCode) : '',
+        familyId: product.familyId || '',
+        familyColorName: product.familyColorName || product.color || '',
+        familyThumbnail: product.familyThumbnail || product.primaryImage || '',
+        familyColorHex: product.familyColorHex || '',
+        familyColorOrder: product.familyColorOrder || 1,
         color: product.color || '',
         size: product.size || '',
         sizeChart: product.sizeChart || '',
@@ -889,6 +899,12 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               setFormData((prev) => ({
                 ...prev,
                 variants: newVariants,
+              }))
+            }
+            onBaseProductChange={(updates) =>
+              setFormData((prev) => ({
+                ...prev,
+                ...updates,
               }))
             }
           />

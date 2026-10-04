@@ -83,6 +83,11 @@ export interface Product {
   status: 'active' | 'inactive' | 'draft' | 'out_of_stock';
   rating: number;
   numReviews: number;
+  familyId?: string; // Product family group ID for linked color products (e.g. "FORMAL_SHIRT_001")
+  familyColorName?: string; // Optional custom color name for family matrix (e.g. "Maroon")
+  familyThumbnail?: string; // Optional custom thumbnail URL for family color matrix
+  familyColorHex?: string; // Optional color hex for family color swatch
+  familyColorOrder?: number; // Sorting/display order in the family matrix (e.g. 1, 2, 3)
   variants?: ProductVariant[];
   variantAttributesList?: VariantAttribute[]; // Dynamic Universal Attribute Definitions (Unlimited attributes & values)
   features?: string[];
@@ -122,6 +127,27 @@ export interface Product {
   deal259Status?: 'active' | 'disabled'; // Status specifically for Deal 259
   showInGeneralStore?: boolean; // Admin explicit toggle to also display this product on standard non-Deal259 store pages
   createdAt: string;
+}
+
+export interface FamilyColorVariant {
+  productId: string;
+  productSlug?: string;
+  productCode?: string;
+  color: string;
+  thumbnail?: string;
+  hex?: string;
+  displayOrder: number;
+  price?: number;
+  mrp?: number;
+  inStock: boolean;
+  stock?: number;
+  productName: string;
+  isCurrentProduct?: boolean;
+}
+
+export interface ProductFamilyMatrix {
+  familyId: string;
+  colorVariants: FamilyColorVariant[];
 }
 
 export interface VariantAttributeValue {

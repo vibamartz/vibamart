@@ -1,4 +1,7 @@
-import { Product, ProductVariant, VariantAttribute, VariantAttributeValue } from '../types';
+import { Product, ProductVariant, VariantAttribute, VariantAttributeValue, FamilyColorVariant } from '../types';
+import { db } from '../../backend/firebase/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { getProductSlug } from './slug';
 
 /**
  * Normalizes attribute name for canonical matching (e.g. "Color " -> "Color", case-insensitive comparison helper)
@@ -828,3 +831,153 @@ export function getAvailableAttributeSummaries(product: Product): string[] {
 
   return summaries;
 }
+
+/**
+ * Builds a clean, deduplicated, sorted Family Color Matrix from a list of family products.
+ * Guarantees that each color points to a REAL independent Product ID.
+ */
+export function buildFamilyColorMatrix(
+  familyProducts: Product[],
+  currentProduct?: Partial<Product> | null
+): FamilyColorVariant[] {
+  if (!familyProducts || familyProducts.length === 0) {
+    if (currentProduct && currentProduct.id) {
+      const pColor = currentProduct.familyColorName || currentProduct.color || 'Default';
+      const pThumb = currentProduct.familyThumbnail || currentProduct.primaryImage || currentProduct.images?.[0] || '';
+      return [{
+        productId: currentProduct.id,
+        productSlug: getProductSlug(currentProduct as Product),
+        productCode: currentProduct.productCode,
+        color: pColor,
+        thumbnail: pThumb,
+        hex: currentProduct.familyColorHex,
+        displayOrder: currentProduct.familyColorOrder ?? 1,
+        price: currentProduct.discountPrice || currentProduct.price,
+        mrp: currentProduct.mrp || currentProduct.price,
+        inStock: currentProduct.inStock !== false && currentProduct.status !== 'out_of_stock' && (currentProduct.stock ?? 0) > 0,
+        stock: currentProduct.stock ?? 0,
+        productName: currentProduct.name || '',
+        isCurrentProduct: true
+      }];
+    }
+    return [];
+  }
+
+  // Deduplicate products by ID
+  const uniqueProductsMap = new Map<string, Product>();
+  familyProducts.forEach(p => {
+    if (p && p.id && p.status !== 'inactive' && p.isVisible !== false) {
+      uniqueProductsMap.set(p.id, p);
+    }
+  });
+
+  // If currentProduct is provided and not in the map, add it
+  if (currentProduct && currentProduct.id && !uniqueProductsMap.has(currentProduct.id)) {
+    uniqueProductsMap.set(currentProduct.id, currentProduct as Product);
+  }
+
+  const result: FamilyColorVariant[] = [];
+  const seenColors = new Set<string>();
+
+  Array.from(uniqueProductsMap.values()).forEach((p, idx) => {
+    // Determine color label
+    let colorName = (p.familyColorName || p.color || '').trim();
+    if (!colorName && p.variants && p.variants.length > 0) {
+      const firstWithColor = p.variants.find(v => v.color || v.colorName);
+      if (firstWithColor) {
+        colorName = (firstWithColor.colorName || firstWithColor.color || '').trim();
+      }
+    }
+    if (!colorName) {
+      colorName = p.name;
+    }
+
+    const cleanColor = normalizeAttributeVal(colorName);
+    const colorLower = cleanColor.toLowerCase();
+
+    // Prevent duplicate color entries in the same family matrix
+    if (seenColors.has(colorLower) && p.id !== currentProduct?.id) {
+      return;
+    }
+    seenColors.add(colorLower);
+
+    const thumbnail = p.familyThumbnail || p.primaryImage || (p.images && p.images[0]) || (p.variants && p.variants[0]?.image) || '';
+    const hex = p.familyColorHex || (p.variants && p.variants[0]?.colorHex) || undefined;
+    const isCurrent = Boolean(currentProduct?.id && (p.id === currentProduct.id || (p.slug && p.slug === currentProduct.slug)));
+    const inStock = p.inStock !== false && p.status !== 'out_of_stock' && (p.stock ?? 0) > 0;
+
+    result.push({
+      productId: p.id,
+      productSlug: getProductSlug(p),
+      productCode: p.productCode,
+      color: cleanColor,
+      thumbnail,
+      hex,
+      displayOrder: p.familyColorOrder ?? (idx + 1),
+      price: p.discountPrice || p.price,
+      mrp: p.mrp || p.price,
+      inStock,
+      stock: p.stock ?? 0,
+      productName: p.name || '',
+      isCurrentProduct: isCurrent
+    });
+  });
+
+  // Sort matrix by displayOrder ascending, then by color name
+  result.sort((a, b) => {
+    if (a.displayOrder !== b.displayOrder) {
+      return a.displayOrder - b.displayOrder;
+    }
+    return a.color.localeCompare(b.color);
+  });
+
+  return result;
+}
+
+/**
+ * In-memory cache for family product queries to optimize performance and prevent unnecessary Firestore reads.
+ */
+const familyProductsCache = new Map<string, { timestamp: number; products: Product[] }>();
+const CACHE_TTL_MS = 30000; // 30 seconds
+
+/**
+ * Queries only products belonging to the specified familyId from Firestore.
+ * Does NOT fetch the entire product catalog.
+ */
+export async function fetchFamilyColorMatrix(
+  familyId: string | undefined | null,
+  currentProduct?: Partial<Product> | null
+): Promise<FamilyColorVariant[]> {
+  const cleanFamilyId = (familyId || '').trim();
+  if (!cleanFamilyId) {
+    return buildFamilyColorMatrix([], currentProduct);
+  }
+
+  // Check cache
+  const cached = familyProductsCache.get(cleanFamilyId);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return buildFamilyColorMatrix(cached.products, currentProduct);
+  }
+
+  try {
+    const q = query(
+      collection(db, 'products'),
+      where('familyId', '==', cleanFamilyId)
+    );
+    const snap = await getDocs(q);
+    const familyProducts = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Product))
+      .filter(p => p && p.isVisible !== false && p.status !== 'inactive');
+
+    familyProductsCache.set(cleanFamilyId, {
+      timestamp: Date.now(),
+      products: familyProducts
+    });
+
+    return buildFamilyColorMatrix(familyProducts, currentProduct);
+  } catch (err) {
+    console.error(`Failed to query family products for familyId "${cleanFamilyId}":`, err);
+    return buildFamilyColorMatrix([], currentProduct);
+  }
+}
+

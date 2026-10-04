@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
-import { Product, Review, Address, ProductVariant } from '../../shared/types';
+import { Product, Review, Address, ProductVariant, FamilyColorVariant } from '../../shared/types';
 import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
@@ -18,7 +18,7 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
-import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey } from '../../shared/utilities/variantMatrixUtils';
+import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
@@ -38,6 +38,7 @@ export default function MobileProductDetailScreen() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
+  const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
@@ -148,6 +149,20 @@ export default function MobileProductDetailScreen() {
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
+
+          // Fetch family color matrix if familyId is set
+          if (foundProduct.familyId) {
+            try {
+              const matrix = await fetchFamilyColorMatrix(foundProduct.familyId, foundProduct);
+              setFamilyColorVariants(matrix);
+            } catch (err) {
+              console.error("Failed to load mobile family color matrix:", err);
+              setFamilyColorVariants([]);
+            }
+          } else {
+            setFamilyColorVariants([]);
+          }
+
           const canonicalSlug = getProductSlug(foundProduct);
           const origin = typeof window !== 'undefined' ? window.location.origin : '';
           const img = (foundProduct.images && foundProduct.images.length > 0) ? foundProduct.images[0] : (foundProduct as any).image;
@@ -490,12 +505,13 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {/* Universal Variant Selector */}
-        {activeVariants.length > 0 && (
+        {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
           <div className="pb-4 border-b border-gray-100 space-y-4">
             <UniversalVariantSelector
               product={product}
               selectedAttributes={selectedAttributes}
               selectedVariantId={selectedVariantId}
+              familyColorVariants={familyColorVariants}
               onSelectVariant={handleVariantSelection}
               onOpenSizeChart={() => setShowSizeChartModal(true)}
               showSizeChartButton={true}

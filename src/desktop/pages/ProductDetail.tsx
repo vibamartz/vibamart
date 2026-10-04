@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link, useNavigate, Navigate } from 'react-router-dom';
-import { Product, ProductVariant, WaitlistItem } from '../../shared/types';
+import { Product, ProductVariant, WaitlistItem, FamilyColorVariant } from '../../shared/types';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle, Ruler, X, Check } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -10,7 +10,8 @@ import {
   extractVariantAttributes,
   getVariantCombinationTitle,
   getProductVariantAttributes,
-  normalizeAttributeKey
+  normalizeAttributeKey,
+  fetchFamilyColorMatrix
 } from '../../shared/utilities/variantMatrixUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
@@ -46,6 +47,7 @@ export default function ProductDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
+  const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
   const galleryRef = React.useRef<HTMLDivElement>(null);
   const [notFound, setNotFound] = useState(false);
   const [isOnWaitlist, setIsOnWaitlist] = useState(false);
@@ -149,6 +151,19 @@ export default function ProductDetail() {
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
+
+          // Fetch family color matrix if familyId is set
+          if (foundProduct.familyId) {
+            try {
+              const matrix = await fetchFamilyColorMatrix(foundProduct.familyId, foundProduct);
+              setFamilyColorVariants(matrix);
+            } catch (err) {
+              console.error('Failed to load family color matrix:', err);
+              setFamilyColorVariants([]);
+            }
+          } else {
+            setFamilyColorVariants([]);
+          }
 
           // Combination-aware best initial variant selection & URL restoration
           const urlVariantId = searchParams.get('variant') || undefined;
@@ -630,12 +645,13 @@ export default function ProductDetail() {
               </div>
 
               {/* Universal Variant Selector */}
-              {activeVariants.length > 0 && (
+              {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
                 <div className="space-y-4 pt-2 border-t border-gray-100">
                   <UniversalVariantSelector
                     product={product}
                     selectedAttributes={selectedAttributes}
                     selectedVariantId={selectedVariant}
+                    familyColorVariants={familyColorVariants}
                     onSelectVariant={handleVariantSelection}
                     onOpenSizeChart={() => setShowSizeChartModal(true)}
                     showSizeChartButton={true}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Product, ProductVariant, VariantAttribute } from '../types';
+import { Product, ProductVariant, VariantAttribute, FamilyColorVariant } from '../types';
 import { useNavigate } from 'react-router-dom';
 import {
   getProductVariantAttributes,
@@ -14,6 +14,7 @@ interface UniversalVariantSelectorProps {
   product: Product;
   selectedAttributes: Record<string, string>;
   selectedVariantId?: string;
+  familyColorVariants?: FamilyColorVariant[];
   onSelectVariant: (variantId: string, updatedAttributes: Record<string, string>) => void;
   onOpenSizeChart?: () => void;
   showSizeChartButton?: boolean;
@@ -23,25 +24,36 @@ export default function UniversalVariantSelector({
   product,
   selectedAttributes,
   selectedVariantId,
+  familyColorVariants = [],
   onSelectVariant,
   onOpenSizeChart,
   showSizeChartButton = true
 }: UniversalVariantSelectorProps) {
   const navigate = useNavigate();
   const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
-  const attributes = getProductVariantAttributes(product);
+  const allAttributes = getProductVariantAttributes(product);
 
-  // If no attributes or no variants, do not render
-  if (activeVariants.length === 0 || attributes.length === 0) {
+  const hasFamilyColors = Array.isArray(familyColorVariants) && familyColorVariants.length > 0;
+
+  // Filter out standalone "Color" attribute if familyColorVariants is provided (to avoid duplicate color rows)
+  const nonColorAttributes = hasFamilyColors
+    ? allAttributes.filter(a => {
+        const k = normalizeAttributeKey(a.name).toLowerCase();
+        return !k.includes('color') && !k.includes('colour') && !k.includes('shade') && a.type !== 'color';
+      })
+    : allAttributes;
+
+  // If no family colors and (no attributes or no variants), do not render
+  if (!hasFamilyColors && (activeVariants.length === 0 || allAttributes.length === 0)) {
     return null;
   }
 
-  // Calculate combination-aware availability
-  const availabilityMatrix = calculateAttributeAvailability(activeVariants, attributes, selectedAttributes);
+  // Calculate combination-aware availability for remaining non-color or all attributes
+  const availabilityMatrix = calculateAttributeAvailability(activeVariants, allAttributes, selectedAttributes);
 
   const handleAttributeValueClick = (attrName: string, valName: string) => {
     const cleanKey = normalizeAttributeKey(attrName);
-    const attr = attributes.find(a => normalizeAttributeKey(a.name) === cleanKey);
+    const attr = allAttributes.find(a => normalizeAttributeKey(a.name) === cleanKey);
     const valObj = attr?.values?.find(v => normalizeAttributeVal(v.name) === normalizeAttributeVal(valName));
     const isColor = cleanKey.toLowerCase().includes('color') ||
                     cleanKey.toLowerCase().includes('colour') ||
@@ -59,17 +71,32 @@ export default function UniversalVariantSelector({
 
     const { selectedAttributes: newSelection, variant } = resolveValidVariantSelection(
       activeVariants,
-      attributes,
+      allAttributes,
       selectedAttributes,
       attrName,
       valName
     );
 
-    // Fallback: local variant state switch within current product
+    // Local variant state switch within current product
     if (variant) {
       onSelectVariant(variant.id, newSelection);
     }
   };
+
+  const handleFamilyColorClick = (colorVar: FamilyColorVariant) => {
+    if (colorVar.isCurrentProduct || colorVar.productId === product.id) {
+      return; // Already on this real product
+    }
+    const targetSlugOrId = colorVar.productSlug || colorVar.productId;
+    if (targetSlugOrId) {
+      navigate(`/products/${targetSlugOrId}`);
+    }
+  };
+
+  // Find active family color
+  const activeFamilyColor = hasFamilyColors
+    ? familyColorVariants.find(c => c.isCurrentProduct || c.productId === product.id || (product.slug && c.productSlug === product.slug)) || familyColorVariants[0]
+    : null;
 
   /**
    * Helper to determine intelligent display type
@@ -112,7 +139,94 @@ export default function UniversalVariantSelector({
 
   return (
     <div className="space-y-4 sm:space-y-5 pt-1">
-      {attributes.map((attr) => {
+      {/* 1. FAMILY COLOR MATRIX (Real Independent Linked Products) */}
+      {hasFamilyColors && (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+              Color:
+              <span className="text-emerald-700 font-extrabold normal-case text-xs">
+                {activeFamilyColor?.color || product.familyColorName || product.color || 'Select Color'}
+              </span>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5 sm:gap-3">
+            {familyColorVariants.map((colorVar) => {
+              const isSelected = Boolean(
+                colorVar.isCurrentProduct ||
+                colorVar.productId === product.id ||
+                (product.slug && colorVar.productSlug === product.slug)
+              );
+              const isInStock = colorVar.inStock;
+              const thumbnailSrc = colorVar.thumbnail;
+
+              return (
+                <button
+                  key={colorVar.productId}
+                  type="button"
+                  onClick={() => handleFamilyColorClick(colorVar)}
+                  title={`${colorVar.color} ${!isInStock ? '(Out of Stock)' : ''}`}
+                  className={`group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
+                    isSelected
+                      ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-500/20'
+                      : !isInStock
+                      ? 'border border-dashed border-gray-300 bg-gray-50/80 hover:border-gray-400'
+                      : 'border border-gray-200 bg-white hover:border-gray-400 hover:shadow-2xs'
+                  }`}
+                >
+                  {/* Image Thumbnail or Color Swatch */}
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-white border border-gray-100 flex items-center justify-center relative shrink-0">
+                    {thumbnailSrc ? (
+                      <img
+                        src={thumbnailSrc}
+                        alt={colorVar.color}
+                        className={`w-full h-full object-contain transition-transform group-hover:scale-105 ${
+                          !isInStock ? 'grayscale opacity-60' : ''
+                        }`}
+                      />
+                    ) : colorVar.hex ? (
+                      <span
+                        className="w-7 h-7 rounded-full border border-gray-300 shadow-2xs"
+                        style={{ backgroundColor: colorVar.hex }}
+                      />
+                    ) : (
+                      <span className="text-[10px] font-black uppercase text-gray-400">
+                        {colorVar.color.slice(0, 3)}
+                      </span>
+                    )}
+
+                    {/* Out of Stock Strike / Ribbon */}
+                    {!isInStock && (
+                      <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center">
+                        <span className="text-[8px] font-black uppercase tracking-tighter text-rose-600 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">
+                          Out
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Color Name Label */}
+                  <span
+                    className={`text-[11px] font-bold mt-1.5 line-clamp-1 break-words w-full ${
+                      isSelected
+                        ? 'text-emerald-900 font-extrabold'
+                        : !isInStock
+                        ? 'text-gray-400'
+                        : 'text-gray-700'
+                    }`}
+                  >
+                    {colorVar.color}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 2. ATTRIBUTES (e.g. Size, RAM, Storage, etc.) */}
+      {nonColorAttributes.map((attr) => {
         const attrName = normalizeAttributeKey(attr.name);
         const currentSelectedVal = selectedAttributes[attrName] || '';
         const displayType = getAttributeDisplayType(attr);
