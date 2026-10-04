@@ -152,7 +152,14 @@ export default function ProductDetail() {
 
           // Combination-aware best initial variant selection & URL restoration
           const urlVariantId = searchParams.get('variant') || undefined;
-          const initialSelection = getBestInitialSelection(foundProduct, urlVariantId);
+          const queryAttributeParams: Record<string, string> = {};
+          searchParams.forEach((val, key) => {
+            if (key !== 'variant') {
+              queryAttributeParams[key] = val;
+            }
+          });
+          const initialParam = urlVariantId || (Object.keys(queryAttributeParams).length > 0 ? queryAttributeParams : undefined);
+          const initialSelection = getBestInitialSelection(foundProduct, initialParam);
           if (initialSelection.variant) {
             setSelectedVariant(initialSelection.variant.id);
             setSelectedAttributes(initialSelection.selectedAttributes);

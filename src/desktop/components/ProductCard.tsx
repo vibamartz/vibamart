@@ -5,7 +5,6 @@ import { useCartStore } from '../../backend/store';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { getProductSlug } from '../../shared/utilities/slug';
-import { getProductPriceRange, getAvailableAttributeSummaries } from '../../shared/utilities/variantMatrixUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -17,19 +16,12 @@ interface ProductCardProps {
 export default function ProductCard({ product, showActionsAlways = false, hideButtons = false }: ProductCardProps) {
   const { addItem, items } = useCartStore();
   const isInCart = items.some(item => item.productId === product.id);
-  const navigate = useNavigate();
 
-  const priceInfo = getProductPriceRange(product);
-  const attributeBadges = getAvailableAttributeSummaries(product);
-  const hasActiveVariants = Array.isArray(product.variants) && product.variants.some(v => !v.disabled && v.status !== 'disabled');
+  const navigate = useNavigate();
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (hasActiveVariants) {
-      navigate(`/products/${getProductSlug(product)}`);
-      return;
-    }
     if (isInCart) {
       navigate('/checkout');
       return;
@@ -45,10 +37,6 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (hasActiveVariants) {
-      navigate(`/products/${getProductSlug(product)}`);
-      return;
-    }
     if (isInCart) {
       navigate('/cart');
       return;
@@ -65,6 +53,9 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     }
   };
 
+  const discountAmount = product.discountPrice && product.price ? product.price - product.discountPrice : 0;
+  const discountPercentage = product.discountPrice && product.price ? Math.round((discountAmount / product.price) * 100) : 0;
+
   return (
     <Link 
       to={`/products/${getProductSlug(product)}`}
@@ -76,28 +67,15 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
       >
         <div className="block relative aspect-square overflow-hidden bg-white p-1.5 flex items-center justify-center">
           <img
-            src={product.primaryImage || product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
+            src={product.images?.[0] || 'https://via.placeholder.com/400x500?text=No+Image'}
             alt={product.name}
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 bg-white"
           />
           
-          {priceInfo.discountPercentage > 0 && (
+          {discountPercentage > 0 && (
             <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-md shadow-xs">
-              {priceInfo.discountPercentage}% OFF
+              {discountPercentage}% OFF
             </span>
-          )}
-
-          {attributeBadges.length > 0 && (
-            <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 flex-wrap">
-              {attributeBadges.slice(0, 2).map((badge, bIdx) => (
-                <span
-                  key={bIdx}
-                  className="bg-gray-900/80 backdrop-blur-xs text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-2xs"
-                >
-                  {badge}
-                </span>
-              ))}
-            </div>
           )}
         </div>
 
@@ -108,26 +86,21 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
 
           <div className="mt-auto flex items-end justify-between pt-1 border-t border-gray-50">
             <div>
-              <div className="flex items-baseline gap-1.5 flex-wrap">
+              <div className="flex items-baseline gap-1.5">
                 <span className="text-sm sm:text-base font-bold text-gray-900">
-                  ₹{priceInfo.displayPrice.toLocaleString()}
-                  {priceInfo.hasRange && (
-                    <span className="text-xs font-bold text-gray-500 ml-1">
-                      - ₹{priceInfo.maxPrice.toLocaleString()}
-                    </span>
-                  )}
+                  ₹{(product.discountPrice || product.price || 0).toLocaleString()}
                 </span>
-                {priceInfo.displayMrp > priceInfo.displayPrice && (
-                  <span className="text-[11px] text-gray-400 line-through">₹{priceInfo.displayMrp.toLocaleString()}</span>
+                {product.discountPrice && product.price && (
+                  <span className="text-[11px] text-gray-400 line-through">₹{(product.mrp || product.price).toLocaleString()}</span>
                 )}
               </div>
               <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                 {product.isFreeDelivery !== false && (
                   <p className="text-[9px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
                 )}
-                {priceInfo.displayMrp > priceInfo.displayPrice && (
+                {product.discountPrice && product.price && (
                   <span className="text-[9px] text-green-600 font-black">
-                    • Save ₹{(priceInfo.displayMrp - priceInfo.displayPrice).toLocaleString()}
+                    • Save ₹{((product.mrp || product.price) - (product.discountPrice || product.price)).toLocaleString()}
                   </span>
                 )}
               </div>
@@ -138,4 +111,3 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     </Link>
   );
 }
-

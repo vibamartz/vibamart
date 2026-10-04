@@ -197,10 +197,9 @@ export default function MobileCartScreen() {
 
   const cartTotal = total();
   const totalMRP = items.reduce((acc, item) => {
-    const origPrice = item.product.price || item.product.discountPrice || 0;
     const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
-    const extra = variant?.extraPrice || 0;
-    return acc + (origPrice + extra) * item.quantity;
+    const origPrice = variant?.mrp || item.product.mrp || item.product.price || item.product.discountPrice || 0;
+    return acc + origPrice * item.quantity;
   }, 0);
   const discount = Math.max(0, totalMRP - cartTotal);
 
@@ -341,8 +340,12 @@ export default function MobileCartScreen() {
             {items.map((item) => {
               const product = item.product;
               const variant = item.variantId ? product.variants?.find(v => v.id === item.variantId) : null;
-              const basePrice = product.discountPrice || product.price;
-              const unitPrice = basePrice + (variant?.extraPrice || 0);
+              const basePrice = (variant?.price && variant.price > 0)
+                ? variant.price
+                : (product.discountPrice || product.price);
+              const unitPrice = (variant?.price && variant.price > 0)
+                ? variant.price
+                : (basePrice + (variant?.extraPrice || 0));
               const maxStock = variant ? variant.stock : product.stock;
               const deliveryText = getFormattedDeliveryDate(product);
 
@@ -359,7 +362,7 @@ export default function MobileCartScreen() {
                       className="w-20 h-20 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 cursor-pointer"
                     >
                       <img
-                        src={variant?.image || product.images?.[0] || 'https://via.placeholder.com/150'}
+                        src={variant?.image || variant?.images?.[0] || product.images?.[0] || 'https://via.placeholder.com/150'}
                         alt={product.name}
                         className="w-full h-full object-cover"
                       />
@@ -379,7 +382,7 @@ export default function MobileCartScreen() {
                         </h4>
                         {variant && (
                           <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                            {variant.name || variant.color || variant.size}
+                            {variant.name || (variant.attributes ? Object.values(variant.attributes).join(' / ') : item.variantId)}
                           </span>
                         )}
 

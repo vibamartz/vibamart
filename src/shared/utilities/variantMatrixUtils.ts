@@ -704,7 +704,7 @@ export function resolveValidVariantSelection(
  */
 export function getBestInitialSelection(
   product: Product,
-  initialVariantId?: string
+  initialVariantIdOrParams?: string | Record<string, string>
 ): { selectedAttributes: Record<string, string>; variant?: ProductVariant } {
   const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
 
@@ -712,9 +712,9 @@ export function getBestInitialSelection(
     return { selectedAttributes: {} };
   }
 
-  // If specific variantId requested and active
-  if (initialVariantId) {
-    const target = activeVariants.find(v => v.id === initialVariantId);
+  // 1. If specific variantId requested and active
+  if (typeof initialVariantIdOrParams === 'string' && initialVariantIdOrParams) {
+    const target = activeVariants.find(v => v.id === initialVariantIdOrParams);
     if (target) {
       return {
         selectedAttributes: extractVariantAttributes(target),
@@ -723,7 +723,18 @@ export function getBestInitialSelection(
     }
   }
 
-  // Prefer first in-stock variant
+  // 2. If attribute params map provided (e.g. from URL query params)
+  if (typeof initialVariantIdOrParams === 'object' && initialVariantIdOrParams) {
+    const matching = findMatchingVariant(activeVariants, getProductVariantAttributes(product), initialVariantIdOrParams);
+    if (matching) {
+      return {
+        selectedAttributes: extractVariantAttributes(matching),
+        variant: matching
+      };
+    }
+  }
+
+  // 3. Prefer first in-stock variant
   const firstInStock = activeVariants.find(v => (v.stock ?? 0) > 0 && v.inStock !== false);
   const selected = firstInStock || activeVariants[0];
 

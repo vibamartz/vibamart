@@ -164,10 +164,9 @@ export default function Cart() {
 
   const subtotal = total();
   const totalMRP = items.reduce((acc, item) => {
-    const origPrice = item.product.price || item.product.discountPrice || 0;
     const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
-    const extra = variant?.extraPrice || 0;
-    return acc + (origPrice + extra) * item.quantity;
+    const origPrice = variant?.mrp || item.product.mrp || item.product.price || item.product.discountPrice || 0;
+    return acc + origPrice * item.quantity;
   }, 0);
   const discount = Math.max(0, totalMRP - subtotal);
   const shipping = calculateShippingFee(items, subtotal);
@@ -234,11 +233,13 @@ export default function Cart() {
                 <div className="divide-y divide-gray-100 font-medium">
                   {items.map((item) => {
                     const deliveryText = getFormattedDeliveryDate(item.product);
+                    const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
+                    const itemImage = variant?.image || variant?.images?.[0] || item.product.images[0] || 'https://via.placeholder.com/150';
 
                     return (
-                      <div key={`${item.productId}-${item.variantId}`} className="py-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
+                      <div key={`${item.productId}-${item.variantId || 'default'}`} className="py-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
                         <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 bg-white rounded-xl p-1.5 flex items-center justify-center border border-gray-100">
-                          <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-contain bg-white" />
+                          <img src={itemImage} alt={item.product.name} className="w-full h-full object-contain bg-white" />
                         </div>
                         <div className="flex-1 flex flex-col min-w-0">
                           <div className="flex justify-between items-start gap-2">
@@ -247,14 +248,11 @@ export default function Cart() {
                                 {item.product.name}
                               </Link>
                               <p className="text-[10px] sm:text-xs text-gray-400 mt-1 uppercase tracking-wider font-bold">Official Store</p>
-                              {item.variantId && (() => {
-                                const variant = item.product.variants?.find(v => v.id === item.variantId);
-                                return (
-                                  <p className="text-[10px] sm:text-xs text-primary mt-1 font-bold">
-                                    {variant?.name || item.variantId}
-                                  </p>
-                                );
-                              })()}
+                              {variant && (
+                                <p className="text-[10px] sm:text-xs text-primary mt-1 font-bold">
+                                  {variant.name || (variant.attributes ? Object.values(variant.attributes).join(' / ') : item.variantId)}
+                                </p>
+                              )}
 
                               {/* Requirement 2: Dynamic Delivery Date */}
                               <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">
@@ -265,10 +263,14 @@ export default function Cart() {
 
                             <div className="text-right">
                               {(() => {
-                                const variant = item.variantId ? item.product.variants?.find(v => v.id === item.variantId) : null;
-                                const basePrice = item.product.discountPrice || item.product.price;
-                                const itemPrice = basePrice + (variant?.extraPrice || 0);
-                                const savings = (item.product.price - (item.product.discountPrice || item.product.price)) * item.quantity;
+                                const basePrice = (variant?.price && variant.price > 0)
+                                  ? variant.price
+                                  : (item.product.discountPrice || item.product.price);
+                                const itemPrice = (variant?.price && variant.price > 0)
+                                  ? variant.price
+                                  : (basePrice + (variant?.extraPrice || 0));
+                                const mrp = variant?.mrp || item.product.mrp || item.product.price;
+                                const savings = Math.max(0, (mrp - itemPrice) * item.quantity);
                                 return (
                                   <>
                                     <p className="text-lg sm:text-xl font-black text-gray-900">₹{(itemPrice * item.quantity).toLocaleString()}</p>

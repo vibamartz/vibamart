@@ -168,7 +168,14 @@ export default function MobileProductDetailScreen() {
           }
 
           const urlVariantId = searchParams.get('variant') || undefined;
-          const initialSelection = getBestInitialSelection(foundProduct, urlVariantId);
+          const queryAttributeParams: Record<string, string> = {};
+          searchParams.forEach((val, key) => {
+            if (key !== 'variant') {
+              queryAttributeParams[key] = val;
+            }
+          });
+          const initialParam = urlVariantId || (Object.keys(queryAttributeParams).length > 0 ? queryAttributeParams : undefined);
+          const initialSelection = getBestInitialSelection(foundProduct, initialParam);
           if (initialSelection.variant) {
             setSelectedVariantId(initialSelection.variant.id);
             setSelectedAttributes(initialSelection.selectedAttributes);
