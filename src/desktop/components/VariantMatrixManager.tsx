@@ -8,13 +8,17 @@ import {
   extractVariantAttributes,
   getCanonicalVariantKey,
   normalizeAttributeKey,
-  normalizeAttributeVal
+  normalizeAttributeVal,
+  CATEGORY_VARIANT_TEMPLATES,
+  isCircularProductLink,
+  validateVariantMatrixUniqueness
 } from '../../shared/utilities/variantMatrixUtils';
 import { VariantMultiImageInput } from './VariantImageInput';
 import {
   Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, Sparkles,
   Copy, Tag, Check, AlertCircle, RefreshCw, SlidersHorizontal, Image as ImageIcon,
-  CheckCircle2, X, ChevronDown, ChevronUp, Package, Link2, ExternalLink, Search, Unlink
+  CheckCircle2, X, ChevronDown, ChevronUp, Package, Link2, ExternalLink, Search, Unlink,
+  LayoutGrid, Table as TableIcon, Bookmark, ShieldAlert, CheckSquare, Square
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -41,9 +45,12 @@ export default function VariantMatrixManager({
   const [newAttributeName, setNewAttributeName] = useState('');
   const [newValueInputs, setNewValueInputs] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'attributes' | 'matrix'>('attributes');
+  const [matrixViewMode, setMatrixViewMode] = useState<'table' | 'cards'>('table');
+  const [showCategoryTemplates, setShowCategoryTemplates] = useState(false);
   const [bulkPrice, setBulkPrice] = useState<string>('');
   const [bulkStock, setBulkStock] = useState<string>('');
   const [bulkMrp, setBulkMrp] = useState<string>('');
+  const [bulkLowStock, setBulkLowStock] = useState<string>('');
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [expandedVariantId, setExpandedVariantId] = useState<string | null>(null);
 
@@ -82,6 +89,12 @@ export default function VariantMatrixManager({
   }, []);
 
   const assignLinkedProductToValue = (attrId: string, valId: string, productToLink: Product) => {
+    // Check for circular linking to avoid infinite navigation loops
+    if (baseProduct.id && isCircularProductLink(baseProduct.id, productToLink.id, availableProducts)) {
+      toast.error(`Cannot link "${productToLink.name}": Circular relationship detected (product already links back).`);
+      return;
+    }
+
     const updated = attributes.map(a => {
       if (a.id !== attrId) return a;
       return {
@@ -121,6 +134,11 @@ export default function VariantMatrixManager({
   };
 
   const assignLinkedProductToVariant = (variantId: string, productToLink: Product) => {
+    if (baseProduct.id && isCircularProductLink(baseProduct.id, productToLink.id, availableProducts)) {
+      toast.error(`Cannot link "${productToLink.name}": Circular relationship detected (product already links back).`);
+      return;
+    }
+
     onVariantsChange(
       variants.map(v => {
         if (v.id !== variantId) return v;
@@ -162,6 +180,26 @@ export default function VariantMatrixManager({
     );
   });
 
+  // --- CATEGORY TEMPLATES APPLIER ---
+  const applyCategoryTemplate = (tpl: typeof CATEGORY_VARIANT_TEMPLATES[0]) => {
+    const newAttrs: VariantAttribute[] = tpl.attributes.map((a, idx) => ({
+      id: `attr_${Date.now()}_${idx}_${a.name.toLowerCase().replace(/\s+/g, '_')}`,
+      name: a.name,
+      displayType: a.displayType,
+      type: a.name.toLowerCase().includes('color') ? 'color' : 'button',
+      values: (a.suggestedValues || []).map((valName, vIdx) => ({
+        id: `val_${Date.now()}_${idx}_${vIdx}`,
+        name: valName,
+        hex: a.name.toLowerCase().includes('color') ? '#000000' : undefined,
+        disabled: false
+      })),
+      disabled: false
+    }));
+    onAttributesChange(newAttrs);
+    setShowCategoryTemplates(false);
+    toast.success(`Applied "${tpl.name}" category template.`);
+  };
+
   // --- ATTRIBUTE ACTIONS ---
 
   const addAttribute = (name: string) => {
@@ -178,6 +216,7 @@ export default function VariantMatrixManager({
       id: `attr_${Date.now()}_${cleanName.toLowerCase().replace(/\s+/g, '_')}`,
       name: cleanName,
       type: isColor ? 'color' : 'button',
+      displayType: isColor ? 'image' : 'button',
       values: [],
       disabled: false
     };
@@ -291,7 +330,7 @@ export default function VariantMatrixManager({
     const newMatrix = generateVariantMatrix(attributes, baseProduct, variants);
     onVariantsChange(newMatrix);
     setActiveTab('matrix');
-    toast.success(`Generated ${newMatrix.length} variants! Existing customizations preserved.`);
+    toast.success(`Generated ${newMatrix.length} variants! Existing records preserved safely.`);
   };
 
   // --- VARIANT MANAGEMENT ACTIONS ---
@@ -300,6 +339,7 @@ export default function VariantMatrixManager({
     const initialImg = baseProduct.primaryImage || (baseProduct.images?.[0] || '');
     const newV: ProductVariant = {
       id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      productId: baseProduct.id,
       name: `Custom Variant ${(variants?.length || 0) + 1}`,
       attributes: {},
       attributeValues: {},
@@ -313,6 +353,7 @@ export default function VariantMatrixManager({
       inStock: true,
       status: 'active',
       disabled: false,
+      isArchived: false,
       image: initialImg,
       images: initialImg ? [initialImg] : []
     };
@@ -433,6 +474,23 @@ export default function VariantMatrixManager({
     toast.success(`Applied ${s} units stock to all variants`);
   };
 
+  const applyBulkLowStockThreshold = () => {
+    const t = Number(bulkLowStock);
+    if (isNaN(t) || t < 0) return toast.error('Enter a valid threshold');
+    onVariantsChange(variants.map(v => ({ ...v, lowStockThreshold: t })));
+    setBulkLowStock('');
+    toast.success(`Applied threshold of ${t} to all variants`);
+  };
+
+  const toggleAllVariantsStatus = (enable: boolean) => {
+    onVariantsChange(variants.map(v => ({
+      ...v,
+      disabled: !enable,
+      status: !enable ? 'disabled' : (v.stock > 0 ? 'active' : 'out_of_stock')
+    })));
+    toast.success(`${enable ? 'Enabled' : 'Disabled'} all variants`);
+  };
+
   const autoGenerateSkus = () => {
     const baseSku = (baseProduct.sku || 'SKU').replace(/\s+/g, '-').toUpperCase();
     onVariantsChange(
@@ -458,6 +516,9 @@ export default function VariantMatrixManager({
       return valCount > 0 ? acc * valCount : acc;
     }, attributes.some(a => !a.disabled && a.values.some(v => !v.disabled && v.name.trim())) ? 1 : 0);
 
+  const uniquenessValidation = validateVariantMatrixUniqueness(variants);
+  const activeAttributesList = attributes.filter(a => !a.disabled);
+
   return (
     <div className="bg-white p-6 sm:p-10 rounded-[36px] sm:rounded-[48px] border border-gray-100 shadow-sm space-y-8">
       {/* Header */}
@@ -482,7 +543,7 @@ export default function VariantMatrixManager({
             <button
               type="button"
               onClick={() => setActiveTab('attributes')}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                 activeTab === 'attributes'
                   ? 'bg-white text-gray-900 shadow-xs'
                   : 'text-gray-500 hover:text-gray-900'
@@ -493,7 +554,7 @@ export default function VariantMatrixManager({
             <button
               type="button"
               onClick={() => setActiveTab('matrix')}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'matrix'
                   ? 'bg-white text-gray-900 shadow-xs'
                   : 'text-gray-500 hover:text-gray-900'
@@ -506,7 +567,7 @@ export default function VariantMatrixManager({
           <button
             type="button"
             onClick={handleGenerateMatrix}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Generate Matrix {totalPossibleCombos > 0 ? `(${totalPossibleCombos})` : ''}
@@ -517,7 +578,49 @@ export default function VariantMatrixManager({
       {/* TAB 1: ATTRIBUTES BUILDER */}
       {activeTab === 'attributes' && (
         <div className="space-y-8">
-          {/* Quick Presets */}
+          {/* Category Variant Templates Bar */}
+          <div className="bg-emerald-50/70 p-5 rounded-3xl border border-emerald-200/80 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                  Category Variant Templates
+                </span>
+                <span className="text-[10px] text-emerald-700 font-bold">
+                  (Click any preset to pre-fill standard attributes)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCategoryTemplates(!showCategoryTemplates)}
+                className="px-3 py-1.5 bg-white text-emerald-800 rounded-xl text-[10px] font-black uppercase border border-emerald-300 shadow-2xs hover:bg-emerald-100 transition-all cursor-pointer self-start sm:self-auto"
+              >
+                {showCategoryTemplates ? 'Hide Category Templates' : 'Browse All Templates'}
+              </button>
+            </div>
+
+            {showCategoryTemplates && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2 border-t border-emerald-200/60">
+                {CATEGORY_VARIANT_TEMPLATES.map(tpl => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => applyCategoryTemplate(tpl)}
+                    className="p-3 bg-white hover:bg-emerald-100/60 rounded-2xl border border-emerald-200 text-left transition-all group cursor-pointer shadow-2xs"
+                  >
+                    <span className="text-xs font-black text-gray-900 group-hover:text-emerald-900 block truncate">
+                      {tpl.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 group-hover:text-emerald-700 mt-0.5 block">
+                      {tpl.attributes.map(a => a.name).join(' + ')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Attribute Presets */}
           <div className="space-y-2.5 bg-gray-50/80 p-5 rounded-3xl border border-gray-100">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block">
               Quick Attribute Presets (Click to Add)
@@ -531,7 +634,7 @@ export default function VariantMatrixManager({
                     type="button"
                     onClick={() => addAttribute(preset)}
                     disabled={isAdded}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       isAdded
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 opacity-60 cursor-default'
                         : 'bg-white text-gray-700 border border-gray-200 hover:border-emerald-500 hover:text-emerald-700'
@@ -563,7 +666,7 @@ export default function VariantMatrixManager({
             <button
               type="button"
               onClick={() => addAttribute(newAttributeName)}
-              className="px-6 py-3.5 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shrink-0"
+              className="px-6 py-3.5 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Attribute
             </button>
@@ -624,7 +727,7 @@ export default function VariantMatrixManager({
                         type="button"
                         onClick={() => moveAttribute(idx, 'up')}
                         disabled={idx === 0}
-                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
+                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200 cursor-pointer"
                         title="Move Attribute Up"
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
@@ -633,7 +736,7 @@ export default function VariantMatrixManager({
                         type="button"
                         onClick={() => moveAttribute(idx, 'down')}
                         disabled={idx === attributes.length - 1}
-                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
+                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200 cursor-pointer"
                         title="Move Attribute Down"
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
@@ -641,7 +744,7 @@ export default function VariantMatrixManager({
                       <button
                         type="button"
                         onClick={() => toggleAttributeDisabled(attr.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 cursor-pointer ${
                           attr.disabled
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -653,7 +756,7 @@ export default function VariantMatrixManager({
                       <button
                         type="button"
                         onClick={() => removeAttribute(attr.id)}
-                        className="p-2 bg-white text-rose-500 hover:bg-rose-50 rounded-xl border border-rose-200"
+                        className="p-2 bg-white text-rose-500 hover:bg-rose-50 rounded-xl border border-rose-200 cursor-pointer"
                         title="Delete Attribute"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -698,7 +801,7 @@ export default function VariantMatrixManager({
                               <button
                                 type="button"
                                 onClick={() => toggleAttributeValueDisabled(attr.id, val.id)}
-                                className="text-gray-300 hover:text-amber-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                                className="text-gray-300 hover:text-amber-600 transition-colors p-1 rounded-md hover:bg-gray-100 cursor-pointer"
                                 title={val.disabled ? 'Enable Value' : 'Disable Value'}
                               >
                                 {val.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -707,7 +810,7 @@ export default function VariantMatrixManager({
                               <button
                                 type="button"
                                 onClick={() => removeAttributeValue(attr.id, val.id)}
-                                className="text-gray-300 hover:text-rose-600 transition-colors p-1 rounded-md hover:bg-gray-100"
+                                className="text-gray-300 hover:text-rose-600 transition-colors p-1 rounded-md hover:bg-gray-100 cursor-pointer"
                                 title="Remove Value"
                               >
                                 <X className="w-3.5 h-3.5" />
@@ -767,7 +870,7 @@ export default function VariantMatrixManager({
                                 className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-dashed border-gray-300 transition-colors cursor-pointer"
                               >
                                 <Link2 className="w-3 h-3 text-gray-400" />
-                                Linked Product: [Search existing products]
+                                Link Product
                               </button>
                             )}
                           </div>
@@ -799,7 +902,7 @@ export default function VariantMatrixManager({
                       <button
                         type="button"
                         onClick={() => addAttributeValue(attr.id, valueInputVal)}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shrink-0"
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shrink-0 cursor-pointer"
                       >
                         + Add Value
                       </button>
@@ -821,16 +924,61 @@ export default function VariantMatrixManager({
       {/* TAB 2: VARIANT MATRIX */}
       {activeTab === 'matrix' && (
         <div className="space-y-6">
+          {/* Uniqueness Alert Banner if issues exist */}
+          {!uniquenessValidation.isValid && (
+            <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <span className="font-black text-amber-900 uppercase tracking-wider block">
+                  Variant Matrix Uniqueness Notice
+                </span>
+                {uniquenessValidation.duplicateSkus.length > 0 && (
+                  <p className="text-amber-800 font-bold">
+                    Duplicate SKUs detected: {uniquenessValidation.duplicateSkus.join(', ')}. Please ensure each SKU is unique or click "Auto SKUs" in Bulk Operations.
+                  </p>
+                )}
+                {uniquenessValidation.duplicateKeys.length > 0 && (
+                  <p className="text-amber-800 font-bold">
+                    Duplicate combination keys found: {uniquenessValidation.duplicateKeys.join(', ')}.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Matrix Top Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/80 p-5 rounded-3xl border border-gray-100">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-black uppercase tracking-wider text-gray-700">
-                Total Generated Combinations: <span className="text-emerald-700 font-black">{variants.length}</span>
+                Total Combinations: <span className="text-emerald-700 font-black">{variants.length}</span>
               </span>
+
+              {/* View Mode Switcher */}
+              <div className="flex p-0.5 bg-gray-200/80 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setMatrixViewMode('table')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
+                    matrixViewMode === 'table' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-600'
+                  }`}
+                >
+                  <TableIcon className="w-3 h-3" /> Table
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMatrixViewMode('cards')}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer ${
+                    matrixViewMode === 'cards' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-600'
+                  }`}
+                >
+                  <LayoutGrid className="w-3 h-3" /> Cards
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setShowBulkActions(!showBulkActions)}
-                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-700 hover:border-gray-900 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider text-gray-700 hover:border-gray-900 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <SlidersHorizontal className="w-3 h-3" />
                 {showBulkActions ? 'Hide Bulk Operations' : 'Bulk Operations'}
@@ -841,14 +989,14 @@ export default function VariantMatrixManager({
               <button
                 type="button"
                 onClick={addManualVariant}
-                className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-black transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-black transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Variant
               </button>
               <button
                 type="button"
                 onClick={handleGenerateMatrix}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Re-generate Matrix
               </button>
@@ -858,11 +1006,30 @@ export default function VariantMatrixManager({
           {/* Bulk Operations Bar */}
           {showBulkActions && (
             <div className="p-6 bg-emerald-50/60 rounded-3xl border border-emerald-100 space-y-4">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-900 block">
-                Bulk Update All {variants.length} Variants
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="flex gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-900 block">
+                  Bulk Operations on All {variants.length} Variants
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleAllVariantsStatus(true)}
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase cursor-pointer"
+                  >
+                    Enable All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAllVariantsStatus(false)}
+                    className="px-3 py-1 bg-gray-700 hover:bg-gray-900 text-white rounded-lg text-[10px] font-black uppercase cursor-pointer"
+                  >
+                    Disable All
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="flex gap-1.5">
                   <input
                     type="number"
                     placeholder="Selling Price (₹)"
@@ -873,13 +1040,13 @@ export default function VariantMatrixManager({
                   <button
                     type="button"
                     onClick={applyBulkPrice}
-                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800"
+                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800 cursor-pointer"
                   >
                     Apply
                   </button>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <input
                     type="number"
                     placeholder="MRP (₹)"
@@ -890,13 +1057,13 @@ export default function VariantMatrixManager({
                   <button
                     type="button"
                     onClick={applyBulkMrp}
-                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800"
+                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800 cursor-pointer"
                   >
                     Apply
                   </button>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <input
                     type="number"
                     placeholder="Stock Units"
@@ -907,7 +1074,24 @@ export default function VariantMatrixManager({
                   <button
                     type="button"
                     onClick={applyBulkStock}
-                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800"
+                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800 cursor-pointer"
+                  >
+                    Apply
+                  </button>
+                </div>
+
+                <div className="flex gap-1.5">
+                  <input
+                    type="number"
+                    placeholder="Low Stock Alert"
+                    value={bulkLowStock}
+                    onChange={e => setBulkLowStock(e.target.value)}
+                    className="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2 text-xs font-bold outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyBulkLowStockThreshold}
+                    className="px-3 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase shrink-0 hover:bg-emerald-800 cursor-pointer"
                   >
                     Apply
                   </button>
@@ -916,7 +1100,7 @@ export default function VariantMatrixManager({
                 <button
                   type="button"
                   onClick={autoGenerateSkus}
-                  className="w-full py-2 bg-white border border-emerald-300 text-emerald-800 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-white border border-emerald-300 text-emerald-800 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-100 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" /> Auto SKUs
                 </button>
@@ -924,310 +1108,120 @@ export default function VariantMatrixManager({
             </div>
           )}
 
-          {/* Variants Matrix Cards */}
-          <div className="space-y-4">
-            {variants.map((v, idx) => {
-              const isExpanded = expandedVariantId === v.id;
-              const attrs = extractVariantAttributes(v);
-              const comboTitle = v.name || getVariantCombinationTitle(attrs, `Variant #${idx + 1}`);
-              const isOutOfStock = (v.stock ?? 0) <= 0;
-              const isLowStock = !isOutOfStock && (v.stock ?? 0) <= (v.lowStockThreshold || 3);
+          {/* VIEW 1: MATRIX TABLE VIEW */}
+          {matrixViewMode === 'table' && (
+            <div className="overflow-x-auto border border-gray-200 rounded-3xl bg-white shadow-2xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-100/80 text-[10px] font-black uppercase text-gray-500 tracking-wider border-b border-gray-200">
+                    <th className="py-3 px-3 text-center w-10">#</th>
+                    <th className="py-3 px-3 w-14">Image</th>
+                    {activeAttributesList.map(a => (
+                      <th key={a.id} className="py-3 px-3">{a.name}</th>
+                    ))}
+                    <th className="py-3 px-3 min-w-[130px]">SKU</th>
+                    <th className="py-3 px-3 min-w-[90px]">MRP (₹)</th>
+                    <th className="py-3 px-3 min-w-[90px]">Price (₹)</th>
+                    <th className="py-3 px-3 min-w-[80px]">Stock</th>
+                    <th className="py-3 px-3 min-w-[130px]">Linked Product</th>
+                    <th className="py-3 px-3 min-w-[90px]">Status</th>
+                    <th className="py-3 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {variants.map((v, idx) => {
+                    const attrs = extractVariantAttributes(v);
+                    const isOutOfStock = (v.stock ?? 0) <= 0;
 
-              return (
-                <div
-                  key={v.id}
-                  className={`rounded-3xl border-2 transition-all ${
-                    v.disabled
-                      ? 'bg-gray-100/70 border-gray-200 opacity-60'
-                      : isOutOfStock
-                      ? 'bg-rose-50/30 border-rose-100'
-                      : 'bg-gray-50/80 border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {/* Variant Summary Header */}
-                  <div className="p-5 sm:p-6 flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-7 h-7 rounded-xl bg-gray-900 text-white text-xs font-black flex items-center justify-center shrink-0">
-                        #{idx + 1}
-                      </span>
-
-                      {/* Variant Primary Thumbnail */}
-                      <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
-                        {v.images?.[0] || v.image ? (
-                          <img
-                            src={v.images?.[0] || v.image}
-                            alt=""
-                            className="w-full h-full object-contain"
-                          />
-                        ) : v.colorHex ? (
-                          <span className="w-5 h-5 rounded-full border border-gray-300" style={{ backgroundColor: v.colorHex }} />
-                        ) : (
-                          <ImageIcon className="w-4 h-4 text-gray-300" />
-                        )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-black text-gray-900 truncate">
-                            {comboTitle}
-                          </span>
-                          {/* Status Badges */}
-                          {v.disabled ? (
-                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[9px] font-black uppercase rounded-md">
-                              DISABLED
-                            </span>
-                          ) : isOutOfStock ? (
-                            <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-md">
-                              OUT OF STOCK
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase rounded-md">
-                              ACTIVE
-                            </span>
-                          )}
-                          {isLowStock && (
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-black uppercase rounded-md">
-                              LOW STOCK
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 mt-0.5 flex-wrap">
-                          <span>SKU: {v.sku || 'N/A'}</span>
-                          <span>•</span>
-                          <span>Price: ₹{(v.price ?? 0).toLocaleString()}</span>
-                          <span>•</span>
-                          <span>Stock: {v.stock ?? 0} units</span>
-                          {v.images && v.images.length > 0 && (
-                            <>
-                              <span>•</span>
-                              <span>{v.images.length} images</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actions Row */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => moveVariant(idx, 'up')}
-                        disabled={idx === 0}
-                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
-                        title="Move Up"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveVariant(idx, 'down')}
-                        disabled={idx === variants.length - 1}
-                        className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200"
-                        title="Move Down"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => duplicateVariant(v.id)}
-                        className="p-2 bg-white text-gray-700 hover:text-emerald-700 rounded-xl border border-gray-200"
-                        title="Duplicate Variant"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleVariantDisabled(v.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 ${
-                          v.disabled
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                    return (
+                      <tr
+                        key={v.id}
+                        className={`hover:bg-gray-50/80 transition-colors ${
+                          v.disabled ? 'opacity-50 bg-gray-50' : ''
                         }`}
                       >
-                        {v.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        {v.disabled ? 'Enable' : 'Disable'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeVariant(v.id)}
-                        className="p-2 bg-white text-rose-500 hover:bg-rose-50 rounded-xl border border-rose-200"
-                        title="Delete Variant"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedVariantId(isExpanded ? null : v.id)}
-                        className="p-2 bg-white text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100"
-                        title={isExpanded ? 'Collapse' : 'Expand Details'}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
+                        <td className="py-3 px-3 text-center font-bold text-gray-400">
+                          {idx + 1}
+                        </td>
 
-                  {/* Expanded Edit Form */}
-                  {isExpanded && (
-                    <div className="p-6 sm:p-8 border-t border-gray-200/80 bg-white rounded-b-3xl space-y-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                        {/* Variant Display Title */}
-                        <div className="sm:col-span-2 space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Variant Title / Display Name
-                          </label>
-                          <input
-                            type="text"
-                            value={v.name || ''}
-                            onChange={e => updateVariant(v.id, { name: e.target.value })}
-                            placeholder="e.g. Midnight Black / 256GB"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
+                        <td className="py-3 px-3">
+                          <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                            {v.images?.[0] || v.image ? (
+                              <img src={v.images?.[0] || v.image} alt="" className="w-full h-full object-contain" />
+                            ) : v.colorHex ? (
+                              <span className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: v.colorHex }} />
+                            ) : (
+                              <ImageIcon className="w-3.5 h-3.5 text-gray-300" />
+                            )}
+                          </div>
+                        </td>
 
-                        {/* SKU */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            SKU Identifier
-                          </label>
+                        {activeAttributesList.map(a => {
+                          const val = attrs[normalizeAttributeKey(a.name)] || '-';
+                          return (
+                            <td key={a.id} className="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">
+                              {val}
+                            </td>
+                          );
+                        })}
+
+                        <td className="py-3 px-3">
                           <input
                             type="text"
                             value={v.sku || ''}
                             onChange={e => updateVariant(v.id, { sku: e.target.value })}
-                            placeholder="SKU-XXX-01"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            placeholder="SKU"
                           />
-                        </div>
+                        </td>
 
-                        {/* Barcode / Optional Code */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Barcode / EAN (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            value={v.barcode || ''}
-                            onChange={e => updateVariant(v.id, { barcode: e.target.value })}
-                            placeholder="8900 0000 XXXX"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
-
-                        {/* Selling Price */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Selling Price (₹)
-                          </label>
+                        <td className="py-3 px-3">
                           <input
                             type="number"
-                            value={v.price ?? 0}
-                            onChange={e => updateVariant(v.id, { price: Number(e.target.value) })}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
-
-                        {/* MRP */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            MRP (₹)
-                          </label>
-                          <input
-                            type="number"
-                            value={v.mrp ?? (v.price || 0)}
+                            value={v.mrp ?? ''}
                             onChange={e => updateVariant(v.id, { mrp: Number(e.target.value) })}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            placeholder="0"
                           />
-                        </div>
+                        </td>
 
-                        {/* Stock Units */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Stock Units
-                          </label>
+                        <td className="py-3 px-3">
+                          <input
+                            type="number"
+                            value={v.price ?? ''}
+                            onChange={e => updateVariant(v.id, { price: Number(e.target.value) })}
+                            className="w-full bg-emerald-50/50 border border-emerald-200 text-emerald-900 rounded-lg px-2.5 py-1.5 text-xs font-extrabold outline-none focus:bg-white focus:border-emerald-600"
+                            placeholder="0"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3">
                           <input
                             type="number"
                             value={v.stock ?? 0}
                             onChange={e => updateVariant(v.id, { stock: Number(e.target.value) })}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            className={`w-full border rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none focus:bg-white ${
+                              isOutOfStock
+                                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                                : 'bg-gray-50 border-gray-200 text-gray-900'
+                            }`}
                           />
-                        </div>
+                        </td>
 
-                        {/* Low Stock Threshold */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Low Stock Alert Threshold
-                          </label>
-                          <input
-                            type="number"
-                            value={v.lowStockThreshold ?? 2}
-                            onChange={e => updateVariant(v.id, { lowStockThreshold: Number(e.target.value) })}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
-
-                        {/* Weight */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Weight (e.g. 0.5 kg, 200g)
-                          </label>
-                          <input
-                            type="text"
-                            value={typeof v.weight === 'string' || typeof v.weight === 'number' ? v.weight : ''}
-                            onChange={e => updateVariant(v.id, { weight: e.target.value })}
-                            placeholder="e.g. 250g, 1.2kg"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
-
-                        {/* Dimensions */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Dimensions (L × W × H)
-                          </label>
-                          <input
-                            type="text"
-                            value={typeof v.dimensions === 'string' ? v.dimensions : ''}
-                            onChange={e => updateVariant(v.id, { dimensions: e.target.value })}
-                            placeholder="e.g. 15 x 8 x 2 cm"
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                          />
-                        </div>
-
-                        {/* Linked Product (Optional) */}
-                        <div className="sm:col-span-2 space-y-1.5">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1">
-                            <Link2 className="w-3 h-3 text-emerald-600" /> Linked Product (Optional)
-                          </label>
+                        <td className="py-3 px-3">
                           {v.linkedProductId ? (
-                            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-xs font-bold text-emerald-900 truncate">
-                                  {v.linkedProductName || `Product ID: ${v.linkedProductId}`}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setProductSearchTerm('');
-                                    setLinkedProductModalTarget({
-                                      type: 'variant',
-                                      variantId: v.id,
-                                      currentLinkedId: v.linkedProductId,
-                                      title: comboTitle
-                                    });
-                                  }}
-                                  className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs cursor-pointer"
-                                >
-                                  Change
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => removeLinkedProductFromVariant(v.id)}
-                                  className="text-[10px] font-black uppercase text-rose-600 hover:text-rose-800 bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-2xs cursor-pointer"
-                                >
-                                  Unlink
-                                </button>
-                              </div>
+                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-900 px-2 py-1 rounded-lg border border-emerald-200 max-w-[140px]">
+                              <span className="truncate text-[11px] font-bold" title={v.linkedProductName || v.linkedProductId}>
+                                {v.linkedProductName || v.linkedProductId}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeLinkedProductFromVariant(v.id)}
+                                className="text-rose-500 hover:text-rose-700 cursor-pointer shrink-0"
+                                title="Unlink"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             </div>
                           ) : (
                             <button
@@ -1237,39 +1231,421 @@ export default function VariantMatrixManager({
                                 setLinkedProductModalTarget({
                                   type: 'variant',
                                   variantId: v.id,
-                                  title: comboTitle
+                                  title: v.name || `Variant #${idx + 1}`
                                 });
                               }}
-                              className="w-full bg-gray-50 border border-dashed border-gray-300 hover:border-emerald-500 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-emerald-700 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                              className="text-[10px] font-bold text-gray-500 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-dashed border-gray-300 rounded-lg px-2 py-1 cursor-pointer"
                             >
-                              <Link2 className="w-3.5 h-3.5" /> Linked Product: [Search existing products]
+                              + Link
                             </button>
                           )}
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleVariantDisabled(v.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
+                              v.disabled
+                                ? 'bg-gray-200 text-gray-600'
+                                : isOutOfStock
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {v.disabled ? 'Disabled' : isOutOfStock ? 'Out' : 'Active'}
+                          </button>
+                        </td>
+
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => duplicateVariant(v.id)}
+                              className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-gray-100 rounded-lg cursor-pointer"
+                              title="Duplicate"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMatrixViewMode('cards');
+                                setExpandedVariantId(v.id);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg cursor-pointer"
+                              title="Edit Details & Images"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeVariant(v.id)}
+                              className="p-1.5 text-rose-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VIEW 2: VARIANTS MATRIX CARDS */}
+          {matrixViewMode === 'cards' && (
+            <div className="space-y-4">
+              {variants.map((v, idx) => {
+                const isExpanded = expandedVariantId === v.id;
+                const attrs = extractVariantAttributes(v);
+                const comboTitle = v.name || getVariantCombinationTitle(attrs, `Variant #${idx + 1}`);
+                const isOutOfStock = (v.stock ?? 0) <= 0;
+                const isLowStock = !isOutOfStock && (v.stock ?? 0) <= (v.lowStockThreshold || 3);
+
+                return (
+                  <div
+                    key={v.id}
+                    className={`rounded-3xl border-2 transition-all ${
+                      v.disabled
+                        ? 'bg-gray-100/70 border-gray-200 opacity-60'
+                        : isOutOfStock
+                        ? 'bg-rose-50/30 border-rose-100'
+                        : 'bg-gray-50/80 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Variant Summary Header */}
+                    <div className="p-5 sm:p-6 flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-7 h-7 rounded-xl bg-gray-900 text-white text-xs font-black flex items-center justify-center shrink-0">
+                          #{idx + 1}
+                        </span>
+
+                        {/* Variant Primary Thumbnail */}
+                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+                          {v.images?.[0] || v.image ? (
+                            <img
+                              src={v.images?.[0] || v.image}
+                              alt=""
+                              className="w-full h-full object-contain"
+                            />
+                          ) : v.colorHex ? (
+                            <span className="w-5 h-5 rounded-full border border-gray-300" style={{ backgroundColor: v.colorHex }} />
+                          ) : (
+                            <ImageIcon className="w-4 h-4 text-gray-300" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-gray-900 truncate">
+                              {comboTitle}
+                            </span>
+                            {/* Status Badges */}
+                            {v.disabled ? (
+                              <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[9px] font-black uppercase rounded-md">
+                                DISABLED
+                              </span>
+                            ) : isOutOfStock ? (
+                              <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-black uppercase rounded-md">
+                                OUT OF STOCK
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase rounded-md">
+                                ACTIVE
+                              </span>
+                            )}
+                            {isLowStock && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-black uppercase rounded-md">
+                                LOW STOCK
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 mt-0.5 flex-wrap">
+                            <span>SKU: {v.sku || 'N/A'}</span>
+                            <span>•</span>
+                            <span>Price: ₹{(v.price ?? 0).toLocaleString()}</span>
+                            <span>•</span>
+                            <span>Stock: {v.stock ?? 0} units</span>
+                            {v.images && v.images.length > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{v.images.length} images</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Variant Images Gallery */}
-                      <div className="pt-2 border-t border-gray-100">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
-                          Variant-Specific Images (Up to 10 images)
-                        </span>
-                        <VariantMultiImageInput
-                          images={v.images || (v.image ? [v.image] : [])}
-                          onChange={imgs => updateVariant(v.id, { images: imgs, image: imgs[0] || '' })}
-                        />
+                      {/* Actions Row */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => moveVariant(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200 cursor-pointer"
+                          title="Move Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveVariant(idx, 'down')}
+                          disabled={idx === variants.length - 1}
+                          className="p-2 bg-white rounded-xl text-gray-400 hover:text-gray-900 disabled:opacity-30 border border-gray-200 cursor-pointer"
+                          title="Move Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => duplicateVariant(v.id)}
+                          className="p-2 bg-white text-gray-700 hover:text-emerald-700 rounded-xl border border-gray-200 cursor-pointer"
+                          title="Duplicate Variant"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleVariantDisabled(v.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase border transition-all flex items-center gap-1 cursor-pointer ${
+                            v.disabled
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}
+                        >
+                          {v.disabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          {v.disabled ? 'Enable' : 'Disable'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeVariant(v.id)}
+                          className="p-2 bg-white text-rose-500 hover:bg-rose-50 rounded-xl border border-rose-200 cursor-pointer"
+                          title="Delete Variant"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedVariantId(isExpanded ? null : v.id)}
+                          className="p-2 bg-white text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-100 cursor-pointer"
+                          title={isExpanded ? 'Collapse' : 'Expand Details'}
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
 
-            {variants.length === 0 && (
-              <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[32px]">
-                No variants generated. Go to "1. Attributes" tab and click "Generate Matrix", or click "Add Variant" above.
-              </div>
-            )}
-          </div>
+                    {/* Expanded Edit Form */}
+                    {isExpanded && (
+                      <div className="p-6 sm:p-8 border-t border-gray-200/80 bg-white rounded-b-3xl space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                          {/* Variant Display Title */}
+                          <div className="sm:col-span-2 space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Variant Title / Display Name
+                            </label>
+                            <input
+                              type="text"
+                              value={v.name || ''}
+                              onChange={e => updateVariant(v.id, { name: e.target.value })}
+                              placeholder="e.g. Midnight Black / 256GB"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* SKU */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              SKU Identifier
+                            </label>
+                            <input
+                              type="text"
+                              value={v.sku || ''}
+                              onChange={e => updateVariant(v.id, { sku: e.target.value })}
+                              placeholder="SKU-XXX-01"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Barcode */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Barcode / UPC (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={v.barcode || ''}
+                              onChange={e => updateVariant(v.id, { barcode: e.target.value })}
+                              placeholder="890123456789"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Selling Price */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Selling Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={v.price ?? ''}
+                              onChange={e => updateVariant(v.id, { price: Number(e.target.value) })}
+                              className="w-full bg-emerald-50/50 border border-emerald-200 rounded-xl px-4 py-2.5 text-xs font-black text-emerald-950 outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* MRP */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              MRP (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={v.mrp ?? ''}
+                              onChange={e => updateVariant(v.id, { mrp: Number(e.target.value) })}
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Stock Units */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Stock Units
+                            </label>
+                            <input
+                              type="number"
+                              value={v.stock ?? 0}
+                              onChange={e => updateVariant(v.id, { stock: Number(e.target.value) })}
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Low Stock Threshold */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Low-Stock Threshold
+                            </label>
+                            <input
+                              type="number"
+                              value={v.lowStockThreshold ?? 2}
+                              onChange={e => updateVariant(v.id, { lowStockThreshold: Number(e.target.value) })}
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Weight */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Weight (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={typeof v.weight === 'string' || typeof v.weight === 'number' ? v.weight : ''}
+                              onChange={e => updateVariant(v.id, { weight: e.target.value })}
+                              placeholder="e.g. 250g / 1.2kg"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Dimensions */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Dimensions (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={typeof v.dimensions === 'string' ? v.dimensions : ''}
+                              onChange={e => updateVariant(v.id, { dimensions: e.target.value })}
+                              placeholder="e.g. 15 x 8 x 2 cm"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                            />
+                          </div>
+
+                          {/* Linked Product for Variant */}
+                          <div className="sm:col-span-2 space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              Linked Existing ViBa Product (Optional)
+                            </label>
+                            {v.linkedProductId ? (
+                              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="font-bold text-emerald-950 truncate">
+                                    {v.linkedProductName || v.linkedProductId}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProductSearchTerm('');
+                                      setLinkedProductModalTarget({
+                                        type: 'variant',
+                                        variantId: v.id,
+                                        currentLinkedId: v.linkedProductId,
+                                        title: comboTitle
+                                      });
+                                    }}
+                                    className="px-2 py-0.5 bg-white text-emerald-700 text-[10px] font-black uppercase rounded border border-emerald-300 cursor-pointer"
+                                  >
+                                    Change
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeLinkedProductFromVariant(v.id)}
+                                    className="p-1 text-rose-500 hover:text-rose-700 cursor-pointer"
+                                    title="Unlink"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setLinkedProductModalTarget({
+                                    type: 'variant',
+                                    variantId: v.id,
+                                    title: comboTitle
+                                  });
+                                }}
+                                className="w-full py-2.5 px-3 bg-gray-50 hover:bg-emerald-50 text-gray-600 hover:text-emerald-800 border border-dashed border-gray-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Link2 className="w-3.5 h-3.5" /> Link to Existing ViBa Product
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Variant Images Gallery */}
+                        <div className="pt-2 border-t border-gray-100">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+                            Variant-Specific Images (Up to 10 images)
+                          </span>
+                          <VariantMultiImageInput
+                            images={v.images || (v.image ? [v.image] : [])}
+                            onChange={imgs => updateVariant(v.id, { images: imgs, image: imgs[0] || '' })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {variants.length === 0 && (
+            <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[32px]">
+              No variants generated. Go to "1. Attributes" tab and click "Generate Matrix", or click "Add Variant" above.
+            </div>
+          )}
         </div>
       )}
 

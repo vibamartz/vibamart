@@ -142,13 +142,29 @@ export interface VariantAttribute {
   displayType?: 'image' | 'button' | 'dropdown' | 'text' | 'swatch';
   values: VariantAttributeValue[];
   disabled?: boolean;
+  required?: boolean;
+  sortOrder?: number;
+}
+
+export interface CategoryVariantTemplate {
+  id: string;
+  name: string;
+  categoryId?: string;
+  categoryName?: string;
+  attributes: {
+    name: string;
+    displayType: 'image' | 'button' | 'dropdown' | 'text' | 'swatch';
+    suggestedValues?: string[];
+  }[];
 }
 
 export interface ProductVariant {
   id: string;
+  productId?: string;
   name?: string; // Combination display title e.g. "Midnight Blue / 128GB / 8GB"
   attributes?: Record<string, string>; // Canonical attribute map: { [attributeName: string]: valueName }
   attributeValues?: Record<string, string>; // Map of attributeId -> valueId or valueName
+  combinationKey?: string; // Deterministic normalized key e.g. "color:black|ram:8gb|storage:256gb"
   sku?: string;
   barcode?: string;
   price?: number; // Selling price
@@ -159,8 +175,9 @@ export interface ProductVariant {
   stock: number;
   lowStockThreshold?: number;
   inStock?: boolean;
-  status?: 'active' | 'disabled' | 'out_of_stock';
+  status?: 'active' | 'disabled' | 'out_of_stock' | 'archived';
   disabled?: boolean;
+  isArchived?: boolean;
   image?: string;
   images?: string[];
   weight?: number | string;

@@ -16,7 +16,8 @@ import VariantMatrixManager from './VariantMatrixManager';
 import {
   getProductVariantAttributes,
   extractVariantAttributes,
-  getVariantCombinationTitle
+  getVariantCombinationTitle,
+  getCanonicalVariantKey
 } from '../../shared/utilities/variantMatrixUtils';
 
 import { createSlug } from '../../shared/utilities/slug';
@@ -491,6 +492,19 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const { images: processedImages, primaryImage: processedPrimaryImage, variants: processedVariants } =
         await processAllProductImages(formData);
 
+      // Ensure each variant has canonical combinationKey and productId assigned
+      const finalizedVariants = (processedVariants || []).map((v: any) => {
+        const attrs = extractVariantAttributes(v);
+        const comboKey = v.combinationKey || getCanonicalVariantKey(attrs);
+        return {
+          ...v,
+          productId: pid,
+          combinationKey: comboKey,
+          attributes: v.attributes || attrs,
+          attributeValues: v.attributeValues || attrs
+        };
+      });
+
       // Clean specifications (remove items with empty keys and trim whitespace)
       const cleanedSpecs = (formData.specifications || [])
         .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
@@ -503,7 +517,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         productCode: finalProductCode,
         images: processedImages,
         primaryImage: processedPrimaryImage,
-        variants: processedVariants,
+        variants: finalizedVariants,
         slug: product?.slug || generatedSlug,
         price: isDiscounted ? mrp : price,
         discountPrice: isDiscounted ? price : null,
@@ -1398,44 +1412,6 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             </div>
           </div>
 
-          {/* Category Variant Attributes Config */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <div>
-              <h3 className="text-lg font-black text-gray-900 tracking-tight">Enabled Variant Attributes</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
-                Select which variant options apply to this product category
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { id: 'color', label: 'Color (Name & Swatch)' },
-                { id: 'size', label: 'Size (Clothing / Dimensions)' },
-                { id: 'shoeSize', label: 'Shoe Size (Footwear)' },
-                { id: 'storage', label: 'Storage (128GB, 256GB)' },
-                { id: 'ram', label: 'RAM (8GB, 16GB)' },
-                { id: 'shade', label: 'Shade (Beauty)' },
-                { id: 'volume', label: 'Size / Volume (50ml, 100ml)' },
-                { id: 'material', label: 'Material' },
-                { id: 'model', label: 'Model / Variant' }
-              ].map(attr => {
-                const isChecked = (formData.variantAttributes || []).includes(attr.id);
-                return (
-                  <button
-                    key={attr.id}
-                    type="button"
-                    onClick={() => toggleVariantAttribute(attr.id)}
-                    className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 border-2 ${isChecked
-                        ? 'bg-green-600 text-white border-green-600 shadow-md'
-                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-gray-200'
-                      }`}
-                  >
-                    {isChecked && <Check className="w-3.5 h-3.5" />}
-                    {attr.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">

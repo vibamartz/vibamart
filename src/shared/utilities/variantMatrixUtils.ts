@@ -166,8 +166,196 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
 }
 
 /**
+ * Category Variant Template Presets for 1-click configuration
+ */
+export const CATEGORY_VARIANT_TEMPLATES: {
+  id: string;
+  name: string;
+  categoryKeyword: string;
+  attributes: {
+    name: string;
+    displayType: 'image' | 'button' | 'dropdown' | 'text' | 'swatch';
+    suggestedValues?: string[];
+  }[];
+}[] = [
+  {
+    id: 'tpl_clothing',
+    name: 'Clothing & Apparel (Color + Size)',
+    categoryKeyword: 'fashion',
+    attributes: [
+      { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Navy Blue', 'White', 'Maroon', 'Olive Green'] },
+      { name: 'Size', displayType: 'button', suggestedValues: ['S', 'M', 'L', 'XL', 'XXL'] }
+    ]
+  },
+  {
+    id: 'tpl_footwear',
+    name: 'Shoes & Footwear (Color + Size)',
+    categoryKeyword: 'shoes',
+    attributes: [
+      { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Brown', 'White', 'Navy Blue', 'Grey'] },
+      { name: 'Size', displayType: 'button', suggestedValues: ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'] }
+    ]
+  },
+  {
+    id: 'tpl_smartphones',
+    name: 'Smartphones (Color + RAM + Storage)',
+    categoryKeyword: 'mobile',
+    attributes: [
+      { name: 'Color', displayType: 'image', suggestedValues: ['Midnight Black', 'Starlight Silver', 'Deep Purple', 'Titanium Gray'] },
+      { name: 'RAM', displayType: 'button', suggestedValues: ['6GB', '8GB', '12GB'] },
+      { name: 'Storage', displayType: 'button', suggestedValues: ['128GB', '256GB', '512GB'] }
+    ]
+  },
+  {
+    id: 'tpl_laptops',
+    name: 'Laptops & PCs (Color + RAM + Storage)',
+    categoryKeyword: 'laptop',
+    attributes: [
+      { name: 'Color', displayType: 'button', suggestedValues: ['Space Gray', 'Silver', 'Black'] },
+      { name: 'RAM', displayType: 'button', suggestedValues: ['8GB', '16GB', '32GB'] },
+      { name: 'Storage', displayType: 'button', suggestedValues: ['512GB SSD', '1TB SSD', '2TB SSD'] }
+    ]
+  },
+  {
+    id: 'tpl_smartwatches',
+    name: 'Smartwatches (Color + Model / Size)',
+    categoryKeyword: 'watch',
+    attributes: [
+      { name: 'Color', displayType: 'image', suggestedValues: ['Active Black', 'Rose Gold', 'Silver Frost', 'Midnight Blue'] },
+      { name: 'Model', displayType: 'button', suggestedValues: ['40mm (Bluetooth)', '44mm (Bluetooth)', '44mm (LTE / Cellular)'] }
+    ]
+  },
+  {
+    id: 'tpl_audio',
+    name: 'Earbuds & Audio (Color + Model)',
+    categoryKeyword: 'audio',
+    attributes: [
+      { name: 'Color', displayType: 'image', suggestedValues: ['Phantom Black', 'Cloud White', 'Navy Blue'] },
+      { name: 'Model', displayType: 'button', suggestedValues: ['Standard Edition', 'Pro ANC Edition'] }
+    ]
+  },
+  {
+    id: 'tpl_skincare',
+    name: 'Skincare & Cosmetics (Size + Pack Size)',
+    categoryKeyword: 'beauty',
+    attributes: [
+      { name: 'Size', displayType: 'button', suggestedValues: ['50ml', '100ml', '200ml'] },
+      { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2 (Saver)', 'Pack of 3'] }
+    ]
+  },
+  {
+    id: 'tpl_grocery',
+    name: 'Food & Grocery (Weight + Pack Size)',
+    categoryKeyword: 'grocery',
+    attributes: [
+      { name: 'Weight', displayType: 'button', suggestedValues: ['250g', '500g', '1kg', '5kg'] },
+      { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2', 'Family Pack'] }
+    ]
+  },
+  {
+    id: 'tpl_furniture',
+    name: 'Furniture & Living (Color + Material + Size)',
+    categoryKeyword: 'furniture',
+    attributes: [
+      { name: 'Color', displayType: 'swatch', suggestedValues: ['Walnut Brown', 'Oak Natural', 'Matte Black', 'Cream'] },
+      { name: 'Material', displayType: 'button', suggestedValues: ['Solid Teak Wood', 'Sheesham Wood', 'Engineered Wood'] },
+      { name: 'Size', displayType: 'button', suggestedValues: ['Compact / Standard', 'Large / Queen', 'King Size'] }
+    ]
+  }
+];
+
+/**
+ * Checks for circular linking between two products in the catalog
+ */
+export function isCircularProductLink(
+  currentProductId: string | undefined,
+  targetProductId: string | undefined,
+  catalog: Product[] = []
+): boolean {
+  if (!currentProductId || !targetProductId) return false;
+  if (currentProductId === targetProductId) return true;
+
+  // Follow target product's linked products to see if it links back to currentProductId
+  const visited = new Set<string>([currentProductId]);
+  let queue: string[] = [targetProductId];
+
+  while (queue.length > 0) {
+    const nextId = queue.shift()!;
+    if (nextId === currentProductId) return true;
+    if (visited.has(nextId)) continue;
+    visited.add(nextId);
+
+    const targetProduct = catalog.find(p => p.id === nextId);
+    if (targetProduct) {
+      // Check variants and attribute values of targetProduct for links
+      const linkedIds = new Set<string>();
+      (targetProduct.variants || []).forEach(v => {
+        if (v.linkedProductId) linkedIds.add(v.linkedProductId);
+      });
+      (targetProduct.variantAttributesList || []).forEach(a => {
+        (a.values || []).forEach(val => {
+          if (val.linkedProductId) linkedIds.add(val.linkedProductId);
+        });
+      });
+
+      linkedIds.forEach(id => {
+        if (!visited.has(id)) queue.push(id);
+      });
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Validates SKU and Combination Key uniqueness across all variants of a product
+ */
+export function validateVariantMatrixUniqueness(variants: ProductVariant[]): {
+  isValid: boolean;
+  duplicateSkus: string[];
+  duplicateKeys: string[];
+} {
+  const seenSkus = new Set<string>();
+  const duplicateSkus: string[] = [];
+  const seenKeys = new Set<string>();
+  const duplicateKeys: string[] = [];
+
+  variants.forEach(v => {
+    if (v.disabled || v.isArchived) return;
+
+    // Check SKU uniqueness
+    if (v.sku && v.sku.trim()) {
+      const cleanSku = v.sku.trim().toUpperCase();
+      if (seenSkus.has(cleanSku)) {
+        duplicateSkus.push(cleanSku);
+      } else {
+        seenSkus.add(cleanSku);
+      }
+    }
+
+    // Check Combination Key uniqueness
+    const attrs = extractVariantAttributes(v);
+    const key = getCanonicalVariantKey(attrs);
+    if (key) {
+      if (seenKeys.has(key)) {
+        duplicateKeys.push(key);
+      } else {
+        seenKeys.add(key);
+      }
+    }
+  });
+
+  return {
+    isValid: duplicateSkus.length === 0 && duplicateKeys.length === 0,
+    duplicateSkus: Array.from(new Set(duplicateSkus)),
+    duplicateKeys: Array.from(new Set(duplicateKeys))
+  };
+}
+
+/**
  * Generates Cartesian Product of all configured variant attribute values.
  * Preserves custom price, MRP, images, SKU, stock, and disabled status from existing variants.
+ * Non-matched existing variants are safely preserved as archived instead of being lost.
  */
 export function generateVariantMatrix(
   attributes: VariantAttribute[],
@@ -192,7 +380,9 @@ export function generateVariantMatrix(
       valueId: val.id,
       valueName: normalizeAttributeVal(val.name),
       hex: val.hex,
-      image: val.image
+      image: val.image,
+      linkedProductId: val.linkedProductId,
+      linkedProductName: val.linkedProductName
     }));
   });
 
@@ -208,13 +398,12 @@ export function generateVariantMatrix(
 
   // Index existing variants by canonical combination key and ID
   const existingByCanonical = new Map<string, ProductVariant>();
-  const existingById = new Map<string, ProductVariant>();
+  const usedExistingIds = new Set<string>();
 
   if (Array.isArray(existingVariants)) {
     existingVariants.forEach(v => {
-      if (v.id) existingById.set(v.id, v);
       const attrs = extractVariantAttributes(v);
-      const key = getCanonicalVariantKey(attrs);
+      const key = v.combinationKey || getCanonicalVariantKey(attrs);
       if (key && !existingByCanonical.has(key)) {
         existingByCanonical.set(key, v);
       }
@@ -249,12 +438,17 @@ export function generateVariantMatrix(
     const comboTitle = getVariantCombinationTitle(attrsRecord);
 
     if (existing) {
-      // Preserve existing customizations, but ensure attributes map and name are updated
+      usedExistingIds.add(existing.id);
+      // Preserve existing customizations, but ensure combinationKey & attributes map are synchronized
       return {
         ...existing,
+        productId: baseProduct?.id || existing.productId,
         name: existing.name || comboTitle,
         attributes: attrsRecord,
         attributeValues: attrsRecord,
+        combinationKey: canonicalKey,
+        isArchived: false,
+        status: existing.disabled ? 'disabled' : (existing.stock > 0 ? 'active' : 'out_of_stock'),
         colorHex: existing.colorHex || matchedHex,
         linkedProductId: existing.linkedProductId || matchedLinkedProductId,
         linkedProductName: existing.linkedProductName || matchedLinkedProductName,
@@ -276,9 +470,11 @@ export function generateVariantMatrix(
 
     return {
       id: variantId,
+      productId: baseProduct?.id,
       name: comboTitle,
       attributes: attrsRecord,
       attributeValues: attrsRecord,
+      combinationKey: canonicalKey,
       sku: variantSku,
       price: basePrice,
       mrp: baseMrp,
@@ -289,6 +485,7 @@ export function generateVariantMatrix(
       inStock: true,
       status: 'active',
       disabled: false,
+      isArchived: false,
       image: variantImg,
       images: variantImg ? [variantImg] : [],
       colorHex: matchedHex,
@@ -304,6 +501,20 @@ export function generateVariantMatrix(
       model: attrsRecord['Model'] || '',
     };
   });
+
+  // Safe regeneration: Preserve any previous variants not in the new combination set as archived
+  if (Array.isArray(existingVariants)) {
+    const unreferencedVariants = existingVariants
+      .filter(v => !usedExistingIds.has(v.id))
+      .map(v => ({
+        ...v,
+        isArchived: true,
+        disabled: true,
+        status: 'archived' as const
+      }));
+
+    return [...generatedVariants, ...unreferencedVariants];
+  }
 
   return generatedVariants;
 }
