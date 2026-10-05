@@ -160,6 +160,8 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       sizeChart: '',
       sizes: [],
       specifications: [],
+      variantSpecifications: {},
+      specificationsByVariant: {},
       sizeSpecifications: {},
       specificationsBySize: {},
       features: [],
@@ -188,6 +190,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
     };
     if (product) {
       const derivedAttrs = getProductVariantAttributes(product);
+      const initialVariantSpecs = product.variantSpecifications || product.specificationsByVariant || product.sizeSpecifications || product.specificationsBySize || {};
       return {
         ...defaults,
         ...product,
@@ -210,8 +213,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         variantAttributesList: product.variantAttributesList || derivedAttrs,
         variantAttributes: product.variantAttributes || ['color', 'size'],
         specifications: product.specifications || [],
-        sizeSpecifications: product.sizeSpecifications || product.specificationsBySize || {},
-        specificationsBySize: product.specificationsBySize || product.sizeSpecifications || {},
+        variantSpecifications: initialVariantSpecs,
+        specificationsByVariant: initialVariantSpecs,
+        sizeSpecifications: product.sizeSpecifications || product.specificationsBySize || initialVariantSpecs,
+        specificationsBySize: product.specificationsBySize || product.sizeSpecifications || initialVariantSpecs,
         categoryId: product.categoryId || '',
         subCategoryId: product.subCategoryId || '',
         nestedSubCategoryId: product.nestedSubCategoryId || '',
@@ -309,78 +314,107 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
-  const [activeSpecSizeTab, setActiveSpecSizeTab] = useState<string>('default');
+  const [selectedAttributeFilter, setSelectedAttributeFilter] = useState<string>('all');
+  const [activeSpecTargetKey, setActiveSpecTargetKey] = useState<string>('default');
 
   const availableSizes = extractProductSizes(formData);
+  const dynamicVariantAttrs = getProductVariantAttributes(formData);
+  const activeProductVariants = (formData.variants || []).filter((v: any) => !v.disabled && v.status !== 'disabled');
+
+  // Build a list of attribute groups (e.g. Storage: ["128GB", "256GB"], RAM: ["8GB", "16GB"], Size: ["M", "L", "XL"])
+  const configurableAttributeGroups: { attributeName: string; values: string[] }[] = [];
+
+  dynamicVariantAttrs.forEach(attr => {
+    const vals = (attr.values || []).map(v => (v.name || v.value || '').trim()).filter(Boolean);
+    if (vals.length > 0) {
+      configurableAttributeGroups.push({
+        attributeName: attr.name,
+        values: Array.from(new Set(vals))
+      });
+    }
+  });
+
+  if (configurableAttributeGroups.length === 0 && availableSizes.length > 0) {
+    configurableAttributeGroups.push({
+      attributeName: 'Size',
+      values: availableSizes
+    });
+  }
 
   // Helper to get currently active specs list depending on active tab
   const getActiveTabSpecs = (): { key: string; value: string }[] => {
-    if (activeSpecSizeTab === 'default') {
+    if (activeSpecTargetKey === 'default') {
       return formData.specifications || [];
     }
-    const sizeSpecsMap = formData.sizeSpecifications || formData.specificationsBySize || {};
-    return sizeSpecsMap[activeSpecSizeTab] || [];
+    const specMaps = formData.variantSpecifications || formData.specificationsByVariant || formData.sizeSpecifications || formData.specificationsBySize || {};
+    return specMaps[activeSpecTargetKey] || [];
   };
 
   // Helper to update currently active specs list
   const updateActiveTabSpecs = (newSpecs: { key: string; value: string }[]) => {
-    if (activeSpecSizeTab === 'default') {
+    if (activeSpecTargetKey === 'default') {
       setFormData(prev => ({
         ...prev,
         specifications: newSpecs
       }));
     } else {
       setFormData(prev => {
-        const nextSizeSpecs = {
-          ...(prev.sizeSpecifications || prev.specificationsBySize || {}),
-          [activeSpecSizeTab]: newSpecs
+        const nextVariantSpecs = {
+          ...(prev.variantSpecifications || prev.specificationsByVariant || prev.sizeSpecifications || prev.specificationsBySize || {}),
+          [activeSpecTargetKey]: newSpecs
         };
         return {
           ...prev,
-          sizeSpecifications: nextSizeSpecs,
-          specificationsBySize: nextSizeSpecs
+          variantSpecifications: nextVariantSpecs,
+          specificationsByVariant: nextVariantSpecs,
+          sizeSpecifications: nextVariantSpecs,
+          specificationsBySize: nextVariantSpecs
         };
       });
     }
   };
 
-  const isSizeUsingDefault = (size: string): boolean => {
-    const sizeSpecsMap = formData.sizeSpecifications || formData.specificationsBySize || {};
-    return !sizeSpecsMap[size] || sizeSpecsMap[size].length === 0;
+  const isTargetUsingDefault = (key: string): boolean => {
+    const specMaps = formData.variantSpecifications || formData.specificationsByVariant || formData.sizeSpecifications || formData.specificationsBySize || {};
+    return !specMaps[key] || specMaps[key].length === 0;
   };
 
-  const copyDefaultSpecsToSize = (targetSize?: string) => {
-    const target = targetSize || activeSpecSizeTab;
+  const copyDefaultSpecsToTarget = (targetKey?: string) => {
+    const target = targetKey || activeSpecTargetKey;
     if (target === 'default') return;
     const defaultSpecs = formData.specifications || [];
     const cloned = defaultSpecs.map(s => ({ key: s.key, value: s.value }));
     setFormData(prev => {
-      const nextSizeSpecs = {
-        ...(prev.sizeSpecifications || prev.specificationsBySize || {}),
+      const nextVariantSpecs = {
+        ...(prev.variantSpecifications || prev.specificationsByVariant || prev.sizeSpecifications || prev.specificationsBySize || {}),
         [target]: cloned
       };
       return {
         ...prev,
-        sizeSpecifications: nextSizeSpecs,
-        specificationsBySize: nextSizeSpecs
+        variantSpecifications: nextVariantSpecs,
+        specificationsByVariant: nextVariantSpecs,
+        sizeSpecifications: nextVariantSpecs,
+        specificationsBySize: nextVariantSpecs
       };
     });
-    toast.success(`Copied ${cloned.length} default specifications to size ${target}`);
+    toast.success(`Copied ${cloned.length} default specifications to "${target}"`);
   };
 
-  const clearSizeSpecs = (targetSize?: string) => {
-    const target = targetSize || activeSpecSizeTab;
+  const clearTargetSpecs = (targetKey?: string) => {
+    const target = targetKey || activeSpecTargetKey;
     if (target === 'default') return;
     setFormData(prev => {
-      const nextSizeSpecs = { ...(prev.sizeSpecifications || prev.specificationsBySize || {}) };
-      delete nextSizeSpecs[target];
+      const nextVariantSpecs = { ...(prev.variantSpecifications || prev.specificationsByVariant || prev.sizeSpecifications || prev.specificationsBySize || {}) };
+      delete nextVariantSpecs[target];
       return {
         ...prev,
-        sizeSpecifications: nextSizeSpecs,
-        specificationsBySize: nextSizeSpecs
+        variantSpecifications: nextVariantSpecs,
+        specificationsByVariant: nextVariantSpecs,
+        sizeSpecifications: nextVariantSpecs,
+        specificationsBySize: nextVariantSpecs
       };
     });
-    toast.success(`Reverted size ${target} to use Default Specifications`);
+    toast.success(`Reverted "${target}" to use Default Specifications`);
   };
 
   // Universal helper to apply a list of specifications (from a product or a preset)
@@ -411,7 +445,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
     updateActiveTabSpecs(clonedSpecs);
 
-    toast.success(`Applied ${clonedSpecs.length} specifications to ${activeSpecSizeTab === 'default' ? 'default specifications' : `size ${activeSpecSizeTab}`} from "${sourceTitle}"`);
+    toast.success(`Applied ${clonedSpecs.length} specifications to ${activeSpecTargetKey === 'default' ? 'default specifications' : `variant "${activeSpecTargetKey}"`} from "${sourceTitle}"`);
     setShowShareSpecsModal(false);
     setSelectedSourceProduct(null);
     setSelectedSourcePreset(null);
@@ -597,27 +631,24 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
         .filter(s => s.key.length > 0);
 
-      // Clean size-specific specifications for valid product sizes
+      // Clean variant-specific specifications for valid product attributes/variants
       const currentSizes = extractProductSizes(formData);
-      const rawSizeSpecs = formData.sizeSpecifications || formData.specificationsBySize || {};
-      const cleanedSizeSpecs: Record<string, { key: string; value: string }[]> = {};
+      const rawVariantSpecs = formData.variantSpecifications || formData.specificationsByVariant || formData.sizeSpecifications || formData.specificationsBySize || {};
+      const cleanedVariantSpecs: Record<string, { key: string; value: string }[]> = {};
 
-      Object.entries(rawSizeSpecs).forEach(([sizeKey, specs]) => {
-        const trimmedSize = sizeKey.trim();
-        if (trimmedSize && Array.isArray(specs)) {
-          const isValidSize = currentSizes.length === 0 || currentSizes.some(s => s.toLowerCase() === trimmedSize.toLowerCase());
-          if (isValidSize) {
-            const cleanedList = specs
-              .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
-              .filter(s => s.key.length > 0);
-            if (cleanedList.length > 0) {
-              cleanedSizeSpecs[trimmedSize] = cleanedList;
-            }
+      Object.entries(rawVariantSpecs).forEach(([specKey, specs]) => {
+        const trimmedKey = specKey.trim();
+        if (trimmedKey && Array.isArray(specs)) {
+          const cleanedList = specs
+            .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+            .filter(s => s.key.length > 0);
+          if (cleanedList.length > 0) {
+            cleanedVariantSpecs[trimmedKey] = cleanedList;
           }
         }
       });
 
-      const hasSizeSpecs = Object.keys(cleanedSizeSpecs).length > 0;
+      const hasVariantSpecs = Object.keys(cleanedVariantSpecs).length > 0;
 
       // Auto calculate product total stock from active variants if variants exist
       const activeVars = (finalizedVariants || []).filter((v: any) => !v.disabled && v.status !== 'disabled');
@@ -628,8 +659,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const rawData = {
         ...formData,
         specifications: cleanedSpecs,
-        sizeSpecifications: hasSizeSpecs ? cleanedSizeSpecs : null,
-        specificationsBySize: hasSizeSpecs ? cleanedSizeSpecs : null,
+        variantSpecifications: hasVariantSpecs ? cleanedVariantSpecs : null,
+        specificationsByVariant: hasVariantSpecs ? cleanedVariantSpecs : null,
+        sizeSpecifications: hasVariantSpecs ? cleanedVariantSpecs : null,
+        specificationsBySize: hasVariantSpecs ? cleanedVariantSpecs : null,
         sizes: currentSizes.length > 0 ? currentSizes : (formData.sizes || null),
         id: pid,
         productCode: finalProductCode,
@@ -1091,97 +1124,139 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               </div>
             </div>
 
-            {/* Size Selector Tabs for Size-Specific Specifications */}
-            {availableSizes.length > 0 && (
-              <div className="space-y-3 bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-100">
+            {/* Universal Variant / Attribute Selector Tabs */}
+            {configurableAttributeGroups.length > 0 && (
+              <div className="space-y-4 bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-100">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <Layers className="w-4 h-4 text-gray-500" />
                     <span className="text-xs font-black uppercase tracking-wider text-gray-700">
-                      Configure Specifications by Size
+                      Configure Specifications by Variant / Attribute
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-gray-400">
-                    {availableSizes.length} product {availableSizes.length === 1 ? 'size' : 'sizes'} available
+                    {configurableAttributeGroups.map(g => `${g.values.length} ${g.attributeName}`).join(' • ')}
                   </span>
                 </div>
 
+                {/* If multiple attributes exist, allow filtering by attribute type */}
+                {configurableAttributeGroups.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAttributeFilter('all')}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                        selectedAttributeFilter === 'all'
+                          ? 'bg-gray-800 text-white shadow-xs'
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      All Attributes
+                    </button>
+                    {configurableAttributeGroups.map(g => (
+                      <button
+                        key={g.attributeName}
+                        type="button"
+                        onClick={() => setSelectedAttributeFilter(g.attributeName)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                          selectedAttributeFilter === g.attributeName
+                            ? 'bg-emerald-700 text-white shadow-xs'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {g.attributeName} ({g.values.length})
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Value Selector Pills */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => setActiveSpecSizeTab('default')}
+                    onClick={() => setActiveSpecTargetKey('default')}
                     className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                      activeSpecSizeTab === 'default'
+                      activeSpecTargetKey === 'default'
                         ? 'bg-gray-900 text-white shadow-sm'
                         : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
                     }`}
                   >
-                    <span>Default / Shared</span>
+                    <span>🌐 Default / Shared</span>
                     <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
-                      activeSpecSizeTab === 'default' ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600'
+                      activeSpecTargetKey === 'default' ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600'
                     }`}>
                       {(formData.specifications || []).length}
                     </span>
                   </button>
 
-                  {availableSizes.map(size => {
-                    const customCount = (formData.sizeSpecifications?.[size] || formData.specificationsBySize?.[size] || []).length;
-                    const isCustom = customCount > 0;
-                    const isSelected = activeSpecSizeTab === size;
+                  {configurableAttributeGroups
+                    .filter(g => selectedAttributeFilter === 'all' || selectedAttributeFilter === g.attributeName)
+                    .flatMap(g => g.values.map(val => ({ attrName: g.attributeName, val })))
+                    .map(({ attrName, val }) => {
+                      const customCount = (
+                        formData.variantSpecifications?.[val] ||
+                        formData.variantSpecifications?.[`${attrName}:${val}`] ||
+                        formData.specificationsByVariant?.[val] ||
+                        formData.sizeSpecifications?.[val] ||
+                        formData.specificationsBySize?.[val] ||
+                        []
+                      ).length;
+                      const isCustom = customCount > 0;
+                      const isSelected = activeSpecTargetKey === val;
 
-                    return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => setActiveSpecSizeTab(size)}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : isCustom
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        <span>Size: {size}</span>
-                        {isCustom ? (
-                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
-                            isSelected ? 'bg-emerald-800 text-white' : 'bg-emerald-200 text-emerald-900'
-                          }`}>
-                            {customCount} custom
-                          </span>
-                        ) : (
-                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
-                            isSelected ? 'bg-emerald-700 text-emerald-100' : 'bg-gray-100 text-gray-400'
-                          }`}>
-                            Default
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                      return (
+                        <button
+                          key={`${attrName}_${val}`}
+                          type="button"
+                          onClick={() => setActiveSpecTargetKey(val)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : isCustom
+                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span>{configurableAttributeGroups.length > 1 ? `${attrName}: ` : ''}{val}</span>
+                          {isCustom ? (
+                            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
+                              isSelected ? 'bg-emerald-800 text-white' : 'bg-emerald-200 text-emerald-900'
+                            }`}>
+                              {customCount} custom
+                            </span>
+                          ) : (
+                            <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
+                              isSelected ? 'bg-emerald-700 text-emerald-100' : 'bg-gray-100 text-gray-400'
+                            }`}>
+                              Default
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                 </div>
 
-                {/* Info banner for currently active size */}
-                {activeSpecSizeTab !== 'default' && (
+                {/* Info banner for currently active variant target */}
+                {activeSpecTargetKey !== 'default' && (
                   <div className="pt-2 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                     <div>
-                      {isSizeUsingDefault(activeSpecSizeTab) ? (
+                      {isTargetUsingDefault(activeSpecTargetKey) ? (
                         <p className="text-gray-500 font-medium">
-                          Size <strong className="text-gray-900 font-extrabold">{activeSpecSizeTab}</strong> is currently using <strong className="text-gray-900">Default Specifications</strong> ({(formData.specifications || []).length} attributes).
+                          Variant <strong className="text-gray-900 font-extrabold">{activeSpecTargetKey}</strong> is currently using <strong className="text-gray-900">Default Specifications</strong> ({(formData.specifications || []).length} attributes).
                         </p>
                       ) : (
                         <p className="text-emerald-800 font-bold flex items-center gap-1.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          Configuring custom specifications for Size <strong className="font-extrabold">{activeSpecSizeTab}</strong> ({getActiveTabSpecs().length} attributes).
+                          Configuring custom specifications for <strong className="font-extrabold">{activeSpecTargetKey}</strong> ({getActiveTabSpecs().length} attributes).
                         </p>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {isSizeUsingDefault(activeSpecSizeTab) ? (
+                      {isTargetUsingDefault(activeSpecTargetKey) ? (
                         <button
                           type="button"
-                          onClick={() => copyDefaultSpecsToSize(activeSpecSizeTab)}
+                          onClick={() => copyDefaultSpecsToTarget(activeSpecTargetKey)}
                           className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs"
                         >
                           <Copy className="w-3 h-3" /> Copy Default Specs
@@ -1190,7 +1265,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                         <>
                           <button
                             type="button"
-                            onClick={() => copyDefaultSpecsToSize(activeSpecSizeTab)}
+                            onClick={() => copyDefaultSpecsToTarget(activeSpecTargetKey)}
                             className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
                             title="Overwrite with default specifications"
                           >
@@ -1198,7 +1273,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                           </button>
                           <button
                             type="button"
-                            onClick={() => clearSizeSpecs(activeSpecSizeTab)}
+                            onClick={() => clearTargetSpecs(activeSpecTargetKey)}
                             className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3" /> Revert to Default
@@ -1214,7 +1289,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             {/* Quick Template Buttons */}
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
-                Quick Category Attributes {activeSpecSizeTab !== 'default' ? `(Size: ${activeSpecSizeTab})` : ''}
+                Quick Category Attributes {activeSpecTargetKey !== 'default' ? `(Target: ${activeSpecTargetKey})` : ''}
               </span>
               <div className="flex flex-wrap gap-2">
                 {['Brand', 'Model', 'Material', 'Color', 'Size', 'Chest', 'Length', 'Sleeve', 'Waist', 'Dimensions', 'Weight', 'Capacity', 'Warranty'].map(tpl => (
@@ -1280,10 +1355,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
               {getActiveTabSpecs().length === 0 && (
                 <div className="py-8 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[28px] space-y-2">
-                  {activeSpecSizeTab !== 'default' ? (
+                  {activeSpecTargetKey !== 'default' ? (
                     <div>
-                      <p>Size <strong className="text-gray-700">{activeSpecSizeTab}</strong> is currently using Default Specifications.</p>
-                      <p className="text-xs font-normal text-gray-400 mt-1">Click "Copy Default Specs" above or "Add Field" to define custom specifications for this size.</p>
+                      <p>Variant <strong className="text-gray-700">{activeSpecTargetKey}</strong> is currently using Default Specifications.</p>
+                      <p className="text-xs font-normal text-gray-400 mt-1">Click "Copy Default Specs" above or "Add Field" to define custom specifications for this variant.</p>
                     </div>
                   ) : (
                     <p>No specification fields added. Use Quick Category Attributes above, Reuse Specifications, or click Add Field.</p>

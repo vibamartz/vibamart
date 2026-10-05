@@ -18,7 +18,7 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
-import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix, getProductSpecificationsForSize } from '../../shared/utilities/variantMatrixUtils';
+import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix, getProductSpecificationsForSelection, getProductSpecificationsForSize } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
@@ -401,19 +401,13 @@ export default function MobileProductDetailScreen() {
   const activeImageSrc = images[activeImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
 
-  // Resolve selected size from selectedAttributes, selectedVariant, or product default
-  const selectedSize = selectedAttributes['Size'] ||
-    selectedAttributes['size'] ||
-    selectedAttributes['Shoe Size'] ||
-    selectedAttributes['shoe size'] ||
-    Object.entries(selectedAttributes).find(([k]) => k.toLowerCase().includes('size'))?.[1] ||
-    selectedVariant?.size ||
-    selectedVariant?.shoeSize ||
-    product.size ||
-    '';
-
-  // Resolve specifications: size-specific if available for selected size, otherwise default
-  const rawSpecs = getProductSpecificationsForSize(product, selectedSize);
+  // Resolve specifications: universal variant/attribute-specific if available, otherwise default
+  const rawSpecs = getProductSpecificationsForSelection(
+    product,
+    selectedAttributes,
+    selectedVariant?.id || selectedVariantId,
+    selectedVariant
+  );
 
   // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
@@ -431,10 +425,17 @@ export default function MobileProductDetailScreen() {
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color });
   }
-  if (selectedSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-    specsList.push({ key: 'Size', value: selectedSize });
-  } else if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-    specsList.push({ key: 'Size', value: product.size });
+  if (selectedAttributes) {
+    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
+      if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
+        specsList.push({ key: attrKey, value: String(attrVal) });
+      }
+    });
+  } else {
+    const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
+    if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+      specsList.push({ key: 'Size', value: String(currentSize) });
+    }
   }
 
   // Manufacturer Details

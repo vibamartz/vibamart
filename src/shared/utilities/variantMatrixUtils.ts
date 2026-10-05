@@ -1038,6 +1038,111 @@ export function extractProductSizes(product: Partial<Product> | null | undefined
 }
 
 /**
+ * Resolves active specifications for ANY product given selected attributes or variant, with universal fallback to default specifications
+ */
+export function getProductSpecificationsForSelection(
+  product: Partial<Product> | null | undefined,
+  selectedAttributes?: Record<string, string> | null,
+  selectedVariantId?: string | null,
+  selectedVariant?: ProductVariant | null
+): { key: string; value: string }[] {
+  if (!product) return [];
+
+  const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
+  const specMaps = [
+    product.variantSpecifications,
+    product.specificationsByVariant,
+    product.sizeSpecifications,
+    product.specificationsBySize
+  ].filter(Boolean) as Record<string, { key: string; value: string }[]>[];
+
+  if (specMaps.length === 0) {
+    return defaultSpecs;
+  }
+
+  // Helper to lookup a key across all spec maps
+  const findInMaps = (lookupKey: string | undefined | null): { key: string; value: string }[] | null => {
+    if (!lookupKey) return null;
+    const cleanKey = lookupKey.trim();
+    if (!cleanKey) return null;
+    const cleanLower = cleanKey.toLowerCase();
+
+    for (const map of specMaps) {
+      if (typeof map !== 'object') continue;
+      // 1. Direct exact match
+      if (Array.isArray(map[cleanKey]) && map[cleanKey].length > 0) {
+        return map[cleanKey];
+      }
+      // 2. Case-insensitive match
+      const matchingKey = Object.keys(map).find(
+        k => k.trim().toLowerCase() === cleanLower
+      );
+      if (matchingKey && Array.isArray(map[matchingKey]) && map[matchingKey].length > 0) {
+        return map[matchingKey];
+      }
+    }
+    return null;
+  };
+
+  // 1. Look up by exact Variant ID
+  if (selectedVariantId) {
+    const byId = findInMaps(selectedVariantId);
+    if (byId) return byId;
+  }
+  if (selectedVariant?.id) {
+    const byId = findInMaps(selectedVariant.id);
+    if (byId) return byId;
+  }
+
+  // 2. Look up by Combination Key (e.g. "color:black|storage:128gb")
+  if (selectedVariant?.combinationKey) {
+    const byCombo = findInMaps(selectedVariant.combinationKey);
+    if (byCombo) return byCombo;
+  }
+  if (selectedAttributes) {
+    const canonicalKey = getCanonicalVariantKey(selectedAttributes);
+    if (canonicalKey) {
+      const byCanonical = findInMaps(canonicalKey);
+      if (byCanonical) return byCanonical;
+    }
+  }
+
+  // 3. Look up by Variant Combination Display Name (e.g. "Black / 128GB" or "128GB")
+  if (selectedVariant?.name) {
+    const byName = findInMaps(selectedVariant.name);
+    if (byName) return byName;
+  }
+
+  // 4. Look up by individual selected attribute values (e.g. "128GB", "256GB", "1kg", "XL", "Cotton")
+  if (selectedAttributes && typeof selectedAttributes === 'object') {
+    for (const [attrName, attrVal] of Object.entries(selectedAttributes)) {
+      if (!attrVal) continue;
+      // Look up by raw value (e.g. "256GB" or "XL")
+      const byVal = findInMaps(attrVal);
+      if (byVal) return byVal;
+
+      // Look up by "Attribute:Value" (e.g. "Storage:256GB" or "Size:XL")
+      const byAttrVal = findInMaps(`${attrName}:${attrVal}`);
+      if (byAttrVal) return byAttrVal;
+    }
+  }
+
+  // 5. Look up by legacy variant properties (size, shoeSize, storage, ram, capacity, weight, etc.)
+  if (selectedVariant) {
+    const variantAttrs = extractVariantAttributes(selectedVariant);
+    for (const [attrName, attrVal] of Object.entries(variantAttrs)) {
+      if (!attrVal) continue;
+      const byVal = findInMaps(attrVal);
+      if (byVal) return byVal;
+      const byAttrVal = findInMaps(`${attrName}:${attrVal}`);
+      if (byAttrVal) return byAttrVal;
+    }
+  }
+
+  return defaultSpecs;
+}
+
+/**
  * Resolves active specifications for a product given a selected size, with fallback to default specifications
  */
 export function getProductSpecificationsForSize(
@@ -1045,26 +1150,11 @@ export function getProductSpecificationsForSize(
   selectedSize?: string | null
 ): { key: string; value: string }[] {
   if (!product) return [];
-
-  const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
-  const sizeSpecsMap = product.sizeSpecifications || product.specificationsBySize;
-
-  if (selectedSize && sizeSpecsMap && typeof sizeSpecsMap === 'object') {
-    const cleanSize = selectedSize.trim();
-    // 1. Direct exact match
-    if (Array.isArray(sizeSpecsMap[cleanSize]) && sizeSpecsMap[cleanSize].length > 0) {
-      return sizeSpecsMap[cleanSize];
-    }
-    // 2. Case-insensitive / trimmed match
-    const matchingKey = Object.keys(sizeSpecsMap).find(
-      k => k.trim().toLowerCase() === cleanSize.toLowerCase()
-    );
-    if (matchingKey && Array.isArray(sizeSpecsMap[matchingKey]) && sizeSpecsMap[matchingKey].length > 0) {
-      return sizeSpecsMap[matchingKey];
-    }
+  if (selectedSize) {
+    return getProductSpecificationsForSelection(product, { Size: selectedSize });
   }
-
-  return defaultSpecs;
+  return Array.isArray(product.specifications) ? product.specifications : [];
 }
+
 
 

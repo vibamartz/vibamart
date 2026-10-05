@@ -12,7 +12,8 @@ import {
   getProductVariantAttributes,
   normalizeAttributeKey,
   fetchFamilyColorMatrix,
-  getProductSpecificationsForSize
+  getProductSpecificationsForSize,
+  getProductSpecificationsForSelection
 } from '../../shared/utilities/variantMatrixUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
@@ -366,19 +367,13 @@ export default function ProductDetail() {
   const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
   const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
 
-  // Resolve selected size from selectedAttributes, currentVariant, or product default
-  const selectedSize = selectedAttributes['Size'] ||
-    selectedAttributes['size'] ||
-    selectedAttributes['Shoe Size'] ||
-    selectedAttributes['shoe size'] ||
-    Object.entries(selectedAttributes).find(([k]) => k.toLowerCase().includes('size'))?.[1] ||
-    currentVariant?.size ||
-    currentVariant?.shoeSize ||
-    product.size ||
-    '';
-
-  // Resolve specifications: size-specific if available for selected size, otherwise default
-  const rawSpecs = getProductSpecificationsForSize(product, selectedSize);
+  // Resolve specifications: universal variant-specific if available for selected attributes/variant, otherwise default
+  const rawSpecs = getProductSpecificationsForSelection(
+    product,
+    selectedAttributes,
+    currentVariant?.id || selectedVariant,
+    currentVariant
+  );
 
   // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
@@ -390,17 +385,24 @@ export default function ProductDetail() {
     });
   }
 
-  // Fallback specs from top-level fields if not in specsList
+  // Fallback specs from top-level fields / selected attributes if not in specsList
   if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
     specsList.unshift({ key: 'Brand', value: product.brand });
   }
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color });
   }
-  if (selectedSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-    specsList.push({ key: 'Size', value: selectedSize });
-  } else if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-    specsList.push({ key: 'Size', value: product.size });
+  if (selectedAttributes) {
+    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
+      if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
+        specsList.push({ key: attrKey, value: String(attrVal) });
+      }
+    });
+  } else {
+    const currentSize = currentVariant?.size || currentVariant?.shoeSize || product.size;
+    if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+      specsList.push({ key: 'Size', value: String(currentSize) });
+    }
   }
 
   // Manufacturer Details

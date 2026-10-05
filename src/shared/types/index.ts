@@ -97,6 +97,8 @@ export interface Product {
   sizeChart?: string; // Size Chart image URL or matrix
   variantAttributes?: string[]; // Enabled variant attribute types e.g. ['color', 'size', 'ram', 'storage', 'shade', 'material', 'volume', 'model']
   specifications?: { key: string; value: string }[];
+  variantSpecifications?: Record<string, { key: string; value: string }[]>; // Universal: keyed by attribute value (e.g. '128GB', 'M', '1kg'), combinationKey, or variantId
+  specificationsByVariant?: Record<string, { key: string; value: string }[]>; // Alias for variantSpecifications
   sizeSpecifications?: Record<string, { key: string; value: string }[]>; // Size-specific specifications (e.g. { 'M': [{ key: 'Chest', value: '40' }] })
   specificationsBySize?: Record<string, { key: string; value: string }[]>; // Alias for sizeSpecifications
   taxInclusive?: boolean;
