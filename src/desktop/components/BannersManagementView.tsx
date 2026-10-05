@@ -990,7 +990,7 @@ export default function BannersManagementView() {
                             {rewardOffers && rewardOffers.length > 0 ? (
                               rewardOffers.map(offer => (
                                 <option key={offer.id} value={getRewardSlug(offer)}>
-                                  🎁 {offer.title || offer.brand || offer.id}
+                                  🎁 {offer.title || offer.brandName || offer.id}
                                 </option>
                               ))
                             ) : (

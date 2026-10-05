@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { LocationAvailabilityRule } from '../../shared/types';
-import { 
-  getStates, 
-  getDistricts, 
-  getPincodes 
+import {
+  getStates,
+  getDistricts,
+  getPincodes
 } from '../../shared/utilities/indiaLocations';
 import { validateNewLocationRule } from '../../shared/utilities/locationAvailability';
 import { MapPin, Plus, Trash2, CheckCircle2, Globe, ToggleLeft, ToggleRight, X, ShieldCheck } from 'lucide-react';
@@ -144,7 +144,7 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
 
   return (
     <div className="space-y-6 bg-white rounded-3xl p-4 sm:p-7 border border-gray-200/80 shadow-xs w-full max-w-full overflow-hidden">
-      
+
       {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
         <div>
@@ -218,11 +218,10 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                     setSelectedDistrict(dists[0] || '');
                   }
                 }}
-                className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                  scopeType === opt.id
+                className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${scopeType === opt.id
                     ? 'border-emerald-600 bg-white ring-2 ring-emerald-600/20 shadow-xs text-emerald-900'
                     : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
-                }`}
+                  }`}
               >
                 <span className={`text-xs font-black block ${scopeType === opt.id ? 'text-emerald-700' : 'text-gray-900'}`}>
                   {opt.label}
@@ -237,7 +236,7 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
 
         {/* STEP 2: LOCATION DROPDOWNS (STATE → DISTRICT) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          
+
           {/* STATE */}
           <div>
             <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block mb-1">
@@ -277,7 +276,7 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
         {/* STEP 3: PIN CODE MANAGEMENT SECTION */}
         {(scopeType === 'district_pincodes' || scopeType === 'pincode') && (
           <div className="space-y-4 pt-4 border-t border-gray-200/80">
-            
+
             {/* PIN CODE LIST HEADER & TOP "SELECT ALL" BUTTON */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-100">
               <div>
@@ -286,7 +285,7 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                   PIN Codes for {selectedDistrict || selectedState}
                 </h4>
                 <p className="text-[11px] font-bold text-gray-600 mt-0.5">
-                  {availablePincodes.length > 0 
+                  {availablePincodes.length > 0
                     ? `${availablePincodes.length} PIN codes found in ${selectedDistrict}. (${selectedPincodes.length} selected)`
                     : 'Select a district above or add custom PIN codes below.'}
                 </p>
@@ -297,11 +296,10 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                   <button
                     type="button"
                     onClick={handleToggleSelectAll}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-2xs ${
-                      isAllSelected
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-2xs ${isAllSelected
                         ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                         : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                    }`}
+                      }`}
                   >
                     {isAllSelected ? (
                       <>
@@ -343,16 +341,14 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                         key={pin}
                         type="button"
                         onClick={() => handleTogglePincode(pin)}
-                        className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all border flex items-center justify-between gap-1.5 ${
-                          isSelected
+                        className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all border flex items-center justify-between gap-1.5 ${isSelected
                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
                             : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/30'
-                        }`}
+                          }`}
                       >
                         <span>{pin}</span>
-                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${
-                          isSelected ? 'bg-white text-emerald-700 font-black' : 'border border-gray-300 text-transparent'
-                        }`}>
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] shrink-0 ${isSelected ? 'bg-white text-emerald-700 font-black' : 'border border-gray-300 text-transparent'
+                          }`}>
                           ✓
                         </span>
                       </button>
@@ -455,11 +451,10 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
               return (
                 <div
                   key={rule.id}
-                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    isEnabled
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isEnabled
                       ? 'bg-white border-emerald-200/90 shadow-2xs'
                       : 'bg-gray-50 border-gray-200 opacity-60'
-                  }`}
+                    }`}
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -482,11 +477,10 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                     <button
                       type="button"
                       onClick={() => handleToggleRuleEnabled(rule.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase transition-all ${
-                        isEnabled
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase transition-all ${isEnabled
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-gray-200 text-gray-600 border border-gray-300'
-                      }`}
+                        }`}
                     >
                       {isEnabled ? <ToggleRight className="w-4 h-4 text-emerald-600" /> : <ToggleLeft className="w-4 h-4 text-gray-400" />}
                       {isEnabled ? 'Active' : 'Disabled'}
