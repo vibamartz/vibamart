@@ -408,7 +408,12 @@ export default function Home() {
                 key={banner.id || i}
                 onClick={() => {
                   if (banner.link) {
-                    navigate(banner.link);
+                    if (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.')) {
+                      const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } else {
+                      navigate(banner.link);
+                    }
                   } else {
                     navigate('/products');
                   }
