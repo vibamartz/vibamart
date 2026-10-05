@@ -93,9 +93,12 @@ export interface Product {
   features?: string[];
   color?: string; // Common color if no variants or default
   size?: string; // Common size if no variants or default
+  sizes?: string[]; // Available sizes for this product
   sizeChart?: string; // Size Chart image URL or matrix
   variantAttributes?: string[]; // Enabled variant attribute types e.g. ['color', 'size', 'ram', 'storage', 'shade', 'material', 'volume', 'model']
   specifications?: { key: string; value: string }[];
+  sizeSpecifications?: Record<string, { key: string; value: string }[]>; // Size-specific specifications (e.g. { 'M': [{ key: 'Chest', value: '40' }] })
+  specificationsBySize?: Record<string, { key: string; value: string }[]>; // Alias for sizeSpecifications
   taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
   availabilityRules?: LocationAvailabilityRule[]; // Configured location availability rules (State, City, District, PIN Codes)

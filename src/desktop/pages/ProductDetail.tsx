@@ -11,7 +11,8 @@ import {
   getVariantCombinationTitle,
   getProductVariantAttributes,
   normalizeAttributeKey,
-  fetchFamilyColorMatrix
+  fetchFamilyColorMatrix,
+  getProductSpecificationsForSize
 } from '../../shared/utilities/variantMatrixUtils';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../components/LocationPickerModal';
@@ -365,10 +366,24 @@ export default function ProductDetail() {
   const subCategoryObj = categoryObj?.subcategories?.find(s => s.id === product.subCategoryId);
   const nestedSubCategoryObj = subCategoryObj?.subcategories?.find(n => n.id === product.nestedSubCategoryId);
 
+  // Resolve selected size from selectedAttributes, currentVariant, or product default
+  const selectedSize = selectedAttributes['Size'] ||
+    selectedAttributes['size'] ||
+    selectedAttributes['Shoe Size'] ||
+    selectedAttributes['shoe size'] ||
+    Object.entries(selectedAttributes).find(([k]) => k.toLowerCase().includes('size'))?.[1] ||
+    currentVariant?.size ||
+    currentVariant?.shoeSize ||
+    product.size ||
+    '';
+
+  // Resolve specifications: size-specific if available for selected size, otherwise default
+  const rawSpecs = getProductSpecificationsForSize(product, selectedSize);
+
   // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
-  if (product.specifications && Array.isArray(product.specifications)) {
-    product.specifications.forEach(s => {
+  if (rawSpecs && Array.isArray(rawSpecs)) {
+    rawSpecs.forEach(s => {
       if (s.key && s.value && s.key.trim() && s.value.trim()) {
         specsList.push({ key: s.key.trim(), value: s.value.trim() });
       }
@@ -382,7 +397,9 @@ export default function ProductDetail() {
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color });
   }
-  if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+  if (selectedSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+    specsList.push({ key: 'Size', value: selectedSize });
+  } else if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
     specsList.push({ key: 'Size', value: product.size });
   }
 
@@ -400,8 +417,8 @@ export default function ProductDetail() {
   if (product.vendorId && product.vendorId !== 'admin') {
     manufacturerDetails.push({ key: 'Vendor ID', value: product.vendorId });
   }
-  if (product.specifications && Array.isArray(product.specifications)) {
-    product.specifications.forEach(s => {
+  if (rawSpecs && Array.isArray(rawSpecs)) {
+    rawSpecs.forEach(s => {
       if (s.key && s.value) {
         const kLower = s.key.toLowerCase();
         if (

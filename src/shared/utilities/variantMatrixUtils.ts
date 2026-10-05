@@ -981,3 +981,90 @@ export async function fetchFamilyColorMatrix(
   }
 }
 
+/**
+ * Extracts unique available size values for a product (e.g. ['M', 'L', 'XL', 'XXL'])
+ */
+export function extractProductSizes(product: Partial<Product> | null | undefined): string[] {
+  if (!product) return [];
+  const sizesSet = new Set<string>();
+
+  // 1. From variantAttributesList (attributes with name 'size', 'shoe size', etc.)
+  if (Array.isArray(product.variantAttributesList)) {
+    product.variantAttributesList.forEach(attr => {
+      const k = (attr.name || '').trim().toLowerCase();
+      if (k === 'size' || k.includes('size')) {
+        attr.values?.forEach(v => {
+          const valName = (v.name || v.value || '').trim();
+          if (valName) sizesSet.add(valName);
+        });
+      }
+    });
+  }
+
+  // 2. From variants
+  if (Array.isArray(product.variants)) {
+    product.variants.forEach(v => {
+      const attrs = extractVariantAttributes(v);
+      Object.entries(attrs).forEach(([key, val]) => {
+        if (key.toLowerCase() === 'size' || key.toLowerCase().includes('size')) {
+          const trimmed = (val || '').trim();
+          if (trimmed) sizesSet.add(trimmed);
+        }
+      });
+      if (v.size && typeof v.size === 'string' && v.size.trim()) {
+        sizesSet.add(v.size.trim());
+      }
+      if (v.shoeSize && typeof v.shoeSize === 'string' && v.shoeSize.trim()) {
+        sizesSet.add(v.shoeSize.trim());
+      }
+    });
+  }
+
+  // 3. Explicit sizes array
+  if (Array.isArray(product.sizes)) {
+    product.sizes.forEach(s => {
+      const trimmed = (s || '').trim();
+      if (trimmed) sizesSet.add(trimmed);
+    });
+  }
+
+  // 4. From product.size
+  if (product.size && typeof product.size === 'string') {
+    const parts = product.size.split(',').map(s => s.trim()).filter(Boolean);
+    parts.forEach(p => sizesSet.add(p));
+  }
+
+  return Array.from(sizesSet);
+}
+
+/**
+ * Resolves active specifications for a product given a selected size, with fallback to default specifications
+ */
+export function getProductSpecificationsForSize(
+  product: Partial<Product> | null | undefined,
+  selectedSize?: string | null
+): { key: string; value: string }[] {
+  if (!product) return [];
+
+  const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
+  const sizeSpecsMap = product.sizeSpecifications || product.specificationsBySize;
+
+  if (selectedSize && sizeSpecsMap && typeof sizeSpecsMap === 'object') {
+    const cleanSize = selectedSize.trim();
+    // 1. Direct exact match
+    if (Array.isArray(sizeSpecsMap[cleanSize]) && sizeSpecsMap[cleanSize].length > 0) {
+      return sizeSpecsMap[cleanSize];
+    }
+    // 2. Case-insensitive / trimmed match
+    const matchingKey = Object.keys(sizeSpecsMap).find(
+      k => k.trim().toLowerCase() === cleanSize.toLowerCase()
+    );
+    if (matchingKey && Array.isArray(sizeSpecsMap[matchingKey]) && sizeSpecsMap[matchingKey].length > 0) {
+      return sizeSpecsMap[matchingKey];
+    }
+  }
+
+  return defaultSpecs;
+}
+
+

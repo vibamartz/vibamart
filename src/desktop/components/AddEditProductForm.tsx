@@ -17,7 +17,8 @@ import {
   getProductVariantAttributes,
   extractVariantAttributes,
   getVariantCombinationTitle,
-  getCanonicalVariantKey
+  getCanonicalVariantKey,
+  extractProductSizes
 } from '../../shared/utilities/variantMatrixUtils';
 
 import { createSlug } from '../../shared/utilities/slug';
@@ -157,7 +158,10 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       variantAttributesList: [],
       variantAttributes: ['color', 'size'],
       sizeChart: '',
+      sizes: [],
       specifications: [],
+      sizeSpecifications: {},
+      specificationsBySize: {},
       features: [],
       serviceablePincodes: [],
       availabilityRules: [],
@@ -201,10 +205,13 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         familyColorOrder: product.familyColorOrder || 1,
         color: product.color || '',
         size: product.size || '',
+        sizes: product.sizes || [],
         sizeChart: product.sizeChart || '',
         variantAttributesList: product.variantAttributesList || derivedAttrs,
         variantAttributes: product.variantAttributes || ['color', 'size'],
         specifications: product.specifications || [],
+        sizeSpecifications: product.sizeSpecifications || product.specificationsBySize || {},
+        specificationsBySize: product.specificationsBySize || product.sizeSpecifications || {},
         categoryId: product.categoryId || '',
         subCategoryId: product.subCategoryId || '',
         nestedSubCategoryId: product.nestedSubCategoryId || '',
@@ -302,6 +309,79 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
+  const [activeSpecSizeTab, setActiveSpecSizeTab] = useState<string>('default');
+
+  const availableSizes = extractProductSizes(formData);
+
+  // Helper to get currently active specs list depending on active tab
+  const getActiveTabSpecs = (): { key: string; value: string }[] => {
+    if (activeSpecSizeTab === 'default') {
+      return formData.specifications || [];
+    }
+    const sizeSpecsMap = formData.sizeSpecifications || formData.specificationsBySize || {};
+    return sizeSpecsMap[activeSpecSizeTab] || [];
+  };
+
+  // Helper to update currently active specs list
+  const updateActiveTabSpecs = (newSpecs: { key: string; value: string }[]) => {
+    if (activeSpecSizeTab === 'default') {
+      setFormData(prev => ({
+        ...prev,
+        specifications: newSpecs
+      }));
+    } else {
+      setFormData(prev => {
+        const nextSizeSpecs = {
+          ...(prev.sizeSpecifications || prev.specificationsBySize || {}),
+          [activeSpecSizeTab]: newSpecs
+        };
+        return {
+          ...prev,
+          sizeSpecifications: nextSizeSpecs,
+          specificationsBySize: nextSizeSpecs
+        };
+      });
+    }
+  };
+
+  const isSizeUsingDefault = (size: string): boolean => {
+    const sizeSpecsMap = formData.sizeSpecifications || formData.specificationsBySize || {};
+    return !sizeSpecsMap[size] || sizeSpecsMap[size].length === 0;
+  };
+
+  const copyDefaultSpecsToSize = (targetSize?: string) => {
+    const target = targetSize || activeSpecSizeTab;
+    if (target === 'default') return;
+    const defaultSpecs = formData.specifications || [];
+    const cloned = defaultSpecs.map(s => ({ key: s.key, value: s.value }));
+    setFormData(prev => {
+      const nextSizeSpecs = {
+        ...(prev.sizeSpecifications || prev.specificationsBySize || {}),
+        [target]: cloned
+      };
+      return {
+        ...prev,
+        sizeSpecifications: nextSizeSpecs,
+        specificationsBySize: nextSizeSpecs
+      };
+    });
+    toast.success(`Copied ${cloned.length} default specifications to size ${target}`);
+  };
+
+  const clearSizeSpecs = (targetSize?: string) => {
+    const target = targetSize || activeSpecSizeTab;
+    if (target === 'default') return;
+    setFormData(prev => {
+      const nextSizeSpecs = { ...(prev.sizeSpecifications || prev.specificationsBySize || {}) };
+      delete nextSizeSpecs[target];
+      return {
+        ...prev,
+        sizeSpecifications: nextSizeSpecs,
+        specificationsBySize: nextSizeSpecs
+      };
+    });
+    toast.success(`Reverted size ${target} to use Default Specifications`);
+  };
 
   // Universal helper to apply a list of specifications (from a product or a preset)
   const applySharedSpecificationsList = (specsList: { key: string; value: string }[], sourceTitle: string) => {
@@ -329,12 +409,9 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       return;
     }
 
-    setFormData(prev => ({
-      ...prev,
-      specifications: clonedSpecs
-    }));
+    updateActiveTabSpecs(clonedSpecs);
 
-    toast.success(`Applied ${clonedSpecs.length} specifications from "${sourceTitle}"`);
+    toast.success(`Applied ${clonedSpecs.length} specifications to ${activeSpecSizeTab === 'default' ? 'default specifications' : `size ${activeSpecSizeTab}`} from "${sourceTitle}"`);
     setShowShareSpecsModal(false);
     setSelectedSourceProduct(null);
     setSelectedSourcePreset(null);
@@ -348,9 +425,9 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
     applySharedSpecificationsList(preset.specifications || [], preset.name);
   };
 
-  // Clean empty or duplicate specification keys from current product form
+  // Clean empty or duplicate specification keys from current active specifications
   const cleanAndDeduplicateSpecifications = () => {
-    const currentSpecs = formData.specifications || [];
+    const currentSpecs = getActiveTabSpecs();
     if (currentSpecs.length === 0) {
       toast.error('No specifications to clean.');
       return;
@@ -369,13 +446,13 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
     });
 
     const cleaned = Array.from(specMap.entries()).map(([key, value]) => ({ key, value }));
-    setFormData(prev => ({ ...prev, specifications: cleaned }));
+    updateActiveTabSpecs(cleaned);
     toast.success(`Cleaned specifications. ${cleaned.length} attributes retained.`);
   };
 
-  // Save current form's specifications as a reusable custom preset
+  // Save current active specifications as a reusable custom preset
   const handleSaveCustomPreset = () => {
-    const currentSpecs = formData.specifications || [];
+    const currentSpecs = getActiveTabSpecs();
     const validSpecs = currentSpecs
       .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
       .filter(s => s.key.length > 0);
@@ -520,6 +597,28 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
         .filter(s => s.key.length > 0);
 
+      // Clean size-specific specifications for valid product sizes
+      const currentSizes = extractProductSizes(formData);
+      const rawSizeSpecs = formData.sizeSpecifications || formData.specificationsBySize || {};
+      const cleanedSizeSpecs: Record<string, { key: string; value: string }[]> = {};
+
+      Object.entries(rawSizeSpecs).forEach(([sizeKey, specs]) => {
+        const trimmedSize = sizeKey.trim();
+        if (trimmedSize && Array.isArray(specs)) {
+          const isValidSize = currentSizes.length === 0 || currentSizes.some(s => s.toLowerCase() === trimmedSize.toLowerCase());
+          if (isValidSize) {
+            const cleanedList = specs
+              .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+              .filter(s => s.key.length > 0);
+            if (cleanedList.length > 0) {
+              cleanedSizeSpecs[trimmedSize] = cleanedList;
+            }
+          }
+        }
+      });
+
+      const hasSizeSpecs = Object.keys(cleanedSizeSpecs).length > 0;
+
       // Auto calculate product total stock from active variants if variants exist
       const activeVars = (finalizedVariants || []).filter((v: any) => !v.disabled && v.status !== 'disabled');
       const calculatedStock = finalizedVariants && finalizedVariants.length > 0
@@ -529,6 +628,9 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const rawData = {
         ...formData,
         specifications: cleanedSpecs,
+        sizeSpecifications: hasSizeSpecs ? cleanedSizeSpecs : null,
+        specificationsBySize: hasSizeSpecs ? cleanedSizeSpecs : null,
+        sizes: currentSizes.length > 0 ? currentSizes : (formData.sizes || null),
         id: pid,
         productCode: finalProductCode,
         images: processedImages,
@@ -666,41 +768,35 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
   };
 
   const addSpecification = (key = '', value = '') => {
-    const currentSpecs = formData.specifications || [];
-    setFormData(prev => ({
-      ...prev,
-      specifications: [...currentSpecs, { key, value }]
-    }));
+    const currentSpecs = getActiveTabSpecs();
+    updateActiveTabSpecs([...currentSpecs, { key, value }]);
   };
 
   const updateSpecification = (index: number, key: string, value: string) => {
-    const currentSpecs = [...(formData.specifications || [])];
+    const currentSpecs = [...getActiveTabSpecs()];
     currentSpecs[index] = { key, value };
-    setFormData(prev => ({ ...prev, specifications: currentSpecs }));
+    updateActiveTabSpecs(currentSpecs);
   };
 
   const removeSpecification = (index: number) => {
-    const currentSpecs = (formData.specifications || []).filter((_, i) => i !== index);
-    setFormData(prev => ({ ...prev, specifications: currentSpecs }));
+    const currentSpecs = getActiveTabSpecs().filter((_, i) => i !== index);
+    updateActiveTabSpecs(currentSpecs);
   };
 
   const moveSpecification = (index: number, direction: 'up' | 'down') => {
-    const specs = [...(formData.specifications || [])];
+    const specs = [...getActiveTabSpecs()];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= specs.length) return;
     const temp = specs[index];
     specs[index] = specs[targetIndex];
     specs[targetIndex] = temp;
-    setFormData(prev => ({ ...prev, specifications: specs }));
+    updateActiveTabSpecs(specs);
   };
 
   const addQuickSpecTemplate = (keyName: string) => {
-    const currentSpecs = formData.specifications || [];
+    const currentSpecs = getActiveTabSpecs();
     if (!currentSpecs.some(s => s.key.toLowerCase() === keyName.toLowerCase())) {
-      setFormData(prev => ({
-        ...prev,
-        specifications: [...currentSpecs, { key: keyName, value: '' }]
-      }));
+      updateActiveTabSpecs([...currentSpecs, { key: keyName, value: '' }]);
     }
   };
 
@@ -966,7 +1062,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 <button
                   type="button"
                   onClick={() => {
-                    if (!formData.specifications || formData.specifications.length === 0) {
+                    if (getActiveTabSpecs().length === 0) {
                       toast.error('Add specifications before saving as a preset.');
                       return;
                     }
@@ -995,11 +1091,133 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
               </div>
             </div>
 
+            {/* Size Selector Tabs for Size-Specific Specifications */}
+            {availableSizes.length > 0 && (
+              <div className="space-y-3 bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-100">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-black uppercase tracking-wider text-gray-700">
+                      Configure Specifications by Size
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400">
+                    {availableSizes.length} product {availableSizes.length === 1 ? 'size' : 'sizes'} available
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSpecSizeTab('default')}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                      activeSpecSizeTab === 'default'
+                        ? 'bg-gray-900 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>Default / Shared</span>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
+                      activeSpecSizeTab === 'default' ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {(formData.specifications || []).length}
+                    </span>
+                  </button>
+
+                  {availableSizes.map(size => {
+                    const customCount = (formData.sizeSpecifications?.[size] || formData.specificationsBySize?.[size] || []).length;
+                    const isCustom = customCount > 0;
+                    const isSelected = activeSpecSizeTab === size;
+
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setActiveSpecSizeTab(size)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : isCustom
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>Size: {size}</span>
+                        {isCustom ? (
+                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
+                            isSelected ? 'bg-emerald-800 text-white' : 'bg-emerald-200 text-emerald-900'
+                          }`}>
+                            {customCount} custom
+                          </span>
+                        ) : (
+                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
+                            isSelected ? 'bg-emerald-700 text-emerald-100' : 'bg-gray-100 text-gray-400'
+                          }`}>
+                            Default
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Info banner for currently active size */}
+                {activeSpecSizeTab !== 'default' && (
+                  <div className="pt-2 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      {isSizeUsingDefault(activeSpecSizeTab) ? (
+                        <p className="text-gray-500 font-medium">
+                          Size <strong className="text-gray-900 font-extrabold">{activeSpecSizeTab}</strong> is currently using <strong className="text-gray-900">Default Specifications</strong> ({(formData.specifications || []).length} attributes).
+                        </p>
+                      ) : (
+                        <p className="text-emerald-800 font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Configuring custom specifications for Size <strong className="font-extrabold">{activeSpecSizeTab}</strong> ({getActiveTabSpecs().length} attributes).
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isSizeUsingDefault(activeSpecSizeTab) ? (
+                        <button
+                          type="button"
+                          onClick={() => copyDefaultSpecsToSize(activeSpecSizeTab)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Copy className="w-3 h-3" /> Copy Default Specs
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => copyDefaultSpecsToSize(activeSpecSizeTab)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
+                            title="Overwrite with default specifications"
+                          >
+                            <Copy className="w-3 h-3" /> Reload Default
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => clearSizeSpecs(activeSpecSizeTab)}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" /> Revert to Default
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Quick Template Buttons */}
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">Quick Category Attributes</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+                Quick Category Attributes {activeSpecSizeTab !== 'default' ? `(Size: ${activeSpecSizeTab})` : ''}
+              </span>
               <div className="flex flex-wrap gap-2">
-                {['Brand', 'Model', 'Material', 'Color', 'Size', 'Dimensions', 'Weight', 'Capacity', 'Compatibility', 'Warranty'].map(tpl => (
+                {['Brand', 'Model', 'Material', 'Color', 'Size', 'Chest', 'Length', 'Sleeve', 'Waist', 'Dimensions', 'Weight', 'Capacity', 'Warranty'].map(tpl => (
                   <button
                     key={tpl}
                     type="button"
@@ -1013,18 +1231,18 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
             </div>
 
             <div className="space-y-3">
-              {(formData.specifications || []).map((spec, idx) => (
+              {getActiveTabSpecs().map((spec, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                   <input
                     type="text"
-                    placeholder="Attribute Name (e.g. Brand, Warranty)"
+                    placeholder="Attribute Name (e.g. Chest, Length, Fabric)"
                     value={spec.key}
                     onChange={e => updateSpecification(idx, e.target.value, spec.value)}
                     className="w-full sm:w-1/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
                   />
                   <input
                     type="text"
-                    placeholder="Specification Value (e.g. 1 Year Warranty)"
+                    placeholder="Specification Value (e.g. 42, 100% Cotton)"
                     value={spec.value}
                     onChange={e => updateSpecification(idx, spec.key, e.target.value)}
                     className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
@@ -1042,7 +1260,7 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                     <button
                       type="button"
                       onClick={() => moveSpecification(idx, 'down')}
-                      disabled={idx === (formData.specifications || []).length - 1}
+                      disabled={idx === getActiveTabSpecs().length - 1}
                       className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
                       title="Move Down"
                     >
@@ -1060,9 +1278,16 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                 </div>
               ))}
 
-              {(!formData.specifications || formData.specifications.length === 0) && (
-                <div className="py-8 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[28px]">
-                  No specification fields added. Use Quick Category Attributes above, Reuse Specifications, or click Add Field.
+              {getActiveTabSpecs().length === 0 && (
+                <div className="py-8 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[28px] space-y-2">
+                  {activeSpecSizeTab !== 'default' ? (
+                    <div>
+                      <p>Size <strong className="text-gray-700">{activeSpecSizeTab}</strong> is currently using Default Specifications.</p>
+                      <p className="text-xs font-normal text-gray-400 mt-1">Click "Copy Default Specs" above or "Add Field" to define custom specifications for this size.</p>
+                    </div>
+                  ) : (
+                    <p>No specification fields added. Use Quick Category Attributes above, Reuse Specifications, or click Add Field.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -2017,9 +2242,9 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
 
             <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 max-h-36 overflow-y-auto space-y-1">
               <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">
-                Preview Attributes ({formData.specifications?.length || 0}):
+                Preview Attributes ({getActiveTabSpecs().length}):
               </span>
-              {(formData.specifications || []).map((s, idx) => (
+              {getActiveTabSpecs().map((s, idx) => (
                 <div key={idx} className="text-[10px] font-bold text-gray-700">
                   • <strong className="font-extrabold text-gray-900">{s.key || 'Empty Key'}:</strong> {s.value || 'Empty Value'}
                 </div>

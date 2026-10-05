@@ -18,7 +18,7 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
-import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix } from '../../shared/utilities/variantMatrixUtils';
+import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix, getProductSpecificationsForSize } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
@@ -401,10 +401,24 @@ export default function MobileProductDetailScreen() {
   const activeImageSrc = images[activeImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
 
+  // Resolve selected size from selectedAttributes, selectedVariant, or product default
+  const selectedSize = selectedAttributes['Size'] ||
+    selectedAttributes['size'] ||
+    selectedAttributes['Shoe Size'] ||
+    selectedAttributes['shoe size'] ||
+    Object.entries(selectedAttributes).find(([k]) => k.toLowerCase().includes('size'))?.[1] ||
+    selectedVariant?.size ||
+    selectedVariant?.shoeSize ||
+    product.size ||
+    '';
+
+  // Resolve specifications: size-specific if available for selected size, otherwise default
+  const rawSpecs = getProductSpecificationsForSize(product, selectedSize);
+
   // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
-  if (product.specifications && Array.isArray(product.specifications)) {
-    product.specifications.forEach(s => {
+  if (rawSpecs && Array.isArray(rawSpecs)) {
+    rawSpecs.forEach(s => {
       if (s.key && s.value && s.key.trim() && s.value.trim()) {
         specsList.push({ key: s.key.trim(), value: s.value.trim() });
       }
@@ -417,7 +431,9 @@ export default function MobileProductDetailScreen() {
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color });
   }
-  if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+  if (selectedSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+    specsList.push({ key: 'Size', value: selectedSize });
+  } else if (product.size && !specsList.some(s => s.key.toLowerCase() === 'size')) {
     specsList.push({ key: 'Size', value: product.size });
   }
 
@@ -435,8 +451,8 @@ export default function MobileProductDetailScreen() {
   if (product.vendorId && product.vendorId !== 'admin') {
     manufacturerDetails.push({ key: 'Vendor ID', value: product.vendorId });
   }
-  if (product.specifications && Array.isArray(product.specifications)) {
-    product.specifications.forEach(s => {
+  if (rawSpecs && Array.isArray(rawSpecs)) {
+    rawSpecs.forEach(s => {
       if (s.key && s.value) {
         const kLower = s.key.toLowerCase();
         if (
