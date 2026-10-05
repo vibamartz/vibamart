@@ -310,61 +310,73 @@ export default function Navbar() {
               {/* Search Bar - Responsive and Wide */}
               <div className="flex-1 relative group items-center min-w-0">
                 <form onSubmit={handleSearch} className="w-full relative flex items-center">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Search className={`h-4 w-4 transition-colors ${isSearchFocused ? 'text-primary' : 'text-gray-400'}`} />
                   </div>
                   <input
                     ref={searchInputRef}
                     type="text"
                     placeholder="Search products, brands & more"
-                    className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-11 pr-12 sm:pr-24 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
-                      }`}
+                    className={`block w-full bg-white border rounded-full py-2.5 lg:py-3 pl-10 pr-28 sm:pr-32 text-sm placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all duration-300 shadow-sm ${
+                      isSearchFocused ? 'border-primary shadow-md' : 'border-gray-200'
+                    }`}
                     value={searchQuery}
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={clearSearch}
-                      className="absolute right-12 sm:right-[114px] p-2.5 touch-target text-gray-400 hover:text-red-500 transition-colors z-10"
-                      aria-label="Clear search"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                  <div className="absolute right-12 top-0 bottom-0 flex items-center gap-1 bg-white pl-2">
+
+                  {/* Right Action Buttons (Clear, Mic, Camera, Submit) */}
+                  <div className="absolute right-1.5 inset-y-0 flex items-center gap-0.5 sm:gap-1">
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-gray-100 rounded-full transition-colors"
+                        aria-label="Clear search"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     {settings.enableVoiceSearch && (
                       <button
                         type="button"
                         onClick={startVoiceSearch}
-                        className={`p-2.5 touch-target transition-colors ${isListening ? 'text-rose-500 animate-pulse' : 'text-gray-400 hover:text-primary'}`}
-                        title="Voice Search"
+                        className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                          isListening
+                            ? 'text-rose-500 bg-rose-50 animate-pulse'
+                            : 'text-gray-400 hover:text-primary hover:bg-gray-100'
+                        }`}
+                        title={isListening ? "Listening..." : "Voice Search"}
                         aria-label="Voice Search"
                       >
                         <Mic className="w-4 h-4" />
                       </button>
                     )}
+
                     {settings.enableVisualSearch && (
                       <button
                         type="button"
                         onClick={() => setIsCameraSearchOpen(true)}
-                        className="p-2.5 touch-target text-gray-400 hover:text-primary transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 transition-colors"
                         title="Visual Search"
                         aria-label="Visual Search"
                       >
                         <Camera className="w-4 h-4" />
                       </button>
                     )}
+
+                    <button
+                      type="submit"
+                      className="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm active:scale-95 shrink-0"
+                      aria-label="Submit search"
+                      title="Search"
+                    >
+                      <Search className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    type="submit"
-                    className="absolute right-1.5 p-2.5 touch-target bg-primary text-white rounded-full hover:bg-primary-hover transition-all duration-200 shadow-sm flex items-center justify-center active:scale-95"
-                    aria-label="Submit search"
-                  >
-                    <Search className="w-4 h-4" />
-                  </button>
                 </form>
 
                 {/* Search Suggestions Dropdown */}
