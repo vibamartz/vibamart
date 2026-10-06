@@ -108,6 +108,13 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
               <div className="space-y-3 pl-1">
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <p className="text-xs text-gray-650">
+                    <strong className="text-gray-900">First 3 Eligible Orders:</strong> Customers can receive cashback on their first 3 eligible orders of each calendar month.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
                   <div className="text-xs text-gray-650 space-y-1">
                     <strong className="text-gray-900 block">Eligible Orders Cashback:</strong>
                     <p className="font-semibold text-gray-800">• 1st Eligible Order: ₹30 - ₹100 Cashback</p>
@@ -117,7 +124,7 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
                   <p className="text-xs text-gray-650">
                     <strong className="text-gray-900">Progress Tracking (0 → 1 → 2 → 3):</strong> Monthly progress is tracked as 0 → 1 → 2 → 3 upon placing eligible orders.
                   </p>

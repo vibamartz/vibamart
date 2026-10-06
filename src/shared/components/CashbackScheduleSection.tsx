@@ -88,13 +88,13 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
         }
       `}</style>
 
-      <section className={`w-full max-w-7xl mx-auto ${isMobile ? 'px-0 py-0.5' : 'px-4 sm:px-6 lg:px-8 py-1.5'}`}>
-        <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] p-2.5 sm:p-6 text-white shadow-xl border border-white/25 overflow-hidden">
+      <section className={`w-full max-w-7xl mx-auto ${isMobile ? 'px-0 py-0' : 'px-4 sm:px-6 lg:px-8 py-1.5'}`}>
+        <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] p-2 sm:p-6 text-white shadow-xl border border-white/25 overflow-hidden">
           {/* Subtle Ambient Contrast Overlay */}
           <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
           {/* Top Bar: Big Title, Reset Text & Quick Action Buttons */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1.5 sm:pb-3 border-b border-white/20">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-3 border-b border-white/20">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
               <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white tracking-tight">
                 Monthly Cashback Schedule
@@ -131,23 +131,23 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
           </div>
 
-          {/* Directly below: Single Large Prominent Cashback Amount Display */}
-          <div className="relative z-10 pt-1.5 sm:pt-4 pb-0.5 sm:pb-1 text-center sm:text-left flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5 sm:gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3">
-              <span className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm">
+          {/* Directly below: Single Large Prominent Cashback Amount Display - in ONE line */}
+          <div className="relative z-10 pt-1 sm:pt-4 pb-0.5 sm:pb-1 flex items-baseline justify-between gap-1 sm:gap-4 overflow-hidden">
+            <div className="flex items-baseline gap-1.5 sm:gap-3 truncate">
+              <span className="text-xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm shrink-0">
                 ₹30 – ₹100
               </span>
-              <span className="text-[10px] sm:text-xs text-white/80 font-medium">
+              <span className="text-[10px] sm:text-xs text-white/80 font-medium truncate">
                 Cashback per eligible order
               </span>
             </div>
-            <div className="text-[10px] sm:text-sm text-white/90 font-bold">
+            <div className="text-[10px] sm:text-sm text-white/90 font-bold shrink-0">
               {currentMonth.name} Schedule
             </div>
           </div>
 
           {/* Single Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
-          <div className="relative z-10 py-2 sm:py-6 px-3 sm:px-8">
+          <div className="relative z-10 py-1.5 sm:py-6 px-2.5 sm:px-8">
             <div className="relative flex items-center justify-between">
               {/* Background Track Line */}
               <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white/30 rounded-full z-0" />
@@ -171,7 +171,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 return (
                   <div
                     key={pt}
-                    className={`relative z-10 w-6 h-6 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all duration-300 shadow-md ${
+                    className={`relative z-10 w-5.5 h-5.5 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[10px] sm:text-sm transition-all duration-300 shadow-md ${
                       isCurrent
                         ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
                         : isReached
@@ -187,7 +187,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           </div>
 
           {/* Bottom Compact Footer */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 pt-1.5 sm:pt-2.5 border-t border-white/20 text-[11px] sm:text-sm">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1 pt-1 sm:pt-2.5 border-t border-white/20 text-[10px] sm:text-sm">
             <div className="flex items-center gap-1.5 text-white/90 font-medium">
               <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
               <span>
