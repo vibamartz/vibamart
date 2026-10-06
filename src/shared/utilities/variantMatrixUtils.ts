@@ -95,25 +95,35 @@ export function extractVariantAttributes(v: ProductVariant): Record<string, stri
 export function getProductVariantAttributes(product: Partial<Product> | null | undefined): VariantAttribute[] {
   if (!product) return [];
 
-  // 1. If explicit variantAttributesList is saved
+  // 1. If explicit variantAttributesList is saved and has valid configured values
   if (Array.isArray(product.variantAttributesList) && product.variantAttributesList.length > 0) {
-    return product.variantAttributesList.map(attr => ({
-      ...attr,
-      name: normalizeAttributeKey(attr.name),
-      values: (attr.values || []).map(val => ({
-        ...val,
-        name: normalizeAttributeVal(val.name),
-        linkedProductId: val.linkedProductId,
-        linkedProductName: val.linkedProductName
+    const validExplicitAttrs = product.variantAttributesList
+      .filter(attr => attr && attr.name && Array.isArray(attr.values) && attr.values.length > 0)
+      .map(attr => ({
+        ...attr,
+        name: normalizeAttributeKey(attr.name),
+        values: (attr.values || [])
+          .filter(val => val && val.name && val.name.trim().length > 0)
+          .map(val => ({
+            ...val,
+            name: normalizeAttributeVal(val.name),
+            linkedProductId: val.linkedProductId,
+            linkedProductName: val.linkedProductName
+          }))
       }))
-    }));
+      .filter(attr => attr.values.length > 0);
+
+    if (validExplicitAttrs.length > 0) {
+      return validExplicitAttrs;
+    }
   }
 
-  // 2. If product has variants, inspect all variants and extract discovered attributes
+  // 2. If product has variants, inspect all active variants and extract discovered attributes
   if (Array.isArray(product.variants) && product.variants.length > 0) {
+    const activeVariants = product.variants.filter(v => !v.disabled && v.status !== 'disabled');
     const attrMap = new Map<string, { type: 'color' | 'text' | 'button'; valuesMap: Map<string, VariantAttributeValue> }>();
 
-    product.variants.forEach(v => {
+    activeVariants.forEach(v => {
       const attrs = extractVariantAttributes(v);
       Object.entries(attrs).forEach(([attrName, attrVal]) => {
         const cleanName = normalizeAttributeKey(attrName);
@@ -121,7 +131,7 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
         if (!cleanName || !cleanVal) return;
 
         if (!attrMap.has(cleanName)) {
-          const isColor = cleanName.toLowerCase().includes('color') || cleanName.toLowerCase().includes('shade');
+          const isColor = cleanName.toLowerCase().includes('color') || cleanName.toLowerCase().includes('colour') || cleanName.toLowerCase().includes('shade');
           attrMap.set(cleanName, {
             type: isColor ? 'color' : 'button',
             valuesMap: new Map()
@@ -144,28 +154,18 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
     });
 
     if (attrMap.size > 0) {
-      return Array.from(attrMap.entries()).map(([name, { type, valuesMap }], idx) => ({
-        id: `attr_${idx + 1}_${name.toLowerCase().replace(/\s+/g, '_')}`,
-        name,
-        type,
-        values: Array.from(valuesMap.values())
-      }));
+      return Array.from(attrMap.entries())
+        .map(([name, { type, valuesMap }], idx) => ({
+          id: `attr_${idx + 1}_${name.toLowerCase().replace(/\s+/g, '_')}`,
+          name,
+          type,
+          values: Array.from(valuesMap.values())
+        }))
+        .filter(attr => attr.values.length > 0);
     }
   }
 
-  // 3. Fallback to legacy string array if defined
-  if (Array.isArray(product.variantAttributes) && product.variantAttributes.length > 0) {
-    return product.variantAttributes.map((attrKey, idx) => {
-      const name = attrKey.charAt(0).toUpperCase() + attrKey.slice(1);
-      return {
-        id: `attr_${idx + 1}_${attrKey}`,
-        name,
-        type: attrKey.toLowerCase() === 'color' ? 'color' : 'button',
-        values: []
-      };
-    });
-  }
-
+  // If no configured variant attributes with valid values exist, return empty list (do not fabricate dummy selectors)
   return [];
 }
 

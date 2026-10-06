@@ -31,25 +31,26 @@ export default function UniversalVariantSelector({
 }: UniversalVariantSelectorProps) {
   const navigate = useNavigate();
   const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
-  const allAttributes = getProductVariantAttributes(product);
+  const allAttributes = getProductVariantAttributes(product).filter(a => a && Array.isArray(a.values) && a.values.length > 0);
 
   const hasFamilyColors = Array.isArray(familyColorVariants) && familyColorVariants.length > 0;
-  const familyAttrName = familyColorVariants[0]?.attributeName || product.familyAttributeName || (familyColorVariants.some(f => f.hex) ? 'Color' : 'Color');
+  const familyAttrName = (hasFamilyColors && familyColorVariants[0]?.attributeName) || product.familyAttributeName || (familyColorVariants.some(f => f.hex) ? 'Color' : 'Color');
 
   // Filter out standalone attribute if familyColorVariants is provided for that attribute (to avoid duplicate rows)
-  const nonColorAttributes = hasFamilyColors
+  const nonColorAttributes = (hasFamilyColors
     ? allAttributes.filter(a => {
         const k = normalizeAttributeKey(a.name).toLowerCase();
-        const fKey = familyAttrName.toLowerCase();
-        if (fKey === 'color' || fKey.includes('color')) {
+        const fKey = normalizeAttributeKey(familyAttrName).toLowerCase();
+        if (fKey === 'color' || fKey.includes('color') || fKey.includes('colour') || fKey.includes('shade')) {
           return !k.includes('color') && !k.includes('colour') && !k.includes('shade') && a.type !== 'color';
         }
         return k !== fKey;
       })
-    : allAttributes;
+    : allAttributes
+  ).filter(a => a && Array.isArray(a.values) && a.values.length > 0);
 
-  // If no family colors and (no attributes or no variants), do not render
-  if (!hasFamilyColors && (activeVariants.length === 0 || allAttributes.length === 0)) {
+  // If no family colors and no configured attributes with values, do not render
+  if (!hasFamilyColors && nonColorAttributes.length === 0) {
     return null;
   }
 
