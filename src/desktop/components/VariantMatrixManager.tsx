@@ -62,8 +62,9 @@ export default function VariantMatrixManager({
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [linkedProductModalTarget, setLinkedProductModalTarget] = useState<{
-    attrId: string;
-    valId: string;
+    attrId?: string;
+    valId?: string;
+    variantId?: string;
     currentLinkedId?: string;
     title?: string;
   } | null>(null);
@@ -73,7 +74,8 @@ export default function VariantMatrixManager({
   const [showAddFamilyProductModal, setShowAddFamilyProductModal] = useState(false);
   const [familyProductSearch, setFamilyProductSearch] = useState('');
   const [selectedProductToAdd, setSelectedProductToAdd] = useState<Product | null>(null);
-  const [familyColorInput, setFamilyColorInput] = useState('');
+  const [familyAttributeInput, setFamilyAttributeInput] = useState('Color');
+  const [familyValueInput, setFamilyValueInput] = useState('');
   const [familyHexInput, setFamilyHexInput] = useState('#000000');
   const [familyOrderInput, setFamilyOrderInput] = useState<number>(1);
   const [familyThumbnailInput, setFamilyThumbnailInput] = useState('');
@@ -143,6 +145,38 @@ export default function VariantMatrixManager({
     });
     onAttributesChange(updated);
     toast.success('Removed linked product.');
+  };
+
+  const assignLinkedProductToVariant = (variantId: string, productToLink: Product) => {
+    if (baseProduct.id && isCircularProductLink(baseProduct.id, productToLink.id, availableProducts)) {
+      toast.error(`Cannot link "${productToLink.name}": Circular relationship detected (product already links back).`);
+      return;
+    }
+
+    const updated = variants.map(v => {
+      if (v.id !== variantId) return v;
+      return {
+        ...v,
+        linkedProductId: productToLink.id,
+        linkedProductName: productToLink.name,
+        image: v.image || productToLink.primaryImage || productToLink.images?.[0] || undefined
+      };
+    });
+    onVariantsChange(updated);
+    setLinkedProductModalTarget(null);
+    toast.success(`Linked product "${productToLink.name}" to variant.`);
+  };
+
+  const removeLinkedProductFromVariant = (variantId: string) => {
+    const updated = variants.map(v => {
+      if (v.id !== variantId) return v;
+      const copy = { ...v };
+      delete copy.linkedProductId;
+      delete copy.linkedProductName;
+      return copy;
+    });
+    onVariantsChange(updated);
+    toast.success('Removed linked product from variant.');
   };
 
   const filteredCatalogProducts = availableProducts.filter(p => {
@@ -508,7 +542,14 @@ export default function VariantMatrixManager({
     toast.success(`Generated Family ID "${newFamId}"`);
   };
 
-  const handleAddProductToFamily = async (prodToLink: Product, colorName: string, hex: string, order: number, thumbnail: string) => {
+  const handleAddProductToFamily = async (
+    prodToLink: Product,
+    attrValue: string,
+    hex: string,
+    order: number,
+    thumbnail: string,
+    attrName?: string
+  ) => {
     if (!cleanFamilyId) {
       toast.error('Please set a Family ID first before linking products.');
       return;
@@ -522,11 +563,16 @@ export default function VariantMatrixManager({
       return;
     }
 
+    const currentFamilyAttr = attrName || baseProduct.familyAttributeName || 'Color';
+
     try {
       const prodRef = doc(db, 'products', prodToLink.id);
-      const updates = {
+      const updates: any = {
         familyId: cleanFamilyId,
-        familyColorName: colorName || prodToLink.familyColorName || prodToLink.color || prodToLink.name,
+        familyAttributeName: currentFamilyAttr,
+        familyAttributeValue: attrValue || prodToLink.familyAttributeValue || prodToLink.familyColorName || prodToLink.color || prodToLink.name,
+        familyAttributeOrder: Number(order) || (familyProductsList.length + 1),
+        familyColorName: attrValue || prodToLink.familyColorName || prodToLink.color || prodToLink.name,
         familyColorHex: hex || prodToLink.familyColorHex || '#000000',
         familyColorOrder: Number(order) || (familyProductsList.length + 1),
         familyThumbnail: thumbnail || prodToLink.familyThumbnail || prodToLink.primaryImage || prodToLink.images?.[0] || ''
@@ -540,7 +586,7 @@ export default function VariantMatrixManager({
 
       setShowAddFamilyProductModal(false);
       setSelectedProductToAdd(null);
-      toast.success(`Linked "${prodToLink.name}" as ${updates.familyColorName} to family "${cleanFamilyId}".`);
+      toast.success(`Linked "${prodToLink.name}" as ${updates.familyAttributeValue} (${currentFamilyAttr}) to family "${cleanFamilyId}".`);
     } catch (err) {
       console.error('Failed to link product to family:', err);
       toast.error('Failed to link product to family');
@@ -550,7 +596,12 @@ export default function VariantMatrixManager({
   const handleUnlinkProductFromFamily = async (prodId: string, prodName: string) => {
     if (prodId === baseProduct.id) {
       if (onBaseProductChange) {
-        onBaseProductChange({ familyId: '', familyColorName: '' });
+        onBaseProductChange({
+          familyId: '',
+          familyAttributeName: '',
+          familyAttributeValue: '',
+          familyColorName: ''
+        });
       }
       toast.success('Removed current product from family.');
       return;
@@ -560,12 +611,21 @@ export default function VariantMatrixManager({
       const prodRef = doc(db, 'products', prodId);
       await updateDoc(prodRef, {
         familyId: '',
+        familyAttributeName: '',
+        familyAttributeValue: '',
         familyColorName: '',
-        familyColorOrder: 1
+        familyColorOrder: 1,
+        familyAttributeOrder: 1
       });
 
       setAvailableProducts(prev =>
-        prev.map(p => (p.id === prodId ? { ...p, familyId: '', familyColorName: '' } : p))
+        prev.map(p => (p.id === prodId ? {
+          ...p,
+          familyId: '',
+          familyAttributeName: '',
+          familyAttributeValue: '',
+          familyColorName: ''
+        } : p))
       );
 
       toast.success(`Unlinked "${prodName}" from family. (Product was NOT deleted).`);
@@ -578,19 +638,29 @@ export default function VariantMatrixManager({
   const handleUpdateFamilyOrder = async (prodId: string, newOrder: number) => {
     if (prodId === baseProduct.id) {
       if (onBaseProductChange) {
-        onBaseProductChange({ familyColorOrder: newOrder });
+        onBaseProductChange({
+          familyAttributeOrder: newOrder,
+          familyColorOrder: newOrder
+        });
       }
       return;
     }
 
     try {
       const prodRef = doc(db, 'products', prodId);
-      await updateDoc(prodRef, { familyColorOrder: newOrder });
+      await updateDoc(prodRef, {
+        familyAttributeOrder: newOrder,
+        familyColorOrder: newOrder
+      });
       setAvailableProducts(prev =>
-        prev.map(p => (p.id === prodId ? { ...p, familyColorOrder: newOrder } : p))
+        prev.map(p => (p.id === prodId ? {
+          ...p,
+          familyAttributeOrder: newOrder,
+          familyColorOrder: newOrder
+        } : p))
       );
     } catch (err) {
-      console.error('Failed to update family color order:', err);
+      console.error('Failed to update family order:', err);
     }
   };
 
@@ -657,7 +727,7 @@ export default function VariantMatrixManager({
               }`}
             >
               <Palette className="w-3.5 h-3.5 text-emerald-600" />
-              3. Family Colors ({familyProductsList.length})
+              3. Product Family ({familyProductsList.length})
             </button>
           </div>
 
@@ -915,62 +985,60 @@ export default function VariantMatrixManager({
                             </div>
                           </div>
 
-                          {/* Linked Product Selection - ONLY FOR COLOR ATTRIBUTES */}
-                          {isColor && (
-                            <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
-                              {val.linkedProductId ? (
-                                <div className="flex items-center justify-between w-full bg-emerald-50 text-emerald-900 px-2.5 py-1.5 rounded-xl border border-emerald-200 gap-2">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                    <span className="text-[11px] font-bold truncate" title={val.linkedProductName || val.linkedProductId}>
-                                      {val.linkedProductName || `ID: ${val.linkedProductId}`}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setProductSearchTerm('');
-                                        setLinkedProductModalTarget({
-                                          attrId: attr.id,
-                                          valId: val.id,
-                                          currentLinkedId: val.linkedProductId,
-                                          title: `${attr.name}: ${val.name}`
-                                        });
-                                      }}
-                                      className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-300 shadow-2xs cursor-pointer"
-                                    >
-                                      Change
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeLinkedProductFromValue(attr.id, val.id)}
-                                      className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded-md cursor-pointer"
-                                      title="Unlink Product"
-                                    >
-                                      <Unlink className="w-3 h-3" />
-                                    </button>
-                                  </div>
+                          {/* Linked Product Selection - UNIVERSAL FOR ALL ATTRIBUTES */}
+                          <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                            {val.linkedProductId ? (
+                              <div className="flex items-center justify-between w-full bg-emerald-50 text-emerald-900 px-2.5 py-1.5 rounded-xl border border-emerald-200 gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="text-[11px] font-bold truncate" title={val.linkedProductName || val.linkedProductId}>
+                                    {val.linkedProductName || `ID: ${val.linkedProductId}`}
+                                  </span>
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setProductSearchTerm('');
-                                    setLinkedProductModalTarget({
-                                      attrId: attr.id,
-                                      valId: val.id,
-                                      title: `${attr.name}: ${val.name}`
-                                    });
-                                  }}
-                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-dashed border-gray-300 transition-colors cursor-pointer"
-                                >
-                                  <Link2 className="w-3 h-3 text-gray-400" />
-                                  Link Product
-                                </button>
-                              )}
-                            </div>
-                          )}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProductSearchTerm('');
+                                      setLinkedProductModalTarget({
+                                        attrId: attr.id,
+                                        valId: val.id,
+                                        currentLinkedId: val.linkedProductId,
+                                        title: `${attr.name}: ${val.name}`
+                                      });
+                                    }}
+                                    className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-300 shadow-2xs cursor-pointer"
+                                  >
+                                    Change
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeLinkedProductFromValue(attr.id, val.id)}
+                                    className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded-md cursor-pointer"
+                                    title="Unlink Product"
+                                  >
+                                    <Unlink className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setLinkedProductModalTarget({
+                                    attrId: attr.id,
+                                    valId: val.id,
+                                    title: `${attr.name}: ${val.name}`
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-dashed border-gray-300 transition-colors cursor-pointer"
+                              >
+                                <Link2 className="w-3 h-3 text-gray-400" />
+                                Link Product
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
 
@@ -1632,6 +1700,64 @@ export default function VariantMatrixManager({
                           </div>
                         </div>
 
+                        {/* Variant-Level Linked Product */}
+                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 block">
+                              Linked Product ID (Optional)
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-medium">
+                              Map this specific variant combination directly to an independent catalog product
+                            </span>
+                          </div>
+                          <div>
+                            {v.linkedProductId ? (
+                              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 px-3 py-1.5 rounded-xl border border-emerald-200">
+                                <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span className="text-xs font-bold truncate max-w-[200px]" title={v.linkedProductName || v.linkedProductId}>
+                                  {v.linkedProductName || `ID: ${v.linkedProductId}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductSearchTerm('');
+                                    setLinkedProductModalTarget({
+                                      variantId: v.id,
+                                      currentLinkedId: v.linkedProductId,
+                                      title: comboTitle
+                                    });
+                                  }}
+                                  className="text-[10px] font-black uppercase text-emerald-700 hover:text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-300 shadow-2xs cursor-pointer"
+                                >
+                                  Change
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeLinkedProductFromVariant(v.id)}
+                                  className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded-md cursor-pointer"
+                                  title="Unlink Product"
+                                >
+                                  <Unlink className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setLinkedProductModalTarget({
+                                    variantId: v.id,
+                                    title: comboTitle
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 px-3 py-1.5 rounded-xl border border-dashed border-gray-300 transition-colors cursor-pointer"
+                              >
+                                <Link2 className="w-3.5 h-3.5 text-gray-400" /> Link Product ID
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
                         {/* Variant Images Gallery */}
                         <div className="pt-2 border-t border-gray-100">
                           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
@@ -1658,34 +1784,33 @@ export default function VariantMatrixManager({
         </div>
       )}
 
-      {/* TAB 3: PRODUCT FAMILY (LINKED COLOR PRODUCTS) */}
+      {/* TAB 3: PRODUCT FAMILY MATRIX (UNIVERSAL LINKED PRODUCTS) */}
       {activeTab === 'family' && (
         <div className="space-y-8">
           {/* Architectural Notice */}
           <div className="bg-emerald-50/70 p-5 sm:p-6 rounded-3xl border border-emerald-200/80 space-y-2">
             <div className="flex items-center gap-2">
-              <Palette className="w-5 h-5 text-emerald-700 shrink-0" />
+              <Layers className="w-5 h-5 text-emerald-700 shrink-0" />
               <h4 className="text-sm font-black text-emerald-950 uppercase tracking-wider">
-                Linked Color Product System (Product Family)
+                Universal Product Family Matrix
               </h4>
             </div>
             <p className="text-xs text-emerald-800 font-medium leading-relaxed">
-              Each Color option displayed on the storefront Product Details page points to a <strong>REAL independent Product ID</strong>.
-              All connected products retain their own independent images, prices, inventory, size availability, delivery details, and ratings.
-              They are linked together via a common <strong>Family ID</strong> (e.g. <code className="bg-emerald-100 px-1.5 py-0.5 rounded font-bold font-mono">FORMAL_SHIRT_001</code>).
+              Connect multiple independent catalog products across <strong>ANY variant attribute</strong> (Color, Storage, Size, RAM, Capacity, Weight, Pack Size, Material, Style, Model, etc.) sharing a common <strong>Family ID</strong>.
+              Each linked product maintains its own independent images, SKU, pricing, stock, size availability, ratings, and specifications.
             </p>
           </div>
 
-          {/* 1. Family ID Configuration */}
-          <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-4">
+          {/* 1. Family ID & Attribute Configuration */}
+          <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                   <Hash className="w-4 h-4 text-emerald-600" />
-                  Product Family ID
+                  Product Family Group ID
                 </label>
                 <p className="text-[11px] font-bold text-gray-400 mt-0.5">
-                  Shared identifier grouping all color variants of this style together
+                  Shared identifier connecting all product variants in this family together
                 </p>
               </div>
 
@@ -1715,56 +1840,98 @@ export default function VariantMatrixManager({
               </div>
             </div>
 
-            <input
-              type="text"
-              value={baseProduct.familyId || ''}
-              onChange={e => {
-                if (onBaseProductChange) {
-                  onBaseProductChange({ familyId: e.target.value.trim().toUpperCase() });
-                }
-              }}
-              placeholder="e.g. FORMAL_SHIRT_001, LUNAR_PRO_MAX_2026..."
-              className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 font-mono font-black text-sm tracking-wider text-emerald-950 uppercase outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 transition-all"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Family Group ID
+                </label>
+                <input
+                  type="text"
+                  value={baseProduct.familyId || ''}
+                  onChange={e => {
+                    if (onBaseProductChange) {
+                      onBaseProductChange({ familyId: e.target.value.trim().toUpperCase() });
+                    }
+                  }}
+                  placeholder="e.g. FAM_IPHONE_15, FAM_SHIRT_001, FAM_RUNNING_SHOE..."
+                  className="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 font-mono font-black text-sm tracking-wider text-emerald-950 uppercase outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Connecting Variant Attribute
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={COMMON_ATTRIBUTE_PRESETS.includes(baseProduct.familyAttributeName || '') ? (baseProduct.familyAttributeName || 'Color') : 'Custom'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (onBaseProductChange) {
+                        onBaseProductChange({ familyAttributeName: val === 'Custom' ? '' : val });
+                      }
+                    }}
+                    className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-xs font-bold outline-none focus:border-emerald-600 cursor-pointer"
+                  >
+                    {COMMON_ATTRIBUTE_PRESETS.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                    <option value="Custom">Custom Attribute...</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={baseProduct.familyAttributeName || 'Color'}
+                    onChange={e => {
+                      if (onBaseProductChange) {
+                        onBaseProductChange({ familyAttributeName: e.target.value });
+                      }
+                    }}
+                    placeholder="e.g. Storage, Color, Size, RAM..."
+                    className="flex-1 bg-white border border-gray-200 rounded-2xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 2. Current Product's Family Color Settings */}
+          {/* 2. Current Product's Family Identity Settings */}
           <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-5">
             <div>
               <h4 className="text-xs font-black uppercase tracking-wider text-gray-900">
-                This Product's Color Identity in the Family
+                This Product's Identity in the Family ({baseProduct.familyAttributeName || 'Color'})
               </h4>
               <p className="text-[11px] font-bold text-gray-400 mt-0.5">
-                Define the color name, swatch hex, and thumbnail used when this product appears in the family color matrix
+                Define the value, display order, swatch (if color), and thumbnail for this product in the family matrix
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Color Name */}
+              {/* Attribute Value */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                  Color Name
+                  {baseProduct.familyAttributeName || 'Attribute'} Value
                 </label>
                 <input
                   type="text"
-                  value={baseProduct.familyColorName || baseProduct.color || ''}
+                  value={baseProduct.familyAttributeValue || baseProduct.familyColorName || baseProduct.color || ''}
                   onChange={e => {
                     if (onBaseProductChange) {
                       onBaseProductChange({
+                        familyAttributeValue: e.target.value,
                         familyColorName: e.target.value,
                         color: baseProduct.color || e.target.value
                       });
                     }
                   }}
-                  placeholder="e.g. Maroon, Midnight Black..."
+                  placeholder="e.g. 128GB, Maroon, XL, Pack of 2..."
                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-emerald-600"
                 />
               </div>
 
-              {/* Color Hex */}
+              {/* Color Swatch Hex (optional / if color) */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                  Color Swatch Hex
+                  Color Swatch Hex (Optional)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1799,17 +1966,21 @@ export default function VariantMatrixManager({
                 <input
                   type="number"
                   min={1}
-                  value={baseProduct.familyColorOrder || 1}
+                  value={baseProduct.familyAttributeOrder || baseProduct.familyColorOrder || 1}
                   onChange={e => {
+                    const orderNum = Number(e.target.value) || 1;
                     if (onBaseProductChange) {
-                      onBaseProductChange({ familyColorOrder: Number(e.target.value) || 1 });
+                      onBaseProductChange({
+                        familyAttributeOrder: orderNum,
+                        familyColorOrder: orderNum
+                      });
                     }
                   }}
                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-emerald-600 text-center"
                 />
               </div>
 
-              {/* Color Thumbnail */}
+              {/* Thumbnail Preview */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">
                   Thumbnail Preview
@@ -1842,12 +2013,12 @@ export default function VariantMatrixManager({
             </div>
           </div>
 
-          {/* 3. Connected Family Color Matrix List */}
+          {/* 3. Connected Family Matrix List */}
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-black uppercase tracking-wider text-gray-900">
-                  Family Color Matrix ({familyProductsList.length} Connected Products)
+                  Family Matrix ({familyProductsList.length} Connected Products)
                 </h4>
                 <p className="text-xs text-gray-400 font-bold mt-0.5">
                   Customers can switch seamlessly between these linked product records on the Product Details page
@@ -1863,7 +2034,8 @@ export default function VariantMatrixManager({
                   }
                   setFamilyProductSearch('');
                   setSelectedProductToAdd(null);
-                  setFamilyColorInput('');
+                  setFamilyAttributeInput(baseProduct.familyAttributeName || 'Color');
+                  setFamilyValueInput('');
                   setFamilyHexInput('#000000');
                   setFamilyOrderInput(familyProductsList.length + 1);
                   setFamilyThumbnailInput('');
@@ -1871,14 +2043,15 @@ export default function VariantMatrixManager({
                 }}
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm self-start sm:self-auto"
               >
-                <Plus className="w-4 h-4" /> Add Color Product to Family
+                <Plus className="w-4 h-4" /> Add Product to Family
               </button>
             </div>
 
             {/* Family Products Grid / Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {familyProductsList.map((item, idx) => {
+              {familyProductsList.map((item) => {
                 const isCurrent = item.isCurrentProduct || item.productId === baseProduct.id;
+                const label = item.attributeValue || item.color || item.productName;
 
                 return (
                   <div
@@ -1889,21 +2062,21 @@ export default function VariantMatrixManager({
                         : 'bg-white border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {/* Header: Color Swatch + Name + Badge */}
+                    {/* Header: Swatch/Thumbnail + Value + Badge */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
                           {item.thumbnail ? (
-                            <img src={item.thumbnail} alt={item.color} className="w-full h-full object-contain" />
+                            <img src={item.thumbnail} alt={label} className="w-full h-full object-contain" />
                           ) : item.hex ? (
                             <span className="w-5 h-5 rounded-full" style={{ backgroundColor: item.hex }} />
                           ) : (
-                            <Palette className="w-4 h-4 text-gray-400" />
+                            <Layers className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
                         <div className="min-w-0">
                           <span className="text-xs font-black text-gray-900 block truncate">
-                            {item.color}
+                            {label}
                           </span>
                           <span className="text-[10px] font-bold text-gray-400 uppercase">
                             Order #{item.displayOrder}
@@ -1982,7 +2155,7 @@ export default function VariantMatrixManager({
               <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-3xl space-y-2">
                 <p>No products linked to this family yet.</p>
                 <p className="text-xs text-gray-400 font-medium">
-                  Enter a Family ID above and click "Add Color Product to Family" to link products together.
+                  Enter a Family ID above and click "Add Product to Family" to link products together.
                 </p>
               </div>
             )}
@@ -1990,7 +2163,7 @@ export default function VariantMatrixManager({
         </div>
       )}
 
-      {/* --- ADD COLOR PRODUCT TO FAMILY MODAL --- */}
+      {/* --- ADD PRODUCT TO FAMILY MODAL --- */}
       {showAddFamilyProductModal && (
         <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-[32px] sm:rounded-[40px] border border-gray-100 shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden">
@@ -1999,14 +2172,14 @@ export default function VariantMatrixManager({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                    <Palette className="w-4 h-4" />
+                    <Layers className="w-4 h-4" />
                   </span>
                   <h4 className="text-lg font-black text-gray-900 tracking-tight">
-                    Add Existing Product as Color to Family
+                    Add Existing Product to Family
                   </h4>
                 </div>
                 <p className="text-xs text-gray-400 font-bold mt-1">
-                  Family: <span className="font-mono text-emerald-700 font-black">{cleanFamilyId}</span>
+                  Family ID: <span className="font-mono text-emerald-700 font-black">{cleanFamilyId}</span>
                 </p>
               </div>
 
@@ -2022,7 +2195,7 @@ export default function VariantMatrixManager({
               </button>
             </div>
 
-            {/* Step 1: Product Selection or Step 2: Color Configuration */}
+            {/* Step 1: Product Selection or Step 2: Attribute Value Configuration */}
             {!selectedProductToAdd ? (
               <>
                 {/* Search Bar */}
@@ -2048,7 +2221,7 @@ export default function VariantMatrixManager({
                     )}
                   </div>
                   <div className="flex items-center justify-between mt-2 px-1 text-[11px] font-bold text-gray-400">
-                    <span>Select an existing product to link as a color</span>
+                    <span>Select an existing product to link to this family</span>
                   </div>
                 </div>
 
@@ -2070,7 +2243,7 @@ export default function VariantMatrixManager({
                     .map(prod => {
                       const prodImg = prod.primaryImage || (prod.images && prod.images[0]) || '';
                       const price = prod.discountPrice || prod.price || 0;
-                      const prodColor = prod.familyColorName || prod.color || prod.name;
+                      const prodVal = prod.familyAttributeValue || prod.familyColorName || prod.color || prod.name;
 
                       return (
                         <div
@@ -2094,10 +2267,10 @@ export default function VariantMatrixManager({
                                 <span className="text-gray-900 font-extrabold">₹{price.toLocaleString()}</span>
                                 <span>•</span>
                                 <span>Stock: {prod.stock ?? 0}</span>
-                                {prod.color && (
+                                {prodVal && (
                                   <>
                                     <span>•</span>
-                                    <span className="text-emerald-700 font-extrabold">Color: {prod.color}</span>
+                                    <span className="text-emerald-700 font-extrabold">{prodVal}</span>
                                   </>
                                 )}
                               </div>
@@ -2108,14 +2281,15 @@ export default function VariantMatrixManager({
                             type="button"
                             onClick={() => {
                               setSelectedProductToAdd(prod);
-                              setFamilyColorInput(prod.familyColorName || prod.color || prod.name);
+                              setFamilyAttributeInput(baseProduct.familyAttributeName || 'Color');
+                              setFamilyValueInput(prod.familyAttributeValue || prod.familyColorName || prod.color || prod.name);
                               setFamilyHexInput(prod.familyColorHex || '#000000');
                               setFamilyThumbnailInput(prod.familyThumbnail || prod.primaryImage || prod.images?.[0] || '');
                               setFamilyOrderInput(familyProductsList.length + 1);
                             }}
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs shrink-0"
                           >
-                            Configure Color & Link
+                            Configure & Link
                           </button>
                         </div>
                       );
@@ -2123,7 +2297,7 @@ export default function VariantMatrixManager({
                 </div>
               </>
             ) : (
-              /* Step 2: Configure Color Details for the Selected Product */
+              /* Step 2: Configure Details for the Selected Product */
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-white border border-emerald-200 overflow-hidden flex items-center justify-center shrink-0">
@@ -2148,23 +2322,38 @@ export default function VariantMatrixManager({
                 </div>
 
                 <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black uppercase tracking-wider text-gray-700">
-                      Color Variant Name
-                    </label>
-                    <input
-                      type="text"
-                      value={familyColorInput}
-                      onChange={e => setFamilyColorInput(e.target.value)}
-                      placeholder="e.g. Black, Midnight Blue, Burgundy..."
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                        Attribute Name
+                      </label>
+                      <input
+                        type="text"
+                        value={familyAttributeInput}
+                        onChange={e => setFamilyAttributeInput(e.target.value)}
+                        placeholder="e.g. Color, Storage, Size, RAM..."
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black uppercase tracking-wider text-gray-700">
+                        Attribute Value for this Product
+                      </label>
+                      <input
+                        type="text"
+                        value={familyValueInput}
+                        onChange={e => setFamilyValueInput(e.target.value)}
+                        placeholder="e.g. 256GB, Black, XL, Pack of 2..."
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:bg-white focus:border-emerald-600"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-black uppercase tracking-wider text-gray-700">
-                        Color Swatch Hex
+                        Color Swatch Hex (Optional)
                       </label>
                       <div className="flex items-center gap-2">
                         <input
@@ -2223,16 +2412,17 @@ export default function VariantMatrixManager({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!familyColorInput.trim()) {
-                        toast.error('Please enter a color name');
+                      if (!familyValueInput.trim()) {
+                        toast.error('Please enter an attribute value');
                         return;
                       }
                       handleAddProductToFamily(
                         selectedProductToAdd,
-                        familyColorInput.trim(),
+                        familyValueInput.trim(),
                         familyHexInput,
                         familyOrderInput,
-                        familyThumbnailInput
+                        familyThumbnailInput,
+                        familyAttributeInput.trim() || 'Color'
                       );
                     }}
                     className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-emerald-500/20"
@@ -2384,6 +2574,8 @@ export default function VariantMatrixManager({
                           onClick={() => {
                             if (linkedProductModalTarget?.attrId && linkedProductModalTarget?.valId) {
                               assignLinkedProductToValue(linkedProductModalTarget.attrId, linkedProductModalTarget.valId, prod);
+                            } else if (linkedProductModalTarget?.variantId) {
+                              assignLinkedProductToVariant(linkedProductModalTarget.variantId, prod);
                             }
                           }}
                           className="px-4 py-2 bg-gray-900 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
@@ -2411,6 +2603,8 @@ export default function VariantMatrixManager({
                   onClick={() => {
                     if (linkedProductModalTarget?.attrId && linkedProductModalTarget?.valId) {
                       removeLinkedProductFromValue(linkedProductModalTarget.attrId, linkedProductModalTarget.valId);
+                    } else if (linkedProductModalTarget?.variantId) {
+                      removeLinkedProductFromVariant(linkedProductModalTarget.variantId);
                     }
                     setLinkedProductModalTarget(null);
                   }}

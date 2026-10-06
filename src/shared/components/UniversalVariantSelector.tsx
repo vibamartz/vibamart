@@ -34,12 +34,17 @@ export default function UniversalVariantSelector({
   const allAttributes = getProductVariantAttributes(product);
 
   const hasFamilyColors = Array.isArray(familyColorVariants) && familyColorVariants.length > 0;
+  const familyAttrName = familyColorVariants[0]?.attributeName || product.familyAttributeName || (familyColorVariants.some(f => f.hex) ? 'Color' : 'Color');
 
-  // Filter out standalone "Color" attribute if familyColorVariants is provided (to avoid duplicate color rows)
+  // Filter out standalone attribute if familyColorVariants is provided for that attribute (to avoid duplicate rows)
   const nonColorAttributes = hasFamilyColors
     ? allAttributes.filter(a => {
         const k = normalizeAttributeKey(a.name).toLowerCase();
-        return !k.includes('color') && !k.includes('colour') && !k.includes('shade') && a.type !== 'color';
+        const fKey = familyAttrName.toLowerCase();
+        if (fKey === 'color' || fKey.includes('color')) {
+          return !k.includes('color') && !k.includes('colour') && !k.includes('shade') && a.type !== 'color';
+        }
+        return k !== fKey;
       })
     : allAttributes;
 
@@ -55,13 +60,9 @@ export default function UniversalVariantSelector({
     const cleanKey = normalizeAttributeKey(attrName);
     const attr = allAttributes.find(a => normalizeAttributeKey(a.name) === cleanKey);
     const valObj = attr?.values?.find(v => normalizeAttributeVal(v.name) === normalizeAttributeVal(valName));
-    const isColor = cleanKey.toLowerCase().includes('color') ||
-                    cleanKey.toLowerCase().includes('colour') ||
-                    cleanKey.toLowerCase().includes('shade') ||
-                    attr?.type === 'color';
 
-    // Direct navigation when customer clicks a Color variant that has a Product Link
-    if (isColor && valObj?.linkedProductId) {
+    // Direct navigation when customer clicks any attribute value that has a Product Link (Universal)
+    if (valObj?.linkedProductId) {
       const targetLinkedId = valObj.linkedProductId.trim();
       if (targetLinkedId && targetLinkedId !== product.id && targetLinkedId !== product.slug) {
         navigate(`/products/${targetLinkedId}`);
@@ -76,6 +77,15 @@ export default function UniversalVariantSelector({
       attrName,
       valName
     );
+
+    // Direct navigation if resolved variant has a Product Link
+    if (variant?.linkedProductId) {
+      const targetLinkedId = variant.linkedProductId.trim();
+      if (targetLinkedId && targetLinkedId !== product.id && targetLinkedId !== product.slug) {
+        navigate(`/products/${targetLinkedId}`);
+        return;
+      }
+    }
 
     // Local variant state switch within current product
     if (variant) {
@@ -93,7 +103,7 @@ export default function UniversalVariantSelector({
     }
   };
 
-  // Find active family color
+  // Find active family color / attribute variant
   const activeFamilyColor = hasFamilyColors
     ? familyColorVariants.find(c => c.isCurrentProduct || c.productId === product.id || (product.slug && c.productSlug === product.slug)) || familyColorVariants[0]
     : null;
@@ -139,34 +149,35 @@ export default function UniversalVariantSelector({
 
   return (
     <div className="space-y-4 sm:space-y-5 pt-1">
-      {/* 1. FAMILY COLOR MATRIX (Real Independent Linked Products) */}
+      {/* 1. PRODUCT FAMILY MATRIX (Real Independent Linked Products) */}
       {hasFamilyColors && (
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-              Color:
+              {familyAttrName}:
               <span className="text-emerald-700 font-extrabold normal-case text-xs">
-                {activeFamilyColor?.color || product.familyColorName || product.color || 'Select Color'}
+                {activeFamilyColor?.attributeValue || activeFamilyColor?.color || product.familyAttributeValue || product.familyColorName || product.color || `Select ${familyAttrName}`}
               </span>
             </span>
           </div>
 
           <div className="flex flex-wrap gap-2.5 sm:gap-3">
-            {familyColorVariants.map((colorVar) => {
+            {familyColorVariants.map((item) => {
               const isSelected = Boolean(
-                colorVar.isCurrentProduct ||
-                colorVar.productId === product.id ||
-                (product.slug && colorVar.productSlug === product.slug)
+                item.isCurrentProduct ||
+                item.productId === product.id ||
+                (product.slug && item.productSlug === product.slug)
               );
-              const isInStock = colorVar.inStock;
-              const thumbnailSrc = colorVar.thumbnail;
+              const isInStock = item.inStock;
+              const thumbnailSrc = item.thumbnail;
+              const itemLabel = item.attributeValue || item.color || item.productName;
 
               return (
                 <button
-                  key={colorVar.productId}
+                  key={item.productId}
                   type="button"
-                  onClick={() => handleFamilyColorClick(colorVar)}
-                  title={`${colorVar.color} ${!isInStock ? '(Out of Stock)' : ''}`}
+                  onClick={() => handleFamilyColorClick(item)}
+                  title={`${itemLabel} ${!isInStock ? '(Out of Stock)' : ''}`}
                   className={`group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
                     isSelected
                       ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-500/20'
@@ -180,19 +191,19 @@ export default function UniversalVariantSelector({
                     {thumbnailSrc ? (
                       <img
                         src={thumbnailSrc}
-                        alt={colorVar.color}
+                        alt={itemLabel}
                         className={`w-full h-full object-contain transition-transform group-hover:scale-105 ${
                           !isInStock ? 'grayscale opacity-60' : ''
                         }`}
                       />
-                    ) : colorVar.hex ? (
+                    ) : item.hex ? (
                       <span
                         className="w-7 h-7 rounded-full border border-gray-300 shadow-2xs"
-                        style={{ backgroundColor: colorVar.hex }}
+                        style={{ backgroundColor: item.hex }}
                       />
                     ) : (
                       <span className="text-[10px] font-black uppercase text-gray-400">
-                        {colorVar.color.slice(0, 3)}
+                        {itemLabel.slice(0, 3)}
                       </span>
                     )}
 
@@ -206,7 +217,7 @@ export default function UniversalVariantSelector({
                     )}
                   </div>
 
-                  {/* Color Name Label */}
+                  {/* Value / Color Name Label */}
                   <span
                     className={`text-[11px] font-bold mt-1.5 line-clamp-1 break-words w-full ${
                       isSelected
@@ -216,7 +227,7 @@ export default function UniversalVariantSelector({
                         : 'text-gray-700'
                     }`}
                   >
-                    {colorVar.color}
+                    {itemLabel}
                   </span>
                 </button>
               );

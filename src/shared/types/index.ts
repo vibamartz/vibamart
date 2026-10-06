@@ -83,11 +83,14 @@ export interface Product {
   status: 'active' | 'inactive' | 'draft' | 'out_of_stock';
   rating: number;
   numReviews: number;
-  familyId?: string; // Product family group ID for linked color products (e.g. "FORMAL_SHIRT_001")
-  familyColorName?: string; // Optional custom color name for family matrix (e.g. "Maroon")
-  familyThumbnail?: string; // Optional custom thumbnail URL for family color matrix
+  familyId?: string; // Product family group ID for linked products (e.g. "FORMAL_SHIRT_001", "IPHONE_15_SERIES")
+  familyAttributeName?: string; // Variant attribute connecting the family (e.g. "Color", "Storage", "Size", "Capacity", "RAM", "Pack Size", etc.)
+  familyAttributeValue?: string; // Specific attribute value for this product in the family (e.g. "Maroon", "128GB", "XL")
+  familyAttributeOrder?: number; // Sorting/display order in the family matrix
+  familyColorName?: string; // Optional custom color name for family matrix (e.g. "Maroon") - legacy backward compatibility
+  familyThumbnail?: string; // Optional custom thumbnail URL for family matrix
   familyColorHex?: string; // Optional color hex for family color swatch
-  familyColorOrder?: number; // Sorting/display order in the family matrix (e.g. 1, 2, 3)
+  familyColorOrder?: number; // Sorting/display order in the family matrix (e.g. 1, 2, 3) - legacy backward compatibility
   variants?: ProductVariant[];
   variantAttributesList?: VariantAttribute[]; // Dynamic Universal Attribute Definitions (Unlimited attributes & values)
   features?: string[];
@@ -134,11 +137,13 @@ export interface Product {
   createdAt: string;
 }
 
-export interface FamilyColorVariant {
+export interface FamilyProductVariant {
   productId: string;
   productSlug?: string;
   productCode?: string;
-  color: string;
+  attributeName?: string; // e.g. "Color", "Storage", "Size", "RAM", "Capacity", "Pack Size", "Material", "Style", "Model", etc.
+  attributeValue: string; // e.g. "Maroon", "128GB", "XL", "Pack of 2"
+  color: string; // Backward-compatible alias for attributeValue
   thumbnail?: string;
   hex?: string;
   displayOrder: number;
@@ -150,9 +155,13 @@ export interface FamilyColorVariant {
   isCurrentProduct?: boolean;
 }
 
+export type FamilyColorVariant = FamilyProductVariant; // Backward-compatible alias
+
 export interface ProductFamilyMatrix {
   familyId: string;
-  colorVariants: FamilyColorVariant[];
+  attributeName?: string;
+  variants: FamilyProductVariant[];
+  colorVariants?: FamilyColorVariant[]; // Backward-compatible alias
 }
 
 export interface VariantAttributeValue {

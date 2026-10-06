@@ -1,4 +1,4 @@
-import { Product, ProductVariant, VariantAttribute, VariantAttributeValue, FamilyColorVariant } from '../types';
+import { Product, ProductVariant, VariantAttribute, VariantAttributeValue, FamilyColorVariant, FamilyProductVariant } from '../types';
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { getProductSlug } from './slug';
@@ -136,8 +136,8 @@ export function getProductVariantAttributes(product: Partial<Product> | null | u
             name: cleanVal,
             hex: (isColorAttr && v.colorHex) ? v.colorHex : undefined,
             image: (v.image || v.images?.[0]) ? (v.image || v.images?.[0]) : undefined,
-            linkedProductId: isColorAttr ? v.linkedProductId : undefined,
-            linkedProductName: isColorAttr ? v.linkedProductName : undefined
+            linkedProductId: v.linkedProductId,
+            linkedProductName: v.linkedProductName
           });
         }
       });
@@ -833,25 +833,29 @@ export function getAvailableAttributeSummaries(product: Product): string[] {
 }
 
 /**
- * Builds a clean, deduplicated, sorted Family Color Matrix from a list of family products.
- * Guarantees that each color points to a REAL independent Product ID.
+ * Builds a clean, deduplicated, sorted Family Matrix from a list of family products.
+ * Supports UNIVERSAL product-family relationships across ANY attribute (Color, Storage, Size, RAM, Capacity, Pack Size, Material, etc.).
+ * Guarantees that each variant entry points to a REAL independent Product ID.
  */
-export function buildFamilyColorMatrix(
+export function buildFamilyProductMatrix(
   familyProducts: Product[],
   currentProduct?: Partial<Product> | null
-): FamilyColorVariant[] {
+): FamilyProductVariant[] {
   if (!familyProducts || familyProducts.length === 0) {
     if (currentProduct && currentProduct.id) {
-      const pColor = currentProduct.familyColorName || currentProduct.color || 'Default';
+      const familyAttr = currentProduct.familyAttributeName || (currentProduct.familyColorName || currentProduct.familyColorHex || currentProduct.color ? 'Color' : 'Option');
+      const pVal = currentProduct.familyAttributeValue || currentProduct.familyColorName || currentProduct.color || currentProduct.name || 'Default';
       const pThumb = currentProduct.familyThumbnail || currentProduct.primaryImage || currentProduct.images?.[0] || '';
       return [{
         productId: currentProduct.id,
         productSlug: getProductSlug(currentProduct as Product),
         productCode: currentProduct.productCode,
-        color: pColor,
+        attributeName: familyAttr,
+        attributeValue: pVal,
+        color: pVal,
         thumbnail: pThumb,
         hex: currentProduct.familyColorHex,
-        displayOrder: currentProduct.familyColorOrder ?? 1,
+        displayOrder: currentProduct.familyAttributeOrder ?? currentProduct.familyColorOrder ?? 1,
         price: currentProduct.discountPrice || currentProduct.price,
         mrp: currentProduct.mrp || currentProduct.price,
         inStock: currentProduct.inStock !== false && currentProduct.status !== 'out_of_stock' && (currentProduct.stock ?? 0) > 0,
@@ -876,30 +880,67 @@ export function buildFamilyColorMatrix(
     uniqueProductsMap.set(currentProduct.id, currentProduct as Product);
   }
 
-  const result: FamilyColorVariant[] = [];
-  const seenColors = new Set<string>();
+  const allProds = Array.from(uniqueProductsMap.values());
 
-  Array.from(uniqueProductsMap.values()).forEach((p, idx) => {
-    // Determine color label
-    let colorName = (p.familyColorName || p.color || '').trim();
-    if (!colorName && p.variants && p.variants.length > 0) {
-      const firstWithColor = p.variants.find(v => v.color || v.colorName);
-      if (firstWithColor) {
-        colorName = (firstWithColor.colorName || firstWithColor.color || '').trim();
+  // Determine family attribute name:
+  // 1. Check if configured explicitly on currentProduct or any family product
+  let familyAttrName = currentProduct?.familyAttributeName || allProds.find(p => p.familyAttributeName)?.familyAttributeName;
+  if (!familyAttrName) {
+    // If any product has familyColorName or familyColorHex or color, treat as Color
+    const hasColorData = allProds.some(p => p.familyColorName || p.familyColorHex || p.color);
+    if (hasColorData) {
+      familyAttrName = 'Color';
+    } else {
+      // Check if products have an attribute in variantAttributesList
+      const firstWithAttrs = allProds.find(p => p.variantAttributesList && p.variantAttributesList.length > 0);
+      if (firstWithAttrs?.variantAttributesList?.[0]?.name) {
+        familyAttrName = firstWithAttrs.variantAttributesList[0].name;
+      } else {
+        familyAttrName = 'Option';
       }
     }
-    if (!colorName) {
-      colorName = p.name;
+  }
+
+  const result: FamilyProductVariant[] = [];
+  const seenValues = new Set<string>();
+
+  allProds.forEach((p, idx) => {
+    // Determine attribute value for this product
+    let val = (p.familyAttributeValue || '').trim();
+    if (!val) {
+      if (familyAttrName.toLowerCase() === 'color' || !familyAttrName) {
+        val = (p.familyColorName || p.color || '').trim();
+      }
+    }
+    if (!val && p.variants && p.variants.length > 0) {
+      // Look in first variant attributes
+      const firstV = p.variants[0];
+      const vAttrs = extractVariantAttributes(firstV);
+      if (familyAttrName && vAttrs[familyAttrName]) {
+        val = vAttrs[familyAttrName];
+      } else if (vAttrs['Color']) {
+        val = vAttrs['Color'];
+      }
+    }
+    if (!val) {
+      // Check direct product field matching familyAttrName (e.g. storage, size, capacity, etc.)
+      const directVal = (p as any)[familyAttrName.toLowerCase()];
+      if (typeof directVal === 'string' && directVal.trim()) {
+        val = directVal.trim();
+      }
+    }
+    if (!val) {
+      val = p.name;
     }
 
-    const cleanColor = normalizeAttributeVal(colorName);
-    const colorLower = cleanColor.toLowerCase();
+    const cleanVal = normalizeAttributeVal(val);
+    const valLower = cleanVal.toLowerCase();
 
-    // Prevent duplicate color entries in the same family matrix
-    if (seenColors.has(colorLower) && p.id !== currentProduct?.id) {
+    // Prevent duplicate entries in the same family matrix (unless it's the current product)
+    if (seenValues.has(valLower) && p.id !== currentProduct?.id) {
       return;
     }
-    seenColors.add(colorLower);
+    seenValues.add(valLower);
 
     const thumbnail = p.familyThumbnail || p.primaryImage || (p.images && p.images[0]) || (p.variants && p.variants[0]?.image) || '';
     const hex = p.familyColorHex || (p.variants && p.variants[0]?.colorHex) || undefined;
@@ -910,10 +951,12 @@ export function buildFamilyColorMatrix(
       productId: p.id,
       productSlug: getProductSlug(p),
       productCode: p.productCode,
-      color: cleanColor,
+      attributeName: familyAttrName,
+      attributeValue: cleanVal,
+      color: cleanVal, // Backward-compatible alias
       thumbnail,
       hex,
-      displayOrder: p.familyColorOrder ?? (idx + 1),
+      displayOrder: p.familyAttributeOrder ?? p.familyColorOrder ?? (idx + 1),
       price: p.discountPrice || p.price,
       mrp: p.mrp || p.price,
       inStock,
@@ -923,16 +966,18 @@ export function buildFamilyColorMatrix(
     });
   });
 
-  // Sort matrix by displayOrder ascending, then by color name
+  // Sort matrix by displayOrder ascending, then by attributeValue
   result.sort((a, b) => {
     if (a.displayOrder !== b.displayOrder) {
       return a.displayOrder - b.displayOrder;
     }
-    return a.color.localeCompare(b.color);
+    return (a.attributeValue || a.color || '').localeCompare(b.attributeValue || b.color || '');
   });
 
   return result;
 }
+
+export const buildFamilyColorMatrix = buildFamilyProductMatrix;
 
 /**
  * In-memory cache for family product queries to optimize performance and prevent unnecessary Firestore reads.
@@ -944,19 +989,19 @@ const CACHE_TTL_MS = 30000; // 30 seconds
  * Queries only products belonging to the specified familyId from Firestore.
  * Does NOT fetch the entire product catalog.
  */
-export async function fetchFamilyColorMatrix(
+export async function fetchFamilyProductMatrix(
   familyId: string | undefined | null,
   currentProduct?: Partial<Product> | null
-): Promise<FamilyColorVariant[]> {
+): Promise<FamilyProductVariant[]> {
   const cleanFamilyId = (familyId || '').trim();
   if (!cleanFamilyId) {
-    return buildFamilyColorMatrix([], currentProduct);
+    return buildFamilyProductMatrix([], currentProduct);
   }
 
   // Check cache
   const cached = familyProductsCache.get(cleanFamilyId);
   if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
-    return buildFamilyColorMatrix(cached.products, currentProduct);
+    return buildFamilyProductMatrix(cached.products, currentProduct);
   }
 
   try {
@@ -974,12 +1019,14 @@ export async function fetchFamilyColorMatrix(
       products: familyProducts
     });
 
-    return buildFamilyColorMatrix(familyProducts, currentProduct);
+    return buildFamilyProductMatrix(familyProducts, currentProduct);
   } catch (err) {
     console.error(`Failed to query family products for familyId "${cleanFamilyId}":`, err);
-    return buildFamilyColorMatrix([], currentProduct);
+    return buildFamilyProductMatrix([], currentProduct);
   }
 }
+
+export const fetchFamilyColorMatrix = fetchFamilyProductMatrix;
 
 /**
  * Extracts unique available size values for a product (e.g. ['M', 'L', 'XL', 'XXL'])
