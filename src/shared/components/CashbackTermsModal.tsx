@@ -91,22 +91,22 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 space-y-3">
               <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Current Monthly Cashback Rewards
+                Monthly Cashback Rewards Range
               </h4>
               <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
                 <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">1st Order</span>
-                  <span className="text-base sm:text-lg font-black text-emerald-600">₹{config.firstOrderAmount}</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 1</span>
+                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
                   <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
                 </div>
                 <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">2nd Order</span>
-                  <span className="text-base sm:text-lg font-black text-emerald-600">₹{config.secondOrderAmount}</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 2</span>
+                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
                   <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
                 </div>
                 <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">3rd Order</span>
-                  <span className="text-base sm:text-lg font-black text-emerald-600">₹{config.thirdOrderAmount}</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 3</span>
+                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
                   <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
                 </div>
               </div>
