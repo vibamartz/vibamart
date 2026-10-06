@@ -598,7 +598,7 @@ export default function MobileProductDetailScreen() {
 
         {/* Universal Variant Selector */}
         {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
-          <div className="pb-4 border-b border-gray-100 space-y-4">
+          <div className="pb-4 border-b border-gray-100 space-y-4 min-w-0 max-w-full overflow-hidden">
             <UniversalVariantSelector
               product={product}
               selectedAttributes={selectedAttributes}

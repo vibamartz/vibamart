@@ -149,10 +149,10 @@ export default function UniversalVariantSelector({
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5 pt-1">
+    <div className="space-y-4 sm:space-y-5 pt-1 min-w-0 max-w-full">
       {/* 1. PRODUCT FAMILY MATRIX (Real Independent Linked Products) */}
       {hasFamilyColors && (
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 min-w-0 max-w-full">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
               {familyAttrName}:
@@ -162,7 +162,7 @@ export default function UniversalVariantSelector({
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-2.5 sm:gap-3">
+          <div className="flex flex-nowrap overflow-x-auto gap-2.5 sm:gap-3 hide-scrollbar pb-1 pt-0.5 min-w-0 w-full max-w-full touch-pan-x overscroll-x-contain">
             {familyColorVariants.map((item) => {
               const isSelected = Boolean(
                 item.isCurrentProduct ||
@@ -179,7 +179,7 @@ export default function UniversalVariantSelector({
                   type="button"
                   onClick={() => handleFamilyColorClick(item)}
                   title={`${itemLabel} ${!isInStock ? '(Out of Stock)' : ''}`}
-                  className={`group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
+                  className={`shrink-0 group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
                     isSelected
                       ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-500/20'
                       : !isInStock
@@ -245,7 +245,7 @@ export default function UniversalVariantSelector({
         const isSize = attrName.toLowerCase().includes('size');
 
         return (
-          <div key={attr.id} className="space-y-2.5">
+          <div key={attr.id} className="space-y-2.5 min-w-0 max-w-full">
             {/* Attribute Label & Selected Value Header */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -268,7 +268,7 @@ export default function UniversalVariantSelector({
 
             {/* 1. IMAGE / SWATCH DISPLAY (Visual Reference: Color + Thumbnails) */}
             {displayType === 'image' || displayType === 'swatch' ? (
-              <div className="flex flex-wrap gap-2.5 sm:gap-3">
+              <div className="flex flex-nowrap overflow-x-auto gap-2.5 sm:gap-3 hide-scrollbar pb-1 pt-0.5 min-w-0 w-full max-w-full touch-pan-x overscroll-x-contain">
                 {(attr.values || []).map((val) => {
                   const valName = normalizeAttributeVal(val.name);
                   const isSelected = currentSelectedVal.toLowerCase() === valName.toLowerCase();
@@ -284,7 +284,7 @@ export default function UniversalVariantSelector({
                       onClick={() => handleAttributeValueClick(attrName, valName)}
                       disabled={!isPossible}
                       title={`${valName} ${!isPossible ? '(Unavailable combination)' : !isInStock ? '(Out of Stock)' : ''}`}
-                      className={`group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
+                      className={`shrink-0 group relative rounded-xl transition-all flex flex-col items-center justify-center p-1.5 min-w-[62px] sm:min-w-[70px] max-w-[84px] cursor-pointer text-center ${
                         isSelected
                           ? 'border-2 border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-500/20'
                           : !isPossible
@@ -375,7 +375,7 @@ export default function UniversalVariantSelector({
               </div>
             ) : (
               /* 3. BUTTON PILL DISPLAY (e.g. Size [S] [M] [L] [XL], RAM, Storage, Capacity, etc.) */
-              <div className="flex flex-wrap gap-2 sm:gap-2.5">
+              <div className="flex flex-nowrap overflow-x-auto gap-2 sm:gap-2.5 hide-scrollbar pb-1 pt-0.5 min-w-0 w-full max-w-full touch-pan-x overscroll-x-contain">
                 {(attr.values || []).map((val) => {
                   const valName = normalizeAttributeVal(val.name);
                   const isSelected = currentSelectedVal.toLowerCase() === valName.toLowerCase();
@@ -390,7 +390,7 @@ export default function UniversalVariantSelector({
                       onClick={() => handleAttributeValueClick(attrName, valName)}
                       disabled={!isPossible}
                       title={`${valName} ${!isPossible ? '(Unavailable)' : !isInStock ? '(Out of Stock)' : ''}`}
-                      className={`min-w-[44px] px-3.5 py-2.5 rounded-xl border-2 text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`shrink-0 min-w-[44px] px-3.5 py-2.5 rounded-xl border-2 text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                         isSelected
                           ? 'border-emerald-600 bg-emerald-600 text-white shadow-xs'
                           : !isPossible

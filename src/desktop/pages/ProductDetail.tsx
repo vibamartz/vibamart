@@ -665,7 +665,7 @@ export default function ProductDetail() {
 
               {/* Universal Variant Selector */}
               {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
-                <div className="space-y-4 pt-2 border-t border-gray-100">
+                <div className="space-y-4 pt-2 border-t border-gray-100 min-w-0 max-w-full overflow-hidden">
                   <UniversalVariantSelector
                     product={product}
                     selectedAttributes={selectedAttributes}
