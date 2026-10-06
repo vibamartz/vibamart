@@ -88,20 +88,15 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
             </div>
 
             {/* Program Summary Card */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Cashback Program Overview
-                </h4>
-                <p className="text-xs text-emerald-800 font-medium mt-1">
-                  Applicable on your first 3 eligible orders of each calendar month.
-                </p>
-              </div>
-              <div className="bg-white rounded-xl px-4 py-2.5 shadow-xs border border-emerald-100 text-center shrink-0">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block">Reward Range</span>
-                <span className="text-base sm:text-lg font-black text-emerald-600">₹30 – ₹100</span>
-                <span className="text-[9px] text-gray-500 font-medium block">Per eligible order</span>
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 space-y-2.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Monthly Cashback Rewards
+              </h4>
+              <div className="space-y-1 text-xs font-bold text-emerald-950 pl-1">
+                <p>1st Eligible Order: ₹30 - ₹100 Cashback</p>
+                <p>• 2nd Eligible Order: ₹30 - ₹100 Cashback</p>
+                <p>• 3rd Eligible Order: ₹30 - ₹100 Cashback</p>
               </div>
             </div>
 
@@ -113,20 +108,16 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
               <div className="space-y-3 pl-1">
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
-                  <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">First 3 Eligible Orders:</strong> Customers can receive cashback on their first 3 eligible orders of each calendar month.
-                  </p>
+                  <div className="text-xs text-gray-650 space-y-1">
+                    <strong className="text-gray-900 block">Eligible Orders Cashback:</strong>
+                    <p className="font-semibold text-gray-800">1st Eligible Order: ₹30 - ₹100 Cashback</p>
+                    <p className="font-semibold text-gray-800">• 2nd Eligible Order: ₹30 - ₹100 Cashback</p>
+                    <p className="font-semibold text-gray-800">• 3rd Eligible Order: ₹30 - ₹100 Cashback</p>
+                  </div>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
-                  <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Cashback Range:</strong> The cashback range is ₹30–₹100 per eligible order. The exact cashback amount is determined by the current cashback configuration.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
                   <p className="text-xs text-gray-650">
                     <strong className="text-gray-900">Progress Tracking (0 → 1 → 2 → 3):</strong> Monthly progress is tracked as 0 → 1 → 2 → 3 upon placing eligible orders.
                   </p>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
-  Sparkles, Calendar, ShieldCheck, Wallet, RefreshCw, ArrowRight
+  Calendar, ShieldCheck, Wallet, RefreshCw, ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCashbackStore, useAuthStore, getMonthKey } from '../../backend/store';
@@ -70,7 +70,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
   return (
     <>
       <style>{`
-        @keyframes cashbackRgbAnimation {
+        @keyframes cashbackRgbFlow {
           0% {
             background-position: 0% 50%;
           }
@@ -82,36 +82,35 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           }
         }
         .cashback-rgb-bg {
-          background: linear-gradient(125deg, #091a2f, #1b1035, #2e0854, #12382e, #3a1528, #0e2b45, #1e1338);
-          background-size: 350% 350%;
-          animation: cashbackRgbAnimation 14s ease infinite;
+          background: linear-gradient(135deg, #ef4444, #2563eb, #10b981, #dc2626, #3b82f6, #059669, #ef4444);
+          background-size: 400% 400%;
+          animation: cashbackRgbFlow 10s ease infinite;
         }
       `}</style>
 
       <section className={`w-full max-w-7xl mx-auto ${isMobile ? 'px-0 py-1' : 'px-4 sm:px-6 lg:px-8 py-1.5'}`}>
-        <div className="cashback-rgb-bg relative rounded-3xl sm:rounded-[32px] p-3.5 sm:p-5 text-white shadow-lg border border-white/15 overflow-hidden">
-          {/* Subtle Ambient Depth */}
-          <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+        <div className="cashback-rgb-bg relative rounded-3xl sm:rounded-[32px] p-4 sm:p-6 text-white shadow-xl border border-white/25 overflow-hidden">
+          {/* Subtle Ambient Contrast Overlay */}
+          <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
-          {/* Top Bar: Title, Badges & Quick Action Buttons */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pb-2.5 sm:pb-3 border-b border-white/10">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-400/20 text-amber-200 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-full border border-amber-300/30 backdrop-blur-md">
-                <Sparkles className="w-2.5 h-2.5 text-amber-300 fill-amber-300" />
+          {/* Top Bar: Big Title, Reset Text & Quick Action Buttons */}
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-white/20">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
                 Monthly Cashback Schedule
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 text-emerald-100 text-[9px] sm:text-[10px] font-bold rounded-full border border-white/10 backdrop-blur-md">
-                <RefreshCw className="w-2.5 h-2.5" />
-                Resets 1st of month
+              </h2>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 text-white text-xs sm:text-sm font-bold rounded-full border border-white/25 backdrop-blur-md shadow-xs">
+                <RefreshCw className="w-3.5 h-3.5 text-white" />
+                (resets 1st of month)
               </span>
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setIsTermsOpen(true)}
-                className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] sm:text-[11px] font-bold rounded-xl border border-white/20 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-bold rounded-xl border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
               >
-                <ShieldCheck className="w-3 h-3 text-emerald-200" />
+                <ShieldCheck className="w-3.5 h-3.5 text-white" />
                 Terms
               </button>
 
@@ -124,25 +123,22 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                     setIsHistoryOpen(true);
                   }
                 }}
-                className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-gray-900 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl shadow-sm transition-all flex items-center gap-1 active:scale-95"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white hover:bg-gray-100 text-gray-900 text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1 active:scale-95"
               >
-                <Wallet className="w-3 h-3 text-gray-900" />
+                <Wallet className="w-3.5 h-3.5 text-gray-900" />
                 Cashback History
               </button>
             </div>
           </div>
 
-          {/* Single Large Prominent Cashback Amount Display */}
-          <div className="relative z-10 pt-3 sm:pt-4 pb-2 text-center sm:text-left flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4">
+          {/* Directly below: Single Large Prominent Cashback Amount Display */}
+          <div className="relative z-10 pt-3 sm:pt-4 pb-1 text-center sm:text-left flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4">
             <div className="flex flex-col sm:flex-row sm:items-baseline gap-1.5 sm:gap-3">
-              <span className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm">
                 ₹30 – ₹100
               </span>
-              <span className="text-[11px] sm:text-xs text-white/80 font-medium">
-                Cashback per eligible order
-              </span>
             </div>
-            <div className="text-[10px] sm:text-[11px] text-amber-200/90 font-medium">
+            <div className="text-xs sm:text-sm text-white/90 font-bold">
               {currentMonth.name} Schedule
             </div>
           </div>
@@ -151,11 +147,11 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           <div className="relative z-10 py-4 sm:py-6 px-4 sm:px-8">
             <div className="relative flex items-center justify-between">
               {/* Background Track Line */}
-              <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white/20 rounded-full z-0" />
+              <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white/30 rounded-full z-0" />
 
               {/* Active Filled Progress Line */}
               <motion.div
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-gradient-to-r from-emerald-400 via-amber-300 to-amber-400 rounded-full z-0 shadow-sm"
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white rounded-full z-0 shadow-sm"
                 initial={{ width: '0%' }}
                 animate={{ width: `${(currentProgressPoint / 3) * 100}%` }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -174,10 +170,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                     key={pt}
                     className={`relative z-10 w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs sm:text-sm transition-all duration-300 shadow-md ${
                       isCurrent
-                        ? 'bg-amber-400 text-gray-950 ring-4 ring-amber-400/35 scale-110'
+                        ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
                         : isReached
-                        ? 'bg-emerald-400 text-emerald-950 ring-2 ring-emerald-300/40'
-                        : 'bg-[#15233c] text-white/70 border-2 border-white/30'
+                        ? 'bg-white text-gray-950 ring-2 ring-white/50'
+                        : 'bg-black/30 text-white/80 border-2 border-white/40'
                     }`}
                   >
                     {pt}
@@ -188,9 +184,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           </div>
 
           {/* Bottom Compact Footer */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-[10px] sm:text-[11px]">
-            <div className="flex items-center gap-1.5 text-white/80 font-medium">
-              <Calendar className="w-3 h-3 text-amber-300 shrink-0" />
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-white/20 text-xs sm:text-sm">
+            <div className="flex items-center gap-1.5 text-white/90 font-medium">
+              <Calendar className="w-3.5 h-3.5 text-white shrink-0" />
               <span>
                 {user ? `Monthly Progress Active` : 'Log in to track monthly progress'}
               </span>
@@ -205,9 +201,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                   setIsHistoryOpen(true);
                 }
               }}
-              className="text-amber-300 hover:text-white font-bold underline transition-colors flex items-center gap-1 ml-auto"
+              className="text-white hover:text-amber-200 font-bold underline transition-colors flex items-center gap-1 ml-auto"
             >
-              UPI / Bank Account <ArrowRight className="w-2.5 h-2.5" />
+              UPI / Bank Account <ArrowRight className="w-3 h-3" />
             </button>
           </div>
         </div>
