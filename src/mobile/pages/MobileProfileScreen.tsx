@@ -4,9 +4,10 @@ import {
   User, Package, Heart, MapPin, RefreshCcw, Bell, HelpCircle,
   LogOut, Shield, ChevronRight, Sparkles, Phone, Mail, Gift, Sliders,
   CheckCircle2, Clock, Edit2, ShieldCheck, Check, X, LayoutDashboard,
-  FileText, Headphones
+  FileText, Headphones, Wallet
 } from 'lucide-react';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
+import CashbackHistoryModal from '../../shared/components/CashbackHistoryModal';
 import { useAuthStore } from '../../backend/store';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -23,6 +24,7 @@ export default function MobileProfileScreen() {
   const [ordersCount, setOrdersCount] = useState<number>(0);
   const [showOverview, setShowOverview] = useState<boolean>(false);
   const [showPreferencesModal, setShowPreferencesModal] = useState<boolean>(false);
+  const [showCashbackModal, setShowCashbackModal] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -108,6 +110,7 @@ export default function MobileProfileScreen() {
 
   const menuItems: MenuItem[] = [
     { title: 'Account Overview', icon: User, badge: 'Profile', color: 'text-emerald-700 bg-emerald-50', action: () => setShowOverview(prev => !prev) },
+    { title: 'Monthly Cashback', icon: Wallet, badge: '₹30–₹100', color: 'text-emerald-600 bg-emerald-50', action: () => setShowCashbackModal(true) },
     { title: 'ViBa Rewards', icon: Gift, path: '/rewards', badge: 'Bonus', color: 'text-amber-600 bg-amber-50' },
     { title: 'My Orders', icon: Package, path: '/orders', badge: ordersCount > 0 ? ordersCount : null, color: 'text-blue-600 bg-blue-50' },
     { title: 'My Wishlist', icon: Heart, path: '/wishlist', badge: user.wishlist?.length || null, color: 'text-rose-600 bg-rose-50' },
@@ -301,6 +304,11 @@ export default function MobileProfileScreen() {
       <CustomerNotificationPreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
+      />
+
+      <CashbackHistoryModal
+        isOpen={showCashbackModal}
+        onClose={() => setShowCashbackModal(false)}
       />
     </div>
   );

@@ -1,4 +1,16 @@
-import { Category, RewardsSectionConfig, BrandCoupon } from './types';
+import { Category, RewardsSectionConfig, BrandCoupon, CashbackConfig } from './types';
+
+export const DEFAULT_CASHBACK_CONFIG: CashbackConfig = {
+  enabled: true,
+  firstOrderAmount: 50,
+  secondOrderAmount: 75,
+  thirdOrderAmount: 100,
+  title: 'Earn Cashback on Your First 3 Orders Every Month',
+  subtitle: 'Complete your first 3 eligible orders each calendar month to unlock guaranteed cashback transferred directly to your UPI or Bank account.',
+  returnPeriodDays: 7,
+  termsAndConditions: `1. Monthly First-3-Orders Eligibility: Cashback is applicable on your first 3 eligible and completed orders placed within each calendar month.\n2. Configured Cashback Rewards:\n  • 1st Eligible Order: ₹50 Cashback\n  • 2nd Eligible Order: ₹75 Cashback\n  • 3rd Eligible Order: ₹100 Cashback\n3. Automatic Monthly Reset: At the start of every calendar month (1st of each month), your eligible-order counter automatically resets to 0. You can earn cashback again starting from your 1st order of the new month.\n4. Pending Period & Verification: Cashback will remain pending until the applicable return and cancellation period for the order has ended. Once eligible, the cashback will be transferred to your selected UPI or bank account.\n5. Ineligible / Cancelled Orders: Orders that are cancelled, returned, or refunded do not qualify for finalized cashback.\n6. Payout Methods: Once cashback becomes eligible, payouts are transferred directly to your saved UPI ID or Bank account.\n7. Cashback History: Your past and current month cashback earnings remain permanently accessible in your Cashback History.`,
+};
+
 
 export const DEFAULT_REWARDS_CONFIG: RewardsSectionConfig = {
   enabled: true,

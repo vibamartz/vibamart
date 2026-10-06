@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Package, MapPin, Settings, Heart, Bell,
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones, Wallet
 } from 'lucide-react';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProductSlug } from '../../shared/utilities/slug';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
+import CashbackHistoryModal from '../../shared/components/CashbackHistoryModal';
 import Logo from '../components/Logo';
 
 export default function Profile() {
@@ -33,6 +34,7 @@ export default function Profile() {
   const { settings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings' | null>(null);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+  const [showCashbackModal, setShowCashbackModal] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
 
   const isOrderEligibleForReturn = (order: Order) => {
@@ -533,6 +535,7 @@ export default function Profile() {
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
+    { id: 'cashback', label: 'Monthly Cashback', icon: Wallet, action: () => setShowCashbackModal(true) },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'rewards', label: 'ViBa Rewards', icon: Gift, path: '/rewards' },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
@@ -577,7 +580,7 @@ export default function Profile() {
                 {menuItems.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => item.path ? navigate(item.path) : setActiveTab(item.id as any)}
+                    onClick={() => (item as any).action ? (item as any).action() : item.path ? navigate(item.path) : setActiveTab(item.id as any)}
                     className={`w-full touch-target min-h-[44px] flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === item.id
                         ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]'
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -1556,6 +1559,11 @@ export default function Profile() {
       <CustomerNotificationPreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
+      />
+
+      <CashbackHistoryModal
+        isOpen={showCashbackModal}
+        onClose={() => setShowCashbackModal(false)}
       />
     </div>
   );

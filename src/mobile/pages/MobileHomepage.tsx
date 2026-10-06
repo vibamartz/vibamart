@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -807,6 +808,11 @@ export default function MobileHomepage() {
           )}
         </section>
       )}
+
+      {/* ========================================================================= */}
+      {/* 5.1. MONTHLY FIRST-3-ORDERS CASHBACK SCHEDULE (Directly below Banner)     */}
+      {/* ========================================================================= */}
+      <CashbackScheduleSection isMobile={true} />
 
       {/* ========================================================================= */}
       {/* 6. SUBCATEGORIES & NESTED SUBCATEGORIES (Directly below Banners)          */}

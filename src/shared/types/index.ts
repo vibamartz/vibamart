@@ -596,4 +596,53 @@ export interface UserRewards {
   transactions?: RewardTransaction[];
 }
 
+export interface CashbackConfig {
+  enabled: boolean;
+  firstOrderAmount: number; // ₹30 - ₹100
+  secondOrderAmount: number; // ₹30 - ₹100
+  thirdOrderAmount: number; // ₹30 - ₹100
+  minOrderValue?: number;
+  returnPeriodDays: number;
+  title: string;
+  subtitle: string;
+  termsAndConditions: string;
+  updatedAt?: string;
+}
+
+export interface CustomerPayoutInfo {
+  payoutType: 'upi' | 'bank';
+  upiId?: string;
+  accountHolderName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
+  updatedAt?: string;
+}
+
+export interface CashbackRecord {
+  id: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  orderId: string;
+  customOrderId?: string;
+  orderDate: string;
+  orderTotal: number;
+  monthKey: string; // "YYYY-MM"
+  monthName: string; // "October 2026"
+  position: 1 | 2 | 3;
+  amount: number;
+  status: 'pending' | 'eligible' | 'paid' | 'failed';
+  orderStatus: OrderStatus;
+  returnPeriodEnd: string;
+  payoutInfo?: CustomerPayoutInfo;
+  payoutDate?: string;
+  payoutReference?: string;
+  failureReason?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export * from './notifications';
+

@@ -24,6 +24,7 @@ import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -501,6 +502,9 @@ export default function Home() {
           </>
         )}
       </section>
+
+      {/* 2.1. Monthly First-3-Orders Cashback Schedule Section (Directly BELOW Home Banner) */}
+      <CashbackScheduleSection />
 
       {/* 3. Selected Category's Subcategories & Nested Subcategories (Directly below Banners) */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
