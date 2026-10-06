@@ -137,6 +137,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
               <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm">
                 ₹30 – ₹100
               </span>
+              <span className="text-[11px] sm:text-xs text-white/80 font-medium">
+                Cashback per eligible order
+              </span>
             </div>
             <div className="text-xs sm:text-sm text-white/90 font-bold">
               {currentMonth.name} Schedule
@@ -168,13 +171,12 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 return (
                   <div
                     key={pt}
-                    className={`relative z-10 w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs sm:text-sm transition-all duration-300 shadow-md ${
-                      isCurrent
+                    className={`relative z-10 w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs sm:text-sm transition-all duration-300 shadow-md ${isCurrent
                         ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
                         : isReached
-                        ? 'bg-white text-gray-950 ring-2 ring-white/50'
-                        : 'bg-black/30 text-white/80 border-2 border-white/40'
-                    }`}
+                          ? 'bg-white text-gray-950 ring-2 ring-white/50'
+                          : 'bg-black/30 text-white/80 border-2 border-white/40'
+                      }`}
                   >
                     {pt}
                   </div>
