@@ -94,7 +94,7 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                 Monthly Cashback Rewards
               </h4>
               <div className="space-y-1 text-xs font-bold text-emerald-950 pl-1">
-                <p>1st Eligible Order: ₹30 - ₹100 Cashback</p>
+                <p>• 1st Eligible Order: ₹30 - ₹100 Cashback</p>
                 <p>• 2nd Eligible Order: ₹30 - ₹100 Cashback</p>
                 <p>• 3rd Eligible Order: ₹30 - ₹100 Cashback</p>
               </div>
@@ -110,7 +110,7 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
                   <div className="text-xs text-gray-650 space-y-1">
                     <strong className="text-gray-900 block">Eligible Orders Cashback:</strong>
-                    <p className="font-semibold text-gray-800">1st Eligible Order: ₹30 - ₹100 Cashback</p>
+                    <p className="font-semibold text-gray-800">• 1st Eligible Order: ₹30 - ₹100 Cashback</p>
                     <p className="font-semibold text-gray-800">• 2nd Eligible Order: ₹30 - ₹100 Cashback</p>
                     <p className="font-semibold text-gray-800">• 3rd Eligible Order: ₹30 - ₹100 Cashback</p>
                   </div>
