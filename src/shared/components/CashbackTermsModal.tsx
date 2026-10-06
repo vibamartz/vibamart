@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ShieldCheck, CheckCircle2, Clock, Calendar, Wallet, RefreshCw, AlertCircle } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, Clock, Calendar, Wallet } from 'lucide-react';
 import { useCashbackStore } from '../../backend/store';
 
 interface CashbackTermsModalProps {
@@ -40,7 +40,7 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
               </div>
               <div>
                 <h3 className="text-lg sm:text-xl font-black tracking-tight">Terms & Conditions</h3>
-                <p className="text-xs text-emerald-100/90 font-medium">Monthly First 3 Orders Cashback Program</p>
+                <p className="text-xs text-emerald-100/90 font-medium">Monthly Cashback Program</p>
               </div>
             </div>
             <button
@@ -62,7 +62,7 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                   Monthly Reset
                 </div>
                 <p className="text-[11px] text-emerald-950 font-medium">
-                  Eligible order counter resets automatically on the 1st of every calendar month.
+                  Monthly progress starts again from 0 at the beginning of each new calendar month.
                 </p>
               </div>
 
@@ -72,43 +72,36 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                   Pending Period
                 </div>
                 <p className="text-[11px] text-amber-950 font-medium">
-                  Cashback remains pending until the applicable return & cancellation window ends.
+                  Cashback remains pending until the applicable product return/cancellation period ends.
                 </p>
               </div>
 
               <div className="bg-blue-50/70 border border-blue-200/60 rounded-2xl p-3.5 flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-blue-800 font-black text-xs">
                   <Wallet className="w-4 h-4 text-blue-600 shrink-0" />
-                  Direct Payout
+                  Direct Transfer
                 </div>
                 <p className="text-[11px] text-blue-950 font-medium">
-                  Eligible cashback is transferred straight to your selected UPI ID or Bank account.
+                  Eligible cashback can be transferred to your registered UPI or bank account.
                 </p>
               </div>
             </div>
 
-            {/* Current Offer Rates */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 space-y-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Monthly Cashback Rewards Range
-              </h4>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
-                <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 1</span>
-                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
-                  <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
-                </div>
-                <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 2</span>
-                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
-                  <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
-                </div>
-                <div className="bg-white rounded-xl p-3 shadow-xs border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Position 3</span>
-                  <span className="text-sm sm:text-base font-black text-emerald-600">₹30 – ₹100</span>
-                  <span className="text-[9px] text-gray-500 font-medium block mt-0.5">Cashback</span>
-                </div>
+            {/* Program Summary Card */}
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Cashback Program Overview
+                </h4>
+                <p className="text-xs text-emerald-800 font-medium mt-1">
+                  Applicable on your first 3 eligible orders of each calendar month.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl px-4 py-2.5 shadow-xs border border-emerald-100 text-center shrink-0">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Reward Range</span>
+                <span className="text-base sm:text-lg font-black text-emerald-600">₹30 – ₹100</span>
+                <span className="text-[9px] text-gray-500 font-medium block">Per eligible order</span>
               </div>
             </div>
 
@@ -121,48 +114,69 @@ export default function CashbackTermsModal({ isOpen, onClose }: CashbackTermsMod
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">First 3 Orders Per Month:</strong> The cashback offer is valid on the customer's first three (3) eligible, successfully completed orders in each calendar month.
+                    <strong className="text-gray-900">First 3 Eligible Orders:</strong> Customers can receive cashback on their first 3 eligible orders of each calendar month.
                   </p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Automatic Monthly Reset:</strong> On the 1st day of every calendar month at 00:00:00, your monthly eligible order sequence automatically resets to zero (0). The new month's rewards begin from your first eligible order.
+                    <strong className="text-gray-900">Cashback Range:</strong> The cashback range is ₹30–₹100 per eligible order. The exact cashback amount is determined by the current cashback configuration.
                   </p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Pending Return/Cancellation Period:</strong> Cashback will remain pending until the applicable return and cancellation period for the order has ended. Once eligible, the cashback will be transferred to your selected UPI or bank account.
+                    <strong className="text-gray-900">Progress Tracking (0 → 1 → 2 → 3):</strong> Monthly progress is tracked as 0 → 1 → 2 → 3 upon placing eligible orders.
                   </p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">4</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Cancelled / Returned Orders:</strong> If an order is cancelled, returned, or refunded, it will not qualify for finalized cashback.
+                    <strong className="text-gray-900">Automatic Monthly Reset:</strong> The monthly progress starts again from 0 at the beginning of each new calendar month.
                   </p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">5</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Payout Details:</strong> Customers can save and update their preferred UPI ID or Bank Account details at any time in their Cashback History page.
+                    <strong className="text-gray-900">Pending Return/Cancellation Window:</strong> Cashback remains pending until the applicable product return/cancellation period has ended.
                   </p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">6</span>
                   <p className="text-xs text-gray-650">
-                    <strong className="text-gray-900">Permanent Cashback History:</strong> All past and current month cashback records remain permanently accessible in your account for full transparency.
+                    <strong className="text-gray-900">Ineligible / Cancelled Orders:</strong> Cancelled, returned, or otherwise ineligible orders do not receive finalized cashback according to the existing eligibility rules.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">7</span>
+                  <p className="text-xs text-gray-650">
+                    <strong className="text-gray-900">Transfer Methods:</strong> Eligible cashback can be transferred to the customer's UPI or bank account.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">8</span>
+                  <p className="text-xs text-gray-650">
+                    <strong className="text-gray-900">Permanent Cashback History:</strong> Cashback history remains available to the customer. Previous months' cashback history is not deleted when the new month begins.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">9</span>
+                  <p className="text-xs text-gray-650">
+                    <strong className="text-gray-900">Program Conditions:</strong> All cashback eligibility and payout conditions are controlled by the existing cashback system.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Custom Admin Terms if configured */}
+            {/* Custom Terms if configured */}
             {config.termsAndConditions && (
               <div className="border-t border-gray-100 pt-4">
                 <p className="text-[11px] text-gray-500 whitespace-pre-line bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
