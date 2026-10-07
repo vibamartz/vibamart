@@ -453,8 +453,8 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Subcategories Bar (Enlarged visual size and easy tap targets) */}
-      {currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
+      {/* Subcategories Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+      {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">

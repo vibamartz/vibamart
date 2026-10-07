@@ -633,8 +633,8 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Subcategories Horizontal Bar (Enlarged visual size and easy click targets) */}
-          {matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
+          {/* Subcategories Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+          {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
             <div className="py-4 mb-4 border-t border-b border-gray-100 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">
