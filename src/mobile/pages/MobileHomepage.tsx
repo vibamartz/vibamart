@@ -765,7 +765,7 @@ export default function MobileHomepage() {
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
-        <section ref={bannerSectionRef} className="-mx-3.5 xs:-mx-4 sm:-mx-5 w-auto min-w-0 space-y-2 overflow-hidden -mt-1 sm:-mt-2">
+        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden -mt-1 sm:-mt-2">
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
@@ -775,7 +775,7 @@ export default function MobileHomepage() {
               <div
                 key={banner.id || i}
                 onClick={() => navigateBanner(banner)}
-                className="relative overflow-hidden aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform w-full min-w-full flex-none shrink-0 snap-center"
+                className="relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform w-full min-w-full flex-none shrink-0 snap-center"
               >
                 <img
                   src={banner.image}
@@ -801,7 +801,7 @@ export default function MobileHomepage() {
           </div>
 
           {activeCategoryBanners.length > 1 && (
-            <div className="flex justify-center items-center gap-1.5 pt-1 px-3.5 xs:px-4 sm:px-5">
+            <div className="flex justify-center items-center gap-1.5 pt-1">
               {activeCategoryBanners.map((_, i) => (
                 <button
                   key={i}
