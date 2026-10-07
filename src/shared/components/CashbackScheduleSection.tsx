@@ -92,14 +92,14 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
         `}</style>
 
         <section className="w-full max-w-7xl mx-auto px-0 py-0">
-          <div className="cashback-rgb-bg relative rounded-2xl p-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
+          <div className="cashback-rgb-bg relative rounded-2xl py-1.5 px-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
             {/* Subtle Ambient Contrast Overlay */}
             <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
             {/* Top Bar: Title & Reset badge on Left, Cashback History & Terms buttons on Right */}
-            <div className="relative z-10 flex items-start justify-between gap-2 pb-1.5 border-b border-white/20">
+            <div className="relative z-10 flex items-start justify-between gap-2 pb-1 border-b border-white/20">
               {/* Top Left: Title & Reset Badge */}
-              <div className="flex flex-col items-start gap-1">
+              <div className="flex flex-col items-start gap-0.5">
                 <h2 className="text-base font-black text-white tracking-tight leading-tight">
                   Monthly Cashback
                 </h2>
@@ -137,7 +137,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
 
             {/* Center Prominent Amount & Description */}
-            <div className="relative z-10 pt-2 pb-1.5 flex flex-col items-center justify-center text-center">
+            <div className="relative z-10 pt-1 pb-0.5 flex flex-col items-center justify-center text-center">
               <span className="text-2xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
                 ₹30 – ₹100
               </span>
@@ -147,7 +147,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
 
             {/* Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
-            <div className="relative z-10 py-2 px-3">
+            <div className="relative z-10 py-1 px-3">
               <div className="relative flex items-center justify-between">
                 {/* Background Track Line */}
                 <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 bg-white/30 rounded-full z-0" />
@@ -186,7 +186,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
 
             {/* Bottom Compact Footer */}
-            <div className="relative z-10 flex items-center justify-between gap-1 pt-1.5 border-t border-white/20 text-[10px]">
+            <div className="relative z-10 flex items-center justify-between gap-1 pt-1 border-t border-white/20 text-[10px]">
               <div className="flex items-center gap-1 text-white/90 font-medium">
                 <Calendar className="w-3 h-3 text-white shrink-0" />
                 <span>
@@ -227,7 +227,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
     );
   }
 
-  // Render Desktop Mode (Unchanged)
+  // Render Desktop Mode
   return (
     <>
       <style>{`
@@ -249,13 +249,13 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
         }
       `}</style>
 
-      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
-        <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] p-2 sm:p-6 text-white shadow-xl border border-white/25 overflow-hidden">
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
+        <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] py-2.5 px-3 sm:py-3.5 sm:px-6 text-white shadow-xl border border-white/25 overflow-hidden">
           {/* Subtle Ambient Contrast Overlay */}
           <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
           {/* Top Bar: Big Title, Reset Text & Quick Action Buttons */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-3 border-b border-white/20">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-1.5 border-b border-white/20">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
               <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white tracking-tight">
                 Monthly Cashback
@@ -293,17 +293,17 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           </div>
 
           {/* Center Prominent Amount & Description */}
-          <div className="relative z-10 pt-3 pb-2 sm:pt-4 sm:pb-3 flex flex-col items-center justify-center text-center">
+          <div className="relative z-10 pt-1.5 pb-1 sm:pt-2 sm:pb-1.5 flex flex-col items-center justify-center text-center">
             <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
               ₹30 – ₹100
             </span>
-            <span className="text-sm sm:text-base md:text-lg text-white/90 font-semibold tracking-wide mt-1">
+            <span className="text-sm sm:text-base md:text-lg text-white/90 font-semibold tracking-wide mt-0.5">
               Cashback per eligible order
             </span>
           </div>
 
           {/* Single Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
-          <div className="relative z-10 py-1.5 sm:py-6 px-2.5 sm:px-8">
+          <div className="relative z-10 py-1 sm:py-2.5 px-2.5 sm:px-8">
             <div className="relative flex items-center justify-between">
               {/* Background Track Line */}
               <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white/30 rounded-full z-0" />
@@ -342,7 +342,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           </div>
 
           {/* Bottom Compact Footer */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1 pt-1 sm:pt-2.5 border-t border-white/20 text-[10px] sm:text-sm">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1 pt-1 sm:pt-1.5 border-t border-white/20 text-[10px] sm:text-sm">
             <div className="flex items-center gap-1.5 text-white/90 font-medium">
               <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
               <span>
