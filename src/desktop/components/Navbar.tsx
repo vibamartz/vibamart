@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
@@ -726,7 +726,7 @@ export default function Navbar() {
                   (cat.id !== 'for-you' && currentActiveCategorySlug !== 'for-you' && (
                     cat.id === currentActiveCategorySlug ||
                     cat.slug === currentActiveCategorySlug ||
-                    cat.seoSlug === currentActiveCategorySlug ||
+                    ('seoSlug' in cat && (cat as any).seoSlug === currentActiveCategorySlug) ||
                     catSlug === currentActiveCategorySlug
                   ))
                 )
