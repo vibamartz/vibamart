@@ -10,7 +10,7 @@ import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -428,13 +428,23 @@ export default function MobileProductListScreen() {
                 <button
                   key={sub.id}
                   onClick={() => handleSubCategorySelect(sub.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border shrink-0 transition-all min-w-[86px] cursor-pointer ${
+                  className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border shrink-0 transition-all min-w-[86px] cursor-pointer ${
                     isSelected
                       ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
                       : 'bg-white border-gray-100 hover:border-emerald-300'
                   }`}
                 >
-                  <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
+                  <div className={`w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${
+                    isSelected ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                  }`}>
+                    {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                      <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                        {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7", isSelected)}
+                      </div>
+                    )}
+                  </div>
                   <span className={`text-[11px] font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 ${
                     isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
                   }`}>
@@ -477,13 +487,23 @@ export default function MobileProductListScreen() {
                 <button
                   key={nested.id}
                   onClick={() => handleNestedSubCategorySelect(nested.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border shrink-0 transition-all min-w-[88px] cursor-pointer ${
+                  className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border shrink-0 transition-all min-w-[88px] cursor-pointer ${
                     isNestedSelected
                       ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-sm'
                       : 'bg-white/80 border-emerald-100 hover:border-emerald-300'
                   }`}
                 >
-                  <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
+                  <div className={`w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${
+                    isNestedSelected ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                  }`}>
+                    {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
+                      <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center ${isNestedSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                        {renderCategoryFallbackIcon(nested.name, nested.icon, "w-7 h-7", isNestedSelected)}
+                      </div>
+                    )}
+                  </div>
                   <span className={`text-[11px] font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 ${
                     isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
                   }`}>

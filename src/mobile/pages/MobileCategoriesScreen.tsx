@@ -8,7 +8,7 @@ import { getCategorySlug, getSubcategorySlug, getProductSlug } from '../../share
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 
 export default function MobileCategoriesScreen() {
@@ -290,19 +290,22 @@ export default function MobileCategoriesScreen() {
                             onClick={() => {
                               navigate(`/categories/${catSlug}/${subSlug}`);
                             }}
-                            className="rounded-2xl p-4 border bg-white border-yellow-100 hover:border-emerald-400 shadow-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
+                            className="rounded-2xl p-3 border bg-white border-yellow-100 hover:border-emerald-400 shadow-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
                           >
-                            <CategoryLogo
-                              name={sub.name}
-                              image={sub.image}
-                              icon={sub.icon}
-                              size="lg"
-                            />
-                            <span className="text-xs sm:text-sm font-extrabold leading-tight mt-2 text-gray-900">
+                            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 border border-gray-100 shadow-xs mb-2">
+                              {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                                <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-emerald-50/60 text-emerald-600">
+                                  {renderCategoryFallbackIcon(sub.name, sub.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs sm:text-sm font-extrabold leading-tight text-gray-900 line-clamp-1 w-full px-0.5">
                               {sub.name}
                             </span>
                             {sub.subcategories && sub.subcategories.length > 0 && (
-                              <span className="text-[10px] font-bold text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              <span className="text-[10px] font-bold text-emerald-700 mt-1.5 bg-emerald-50 px-2 py-0.5 rounded-full">
                                 {sub.subcategories.length} sub-items
                               </span>
                             )}

@@ -13,7 +13,7 @@ import ProductCard from '../components/ProductCard';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
-import CategoryLogo from '../../shared/components/CategoryLogo';
+import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -614,19 +614,23 @@ export default function ProductList() {
                       onClick={() => {
                         navigate(`/categories/${catSlug}/${subSlug}`);
                       }}
-                      className={`flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
+                      className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
                         isSubActive
                           ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
                           : 'bg-white border-gray-100 hover:border-emerald-300 hover:shadow-sm'
                       }`}
                     >
-                      <CategoryLogo
-                        name={sub.name}
-                        image={sub.image}
-                        icon={sub.icon}
-                        size="lg"
-                        active={isSubActive}
-                      />
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center ${
+                        isSubActive ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                      }`}>
+                        {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                          <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${isSubActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                            {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", isSubActive)}
+                          </div>
+                        )}
+                      </div>
                       <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
                         isSubActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
@@ -680,19 +684,23 @@ export default function ProductList() {
                           navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
                         }
                       }}
-                      className={`flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
+                      className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
                         isNestedActive
                           ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-md'
                           : 'bg-white/80 border-emerald-100/80 hover:border-emerald-400 hover:shadow-sm'
                       }`}
                     >
-                      <CategoryLogo
-                        name={nested.name}
-                        image={nested.image}
-                        icon={nested.icon}
-                        size="lg"
-                        active={isNestedActive}
-                      />
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center ${
+                        isNestedActive ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                      }`}>
+                        {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
+                          <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${isNestedActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                            {renderCategoryFallbackIcon(nested.name, nested.icon, "w-8 h-8 sm:w-10 sm:h-10", isNestedActive)}
+                          </div>
+                        )}
+                      </div>
                       <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
                         isNestedActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
