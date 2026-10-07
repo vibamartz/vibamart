@@ -67,6 +67,167 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
   // Exactly 4 Progress Points (0, 1, 2, 3)
   const points = [0, 1, 2, 3];
 
+  // Render Mobile Mode
+  if (isMobile) {
+    return (
+      <>
+        <style>{`
+          @keyframes cashbackRgbFlow {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+          .cashback-rgb-bg {
+            background: linear-gradient(135deg, #ef4444, #2563eb, #10b981, #dc2626, #3b82f6, #059669, #ef4444);
+            background-size: 400% 400%;
+            animation: cashbackRgbFlow 10s ease infinite;
+          }
+        `}</style>
+
+        <section className="w-full max-w-7xl mx-auto px-0 py-0">
+          <div className="cashback-rgb-bg relative rounded-2xl p-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
+            {/* Subtle Ambient Contrast Overlay */}
+            <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+
+            {/* Top Bar: Title & Reset badge on Left, Cashback History & Terms buttons on Right */}
+            <div className="relative z-10 flex items-start justify-between gap-2 pb-1.5 border-b border-white/20">
+              {/* Top Left: Title & Reset Badge */}
+              <div className="flex flex-col items-start gap-1">
+                <h2 className="text-base font-black text-white tracking-tight leading-tight">
+                  Monthly Cashback
+                </h2>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full border border-white/25 backdrop-blur-md shadow-xs">
+                  <RefreshCw className="w-2.5 h-2.5 text-white" />
+                  (resets 1st of month)
+                </span>
+              </div>
+
+              {/* Top Right: Cashback History button + Terms button directly below it */}
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      navigate('/login');
+                    } else {
+                      setHistoryTab('history');
+                      setIsHistoryOpen(true);
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-white hover:bg-gray-100 text-gray-900 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1 active:scale-95"
+                >
+                  <Wallet className="w-3 h-3 text-gray-900" />
+                  Cashback History
+                </button>
+
+                <button
+                  onClick={() => setIsTermsOpen(true)}
+                  className="px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold rounded-lg border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
+                >
+                  <ShieldCheck className="w-2.5 h-2.5 text-white" />
+                  Terms
+                </button>
+              </div>
+            </div>
+
+            {/* Center Prominent Amount & Description */}
+            <div className="relative z-10 pt-2 pb-1.5 flex flex-col items-center justify-center text-center">
+              <span className="text-2xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
+                ₹30 – ₹100
+              </span>
+              <span className="text-xs text-white/90 font-medium tracking-wide mt-0.5">
+                Cashback per eligible order
+              </span>
+            </div>
+
+            {/* Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
+            <div className="relative z-10 py-2 px-3">
+              <div className="relative flex items-center justify-between">
+                {/* Background Track Line */}
+                <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 bg-white/30 rounded-full z-0" />
+
+                {/* Active Filled Progress Line */}
+                <motion.div
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-1.5 bg-white rounded-full z-0 shadow-sm"
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${(currentProgressPoint / 3) * 100}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  style={{
+                    maxWidth: 'calc(100% - 24px)',
+                  }}
+                />
+
+                {/* 4 Points (0, 1, 2, 3) Centered on the Line */}
+                {points.map((pt) => {
+                  const isReached = currentProgressPoint >= pt;
+                  const isCurrent = currentProgressPoint === pt;
+
+                  return (
+                    <div
+                      key={pt}
+                      className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-md ${
+                        isCurrent
+                          ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
+                          : isReached
+                          ? 'bg-white text-gray-950 ring-2 ring-white/50'
+                          : 'bg-black/30 text-white/80 border-2 border-white/40'
+                      }`}
+                    >
+                      {pt}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Compact Footer */}
+            <div className="relative z-10 flex items-center justify-between gap-1 pt-1.5 border-t border-white/20 text-[10px]">
+              <div className="flex items-center gap-1 text-white/90 font-medium">
+                <Calendar className="w-3 h-3 text-white shrink-0" />
+                <span>
+                  {user ? `Monthly Progress Active` : 'Log in to track monthly progress'}
+                </span>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!user) {
+                    navigate('/login');
+                  } else {
+                    setHistoryTab('payout_settings');
+                    setIsHistoryOpen(true);
+                  }
+                }}
+                className="text-white hover:text-amber-200 font-bold underline transition-colors flex items-center gap-0.5 ml-auto"
+              >
+                UPI / Bank Account <ArrowRight className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Terms & Conditions Modal */}
+        <CashbackTermsModal
+          isOpen={isTermsOpen}
+          onClose={() => setIsTermsOpen(false)}
+        />
+
+        {/* Customer Cashback History & Payout Settings Modal */}
+        <CashbackHistoryModal
+          isOpen={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+          defaultTab={historyTab}
+        />
+      </>
+    );
+  }
+
+  // Render Desktop Mode (Unchanged)
   return (
     <>
       <style>{`
@@ -88,7 +249,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
         }
       `}</style>
 
-      <section className={`w-full max-w-7xl mx-auto ${isMobile ? 'px-0 py-0' : 'px-4 sm:px-6 lg:px-8 py-1.5'}`}>
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5">
         <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] p-2 sm:p-6 text-white shadow-xl border border-white/25 overflow-hidden">
           {/* Subtle Ambient Contrast Overlay */}
           <div className="absolute inset-0 bg-black/10 pointer-events-none" />
