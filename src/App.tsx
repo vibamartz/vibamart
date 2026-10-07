@@ -31,6 +31,7 @@ import Rewards from './desktop/pages/Rewards';
 import RewardProducts from './desktop/pages/RewardProducts';
 import Deal259Page from './desktop/pages/Deal259Page';
 import TermsOfService from './desktop/pages/TermsOfService';
+import CashbackHistoryPage from './desktop/pages/CashbackHistoryPage';
 import PrivacyPolicy from './desktop/pages/PrivacyPolicy';
 import ContactUs from './desktop/pages/ContactUs';
 import DesktopShareModal from './desktop/components/DesktopShareModal';
@@ -166,6 +167,12 @@ function MainAppRoutes() {
             <Route path="/banners/:offerSlug" element={<MobileProductListScreen />} />
             <Route path="/rewards" element={<MobileRewardsScreen />} />
             <Route path="/rewards/:rewardSlug" element={<MobileRewardProductsScreen />} />
+            <Route path="/cashback" element={<CashbackHistoryPage />} />
+            <Route path="/cashback-history" element={<CashbackHistoryPage />} />
+            <Route path="/cashback/history" element={<CashbackHistoryPage />} />
+            <Route path="/cashback/payout" element={<CashbackHistoryPage defaultTab="payout_settings" />} />
+            <Route path="/cashback/terms" element={<TermsOfService />} />
+            <Route path="/cashback-terms" element={<TermsOfService />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
@@ -247,6 +254,12 @@ function MainAppRoutes() {
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/rewards/:rewardSlug" element={<RewardProducts />} />
+          <Route path="/cashback" element={<CashbackHistoryPage />} />
+          <Route path="/cashback-history" element={<CashbackHistoryPage />} />
+          <Route path="/cashback/history" element={<CashbackHistoryPage />} />
+          <Route path="/cashback/payout" element={<CashbackHistoryPage defaultTab="payout_settings" />} />
+          <Route path="/cashback/terms" element={<TermsOfService />} />
+          <Route path="/cashback-terms" element={<TermsOfService />} />
           <Route path="/track-order" element={<OrderTracking />} />
           <Route path="/track-order/:orderId" element={<OrderTracking />} />
           <Route path="/track-request/:requestId" element={<RequestTracking />} />
