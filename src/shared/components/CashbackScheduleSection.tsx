@@ -13,6 +13,397 @@ interface CashbackScheduleSectionProps {
   isMobile?: boolean;
 }
 
+// 3D Decorative Gold Coin SVG Component
+function GoldCoin3D({
+  size = 40,
+  className = '',
+  style = {},
+}: {
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`drop-shadow-[0_8px_16px_rgba(0,0,0,0.35)] select-none pointer-events-none ${className}`}
+      style={style}
+    >
+      <defs>
+        {/* Outer Coin Rim Gradient */}
+        <linearGradient id="coinGoldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FFF4B8" />
+          <stop offset="25%" stopColor="#F59E0B" />
+          <stop offset="50%" stopColor="#B45309" />
+          <stop offset="75%" stopColor="#FBBF24" />
+          <stop offset="100%" stopColor="#78350F" />
+        </linearGradient>
+
+        {/* Inner Coin Surface Radial */}
+        <radialGradient id="coinGoldCore" cx="35%" cy="35%" r="65%">
+          <stop offset="0%" stopColor="#FEF08A" />
+          <stop offset="45%" stopColor="#F59E0B" />
+          <stop offset="85%" stopColor="#D97706" />
+          <stop offset="100%" stopColor="#92400E" />
+        </radialGradient>
+
+        {/* Embossed Text Shadow */}
+        <linearGradient id="coinEmboss" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#FEF9C3" />
+          <stop offset="100%" stopColor="#B45309" />
+        </linearGradient>
+
+        {/* 3D Specular Sheen */}
+        <linearGradient id="coinSheen" x1="0%" y1="0%" x2="100%" y2="80%">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.6" />
+          <stop offset="35%" stopColor="#FFFFFF" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* 3D Coin Outer Base / Bevel */}
+      <circle cx="50" cy="50" r="47" fill="url(#coinGoldRim)" stroke="#78350F" strokeWidth="1.5" />
+
+      {/* Inner Beveled Rim */}
+      <circle cx="50" cy="50" r="41" fill="url(#coinGoldCore)" stroke="#FDE68A" strokeWidth="1.5" />
+
+      {/* Decorative Beaded Edge Ring */}
+      <circle
+        cx="50"
+        cy="50"
+        r="36"
+        fill="none"
+        stroke="#FEF3C7"
+        strokeWidth="1.5"
+        strokeDasharray="2.5 3"
+        opacity="0.8"
+      />
+
+      {/* Inner Concentric Fine Ring */}
+      <circle cx="50" cy="50" r="31" fill="none" stroke="#B45309" strokeWidth="1" opacity="0.6" />
+
+      {/* Rupee Symbol Center Emboss with 3D Shadow */}
+      <text
+        x="51"
+        y="62"
+        textAnchor="middle"
+        fontFamily="sans-serif"
+        fontSize="34"
+        fontWeight="900"
+        fill="#78350F"
+        opacity="0.5"
+      >
+        ₹
+      </text>
+      <text
+        x="50"
+        y="60.5"
+        textAnchor="middle"
+        fontFamily="sans-serif"
+        fontSize="34"
+        fontWeight="900"
+        fill="url(#coinEmboss)"
+        stroke="#92400E"
+        strokeWidth="0.8"
+      >
+        ₹
+      </text>
+
+      {/* 3D Specular Highlight Sweep */}
+      <path
+        d="M 22 25 Q 50 15 78 25 Q 60 50 22 25 Z"
+        fill="url(#coinSheen)"
+      />
+    </svg>
+  );
+}
+
+// 3D Decorative Indian Rupee Note Component
+function RupeeNote3D({
+  denomination = '500',
+  width = 90,
+  height = 48,
+  theme = 'emerald', // 'emerald' (₹500), 'saffron' (₹200), 'purple' (₹100)
+  className = '',
+  style = {},
+}: {
+  denomination?: string;
+  width?: number;
+  height?: number;
+  theme?: 'emerald' | 'saffron' | 'purple';
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const gradients = {
+    emerald: {
+      bg: 'linear-gradient(135deg, #065f46 0%, #047857 40%, #10b981 70%, #064e3b 100%)',
+      accent: '#6ee7b7',
+      strip: '#34d399',
+      border: 'rgba(167, 243, 208, 0.4)',
+      text: '#ecfdf5',
+    },
+    saffron: {
+      bg: 'linear-gradient(135deg, #9a3412 0%, #c2410c 40%, #f97316 70%, #7c2d12 100%)',
+      accent: '#fed7aa',
+      strip: '#fb923c',
+      border: 'rgba(254, 215, 170, 0.4)',
+      text: '#fff7ed',
+    },
+    purple: {
+      bg: 'linear-gradient(135deg, #581c87 0%, #7e22ce 40%, #a855f7 70%, #3b0764 100%)',
+      accent: '#e9d5ff',
+      strip: '#c084fc',
+      border: 'rgba(233, 213, 255, 0.4)',
+      text: '#faf5ff',
+    },
+  }[theme];
+
+  return (
+    <div
+      className={`relative select-none pointer-events-none rounded-[5px] overflow-hidden drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)] ${className}`}
+      style={{
+        width: `${width}px`,
+        height: `${height}px`,
+        background: gradients.bg,
+        border: `1px solid ${gradients.border}`,
+        boxShadow: 'inset 0 0 12px rgba(255,255,255,0.25), 0 8px 16px rgba(0,0,0,0.3)',
+        ...style,
+      }}
+    >
+      {/* Banknote Micro Guilloche Pattern Overlay */}
+      <div
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(circle at 50% 50%, ${gradients.accent} 1px, transparent 1px)`,
+          backgroundSize: '6px 6px',
+        }}
+      />
+
+      {/* Holographic / Security Strip with Shimmer */}
+      <div
+        className="absolute top-0 bottom-0 left-[26%] w-[10%] opacity-75"
+        style={{
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(251,191,36,0.8) 50%, rgba(255,255,255,0.7) 100%)',
+          boxShadow: '0 0 6px rgba(251,191,36,0.6)',
+        }}
+      />
+
+      {/* Decorative Border Frame */}
+      <div
+        className="absolute inset-[2.5px] rounded-[3px] border border-white/25 pointer-events-none flex flex-col justify-between p-1"
+      >
+        {/* Top Header Row in Note */}
+        <div className="flex items-center justify-between text-[7px] font-black tracking-widest text-white/90 leading-none">
+          <span className="opacity-90">RESERVE BANK</span>
+          <span style={{ color: gradients.accent }} className="font-extrabold font-mono">₹{denomination}</span>
+        </div>
+
+        {/* Center Note Emblem & Rupee Symbol */}
+        <div className="flex items-center justify-center gap-1 my-auto">
+          <div
+            className="w-4 h-4 rounded-full border border-white/40 flex items-center justify-center text-[8px] font-black text-white/90 shadow-inner"
+            style={{ background: 'rgba(255,255,255,0.15)' }}
+          >
+            ₹
+          </div>
+          <span
+            className="text-[13px] font-black tracking-tight drop-shadow-md leading-none"
+            style={{ color: gradients.text }}
+          >
+            ₹{denomination}
+          </span>
+        </div>
+
+        {/* Bottom Bar in Note */}
+        <div className="flex items-center justify-between text-[6px] font-bold text-white/75 leading-none">
+          <span className="tracking-tighter opacity-80">VIBA MART</span>
+          <span className="font-mono tracking-wider opacity-90">INDIA</span>
+        </div>
+      </div>
+
+      {/* 3D Curved Light Reflection on Note */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          background: 'linear-gradient(115deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.2) 75%, rgba(255,255,255,0) 100%)',
+        }}
+      />
+    </div>
+  );
+}
+
+// Subtle Twinkling Sparkle Particle
+function GoldSparkle({
+  size = 12,
+  className = '',
+  style = {},
+}: {
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={`select-none pointer-events-none ${className}`}
+      style={style}
+    >
+      <path
+        d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"
+        fill="url(#sparkleGoldGrad)"
+      />
+      <defs>
+        <radialGradient id="sparkleGoldGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="40%" stopColor="#FDE047" />
+          <stop offset="80%" stopColor="#F59E0B" />
+          <stop offset="100%" stopColor="#B45309" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+    </svg>
+  );
+}
+
+// Background Floating 3D Layer for Cashback Section
+function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean }) {
+  if (isMobile) {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        {/* Coin 1: Top Left */}
+        <div
+          className="absolute -top-1 left-2 animate-float-slow-1 opacity-60"
+          style={{ transform: 'rotateX(18deg) rotateY(-25deg) rotateZ(-12deg)' }}
+        >
+          <GoldCoin3D size={28} />
+        </div>
+
+        {/* Note 1: Top Right (₹500 Emerald) */}
+        <div
+          className="absolute -top-2 right-1 animate-float-slow-2 opacity-50"
+          style={{ transform: 'rotateX(22deg) rotateY(15deg) rotateZ(14deg)' }}
+        >
+          <RupeeNote3D denomination="500" width={54} height={29} theme="emerald" />
+        </div>
+
+        {/* Note 2: Bottom Right (₹200 Saffron) */}
+        <div
+          className="absolute -bottom-2 right-12 animate-float-slow-3 opacity-50"
+          style={{ transform: 'rotateX(-20deg) rotateY(-18deg) rotateZ(-10deg)' }}
+        >
+          <RupeeNote3D denomination="200" width={48} height={26} theme="saffron" />
+        </div>
+
+        {/* Coin 2: Bottom Left */}
+        <div
+          className="absolute -bottom-1 left-8 animate-float-slow-4 opacity-60"
+          style={{ transform: 'rotateX(-15deg) rotateY(20deg) rotateZ(8deg)' }}
+        >
+          <GoldCoin3D size={24} />
+        </div>
+
+        {/* Coin 3: Mid Right behind line */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -right-2 animate-float-slow-1 opacity-45"
+          style={{ transform: 'rotateX(10deg) rotateY(-30deg) rotateZ(-6deg)' }}
+        >
+          <GoldCoin3D size={26} />
+        </div>
+
+        {/* Twinkling Gold Sparkles */}
+        <div className="absolute top-2 left-1/3 animate-twinkle opacity-70">
+          <GoldSparkle size={10} />
+        </div>
+        <div className="absolute bottom-2 right-1/4 animate-twinkle-delay opacity-75">
+          <GoldSparkle size={12} />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Floating 3D Assets Layer
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      {/* Coin 1: Top-Left Floating 3D */}
+      <div
+        className="absolute top-1 left-6 animate-float-slow-1 opacity-70"
+        style={{ transform: 'rotateX(20deg) rotateY(-22deg) rotateZ(-15deg)' }}
+      >
+        <GoldCoin3D size={44} />
+      </div>
+
+      {/* Note 1 (₹500 Emerald): Top Right behind Action Buttons */}
+      <div
+        className="absolute top-1 right-8 animate-float-slow-2 opacity-60"
+        style={{ transform: 'rotateX(24deg) rotateY(18deg) rotateZ(12deg)' }}
+      >
+        <RupeeNote3D denomination="500" width={82} height={44} theme="emerald" />
+      </div>
+
+      {/* Coin 2: Mid-Left Floating */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2 left-2 animate-float-slow-3 opacity-65"
+        style={{ transform: 'rotateX(-18deg) rotateY(25deg) rotateZ(10deg)' }}
+      >
+        <GoldCoin3D size={36} />
+      </div>
+
+      {/* Note 2 (₹200 Saffron): Bottom Right */}
+      <div
+        className="absolute -bottom-1 right-28 animate-float-slow-4 opacity-60"
+        style={{ transform: 'rotateX(-22deg) rotateY(-15deg) rotateZ(-8deg)' }}
+      >
+        <RupeeNote3D denomination="200" width={76} height={40} theme="saffron" />
+      </div>
+
+      {/* Coin 3: Bottom-Left near Calendar */}
+      <div
+        className="absolute -bottom-2 left-24 animate-float-slow-1 opacity-70"
+        style={{ transform: 'rotateX(15deg) rotateY(-18deg) rotateZ(6deg)' }}
+      >
+        <GoldCoin3D size={38} />
+      </div>
+
+      {/* Coin 4: Mid-Right Floating 3D */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2 -right-1 animate-float-slow-2 opacity-65"
+        style={{ transform: 'rotateX(22deg) rotateY(-28deg) rotateZ(-14deg)' }}
+      >
+        <GoldCoin3D size={46} />
+      </div>
+
+      {/* Note 3 (₹100 Purple): Center subtle drift */}
+      <div
+        className="absolute top-2 left-1/2 -translate-x-1/2 animate-float-slow-3 opacity-30"
+        style={{ transform: 'rotateX(18deg) rotateY(10deg) rotateZ(-6deg)' }}
+      >
+        <RupeeNote3D denomination="100" width={68} height={36} theme="purple" />
+      </div>
+
+      {/* Twinkling Gold Sparkles */}
+      <div className="absolute top-3 left-1/4 animate-twinkle opacity-80">
+        <GoldSparkle size={14} />
+      </div>
+      <div className="absolute bottom-3 left-1/2 animate-twinkle-delay opacity-85">
+        <GoldSparkle size={12} />
+      </div>
+      <div className="absolute top-4 right-1/4 animate-twinkle opacity-75">
+        <GoldSparkle size={15} />
+      </div>
+      <div className="absolute bottom-4 right-8 animate-twinkle-delay opacity-70">
+        <GoldSparkle size={11} />
+      </div>
+    </div>
+  );
+}
+
 export default function CashbackScheduleSection({ isMobile = false }: CashbackScheduleSectionProps) {
   const { config, records, initCashback, syncCustomerOrdersWithCashback } = useCashbackStore();
   const { user } = useAuthStore();
@@ -78,17 +469,80 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
               background-position: 0% 50%;
             }
           }
+          @keyframes floatSlow1 {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+              transform: translateY(-8px) rotate(4deg) scale(1.04);
+            }
+          }
+          @keyframes floatSlow2 {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+              transform: translateY(7px) rotate(-5deg) scale(0.97);
+            }
+          }
+          @keyframes floatSlow3 {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+              transform: translateY(-6px) rotate(-4deg) scale(1.03);
+            }
+          }
+          @keyframes floatSlow4 {
+            0%, 100% {
+              transform: translateY(0px) rotate(0deg) scale(1);
+            }
+            50% {
+              transform: translateY(8px) rotate(6deg) scale(1.02);
+            }
+          }
+          @keyframes twinkleGlint {
+            0%, 100% {
+              opacity: 0.3;
+              transform: scale(0.7) rotate(0deg);
+            }
+            50% {
+              opacity: 0.95;
+              transform: scale(1.2) rotate(45deg);
+            }
+          }
           .cashback-rgb-bg {
             background: linear-gradient(135deg, #ef4444, #2563eb, #10b981, #dc2626, #3b82f6, #059669, #ef4444);
             background-size: 400% 400%;
             animation: cashbackRgbFlow 10s ease infinite;
+          }
+          .animate-float-slow-1 {
+            animation: floatSlow1 5.5s ease-in-out infinite;
+          }
+          .animate-float-slow-2 {
+            animation: floatSlow2 6.5s ease-in-out infinite;
+          }
+          .animate-float-slow-3 {
+            animation: floatSlow3 7s ease-in-out infinite;
+          }
+          .animate-float-slow-4 {
+            animation: floatSlow4 6s ease-in-out infinite;
+          }
+          .animate-twinkle {
+            animation: twinkleGlint 3s ease-in-out infinite;
+          }
+          .animate-twinkle-delay {
+            animation: twinkleGlint 3.5s ease-in-out infinite 1.5s;
           }
         `}</style>
 
         <section className="w-full max-w-7xl mx-auto px-0 py-0">
           <div className="cashback-rgb-bg relative rounded-2xl py-1.5 px-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
             {/* Subtle Ambient Contrast Overlay */}
-            <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+            <div className="absolute inset-0 bg-black/10 pointer-events-none z-0" />
+
+            {/* Live Floating 3D Decorative Assets in Background */}
+            <Floating3DCashbackBackground isMobile={true} />
 
             {/* Top Bar: Title & Reset badge on Left, Cashback History & Terms buttons on Right */}
             <div className="relative z-10 flex items-start justify-between gap-2 pb-1 border-b border-white/20">
@@ -221,17 +675,80 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             background-position: 0% 50%;
           }
         }
+        @keyframes floatSlow1 {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1);
+          }
+          50% {
+            transform: translateY(-9px) rotate(4deg) scale(1.04);
+          }
+        }
+        @keyframes floatSlow2 {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1);
+          }
+          50% {
+            transform: translateY(8px) rotate(-5deg) scale(0.97);
+          }
+        }
+        @keyframes floatSlow3 {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1);
+          }
+          50% {
+            transform: translateY(-8px) rotate(-4deg) scale(1.03);
+          }
+        }
+        @keyframes floatSlow4 {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1);
+          }
+          50% {
+            transform: translateY(9px) rotate(5deg) scale(1.02);
+          }
+        }
+        @keyframes twinkleGlint {
+          0%, 100% {
+            opacity: 0.3;
+            transform: scale(0.7) rotate(0deg);
+          }
+          50% {
+            opacity: 0.95;
+            transform: scale(1.2) rotate(45deg);
+          }
+        }
         .cashback-rgb-bg {
           background: linear-gradient(135deg, #ef4444, #2563eb, #10b981, #dc2626, #3b82f6, #059669, #ef4444);
           background-size: 400% 400%;
           animation: cashbackRgbFlow 10s ease infinite;
+        }
+        .animate-float-slow-1 {
+          animation: floatSlow1 6s ease-in-out infinite;
+        }
+        .animate-float-slow-2 {
+          animation: floatSlow2 7s ease-in-out infinite;
+        }
+        .animate-float-slow-3 {
+          animation: floatSlow3 7.5s ease-in-out infinite;
+        }
+        .animate-float-slow-4 {
+          animation: floatSlow4 6.5s ease-in-out infinite;
+        }
+        .animate-twinkle {
+          animation: twinkleGlint 3s ease-in-out infinite;
+        }
+        .animate-twinkle-delay {
+          animation: twinkleGlint 3.5s ease-in-out infinite 1.5s;
         }
       `}</style>
 
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
         <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] py-2.5 px-3 sm:py-3.5 sm:px-6 text-white shadow-xl border border-white/25 overflow-hidden">
           {/* Subtle Ambient Contrast Overlay */}
-          <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+          <div className="absolute inset-0 bg-black/10 pointer-events-none z-0" />
+
+          {/* Live Floating 3D Decorative Assets in Background */}
+          <Floating3DCashbackBackground isMobile={false} />
 
           {/* Top Bar: Big Title, Reset Text & Quick Action Buttons */}
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-1.5 border-b border-white/20">
