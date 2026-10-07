@@ -1,11 +1,10 @@
 import { create } from "zustand";
 import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder } from "../shared/types";
-import { CATEGORIES as INITIAL_CATEGORIES, DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
+import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
-import { sanitizeAndUploadCategoryDoc } from "./services/categoryStorageService";
 import { PushService } from "./services/pushService";
 
 
@@ -361,7 +360,7 @@ interface CategoryState {
 }
 
 export const useCategoryStore = create<CategoryState>((set) => ({
-  categories: INITIAL_CATEGORIES,
+  categories: [],
   loading: true,
   initCategories: () => {
     const q = collection(db, 'categories');
@@ -381,38 +380,10 @@ export const useCategoryStore = create<CategoryState>((set) => ({
           return catData;
         });
 
-        // Auto-seed missing initial categories to Firestore (admins only)
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          INITIAL_CATEGORIES.forEach(async (initialCat) => {
-            const exists = fetchedCategories.some(c => c.id === initialCat.id);
-            if (!exists) {
-              try {
-                const sanitized = await sanitizeAndUploadCategoryDoc(initialCat);
-                await setDoc(doc(db, 'categories', initialCat.id), sanitized);
-              } catch (e) {
-                console.error("Failed to seed missing category:", initialCat.id, e);
-              }
-            }
-          });
-        }
-
         fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         set({ categories: fetchedCategories, loading: false });
       } else {
-        // If empty, seed Firestore with initial categories (admins only)
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          INITIAL_CATEGORIES.forEach(async (cat) => {
-            try {
-              const sanitized = await sanitizeAndUploadCategoryDoc(cat);
-              await setDoc(doc(db, 'categories', cat.id), sanitized);
-            } catch (e) {
-              console.error("Failed to seed category", e);
-            }
-          });
-        }
-        set({ categories: INITIAL_CATEGORIES, loading: false });
+        set({ categories: [], loading: false });
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'categories', false);
