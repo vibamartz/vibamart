@@ -14,6 +14,7 @@ import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, createSl
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
+import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -703,6 +704,14 @@ export default function ProductList() {
                 })}
               </div>
             </div>
+          )}
+
+          {/* Dynamic Visual Nested Subcategories Showcase */}
+          {matchedCategory && (
+            <VisualNestedSubcategoriesSection
+              categoryId={matchedCategory.id}
+              subCategoryId={matchedSubcategory?.id}
+            />
           )}
 
           {searchParams.get('q') && (

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Category, SubCategory } from '../../shared/types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight, Sparkles, Wand2 } from 'lucide-react';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight, Sparkles, Wand2, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
@@ -10,10 +10,12 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
+import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
 
 export default function CategoriesManagementView() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
   
   // Expanded State
   const [expandedCats, setExpandedCats] = useState<string[]>([]);
@@ -486,29 +488,62 @@ export default function CategoriesManagementView() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Category Management</h2>
-          <p className="text-sm text-gray-500">Organize and manage your categories and subcategories.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleRestoreDefaults}
-            disabled={isSaving}
-            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
-          >
-            <RotateCcw className={`w-5 h-5 ${isSaving ? 'animate-spin' : ''}`} />
-            Restore Defaults
-          </button>
-          <button
-            onClick={() => handleOpenAddModal('category')}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            Add Category
-          </button>
-        </div>
+      {/* Top Tab Switcher */}
+      <div className="flex items-center gap-2 bg-gray-100/80 p-1.5 rounded-2xl w-fit border border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('categories')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            activeSubTab === 'categories'
+              ? 'bg-white text-gray-900 shadow-md shadow-gray-200/50'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Layers className="w-4 h-4 text-indigo-600" />
+          <span>Categories & Subcategories Tree</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('visual_nested')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            activeSubTab === 'visual_nested'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Visual Nested Subcategories</span>
+        </button>
       </div>
+
+      {activeSubTab === 'visual_nested' ? (
+        <VisualNestedSubcategoriesAdminView />
+      ) : (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Category Management</h2>
+              <p className="text-sm text-gray-500">Organize and manage your categories and subcategories.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRestoreDefaults}
+                disabled={isSaving}
+                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+              >
+                <RotateCcw className={`w-5 h-5 ${isSaving ? 'animate-spin' : ''}`} />
+                Restore Defaults
+              </button>
+              <button
+                onClick={() => handleOpenAddModal('category')}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                Add Category
+              </button>
+            </div>
+          </div>
 
       {/* Category List */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -871,6 +906,8 @@ export default function CategoriesManagementView() {
           </div>
         )}
       </AnimatePresence>
+        </>
+      )}
 
     </motion.div>
   );

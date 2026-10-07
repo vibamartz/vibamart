@@ -110,6 +110,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /visual_nested_subcategories/{nestedId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /features/{featureId} {
       allow read: if true;
       allow write: if isAdmin();

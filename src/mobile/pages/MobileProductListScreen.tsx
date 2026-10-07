@@ -11,6 +11,7 @@ import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProdu
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
+import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -506,6 +507,15 @@ export default function MobileProductListScreen() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Dynamic Visual Nested Subcategories Showcase */}
+      {(currentCategoryObj || selectedCategory) && (
+        <VisualNestedSubcategoriesSection
+          categoryId={currentCategoryObj?.id || selectedCategory}
+          subCategoryId={currentSubCategoryObj?.id || selectedSubCategory}
+          isMobile={true}
+        />
       )}
 
       {/* Item Count & Active Filter Pills */}

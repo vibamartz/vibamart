@@ -9,6 +9,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
+import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import toast from 'react-hot-toast';
 
 export default function MobileCategoriesScreen() {
@@ -314,6 +315,15 @@ export default function MobileCategoriesScreen() {
                       })}
                     </div>
                   </div>
+                )}
+
+                {/* Dynamic Visual Nested Subcategories Showcase */}
+                {selectedCategory && (
+                  <VisualNestedSubcategoriesSection
+                    categoryId={selectedCategory.id}
+                    subCategoryId={selectedSubCatId || undefined}
+                    isMobile={true}
+                  />
                 )}
 
                 {/* Category / Subcategory / Nested Subcategory Products Display */}

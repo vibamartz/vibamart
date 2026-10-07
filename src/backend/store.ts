@@ -1,11 +1,19 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder } from "../shared/types";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
 import { PushService } from "./services/pushService";
+import {
+  VISUAL_NESTED_SUBCATEGORIES_COLLECTION,
+  seedVisualNestedSubcategoriesIfEmpty,
+  createVisualNestedSubcategory,
+  updateVisualNestedSubcategory,
+  deleteVisualNestedSubcategory,
+  reorderVisualNestedSubcategoriesInDb
+} from "./services/visualNestedSubcategoryService";
 
 
 interface AuthState {
@@ -388,6 +396,89 @@ export const useCategoryStore = create<CategoryState>((set) => ({
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'categories', false);
       set({ loading: false });
+    });
+  }
+}));
+
+interface VisualNestedSubcategoryState {
+  items: VisualNestedSubcategory[];
+  loading: boolean;
+  initVisualNestedSubcategories: () => void;
+  addItem: (data: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'>) => Promise<VisualNestedSubcategory>;
+  updateItem: (id: string, updates: Partial<VisualNestedSubcategory>) => Promise<void>;
+  deleteItem: (id: string, categoryId?: string, subCategoryId?: string) => Promise<void>;
+  toggleActive: (id: string, isActive: boolean) => Promise<void>;
+  reorderItems: (ordered: VisualNestedSubcategory[]) => Promise<void>;
+  getByCategoryAndSubCategory: (categoryId?: string, subCategoryId?: string) => VisualNestedSubcategory[];
+}
+
+export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategoryState>((set, get) => ({
+  items: [],
+  loading: true,
+  initVisualNestedSubcategories: () => {
+    const colRef = collection(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION);
+    onSnapshot(colRef, async (snapshot) => {
+      if (!snapshot.empty) {
+        const fetched = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as VisualNestedSubcategory));
+
+        fetched.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        set({ items: fetched, loading: false });
+      } else {
+        // Auto-seed if empty
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
+          await seedVisualNestedSubcategoriesIfEmpty();
+        }
+        set({ items: [], loading: false });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, false);
+      set({ loading: false });
+    });
+  },
+
+  addItem: async (data) => {
+    const newItem = await createVisualNestedSubcategory(data);
+    set(state => ({ items: [...state.items, newItem].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)) }));
+    return newItem;
+  },
+
+  updateItem: async (id, updates) => {
+    await updateVisualNestedSubcategory(id, updates);
+    set(state => ({
+      items: state.items.map(item => item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item)
+    }));
+  },
+
+  deleteItem: async (id, categoryId, subCategoryId) => {
+    await deleteVisualNestedSubcategory(id, categoryId, subCategoryId);
+    set(state => ({
+      items: state.items.filter(item => item.id !== id)
+    }));
+  },
+
+  toggleActive: async (id, isActive) => {
+    await updateVisualNestedSubcategory(id, { isActive, isVisible: isActive });
+    set(state => ({
+      items: state.items.map(item => item.id === id ? { ...item, isActive, isVisible: isActive } : item)
+    }));
+  },
+
+  reorderItems: async (ordered) => {
+    set({ items: ordered });
+    await reorderVisualNestedSubcategoriesInDb(ordered);
+  },
+
+  getByCategoryAndSubCategory: (categoryId, subCategoryId) => {
+    const all = get().items;
+    return all.filter(item => {
+      if (item.isActive === false || item.isVisible === false) return false;
+      if (categoryId && item.categoryId !== categoryId) return false;
+      if (subCategoryId && item.subCategoryId !== subCategoryId) return false;
+      return true;
     });
   }
 }));

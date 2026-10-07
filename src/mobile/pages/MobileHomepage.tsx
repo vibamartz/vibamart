@@ -23,6 +23,7 @@ import PermissionPromptModal from '../../shared/components/PermissionPromptModal
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
+import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -866,6 +867,14 @@ export default function MobileHomepage() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Dynamic Visual Nested Subcategories Showcase (Mobile Homepage Category View) */}
+      {activeCategoryObj && (
+        <VisualNestedSubcategoriesSection
+          categoryId={activeCategoryObj.id}
+          isMobile={true}
+        />
       )}
 
       {/* ========================================================================= */}

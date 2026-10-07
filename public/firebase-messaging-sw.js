@@ -38,7 +38,7 @@ function getConfigFromUrl() {
 }
 
 const defaultConfig = {
-  apiKey: "AIzaSyDummyApiKeyForViBaMartConfig",
+  apiKey: "",
   authDomain: "viba-mart-f46a4.firebaseapp.com",
   projectId: "viba-mart-f46a4",
   storageBucket: "viba-mart-f46a4.appspot.com",

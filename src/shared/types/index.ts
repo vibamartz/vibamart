@@ -288,8 +288,33 @@ export interface SubCategory {
   name: string;
   image?: string;
   icon?: string;
+  description?: string;
+  badgeText?: string;
+  order?: number;
+  isActive?: boolean;
   isVisible?: boolean;
   subcategories?: SubCategory[]; // Recursive subcategories
+}
+
+export interface VisualNestedSubcategory {
+  id: string;
+  name: string;
+  slug?: string;
+  seoSlug?: string;
+  description?: string;
+  image: string;
+  categoryId: string; // Dynamic Parent Category ID
+  categoryName?: string;
+  subCategoryId: string; // Dynamic Parent SubCategory ID
+  subCategoryName?: string;
+  order: number;
+  isActive: boolean;
+  isVisible?: boolean;
+  badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
+  seoTitle?: string;
+  seoDescription?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WaitlistItem {

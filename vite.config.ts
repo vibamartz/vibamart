@@ -6,7 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 function getFirebaseConfig(env: Record<string, string>) {
   const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || 'AIzaSyDummyApiKeyForViBaMartConfig',
+    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || '',
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
     projectId: projectId,
     storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,

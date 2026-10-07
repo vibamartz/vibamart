@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './desktop/components/Logo';
-import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore } from './backend/store';
+import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore, useVisualNestedSubcategoryStore } from './backend/store';
 import { useIsMobile } from './shared/utilities/useIsMobile';
 import { useDoubleBackToExit } from './shared/hooks/useDoubleBackToExit';
 import PermissionModal from './desktop/components/PermissionModal';
@@ -325,6 +325,7 @@ export default function App() {
 
     initAuth();
     initCategories();
+    useVisualNestedSubcategoryStore.getState().initVisualNestedSubcategories();
     initSettings();
     useFeatureStore.getState().initFeatures();
     useRewardsStore.getState().initRewards();
