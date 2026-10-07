@@ -57,7 +57,7 @@ export default function MobileBottomNav() {
       return location.pathname === '/categories';
     }
     if (item.id === 'account') {
-      return location.pathname === '/profile' || location.pathname === '/login' || location.pathname === '/orders' || location.pathname === '/addresses';
+      return location.pathname === '/profile' || location.pathname === '/login' || location.pathname === '/orders' || location.pathname === '/addresses' || location.pathname.startsWith('/cashback');
     }
     if (item.id === 'cart') {
       return location.pathname === '/cart';

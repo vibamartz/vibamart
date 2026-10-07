@@ -26,7 +26,6 @@ import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProductSlug } from '../../shared/utilities/slug';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
-import CashbackHistoryModal from '../../shared/components/CashbackHistoryModal';
 import Logo from '../components/Logo';
 
 export default function Profile() {
@@ -34,7 +33,6 @@ export default function Profile() {
   const { settings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings' | null>(null);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
-  const [showCashbackModal, setShowCashbackModal] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
 
   const isOrderEligibleForReturn = (order: Order) => {
@@ -535,7 +533,7 @@ export default function Profile() {
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: User },
-    { id: 'cashback', label: 'Monthly Cashback', icon: Wallet, action: () => setShowCashbackModal(true) },
+    { id: 'cashback', label: 'Monthly Cashback', icon: Wallet, path: '/cashback' },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'rewards', label: 'ViBa Rewards', icon: Gift, path: '/rewards' },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
@@ -1559,11 +1557,6 @@ export default function Profile() {
       <CustomerNotificationPreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
-      />
-
-      <CashbackHistoryModal
-        isOpen={showCashbackModal}
-        onClose={() => setShowCashbackModal(false)}
       />
     </div>
   );
