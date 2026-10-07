@@ -292,16 +292,14 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
           </div>
 
-          {/* Directly below: Single Large Prominent Cashback Amount Display - in ONE line */}
-          <div className="relative z-10 pt-1 sm:pt-4 pb-0.5 sm:pb-1 flex items-baseline justify-between gap-1 sm:gap-4 overflow-hidden">
-            <div className="flex items-baseline gap-1.5 sm:gap-3 truncate">
-              <span className="text-xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm shrink-0">
-                ₹30 – ₹100
-              </span>
-              <span className="text-[10px] sm:text-xs text-white/80 font-medium truncate">
-                Cashback per eligible order
-              </span>
-            </div>
+          {/* Center Prominent Amount & Description */}
+          <div className="relative z-10 pt-3 pb-2 sm:pt-4 sm:pb-3 flex flex-col items-center justify-center text-center">
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
+              ₹30 – ₹100
+            </span>
+            <span className="text-sm sm:text-base md:text-lg text-white/90 font-semibold tracking-wide mt-1">
+              Cashback per eligible order
+            </span>
           </div>
 
           {/* Single Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
