@@ -49,6 +49,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
   // Current calendar month details
   const currentMonth = useMemo(() => getMonthKey(), []);
+  const currentMonthName = useMemo(() => new Date().toLocaleString('en-US', { month: 'long' }), []);
 
   // Filter user records for current calendar month
   const currentMonthRecords = useMemo(() => {
@@ -170,13 +171,12 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                   return (
                     <div
                       key={pt}
-                      className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-md ${
-                        isCurrent
+                      className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-md ${isCurrent
                           ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
                           : isReached
-                          ? 'bg-white text-gray-950 ring-2 ring-white/50'
-                          : 'bg-black/30 text-white/80 border-2 border-white/40'
-                      }`}
+                            ? 'bg-white text-gray-950 ring-2 ring-white/50'
+                            : 'bg-black/30 text-white/80 border-2 border-white/40'
+                        }`}
                     >
                       {pt}
                     </div>
@@ -190,7 +190,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
               <div className="flex items-center gap-1 text-white/90 font-medium">
                 <Calendar className="w-3 h-3 text-white shrink-0" />
                 <span>
-                  {user ? `Monthly Progress Active` : 'Log in to track monthly progress'}
+                  {user ? `${currentMonthName} 2026 Schedule` : 'Log in to track monthly progress'}
                 </span>
               </div>
 
@@ -258,7 +258,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-3 border-b border-white/20">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
               <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white tracking-tight">
-                Monthly Cashback Schedule
+                Monthly Cashback
               </h2>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 bg-white/20 text-white text-[11px] sm:text-sm font-bold rounded-full border border-white/25 backdrop-blur-md shadow-xs">
                 <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
@@ -302,9 +302,6 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 Cashback per eligible order
               </span>
             </div>
-            <div className="text-[10px] sm:text-sm text-white/90 font-bold shrink-0">
-              {currentMonth.name} Schedule
-            </div>
           </div>
 
           {/* Single Progress Line with 4 Centered Points (0 ───── 1 ───── 2 ───── 3) */}
@@ -332,13 +329,12 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 return (
                   <div
                     key={pt}
-                    className={`relative z-10 w-5.5 h-5.5 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[10px] sm:text-sm transition-all duration-300 shadow-md ${
-                      isCurrent
+                    className={`relative z-10 w-5.5 h-5.5 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[10px] sm:text-sm transition-all duration-300 shadow-md ${isCurrent
                         ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
                         : isReached
-                        ? 'bg-white text-gray-950 ring-2 ring-white/50'
-                        : 'bg-black/30 text-white/80 border-2 border-white/40'
-                    }`}
+                          ? 'bg-white text-gray-950 ring-2 ring-white/50'
+                          : 'bg-black/30 text-white/80 border-2 border-white/40'
+                      }`}
                   >
                     {pt}
                   </div>
@@ -352,7 +348,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             <div className="flex items-center gap-1.5 text-white/90 font-medium">
               <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
               <span>
-                {user ? `Monthly Progress Active` : 'Log in to track monthly progress'}
+                {user ? `${currentMonthName} 2026 Schedule` : 'Log in to track monthly progress'}
               </span>
             </div>
 
