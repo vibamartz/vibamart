@@ -189,9 +189,9 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
   if (cards.length === 0) return null;
 
   return (
-    <div className="w-full min-w-0 max-w-full mt-2 overflow-hidden">
+    <div className="w-full min-w-0 max-w-full mt-1.5 overflow-hidden">
       <div
-        className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none hide-scrollbar snap-x snap-mandatory flex-nowrap w-full min-w-0 max-w-full touch-pan-x"
+        className="flex gap-1.5 overflow-x-auto pb-0.5 pt-0.5 scrollbar-none hide-scrollbar snap-x snap-mandatory flex-nowrap w-full min-w-0 max-w-full touch-pan-x"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {cards.map((card) => {
@@ -199,7 +199,7 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
           return (
             <div
               key={card.key}
-              className={`flex-shrink-0 w-auto h-[38px] px-2.5 py-1 rounded-xl border transition-all flex items-center gap-1.5 snap-start ${card.borderClass}`}
+              className={`flex-shrink-0 w-auto h-[34px] sm:h-[36px] px-2.5 py-1 rounded-xl border transition-all flex items-center gap-1.5 snap-start ${card.borderClass}`}
             >
               <div className={`p-1 rounded-md shrink-0 ${card.iconClass}`}>
                 <Icon className="w-3.5 h-3.5" />

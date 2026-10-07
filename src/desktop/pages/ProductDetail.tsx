@@ -457,9 +457,9 @@ export default function ProductDetail() {
   const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
   return (
-    <div className="bg-gray-50/50 min-h-screen pb-16">
+    <div className="bg-gray-50/50 min-h-screen pb-10">
       {/* Breadcrumbs */}
-      <div className="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 lg:px-8 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 flex-wrap">
+      <div className="max-w-7xl mx-auto px-4 py-2.5 sm:px-6 lg:px-8 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 flex-wrap">
         <Link to="/" className="hover:text-green-600 transition-colors">Home</Link>
         <ChevronRight className="w-3 h-3 text-gray-300" />
         <Link to="/products" className="hover:text-green-600 transition-colors">Shop</Link>
@@ -486,12 +486,12 @@ export default function ProductDetail() {
       </div>
 
       {/* Main Product Card: Left Image Gallery + Right Info */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-7 lg:p-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             
             {/* Left: Image Gallery */}
-            <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-3 lg:sticky lg:top-24">
+            <div className="lg:col-span-5 xl:col-span-5 flex flex-col gap-2.5 lg:sticky lg:top-24">
               {(() => {
                 const variantImages = (currentVariant?.images && currentVariant.images.length > 0)
                   ? currentVariant.images
@@ -591,11 +591,11 @@ export default function ProductDetail() {
             </div>
 
             {/* Right: Info, Variants, Actions, Delivery */}
-            <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-5 min-w-0">
+            <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3.5 min-w-0">
               
               {/* Brand & Seller Meta */}
               <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200/60">
                     Verified Merchant
                   </span>
@@ -609,7 +609,7 @@ export default function ProductDetail() {
                 </h1>
 
                 {/* Stock & Product Meta Row */}
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   {product.isStockVisible !== false && (
                     currentStock > 0 ? (
                       <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -640,7 +640,7 @@ export default function ProductDetail() {
               </div>
 
               {/* Pricing & Savings Card */}
-              <div className="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 space-y-1">
+              <div className="p-3 sm:p-3.5 bg-gray-50/80 rounded-xl border border-gray-100 space-y-0.5">
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
                     ₹{totalPrice.toLocaleString()}
@@ -665,7 +665,7 @@ export default function ProductDetail() {
 
               {/* Universal Variant Selector */}
               {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
-                <div className="space-y-4 pt-2 border-t border-gray-100 min-w-0 max-w-full overflow-hidden">
+                <div className="space-y-3 pt-2.5 border-t border-gray-100 min-w-0 max-w-full overflow-hidden">
                   <UniversalVariantSelector
                     product={product}
                     selectedAttributes={selectedAttributes}
@@ -679,7 +679,7 @@ export default function ProductDetail() {
               )}
 
               {/* Action Buttons: Add to Cart & Buy Now */}
-              <div className="pt-2 border-t border-gray-100">
+              <div className="pt-2.5 border-t border-gray-100">
                 {currentStock > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
@@ -691,7 +691,7 @@ export default function ProductDetail() {
                         }
                       }}
                       disabled={!isLocationAvailable}
-                      className={`flex touch-target min-h-[48px] items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-black uppercase tracking-wider text-sm transition-all shadow-xs ${
+                      className={`flex touch-target min-h-[46px] items-center justify-center gap-2 py-3 px-5 rounded-xl font-black uppercase tracking-wider text-sm transition-all shadow-xs ${
                         !isLocationAvailable
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                           : 'bg-yellow-400 text-gray-950 hover:bg-yellow-300 active:scale-[0.98]'
@@ -702,7 +702,7 @@ export default function ProductDetail() {
                     <button
                       onClick={handleBuyNow}
                       disabled={!isLocationAvailable}
-                      className={`flex touch-target min-h-[48px] items-center justify-center py-3.5 px-6 rounded-xl font-black uppercase tracking-wider text-sm transition-all shadow-xs ${
+                      className={`flex touch-target min-h-[46px] items-center justify-center py-3 px-5 rounded-xl font-black uppercase tracking-wider text-sm transition-all shadow-xs ${
                         !isLocationAvailable
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                           : 'bg-amber-500 text-gray-950 hover:bg-amber-400 active:scale-[0.98]'
@@ -715,7 +715,7 @@ export default function ProductDetail() {
                   <button
                     onClick={isOnWaitlist ? undefined : handleJoinWaitlist}
                     disabled={isOnWaitlist}
-                    className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase tracking-wider text-sm transition-all active:scale-[0.98] ${
+                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm transition-all active:scale-[0.98] ${
                       isOnWaitlist
                         ? 'bg-green-50 text-green-600 border-2 border-green-200 cursor-default'
                         : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
@@ -727,18 +727,18 @@ export default function ProductDetail() {
               </div>
 
               {/* Delivery Details Section */}
-              <div className="space-y-2 pt-3 border-t border-gray-100 min-w-0 max-w-full">
+              <div className="space-y-2 pt-2.5 border-t border-gray-100 min-w-0 max-w-full">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">Delivery Details</h3>
 
                 {isLocationAvailable === false && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2">
                     <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>Product unavailable for delivery at selected address ({selectedAddress?.city ? selectedAddress.city + ', ' : ''}{selectedAddress?.zip}).</span>
                   </div>
                 )}
 
                 {selectedAddress ? (
-                  <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/80 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2.5">
                         <MapPin className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
@@ -759,7 +759,7 @@ export default function ProductDetail() {
                         Change
                       </button>
                     </div>
-                    <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="pt-1.5 border-t border-gray-200/60 flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <Truck className="w-4 h-4 text-green-600 shrink-0" />
                         <span className="text-xs font-black text-gray-900 uppercase tracking-wider">
@@ -774,7 +774,7 @@ export default function ProductDetail() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 flex items-center justify-between gap-3">
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/80 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                       <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
                       <div>
@@ -802,24 +802,24 @@ export default function ProductDetail() {
       </div>
 
       {/* Similar Products Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
         <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
       </div>
 
       {/* Product Information Details Tabs Section */}
       {availableTabs.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xs space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-gray-100 shadow-xs space-y-4">
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 italic tracking-tight">Product Details</h2>
 
             {/* Compact horizontal scrollable tabs in one row */}
-            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 scrollbar-none border-b border-gray-100">
+            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-1.5 scrollbar-none border-b border-gray-100">
               {availableTabs.map(tab => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveInfoTab(tab.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
                     activeTabId === tab.id
                       ? 'bg-green-600 text-white shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
@@ -835,8 +835,8 @@ export default function ProductDetail() {
               <div>
                 <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
                   {specsList.map((spec, i) => (
-                    <div key={i} className="flex flex-col sm:flex-row p-3.5 sm:p-4 hover:bg-white transition-colors">
-                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{spec.key}</span>
+                    <div key={i} className="flex flex-col sm:flex-row p-2.5 sm:p-3 hover:bg-white transition-colors">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-0.5 sm:mb-0">{spec.key}</span>
                       <span className="text-sm font-bold text-gray-900 sm:flex-1">{spec.value}</span>
                     </div>
                   ))}
@@ -846,7 +846,7 @@ export default function ProductDetail() {
 
             {activeTabId === 'description' && (
               <div>
-                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5 sm:p-6">
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 sm:p-5">
                   <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line text-sm">
                     {product.fullDescription || product.description}
                   </p>
@@ -856,7 +856,7 @@ export default function ProductDetail() {
 
             {activeTabId === 'warranty' && (
               <div>
-                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5 sm:p-6 space-y-3">
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 sm:p-5 space-y-2">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-green-600" />
                     <h3 className="text-base font-black text-gray-900 tracking-tight">Warranty Coverage</h3>
@@ -877,8 +877,8 @@ export default function ProductDetail() {
               <div>
                 <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
                   {manufacturerDetails.map((item, i) => (
-                    <div key={i} className="flex flex-col sm:flex-row p-3.5 sm:p-4 hover:bg-white transition-colors">
-                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-1 sm:mb-0">{item.key}</span>
+                    <div key={i} className="flex flex-col sm:flex-row p-2.5 sm:p-3 hover:bg-white transition-colors">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-0.5 sm:mb-0">{item.key}</span>
                       <span className="text-sm font-bold text-gray-900 sm:flex-1">{item.value}</span>
                     </div>
                   ))}
@@ -890,7 +890,7 @@ export default function ProductDetail() {
       )}
 
       {/* Recently Viewed Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
         <RecentlyViewed currentProductId={product.id} />
       </div>
 

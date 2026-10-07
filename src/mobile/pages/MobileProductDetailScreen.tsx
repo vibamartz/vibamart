@@ -488,7 +488,7 @@ export default function MobileProductDetailScreen() {
     : availableTabs[0]?.id;
 
   return (
-    <div className="min-h-screen bg-white pb-44 font-sans select-none space-y-3">
+    <div className="min-h-screen bg-white pb-32 font-sans select-none space-y-2.5">
       {/* Top Gallery */}
       <div className="bg-white relative">
         <div className="aspect-square w-full relative overflow-hidden bg-white">
@@ -531,7 +531,7 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {images.length > 1 && (
-          <div className="flex justify-center gap-2 p-3 overflow-x-auto scrollbar-none snap-x touch-pan-x">
+          <div className="flex justify-center gap-2 py-2 px-3 overflow-x-auto scrollbar-none snap-x touch-pan-x">
             {images.map((img, idx) => (
               <button
                 key={idx}
@@ -556,8 +556,8 @@ export default function MobileProductDetailScreen() {
       </div>
 
       {/* Main Info Box */}
-      <div className="bg-white rounded-2xl p-4 shadow-xs space-y-5">
-        <div className="space-y-3 pb-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl p-3.5 shadow-xs space-y-3.5">
+        <div className="space-y-2 pb-3 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
               {product.brand || 'ViBa Select'}
@@ -568,7 +568,7 @@ export default function MobileProductDetailScreen() {
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100 flex-wrap">
+          <div className="flex items-baseline gap-2 pt-1.5 border-t border-gray-100 flex-wrap">
             <span className="text-2xl font-black text-gray-900">
               ₹{finalPrice.toLocaleString()}
             </span>
@@ -590,7 +590,7 @@ export default function MobileProductDetailScreen() {
           </div>
 
           {currentStock > 0 && currentStock <= 5 && (
-            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black">
+            <div className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black">
               Only {currentStock} left in stock
             </div>
           )}
@@ -598,7 +598,7 @@ export default function MobileProductDetailScreen() {
 
         {/* Universal Variant Selector */}
         {(activeVariants.length > 0 || familyColorVariants.length > 0) && (
-          <div className="pb-4 border-b border-gray-100 space-y-4 min-w-0 max-w-full overflow-hidden">
+          <div className="pb-3 border-b border-gray-100 space-y-2.5 min-w-0 max-w-full overflow-hidden">
             <UniversalVariantSelector
               product={product}
               selectedAttributes={selectedAttributes}
@@ -619,7 +619,7 @@ export default function MobileProductDetailScreen() {
           </div>
 
           {selectedAddress ? (
-            <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 space-y-1.5">
+            <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 space-y-1">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
@@ -647,7 +647,7 @@ export default function MobileProductDetailScreen() {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center justify-between">
+            <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-400" />
                 <span className="text-xs font-bold text-gray-700">No delivery address selected</span>
@@ -667,24 +667,24 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {/* Questions FAQ link */}
-        <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="pb-3 border-b border-gray-100 flex items-center justify-between">
           <span className="text-[11px] font-bold text-gray-600">Have questions about this item?</span>
           <button
             onClick={() => navigate('/faq')}
-            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-gray-950 rounded-xl text-xs font-black uppercase flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
           >
             <HelpCircle className="w-3.5 h-3.5 text-gray-950" /> Help
           </button>
         </div>
 
         {/* Similar Products Section (Requirement 6) */}
-        <div className="pb-4 border-b border-gray-100 space-y-3">
+        <div className="pb-3 border-b border-gray-100 space-y-2">
           <MobileSimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
         </div>
 
         {/* Product Information Details (Requirements 7 & 8) */}
         {availableTabs.length > 0 && (
-          <div className="pb-4 border-b border-gray-100 space-y-3">
+          <div className="pb-3 border-b border-gray-100 space-y-2.5">
             <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
               Product Information Details
             </h3>
@@ -710,7 +710,7 @@ export default function MobileProductDetailScreen() {
             {/* Selected Tab Content */}
             {activeTabId === 'specifications' && (
               <div>
-                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
                   {specsList.map((spec, i) => (
                     <div key={i} className="py-1.5 flex justify-between text-xs">
                       <span className="font-bold text-gray-500">{spec.key}</span>
@@ -723,7 +723,7 @@ export default function MobileProductDetailScreen() {
 
             {activeTabId === 'description' && (
               <div>
-                <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-3 rounded-xl">
+                <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-2.5 rounded-xl">
                   {product.fullDescription || product.description}
                 </p>
               </div>
@@ -731,7 +731,7 @@ export default function MobileProductDetailScreen() {
 
             {activeTabId === 'warranty' && (
               <div>
-                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                <div className="bg-gray-50 rounded-xl p-2.5 space-y-1">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-green-600" />
                     <span className="text-xs font-black text-gray-900">Warranty Coverage</span>
@@ -750,7 +750,7 @@ export default function MobileProductDetailScreen() {
 
             {activeTabId === 'manufacturer' && (
               <div>
-                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
                   {manufacturerDetails.map((item, i) => (
                     <div key={i} className="py-1.5 flex justify-between text-xs">
                       <span className="font-bold text-gray-500">{item.key}</span>
@@ -764,7 +764,7 @@ export default function MobileProductDetailScreen() {
         )}
 
         {/* Recently Viewed */}
-        <div className="space-y-6 pt-2 pb-6">
+        <div className="space-y-2 pt-1 pb-2">
           <MobileRecentlyViewed currentProductId={product.id} />
         </div>
 
