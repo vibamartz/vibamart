@@ -29,7 +29,8 @@ export default function Navbar() {
       id: 'for-you',
       name: 'For You',
       color: '#059669',
-      icon: 'sparkles'
+      icon: 'sparkles',
+      slug: 'for-you'
     },
     ...CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true))
   ];
@@ -705,28 +706,41 @@ export default function Navbar() {
             ref={navCategoryScrollRef}
             className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto scroll-smooth hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest min-w-0 w-full"
           >
-            {navCategories.map(cat => (
-              <Link
-                key={cat.id}
-                to={cat.id === 'for-you' ? '/for-you' : `/category/${getCategorySlug(cat)}`}
-                className="transition-colors h-full flex items-center gap-2 border-b-2 border-transparent pt-0.5 group shrink-0"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#059669';
-                  e.currentTarget.style.borderColor = '#059669';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '';
-                  e.currentTarget.style.borderColor = 'transparent';
-                }}
-              >
-                <CategoryLogo
-                  name={cat.name}
-                  icon={cat.icon}
-                  size="sm"
-                />
-                <span>{cat.name}</span>
-              </Link>
-            ))}
+            {navCategories.map(cat => {
+              const catSlug = getCategorySlug(cat);
+              const isActive = (cat.id === 'for-you' && (location.pathname === '/' || location.pathname === '/for-you')) ||
+                (cat.id !== 'for-you' && (location.pathname === `/category/${catSlug}` || location.pathname === `/category/${cat.id}` || location.pathname.startsWith(`/categories/${catSlug}`)));
+              return (
+                <Link
+                  key={cat.id}
+                  to={cat.id === 'for-you' ? '/for-you' : `/category/${catSlug}`}
+                  className={`transition-colors h-full flex items-center gap-2 border-b-2 pt-0.5 group shrink-0 ${
+                    isActive
+                      ? 'text-emerald-600 border-emerald-600 font-black'
+                      : 'border-transparent text-gray-500 hover:text-emerald-600'
+                  }`}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = '#059669';
+                      e.currentTarget.style.borderColor = '#059669';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = '';
+                      e.currentTarget.style.borderColor = 'transparent';
+                    }
+                  }}
+                >
+                  <CategoryLogo
+                    name={cat.name}
+                    icon={cat.icon}
+                    size="sm"
+                  />
+                  <span>{cat.name}</span>
+                </Link>
+              );
+            })}
           </div>
 
           <button

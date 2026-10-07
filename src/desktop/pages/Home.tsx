@@ -344,60 +344,64 @@ export default function Home() {
 
 
 
-      {/* 1. All Categories Bar (Top Category Section) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div
-          ref={categoryScrollRef}
-          className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
-        >
-          <Link
-            to="/for-you"
-            className={`group p-3 rounded-2xl border shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start ${
-              activeCategorySlug === 'for-you'
-                ? 'bg-primary/5 border-primary text-primary font-black shadow-md'
-                : 'bg-white border-gray-100 text-gray-900 hover:border-primary/20'
-            }`}
-          >
-            <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border ${
-              activeCategorySlug === 'for-you' ? 'bg-primary text-white border-primary' : 'bg-amber-50 border-amber-100 text-amber-500'
-            }`}>
-              <Sparkles className="w-6 h-6" />
+      {/* 1. Selected Category's Subcategories (Displays in the space below Search Bar ONLY when a Category is selected) */}
+      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
+        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative group/subcat">
+          <div className="relative flex items-center">
+            <button
+              type="button"
+              onClick={scrollCategoryLeft}
+              className="absolute left-0 z-10 p-1.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-600 hover:text-emerald-600 transition-opacity opacity-0 group-hover/subcat:opacity-100 hidden md:flex items-center justify-center -translate-x-3 cursor-pointer"
+              title="Scroll Left"
+              aria-label="Scroll Left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div
+              ref={categoryScrollRef}
+              className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
+            >
+              {activeCategoryObj.subcategories.map((sub) => {
+                const catSlug = getCategorySlug(activeCategoryObj);
+                const subSlug = getSubcategorySlug(sub);
+                return (
+                  <Link
+                    key={sub.id}
+                    to={`/categories/${catSlug}/${subSlug}`}
+                    className="group/item p-3 rounded-2xl border shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start bg-white border-gray-100 hover:border-emerald-500 cursor-pointer"
+                  >
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center border bg-gray-50 border-gray-100">
+                      <CategoryLogo
+                        name={sub.name}
+                        image={sub.image}
+                        icon={sub.icon}
+                        size="md"
+                      />
+                    </div>
+                    <h3 className="text-xs font-bold text-gray-800 group-hover/item:text-emerald-700 transition-colors line-clamp-1">
+                      {sub.name}
+                    </h3>
+                  </Link>
+                );
+              })}
             </div>
-            <h3 className="text-xs font-bold transition-colors line-clamp-1">For You</h3>
-          </Link>
-          {CATEGORIES.map((cat) => {
-            const catSlug = getCategorySlug(cat);
-            const isActive = activeCategorySlug === cat.id || activeCategorySlug === catSlug || activeCategorySlug === cat.slug;
-            return (
-              <Link
-                key={cat.id}
-                to={`/category/${catSlug}`}
-                className={`group p-3 rounded-2xl border shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start ${
-                  isActive
-                    ? 'bg-primary/5 border-primary text-primary font-black shadow-md'
-                    : 'bg-white border-gray-100 text-gray-900 hover:border-primary/20'
-                }`}
-              >
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden mb-2 group-hover:scale-105 transition-transform flex items-center justify-center border ${
-                  isActive ? 'border-primary ring-2 ring-primary/20' : 'bg-gray-50 border-gray-100'
-                }`}>
-                  {cat.id === 'all-deals' || cat.slug === 'all-deals' || cat.name?.toLowerCase().includes('deal') ? (
-                    <Flame className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-rose-500'}`} />
-                  ) : cat.id === 'beauty' || cat.slug === 'beauty' || cat.name?.toLowerCase() === 'beauty' ? (
-                    <Lipstick className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-emerald-600'}`} />
-                  ) : (
-                    renderCategoryFallbackIcon(cat.name, cat.icon, `w-6 h-6 ${isActive ? 'text-primary' : 'text-emerald-600'}`)
-                  )}
-                </div>
-                <h3 className="text-xs font-bold transition-colors line-clamp-1">{cat.name}</h3>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+
+            <button
+              type="button"
+              onClick={scrollCategoryRight}
+              className="absolute right-0 z-10 p-1.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-600 hover:text-emerald-600 transition-opacity opacity-0 group-hover/subcat:opacity-100 hidden md:flex items-center justify-center translate-x-3 cursor-pointer"
+              title="Scroll Right"
+              aria-label="Scroll Right"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* 2. Category Banners Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden -mt-4 sm:-mt-6">
+      <section className={`relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden ${activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 ? '-mt-2 sm:-mt-4' : ''}`}>
         <div
           ref={bannerScrollRef}
           onScroll={handleBannerScroll}
@@ -505,44 +509,6 @@ export default function Home() {
 
       {/* 2.1. Monthly First-3-Orders Cashback Schedule Section (Directly BELOW Home Banner) */}
       <CashbackScheduleSection />
-
-      {/* 3. Selected Category's Subcategories (Directly below Banners) */}
-      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                  <span>Explore {activeCategoryObj.name} Subcategories</span>
-                </h3>
-                <p className="text-xs text-gray-500 font-medium">Click any subcategory to view dedicated products & nested subcategories</p>
-              </div>
-            </div>
-
-            {/* Subcategories with enlarged visual sizing and easy click targets */}
-            <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2">
-              {activeCategoryObj.subcategories.map(sub => {
-                const catSlug = getCategorySlug(activeCategoryObj);
-                const subSlug = getSubcategorySlug(sub);
-                return (
-                  <button
-                    key={sub.id}
-                    onClick={() => {
-                      navigate(`/categories/${catSlug}/${subSlug}`);
-                    }}
-                    className="flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border bg-white border-gray-100 hover:border-emerald-400 hover:shadow-md active:scale-95 min-w-[115px] sm:min-w-[130px] cursor-pointer"
-                  >
-                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="lg" />
-                    <span className="text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight text-gray-800 group-hover:text-emerald-700 transition-colors">
-                      {sub.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Still Looking For These? Section (Desktop - Visible ONLY in For You category) */}
       {activeCategorySlug === 'for-you' && (
