@@ -369,13 +369,13 @@ export default function Home() {
                   <Link
                     key={sub.id}
                     to={`/categories/${catSlug}/${subSlug}`}
-                    className="group/item p-2.5 sm:p-3 rounded-2xl border shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start bg-white border-gray-100 hover:border-emerald-500 cursor-pointer"
+                    className="group/item flex flex-col items-center text-center shrink-0 w-24 sm:w-28 snap-start cursor-pointer transition-all"
                   >
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center border bg-gray-50 border-gray-100 shadow-xs">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center bg-gray-50/80">
                       {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                         <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-emerald-50/60 text-emerald-600">
+                        <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
                           {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", false)}
                         </div>
                       )}

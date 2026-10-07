@@ -614,24 +614,20 @@ export default function ProductList() {
                       onClick={() => {
                         navigate(`/categories/${catSlug}/${subSlug}`);
                       }}
-                      className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
-                        isSubActive
-                          ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                          : 'bg-white border-gray-100 hover:border-emerald-300 hover:shadow-sm'
-                      }`}
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
                     >
-                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center ${
-                        isSubActive ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                        isSubActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                           <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className={`w-full h-full flex items-center justify-center ${isSubActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                          <div className={`w-full h-full flex items-center justify-center ${isSubActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
                             {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", isSubActive)}
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
                         isSubActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
                         {sub.name}
@@ -684,24 +680,20 @@ export default function ProductList() {
                           navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
                         }
                       }}
-                      className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
-                        isNestedActive
-                          ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-md'
-                          : 'bg-white/80 border-emerald-100/80 hover:border-emerald-400 hover:shadow-sm'
-                      }`}
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
                     >
-                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden group-hover:scale-105 transition-transform flex items-center justify-center ${
-                        isNestedActive ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                        isNestedActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
                           <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className={`w-full h-full flex items-center justify-center ${isNestedActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                          <div className={`w-full h-full flex items-center justify-center ${isNestedActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
                             {renderCategoryFallbackIcon(nested.name, nested.icon, "w-8 h-8 sm:w-10 sm:h-10", isNestedActive)}
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
                         isNestedActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
                         {nested.name}

@@ -421,31 +421,27 @@ export default function MobileProductListScreen() {
               {currentCategoryObj.subcategories.length} available
             </span>
           </div>
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
             {currentCategoryObj.subcategories.map(sub => {
               const isSelected = selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory;
               return (
                 <button
                   key={sub.id}
                   onClick={() => handleSubCategorySelect(sub.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border shrink-0 transition-all min-w-[86px] cursor-pointer ${
-                    isSelected
-                      ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                      : 'bg-white border-gray-100 hover:border-emerald-300'
-                  }`}
+                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
                 >
-                  <div className={`w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${
-                    isSelected ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
+                    isSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                   }`}>
                     {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                       <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                      <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
                         {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7", isSelected)}
                       </div>
                     )}
                   </div>
-                  <span className={`text-[11px] font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 ${
+                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
                     isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
                   }`}>
                     {sub.name}
@@ -480,31 +476,27 @@ export default function MobileProductListScreen() {
               </button>
             )}
           </div>
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
             {currentSubCategoryObj.subcategories.map(nested => {
               const isNestedSelected = selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory;
               return (
                 <button
                   key={nested.id}
                   onClick={() => handleNestedSubCategorySelect(nested.id)}
-                  className={`flex flex-col items-center gap-1.5 p-2 rounded-2xl border shrink-0 transition-all min-w-[88px] cursor-pointer ${
-                    isNestedSelected
-                      ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-sm'
-                      : 'bg-white/80 border-emerald-100 hover:border-emerald-300'
-                  }`}
+                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
                 >
-                  <div className={`w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center ${
-                    isNestedSelected ? 'ring-2 ring-emerald-500/40' : 'border border-gray-100 bg-gray-50'
+                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
+                    isNestedSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                   }`}>
                     {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
                       <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${isNestedSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50/60 text-emerald-600'}`}>
+                      <div className={`w-full h-full flex items-center justify-center ${isNestedSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
                         {renderCategoryFallbackIcon(nested.name, nested.icon, "w-7 h-7", isNestedSelected)}
                       </div>
                     )}
                   </div>
-                  <span className={`text-[11px] font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 ${
+                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
                     isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
                   }`}>
                     {nested.name}

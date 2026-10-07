@@ -836,7 +836,7 @@ export default function MobileHomepage() {
             </div>
 
             {/* Subcategories Horizontal Bar with enlarged cards & touch targets */}
-            <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
               {activeCategoryObj.subcategories.map(sub => {
                 const catSlug = getCategorySlug(activeCategoryObj);
                 const subSlug = getSubcategorySlug(sub);
@@ -846,18 +846,18 @@ export default function MobileHomepage() {
                     onClick={() => {
                       navigate(`/categories/${catSlug}/${subSlug}`);
                     }}
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-2xl border shrink-0 bg-white border-gray-100 hover:border-emerald-400 active:scale-95 shadow-xs transition-all min-w-[92px] cursor-pointer"
+                    className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-all w-20 cursor-pointer"
                   >
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 border border-gray-100 shadow-xs">
+                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50">
                       {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                         <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-emerald-50/60 text-emerald-600">
+                        <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
                           {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7 sm:w-8 sm:h-8", false)}
                         </div>
                       )}
                     </div>
-                    <span className="text-xs font-extrabold text-center max-w-[85px] leading-tight line-clamp-1 text-gray-800">
+                    <span className="text-xs font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 text-gray-800">
                       {sub.name}
                     </span>
                   </button>
