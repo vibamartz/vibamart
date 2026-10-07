@@ -210,7 +210,7 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
             </button>
 
             <Link
-              to="/terms"
+              to="/cashback-terms"
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold backdrop-blur-md transition-all"
             >
               <ShieldCheck className="w-4 h-4 text-emerald-200" />

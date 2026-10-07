@@ -120,7 +120,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 </button>
 
                 <button
-                  onClick={() => navigate('/terms')}
+                  onClick={() => navigate('/cashback-terms')}
                   className="px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold rounded-lg border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
                 >
                   <ShieldCheck className="w-2.5 h-2.5 text-white" />
@@ -247,7 +247,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => navigate('/terms')}
+                onClick={() => navigate('/cashback-terms')}
                 className="px-2 py-1 sm:px-3 sm:py-1.5 bg-white/20 hover:bg-white/30 text-white text-[11px] sm:text-sm font-bold rounded-xl border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
               >
                 <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />

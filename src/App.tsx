@@ -32,6 +32,7 @@ import RewardProducts from './desktop/pages/RewardProducts';
 import Deal259Page from './desktop/pages/Deal259Page';
 import TermsOfService from './desktop/pages/TermsOfService';
 import CashbackHistoryPage from './desktop/pages/CashbackHistoryPage';
+import CashbackTermsPage from './desktop/pages/CashbackTermsPage';
 import PrivacyPolicy from './desktop/pages/PrivacyPolicy';
 import ContactUs from './desktop/pages/ContactUs';
 import DesktopShareModal from './desktop/components/DesktopShareModal';
@@ -171,8 +172,8 @@ function MainAppRoutes() {
             <Route path="/cashback-history" element={<CashbackHistoryPage />} />
             <Route path="/cashback/history" element={<CashbackHistoryPage />} />
             <Route path="/cashback/payout" element={<CashbackHistoryPage defaultTab="payout_settings" />} />
-            <Route path="/cashback/terms" element={<TermsOfService />} />
-            <Route path="/cashback-terms" element={<TermsOfService />} />
+            <Route path="/cashback/terms" element={<CashbackTermsPage />} />
+            <Route path="/cashback-terms" element={<CashbackTermsPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/seller" element={<SellerDashboard />} />
@@ -258,8 +259,8 @@ function MainAppRoutes() {
           <Route path="/cashback-history" element={<CashbackHistoryPage />} />
           <Route path="/cashback/history" element={<CashbackHistoryPage />} />
           <Route path="/cashback/payout" element={<CashbackHistoryPage defaultTab="payout_settings" />} />
-          <Route path="/cashback/terms" element={<TermsOfService />} />
-          <Route path="/cashback-terms" element={<TermsOfService />} />
+          <Route path="/cashback/terms" element={<CashbackTermsPage />} />
+          <Route path="/cashback-terms" element={<CashbackTermsPage />} />
           <Route path="/track-order" element={<OrderTracking />} />
           <Route path="/track-order/:orderId" element={<OrderTracking />} />
           <Route path="/track-request/:requestId" element={<RequestTracking />} />
