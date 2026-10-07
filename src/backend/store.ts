@@ -381,22 +381,6 @@ export const useCategoryStore = create<CategoryState>((set) => ({
           return catData;
         });
 
-        // Auto-seed missing initial categories to Firestore (admins only)
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          INITIAL_CATEGORIES.forEach(async (initialCat) => {
-            const exists = fetchedCategories.some(c => c.id === initialCat.id);
-            if (!exists) {
-              try {
-                const sanitized = await sanitizeAndUploadCategoryDoc(initialCat);
-                await setDoc(doc(db, 'categories', initialCat.id), sanitized);
-              } catch (e) {
-                console.error("Failed to seed missing category:", initialCat.id, e);
-              }
-            }
-          });
-        }
-
         fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         set({ categories: fetchedCategories, loading: false });
       } else {
