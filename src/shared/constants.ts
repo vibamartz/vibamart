@@ -167,6 +167,18 @@ export const DEFAULT_BRAND_COUPONS: BrandCoupon[] = [
 export const DEFAULT_VOUCHERS: BrandCoupon[] = DEFAULT_BRAND_COUPONS;
 
 export const CATEGORIES: Category[] = [
+  {
+    id: 'all-deals',
+    slug: 'all-deals',
+    seoSlug: 'all-deals',
+    name: 'All Deals',
+    image: undefined,
+    icon: 'flame',
+    iconImage: '🔥',
+    color: '#ef4444',
+    order: -1,
+    subcategories: []
+  },
   { 
     id: '1', 
     slug: 'mobiles',
