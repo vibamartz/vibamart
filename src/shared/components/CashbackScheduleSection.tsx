@@ -125,127 +125,248 @@ function GoldCoin3D({
   );
 }
 
-// 3D Decorative Indian Rupee Note Component (Crisp, High Contrast, Clearly Visible)
-function RupeeNote3D({
-  denomination = '500',
-  width = 90,
-  height = 48,
-  theme = 'emerald', // 'emerald' (₹500), 'saffron' (₹200), 'purple' (₹100), 'turquoise' (₹50)
+// 3D Decorative ORIGINAL Indian ₹100 Currency Note Component (Authentic Lavender Note with Gandhi Portrait, Ashoka Pillar, Security Thread & Guilloche)
+function Indian100RupeeNote3D({
+  width = 88,
+  height = 42,
   className = '',
   style = {},
 }: {
-  denomination?: string;
   width?: number;
   height?: number;
-  theme?: 'emerald' | 'saffron' | 'purple' | 'turquoise';
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const gradients = {
-    emerald: {
-      bg: 'linear-gradient(135deg, #064e3b 0%, #059669 45%, #10b981 75%, #047857 100%)',
-      accent: '#a7f3d0',
-      strip: '#34d399',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(6, 78, 59, 0.75)',
-    },
-    saffron: {
-      bg: 'linear-gradient(135deg, #9a3412 0%, #ea580c 45%, #fb923c 75%, #c2410c 100%)',
-      accent: '#fed7aa',
-      strip: '#f97316',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(154, 52, 18, 0.75)',
-    },
-    purple: {
-      bg: 'linear-gradient(135deg, #581c87 0%, #9333ea 45%, #c084fc 75%, #7e22ce 100%)',
-      accent: '#f3e8ff',
-      strip: '#d8b4fe',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(88, 28, 135, 0.75)',
-    },
-    turquoise: {
-      bg: 'linear-gradient(135deg, #0e7490 0%, #06b6d4 45%, #67e8f9 75%, #0891b2 100%)',
-      accent: '#cffafe',
-      strip: '#22d3ee',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(14, 116, 144, 0.75)',
-    },
-  }[theme];
-
   return (
     <div
-      className={`relative select-none pointer-events-none rounded-[6px] overflow-hidden drop-shadow-[0_12px_24px_rgba(0,0,0,0.45)] ${className}`}
+      className={`relative select-none pointer-events-none rounded-[5px] overflow-hidden drop-shadow-[0_12px_24px_rgba(0,0,0,0.5)] ${className}`}
       style={{
         width: `${width}px`,
         height: `${height}px`,
-        background: gradients.bg,
-        border: `1.5px solid ${gradients.border}`,
-        boxShadow: 'inset 0 0 14px rgba(255,255,255,0.4), 0 10px 20px rgba(0,0,0,0.35)',
         ...style,
       }}
     >
-      {/* Banknote Micro Guilloche Pattern */}
-      <div
-        className="absolute inset-0 opacity-25 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 50% 50%, ${gradients.accent} 1.2px, transparent 1.2px)`,
-          backgroundSize: '5px 5px',
-        }}
-      />
-
-      {/* Holographic / Security Strip with Metallic Glow */}
-      <div
-        className="absolute top-0 bottom-0 left-[26%] w-[11%] opacity-90"
-        style={{
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(251,191,36,0.95) 45%, rgba(245,158,11,0.95) 75%, rgba(255,255,255,0.9) 100%)',
-          boxShadow: '0 0 8px rgba(251,191,36,0.8)',
-        }}
-      />
-
-      {/* Decorative Border Frame */}
-      <div
-        className="absolute inset-[2.5px] rounded-[4px] border border-white/40 pointer-events-none flex flex-col justify-between p-1"
+      <svg
+        viewBox="0 0 280 134"
+        width="100%"
+        height="100%"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full block"
       >
-        {/* Top Header Row */}
-        <div className="flex items-center justify-between text-[7px] font-black tracking-wider text-white leading-none drop-shadow-sm">
-          <span className="opacity-95 text-[6.5px]">RESERVE BANK</span>
-          <span style={{ color: gradients.accent }} className="font-extrabold font-mono text-[7.5px] bg-black/25 px-0.5 rounded">₹{denomination}</span>
-        </div>
+        <defs>
+          {/* Authentic ₹100 Lavender Gradient Base */}
+          <linearGradient id="note100Bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#43316f" />
+            <stop offset="25%" stopColor="#69569e" />
+            <stop offset="55%" stopColor="#8775bd" />
+            <stop offset="80%" stopColor="#635198" />
+            <stop offset="100%" stopColor="#3d2a68" />
+          </linearGradient>
 
-        {/* Center Note Emblem & Rupee Symbol */}
-        <div className="flex items-center justify-center gap-1.5 my-auto">
-          <div
-            className="w-4 h-4 rounded-full border border-white/60 flex items-center justify-center text-[9px] font-black text-white shadow-md shrink-0"
-            style={{ background: gradients.badgeBg }}
-          >
-            ₹
-          </div>
-          <span
-            className="text-[13px] font-black tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] leading-none"
-            style={{ color: gradients.text }}
-          >
-            ₹{denomination}
-          </span>
-        </div>
+          {/* Color-Shifting Security Thread (Green to Gold to Cyan) */}
+          <linearGradient id="note100SecThread" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="25%" stopColor="#facc15" />
+            <stop offset="50%" stopColor="#06b6d4" />
+            <stop offset="75%" stopColor="#34d399" />
+            <stop offset="100%" stopColor="#eab308" />
+          </linearGradient>
 
-        {/* Bottom Bar in Note */}
-        <div className="flex items-center justify-between text-[6px] font-bold text-white/90 leading-none drop-shadow-xs">
-          <span className="tracking-tighter font-extrabold">VIBA MART</span>
-          <span className="font-mono tracking-widest font-black">INDIA</span>
-        </div>
-      </div>
+          {/* Optical Variable Ink for ₹100 (Color Shift Green-Blue) */}
+          <linearGradient id="note100Ovi" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="50%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#a7f3d0" />
+          </linearGradient>
 
-      {/* 3D Specular Highlight Sweep */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-50"
-        style={{
-          background: 'linear-gradient(115deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.3) 75%, rgba(255,255,255,0) 100%)',
-        }}
-      />
+          {/* Watermark Soft Radial Glow */}
+          <radialGradient id="note100Watermark" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+            <stop offset="60%" stopColor="#d8b4fe" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#43316f" stopOpacity="0" />
+          </radialGradient>
+
+          {/* Specular Highlight Sheen */}
+          <linearGradient id="note100Sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.65" />
+            <stop offset="35%" stopColor="#ffffff" stopOpacity="0.1" />
+            <stop offset="65%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.4" />
+          </linearGradient>
+
+          {/* Banknote Guilloche Pattern */}
+          <pattern id="note100GuillochePattern" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path
+              d="M 0 5 Q 5 0 10 5 Q 5 10 0 5 Z"
+              fill="none"
+              stroke="#e9d5ff"
+              strokeWidth="0.4"
+              opacity="0.22"
+            />
+            <circle cx="5" cy="5" r="2.2" fill="none" stroke="#f3e8ff" strokeWidth="0.3" opacity="0.25" />
+          </pattern>
+        </defs>
+
+        {/* Outer Banknote Base with Border */}
+        <rect x="1" y="1" width="278" height="132" rx="5" fill="url(#note100Bg)" stroke="#c4b5fd" strokeWidth="1.5" />
+
+        {/* Intricate Banknote Guilloche Field */}
+        <rect x="5" y="5" width="270" height="124" rx="4" fill="url(#note100GuillochePattern)" />
+
+        {/* Double Inner Geometric Border */}
+        <rect x="5" y="5" width="270" height="124" rx="3.5" fill="none" stroke="#ddd6fe" strokeWidth="0.8" strokeDasharray="5 1.5" opacity="0.85" />
+        <rect x="7.5" y="7.5" width="265" height="119" rx="2.5" fill="none" stroke="#ffffff" strokeWidth="0.5" opacity="0.75" />
+
+        {/* Left Side: Watermark Window Oval */}
+        <ellipse cx="45" cy="67" rx="28" ry="42" fill="url(#note100Watermark)" stroke="#c4b5fd" strokeWidth="0.6" strokeDasharray="3 1.5" opacity="0.9" />
+        {/* Subtle Watermark Gandhi profile inside oval */}
+        <g opacity="0.35" transform="translate(32, 52) scale(0.65)">
+          <circle cx="20" cy="16" r="13" fill="#ffffff" />
+          <circle cx="15" cy="15" r="4.5" fill="none" stroke="#43316f" strokeWidth="1.2" />
+          <circle cx="25" cy="15" r="4.5" fill="none" stroke="#43316f" strokeWidth="1.2" />
+          <path d="M 19.5 15 L 20.5 15" stroke="#43316f" strokeWidth="1.2" />
+          <path d="M 16 23 Q 20 26 24 23" fill="none" stroke="#43316f" strokeWidth="1.2" />
+        </g>
+        <text x="45" y="98" textAnchor="middle" fontFamily="sans-serif" fontSize="8" fontWeight="bold" fill="#ffffff" opacity="0.45">100</text>
+
+        {/* Vertical Holographic Security Thread (with metallic color shift) */}
+        <rect x="88" y="2" width="7.5" height="130" fill="url(#note100SecThread)" opacity="0.95" />
+        <g fill="#0f172a" fontSize="5" fontWeight="900" fontFamily="sans-serif" textAnchor="middle">
+          <text x="91.75" y="20" transform="rotate(-90 91.75 20)">RBI</text>
+          <text x="91.75" y="48" transform="rotate(-90 91.75 48)">भारत</text>
+          <text x="91.75" y="76" transform="rotate(-90 91.75 76)">100</text>
+          <text x="91.75" y="104" transform="rotate(-90 91.75 104)">RBI</text>
+          <text x="91.75" y="124" transform="rotate(-90 91.75 124)">100</text>
+        </g>
+
+        {/* Top-Left: Denomination ₹100 and Devanagari १०० */}
+        <g transform="translate(12, 22)">
+          <text x="0" y="0" fontFamily="sans-serif" fontSize="15" fontWeight="900" fill="#ffffff" letterSpacing="-0.5" className="drop-shadow-sm">₹100</text>
+          <text x="36" y="-1" fontFamily="sans-serif" fontSize="10" fontWeight="bold" fill="#e9d5ff">१००</text>
+        </g>
+
+        {/* Top Center: Official Reserve Bank of India Header */}
+        <g textAnchor="middle" transform="translate(142, 17)">
+          <text x="0" y="0" fontFamily="sans-serif" fontSize="9" fontWeight="900" fill="#ffffff" letterSpacing="0.8">भारतीय रिज़र्व बैंक</text>
+          <text x="0" y="7.5" fontFamily="serif, sans-serif" fontSize="6.8" fontWeight="bold" fill="#f5f3ff" letterSpacing="0.6">RESERVE BANK OF INDIA</text>
+          <text x="0" y="12.5" fontFamily="sans-serif" fontSize="3.8" fontWeight="bold" fill="#ddd6fe" letterSpacing="0.3">केन्द्रीय सरकार द्वारा प्रत्याभूत / GUARANTEED BY THE CENTRAL GOVERNMENT</text>
+        </g>
+
+        {/* Center Promissory Note Text & Governor Signature */}
+        <g transform="translate(104, 44)">
+          <text x="0" y="0" fontFamily="sans-serif" fontSize="5.5" fontWeight="bold" fill="#ffffff">मैं धारक को एक सौ रुपये</text>
+          <text x="0" y="6" fontFamily="sans-serif" fontSize="5.5" fontWeight="bold" fill="#ffffff">अदा करने का वचन देता हूँ।</text>
+          <text x="0" y="12" fontFamily="sans-serif" fontSize="4.2" fontWeight="bold" fill="#f3e8ff">I PROMISE TO PAY THE BEARER</text>
+          <text x="0" y="16.5" fontFamily="sans-serif" fontSize="4.2" fontWeight="bold" fill="#f3e8ff">THE SUM OF ONE HUNDRED RUPEES</text>
+
+          {/* Stylized Governor Signature & Seal */}
+          <path d="M 12 25 Q 18 20 24 26 Q 30 30 38 23" fill="none" stroke="#2e1065" strokeWidth="1.2" strokeLinecap="round" />
+          <text x="24" y="32" fontFamily="sans-serif" fontSize="3.8" fontWeight="bold" fill="#ffffff" textAnchor="middle">गवर्नर / GOVERNOR</text>
+
+          {/* RBI Emblem Seal Circle */}
+          <circle cx="56" cy="24" r="9" fill="none" stroke="#facc15" strokeWidth="0.9" opacity="0.9" />
+          <circle cx="56" cy="24" r="7.5" fill="#facc15" opacity="0.25" />
+          <text x="56" y="26.5" textAnchor="middle" fontFamily="sans-serif" fontSize="6" fontWeight="bold" fill="#fef08a">RBI</text>
+        </g>
+
+        {/* Center Prominent Denomination Badge: "एक सौ रुपये / ₹100" */}
+        <g transform="translate(138, 92)" textAnchor="middle">
+          <rect x="-42" y="-12" width="84" height="20" rx="4" fill="#2e1065" fillOpacity="0.4" stroke="#c4b5fd" strokeWidth="0.8" />
+          <text x="0" y="2.5" fontFamily="sans-serif" fontSize="12" fontWeight="900" fill="#ffffff" letterSpacing="0.5">एक सौ रुपये</text>
+        </g>
+
+        {/* Right Side: Mahatma Gandhi Authentic Engraved Portrait */}
+        <g transform="translate(196, 32)">
+          {/* Portrait Vignette Glow */}
+          <ellipse cx="26" cy="38" rx="24" ry="32" fill="#2e1065" opacity="0.3" />
+          {/* Head & Crown Contour */}
+          <path
+            d="M 14 26 C 14 12, 38 12, 38 26 C 38 32, 42 38, 38 48 C 34 56, 18 56, 14 48 C 12 40, 14 32, 14 26 Z"
+            fill="#ede9fe"
+            stroke="#1e1b4b"
+            strokeWidth="0.9"
+          />
+          {/* Side Hair & Ear */}
+          <path d="M 37 32 Q 41 35 37 40" fill="none" stroke="#1e1b4b" strokeWidth="1.2" strokeLinecap="round" />
+          {/* Iconic Spectacles */}
+          <circle cx="21" cy="28" r="5" fill="#ffffff" fillOpacity="0.8" stroke="#1e1b4b" strokeWidth="1.2" />
+          <circle cx="32" cy="28" r="5" fill="#ffffff" fillOpacity="0.8" stroke="#1e1b4b" strokeWidth="1.2" />
+          <line x1="26" y1="28" x2="27" y2="28" stroke="#1e1b4b" strokeWidth="1.4" />
+          <line x1="16" y1="27" x2="13" y2="28" stroke="#1e1b4b" strokeWidth="1.1" />
+          <line x1="37" y1="28" x2="40" y2="29" stroke="#1e1b4b" strokeWidth="1.1" />
+          {/* Eyes behind lenses */}
+          <circle cx="21" cy="28" r="1.3" fill="#1e1b4b" />
+          <circle cx="32" cy="28" r="1.3" fill="#1e1b4b" />
+          {/* Nose & Smile */}
+          <path d="M 26.5 28 L 26 34 L 28.5 35" fill="none" stroke="#1e1b4b" strokeWidth="1" strokeLinecap="round" />
+          <path d="M 22 40 Q 26.5 43 31 40" fill="none" stroke="#1e1b4b" strokeWidth="1.3" strokeLinecap="round" />
+          {/* Mustache detail */}
+          <path d="M 21 38 Q 26.5 39 32 38" fill="none" stroke="#43316f" strokeWidth="0.9" />
+          {/* Draped Khadi Shawl / Garment Folds */}
+          <path
+            d="M 6 58 Q 16 48 26 54 Q 36 60 48 52 L 52 72 L 0 72 Z"
+            fill="#ddd6fe"
+            stroke="#1e1b4b"
+            strokeWidth="0.9"
+          />
+          <path d="M 12 56 Q 22 64 34 58" fill="none" stroke="#5b21b6" strokeWidth="0.9" />
+          <path d="M 18 60 Q 28 68 42 61" fill="none" stroke="#5b21b6" strokeWidth="0.9" />
+          {/* Caption text under Gandhi */}
+          <text x="26" y="78" fontFamily="sans-serif" fontSize="4.2" fontWeight="bold" fill="#ffffff" textAnchor="middle">महात्मा गांधी  MAHATMA GANDHI</text>
+        </g>
+
+        {/* Ashoka Pillar Lion Capital (Bottom-Right Corner) */}
+        <g transform="translate(252, 94)">
+          {/* Base pedestal & Ashoka Chakra */}
+          <rect x="-8" y="16" width="16" height="4" rx="1" fill="#ede9fe" stroke="#1e1b4b" strokeWidth="0.6" />
+          <circle cx="0" cy="18" r="1.5" fill="none" stroke="#1e1b4b" strokeWidth="0.5" />
+          {/* 3 Lions representation */}
+          <path
+            d="M -6 16 L -6 6 Q -6 2 -2 2 Q 0 0 2 2 Q 6 2 6 6 L 6 16 Z"
+            fill="#ede9fe"
+            stroke="#1e1b4b"
+            strokeWidth="0.7"
+          />
+          {/* Lion faces details */}
+          <circle cx="0" cy="5" r="1.8" fill="#1e1b4b" />
+          <circle cx="-4" cy="6" r="1.2" fill="#1e1b4b" />
+          <circle cx="4" cy="6" r="1.2" fill="#1e1b4b" />
+          <text x="0" y="24" fontFamily="sans-serif" fontSize="3.5" fontWeight="bold" fill="#ffffff" textAnchor="middle">भारत</text>
+        </g>
+
+        {/* Top-Right: Serial Number Box */}
+        <g transform="translate(222, 16)">
+          <rect x="-2" y="-7" width="46" height="10" rx="2" fill="#0f172a" fillOpacity="0.45" stroke="#c4b5fd" strokeWidth="0.6" />
+          <text x="0" y="0" fontFamily="monospace" fontSize="6.5" fontWeight="bold" fill="#ffffff" letterSpacing="0.8">8AB 100100</text>
+        </g>
+
+        {/* Bottom-Left: Serial Number Box */}
+        <g transform="translate(14, 122)">
+          <rect x="-2" y="-7" width="46" height="10" rx="2" fill="#0f172a" fillOpacity="0.45" stroke="#c4b5fd" strokeWidth="0.6" />
+          <text x="0" y="0" fontFamily="monospace" fontSize="6.5" fontWeight="bold" fill="#ffffff" letterSpacing="0.8">8AB 100100</text>
+        </g>
+
+        {/* Bottom-Center: Swachh Bharat Logo Motif */}
+        <g transform="translate(118, 122)">
+          <circle cx="4" cy="-2" r="3" fill="none" stroke="#ffffff" strokeWidth="0.7" />
+          <circle cx="12" cy="-2" r="3" fill="none" stroke="#ffffff" strokeWidth="0.7" />
+          <line x1="7" y1="-2" x2="9" y2="-2" stroke="#ffffff" strokeWidth="0.7" />
+          <text x="18" y="0.5" fontFamily="sans-serif" fontSize="3.8" fontWeight="bold" fill="#ffffff">एक कदम स्वच्छता की ओर</text>
+        </g>
+
+        {/* Bottom-Right Large Color-Shifting Optical Variable Denomination "₹100" */}
+        <g transform="translate(210, 120)">
+          <text x="0" y="0" fontFamily="sans-serif" fontSize="14" fontWeight="900" fill="url(#note100Ovi)" stroke="#047857" strokeWidth="0.4" className="drop-shadow-sm">₹100</text>
+        </g>
+
+        {/* 3D Glossy Specular Highlight Reflection Sweep */}
+        <path
+          d="M 0 0 L 110 0 L 60 134 L 0 134 Z"
+          fill="url(#note100Sheen)"
+          opacity="0.35"
+        />
+      </svg>
     </div>
   );
 }
@@ -299,12 +420,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
           <GoldCoin3D size={32} />
         </div>
 
-        {/* Top-Right: ₹500 Emerald Note */}
+        {/* Top-Right: Original ₹100 Lavender Note */}
         <div
-          className="absolute top-1 right-2 animate-float-slow-2 opacity-85"
+          className="absolute top-1 right-2 animate-float-slow-2 opacity-90"
           style={{ transform: 'rotateX(20deg) rotateY(15deg) rotateZ(12deg)' }}
         >
-          <RupeeNote3D denomination="500" width={60} height={32} theme="emerald" />
+          <Indian100RupeeNote3D width={62} height={30} />
         </div>
 
         {/* Center-Left: 3D Gold Coin */}
@@ -315,12 +436,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
           <GoldCoin3D size={30} />
         </div>
 
-        {/* Center-Middle (Behind Amount): ₹200 Saffron Note */}
+        {/* Center-Middle (Behind Amount): Original ₹100 Lavender Note */}
         <div
           className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-slow-4 opacity-75"
           style={{ transform: 'rotateX(14deg) rotateY(-12deg) rotateZ(-6deg)' }}
         >
-          <RupeeNote3D denomination="200" width={56} height={30} theme="saffron" />
+          <Indian100RupeeNote3D width={58} height={28} />
         </div>
 
         {/* Center-Right: 3D Gold Coin */}
@@ -331,12 +452,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
           <GoldCoin3D size={32} />
         </div>
 
-        {/* Bottom-Left: ₹100 Purple Note */}
+        {/* Bottom-Left: Original ₹100 Lavender Note */}
         <div
           className="absolute bottom-1 left-3 animate-float-slow-2 opacity-85"
           style={{ transform: 'rotateX(-18deg) rotateY(-15deg) rotateZ(-8deg)' }}
         >
-          <RupeeNote3D denomination="100" width={56} height={29} theme="purple" />
+          <Indian100RupeeNote3D width={58} height={28} />
         </div>
 
         {/* Bottom-Center: 3D Gold Coin */}
@@ -384,12 +505,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
         <GoldCoin3D size={48} />
       </div>
 
-      {/* Top-Center-Left: ₹100 Purple Note */}
+      {/* Top-Center-Left: Original ₹100 Lavender Note */}
       <div
-        className="absolute top-2 left-[28%] animate-float-slow-3 opacity-85"
+        className="absolute top-2 left-[28%] animate-float-slow-3 opacity-90"
         style={{ transform: 'rotateX(20deg) rotateY(12deg) rotateZ(8deg)' }}
       >
-        <RupeeNote3D denomination="100" width={82} height={44} theme="purple" />
+        <Indian100RupeeNote3D width={86} height={41} />
       </div>
 
       {/* Top-Center-Right: 3D Gold Coin */}
@@ -400,12 +521,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
         <GoldCoin3D size={42} />
       </div>
 
-      {/* Top-Right: ₹500 Emerald Note */}
+      {/* Top-Right: Original ₹100 Lavender Note */}
       <div
         className="absolute top-2 right-10 animate-float-slow-4 opacity-90"
         style={{ transform: 'rotateX(22deg) rotateY(-18deg) rotateZ(14deg)' }}
       >
-        <RupeeNote3D denomination="500" width={92} height={48} theme="emerald" />
+        <Indian100RupeeNote3D width={92} height={44} />
       </div>
 
       {/* ── MIDDLE REGION (Behind Amount & Progress Line) ── */}
@@ -417,28 +538,28 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
         <GoldCoin3D size={46} />
       </div>
 
-      {/* Middle-Left: ₹200 Saffron Note */}
+      {/* Middle-Left: Original ₹100 Lavender Note */}
       <div
         className="absolute top-1/2 -translate-y-1/2 left-[16%] animate-float-slow-1 opacity-85"
         style={{ transform: 'rotateX(16deg) rotateY(-15deg) rotateZ(-8deg)' }}
       >
-        <RupeeNote3D denomination="200" width={84} height={45} theme="saffron" />
+        <Indian100RupeeNote3D width={84} height={40} />
       </div>
 
-      {/* Middle-Center (Behind Amount Display): ₹500 Note floating subtly */}
+      {/* Middle-Center (Behind Amount Display): Original ₹100 Note floating subtly */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-slow-3 opacity-65"
+        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-slow-3 opacity-70"
         style={{ transform: 'rotateX(14deg) rotateY(8deg) rotateZ(-4deg)' }}
       >
-        <RupeeNote3D denomination="500" width={88} height={46} theme="emerald" />
+        <Indian100RupeeNote3D width={88} height={42} />
       </div>
 
-      {/* Middle-Right: ₹50 Turquoise Note */}
+      {/* Middle-Right: Original ₹100 Lavender Note */}
       <div
         className="absolute top-1/2 -translate-y-1/2 right-[16%] animate-float-slow-4 opacity-85"
         style={{ transform: 'rotateX(-15deg) rotateY(20deg) rotateZ(10deg)' }}
       >
-        <RupeeNote3D denomination="50" width={82} height={44} theme="turquoise" />
+        <Indian100RupeeNote3D width={82} height={39} />
       </div>
 
       {/* Middle-Far-Right: Large 3D Gold Coin */}
@@ -450,12 +571,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
       </div>
 
       {/* ── BOTTOM REGION ── */}
-      {/* Bottom-Left: ₹500 Emerald Note */}
+      {/* Bottom-Left: Original ₹100 Lavender Note */}
       <div
-        className="absolute bottom-2 left-12 animate-float-slow-4 opacity-85"
+        className="absolute bottom-2 left-12 animate-float-slow-4 opacity-90"
         style={{ transform: 'rotateX(-20deg) rotateY(-16deg) rotateZ(-8deg)' }}
       >
-        <RupeeNote3D denomination="500" width={86} height={45} theme="emerald" />
+        <Indian100RupeeNote3D width={86} height={41} />
       </div>
 
       {/* Bottom-Center-Left: 3D Gold Coin */}
@@ -474,12 +595,12 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
         <GoldCoin3D size={42} />
       </div>
 
-      {/* Bottom-Right: ₹200 Saffron Note & Gold Coin */}
+      {/* Bottom-Right: Original ₹100 Lavender Note */}
       <div
-        className="absolute bottom-2 right-12 animate-float-slow-1 opacity-85"
+        className="absolute bottom-2 right-12 animate-float-slow-1 opacity-90"
         style={{ transform: 'rotateX(18deg) rotateY(16deg) rotateZ(10deg)' }}
       >
-        <RupeeNote3D denomination="200" width={86} height={45} theme="saffron" />
+        <Indian100RupeeNote3D width={86} height={41} />
       </div>
 
       {/* ── GOLDEN PARTICLES & SPARKLES ACROSS THE SECTION ── */}
