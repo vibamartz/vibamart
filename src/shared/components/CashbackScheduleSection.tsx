@@ -686,7 +686,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
             {/* Center Prominent Amount & Description */}
             <div className="relative z-10 pt-1 pb-0.5 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
+              <span className="text-2xl font-black text-amber-300 tracking-tight leading-tight drop-shadow-[0_3px_8px_rgba(0,0,0,0.95)]">
                 ₹30 – ₹100
               </span>
               <span className="text-xs text-white font-bold tracking-wide mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] bg-black/35 px-2.5 py-0.5 rounded-full border border-white/20 backdrop-blur-xs">
