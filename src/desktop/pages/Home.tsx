@@ -18,7 +18,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
-import { getCategorySlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 
@@ -506,80 +506,40 @@ export default function Home() {
       {/* 2.1. Monthly First-3-Orders Cashback Schedule Section (Directly BELOW Home Banner) */}
       <CashbackScheduleSection />
 
-      {/* 3. Selected Category's Subcategories & Nested Subcategories (Directly below Banners) */}
+      {/* 3. Selected Category's Subcategories (Directly below Banners) */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
+                  <span>Explore {activeCategoryObj.name} Subcategories</span>
+                </h3>
+                <p className="text-xs text-gray-500 font-medium">Click any subcategory to view dedicated products & nested subcategories</p>
+              </div>
+            </div>
 
-            {/* Subcategories */}
-            <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
+            {/* Subcategories with enlarged visual sizing and easy click targets */}
+            <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-2">
               {activeCategoryObj.subcategories.map(sub => {
-                const isSelected = selectedSubCatId === sub.id;
+                const catSlug = getCategorySlug(activeCategoryObj);
+                const subSlug = getSubcategorySlug(sub);
                 return (
                   <button
                     key={sub.id}
                     onClick={() => {
-                      if (isSelected) {
-                        setSelectedSubCatId(null);
-                        setSelectedNestedSubCatId(null);
-                      } else {
-                        setSelectedSubCatId(sub.id);
-                        setSelectedNestedSubCatId(null);
-                      }
+                      navigate(`/categories/${catSlug}/${subSlug}`);
                     }}
-                    className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border ${
-                      isSelected
-                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
-                        : 'bg-white border-gray-100 hover:border-emerald-300'
-                    }`}
+                    className="flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border bg-white border-gray-100 hover:border-emerald-400 hover:shadow-md active:scale-95 min-w-[115px] sm:min-w-[130px] cursor-pointer"
                   >
-                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
-                    <span className={`text-[11px] font-extrabold text-center max-w-[90px] leading-tight ${
-                      isSelected ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-gray-900'
-                    }`}>
+                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="lg" />
+                    <span className="text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight text-gray-800 group-hover:text-emerald-700 transition-colors">
                       {sub.name}
                     </span>
                   </button>
                 );
               })}
             </div>
-
-            {/* Nested Subcategories (Shown ONLY when a subcategory is clicked, with EQUAL size icons) */}
-            {(() => {
-              if (!selectedSubCatId) return null;
-              const selectedSubObj = activeCategoryObj.subcategories.find(s => s.id === selectedSubCatId);
-              const availableNested = selectedSubObj?.subcategories || [];
-
-              if (availableNested.length === 0) return null;
-
-              return (
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
-                    {availableNested.map(nested => {
-                      const isNestedSelected = selectedNestedSubCatId === nested.id;
-                      return (
-                        <button
-                          key={nested.id}
-                          onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
-                          className={`flex flex-col items-center gap-2 group transition-all shrink-0 p-3 rounded-2xl border ${
-                            isNestedSelected
-                              ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
-                              : 'bg-white border-gray-100 hover:border-emerald-300'
-                          }`}
-                        >
-                          <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
-                          <span className={`text-[11px] font-extrabold text-center max-w-[90px] leading-tight ${
-                            isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-gray-900'
-                          }`}>
-                            {nested.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         </section>
       )}

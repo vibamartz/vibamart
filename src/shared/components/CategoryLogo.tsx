@@ -29,7 +29,7 @@ interface CategoryLogoProps {
   name: string;
   image?: string;
   icon?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   active?: boolean;
   className?: string;
   showLabel?: boolean;
@@ -127,22 +127,27 @@ export default function CategoryLogo({
   showLabel = false,
   labelClassName = '',
 }: CategoryLogoProps) {
-  // Dimension mappings matching Category UI specifications
+  // Dimension mappings matching Category UI specifications with enlarged subcategory and category visual sizing
   const sizeMap = {
     sm: {
-      box: 'w-8 h-8 rounded-xl',
-      icon: 'w-4 h-4',
-      text: 'text-[9px]',
-    },
-    md: {
-      box: 'w-11 h-11 rounded-2xl',
+      box: 'w-10 h-10 rounded-xl',
       icon: 'w-5 h-5',
       text: 'text-[10px]',
     },
-    lg: {
-      box: 'w-14 h-14 rounded-2xl',
-      icon: 'w-7 h-7',
+    md: {
+      box: 'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl',
+      icon: 'w-7 h-7 sm:w-8 sm:h-8',
       text: 'text-xs',
+    },
+    lg: {
+      box: 'w-18 h-18 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl',
+      icon: 'w-9 h-9 sm:w-10 sm:h-10',
+      text: 'text-sm',
+    },
+    xl: {
+      box: 'w-24 h-24 rounded-3xl',
+      icon: 'w-12 h-12',
+      text: 'text-base',
     },
   };
 

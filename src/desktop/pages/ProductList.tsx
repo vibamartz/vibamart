@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
-import { getCategorySlug, getSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -20,7 +20,7 @@ export default function ProductList() {
   const { categories: CATEGORIES } = useCategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; nestedSubcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
   const navigate = useNavigate();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -35,9 +35,10 @@ export default function ProductList() {
     } catch { return []; }
   });
 
-  // Resolve active category/subcategory/brand/offer from route params or search params
+  // Resolve active category/subcategory/nestedSubcategory/brand/offer from route params or search params
   const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
   const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
+  const rawNestedSubCat = routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
@@ -46,6 +47,21 @@ export default function ProductList() {
     if (!rawCat) return null;
     return CATEGORIES.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
   }, [rawCat, CATEGORIES]);
+
+  // Match subcategory object by ID, slug, or generated slug
+  const matchedSubcategory = useMemo(() => {
+    if (!rawSubCat || !matchedCategory?.subcategories) return null;
+    return matchedCategory.subcategories.find(s => s.id === rawSubCat || s.slug === rawSubCat || createSlug(s.name) === rawSubCat) || null;
+  }, [rawSubCat, matchedCategory]);
+
+  // Match nested subcategory object by ID, slug, or generated slug
+  const matchedNestedSubcategory = useMemo(() => {
+    if (!rawNestedSubCat) return null;
+    if (matchedSubcategory?.subcategories) {
+      return matchedSubcategory.subcategories.find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat) || null;
+    }
+    return matchedCategory?.subcategories?.flatMap(s => s.subcategories || []).find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat) || null;
+  }, [rawNestedSubCat, matchedSubcategory, matchedCategory]);
 
   // Match banner object if opening a banner route
   const matchedBanner = useMemo(() => {
@@ -197,18 +213,36 @@ export default function ProductList() {
     };
   }, []);
 
-  // Sync category and brand from URL params or route params
+  // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
     const activeCatId = matchedCategory?.id || rawCat;
     if (activeCatId && !selectedCategories.includes(activeCatId)) {
       setSelectedCategories([activeCatId]);
+    }
+
+    if (matchedSubcategory) {
+      setSelectedSubCategories([matchedSubcategory.id]);
+    } else if (rawSubCat) {
+      const foundSub = matchedCategory?.subcategories?.find(s => s.id === rawSubCat || s.slug === rawSubCat || createSlug(s.name) === rawSubCat);
+      if (foundSub) setSelectedSubCategories([foundSub.id]);
+    } else {
       setSelectedSubCategories([]);
     }
+
+    if (matchedNestedSubcategory) {
+      setSelectedNestedSubCategories([matchedNestedSubcategory.id]);
+    } else if (rawNestedSubCat) {
+      const foundNested = matchedSubcategory?.subcategories?.find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat);
+      if (foundNested) setSelectedNestedSubCategories([foundNested.id]);
+    } else {
+      setSelectedNestedSubCategories([]);
+    }
+
     if (rawBrand && !selectedBrands.includes(rawBrand)) {
       const foundBrand = allProducts.find(p => p.brand && (p.brand === rawBrand || createSlug(p.brand) === rawBrand))?.brand || rawBrand;
       setSelectedBrands([foundBrand]);
     }
-  }, [matchedCategory, rawCat, rawBrand, allProducts]);
+  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand, allProducts]);
 
   useEffect(() => {
     // Clear subcategories if they don't belong to any of the selected categories
@@ -538,74 +572,179 @@ export default function ProductList() {
             </div>
           )}
 
-          {!matchedBanner && (
-            <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
-              {matchedCategory ? matchedCategory.name : 'Browse Products'}
-            </h1>
+          {/* Breadcrumbs Navigation */}
+          {matchedCategory && (
+            <nav className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-3 flex-wrap" aria-label="Breadcrumb">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="hover:text-emerald-700 transition-colors cursor-pointer"
+              >
+                Home
+              </button>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <button
+                type="button"
+                onClick={() => navigate(`/categories/${getCategorySlug(matchedCategory)}`)}
+                className={`transition-colors cursor-pointer ${!matchedSubcategory ? 'text-emerald-700 font-bold' : 'hover:text-emerald-700'}`}
+              >
+                {matchedCategory.name}
+              </button>
+              {matchedSubcategory && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory)}`)}
+                    className={`transition-colors cursor-pointer ${!matchedNestedSubcategory ? 'text-emerald-700 font-bold' : 'hover:text-emerald-700'}`}
+                  >
+                    {matchedSubcategory.name}
+                  </button>
+                </>
+              )}
+              {matchedNestedSubcategory && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="text-emerald-800 font-extrabold">
+                    {matchedNestedSubcategory.name}
+                  </span>
+                </>
+              )}
+            </nav>
           )}
 
-          {/* Subcategories Horizontal Bar (Matching Mobile Category Logo Style) */}
-          {selectedCategories.length > 0 && (
-            <div className="flex gap-6 overflow-x-auto no-scrollbar py-6 mb-4 border-t border-gray-100/60">
-              {selectedCategories.flatMap(catId =>
-                CATEGORIES.find(c => c.id === catId)?.subcategories || []
-              ).map(sub => (
-                <button
-                  key={sub.id}
-                  onClick={() => toggleSubCategory(sub.id)}
-                  className="flex flex-col items-center gap-2 group transition-all shrink-0"
-                >
-                  <CategoryLogo
-                    name={sub.name}
-                    image={sub.image}
-                    icon={sub.icon}
-                    size="md"
-                    active={selectedSubCategories.includes(sub.id)}
-                  />
-                  <span className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[85px] leading-tight transition-colors ${selectedSubCategories.includes(sub.id) ? 'text-emerald-700 font-extrabold' : 'text-gray-600 group-hover:text-gray-900'
-                    }`}>
-                    {sub.name}
+          {!matchedBanner && (
+            <div className="mb-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+                  {matchedNestedSubcategory ? matchedNestedSubcategory.name : (matchedSubcategory ? matchedSubcategory.name : (matchedCategory ? matchedCategory.name : 'Browse Products'))}
+                </h1>
+                {matchedSubcategory && matchedCategory && (
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                    {matchedCategory.name} {matchedNestedSubcategory ? `› ${matchedSubcategory.name}` : ''}
                   </span>
-                </button>
-              ))}
+                )}
+              </div>
+              <p className="text-xs text-gray-500 font-medium mt-1">
+                {matchedSubcategory
+                  ? `Browse all ${matchedNestedSubcategory ? matchedNestedSubcategory.name : matchedSubcategory.name} products and collections`
+                  : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection')}
+              </p>
             </div>
           )}
 
-          {/* Nested Subcategories Horizontal Bar (Equal logo size md, shown when subcategory selected) */}
-          {(() => {
-            if (selectedSubCategories.length === 0) return null;
-            const availableNested = selectedSubCategories.flatMap(subId => {
-              const cat = CATEGORIES.find(c => c.subcategories?.some(s => s.id === subId));
-              const sub = cat?.subcategories?.find(s => s.id === subId);
-              return sub?.subcategories || [];
-            });
-
-            if (availableNested.length === 0) return null;
-
-            return (
-              <div className="flex gap-6 overflow-x-auto no-scrollbar py-4 mb-6 border-t border-gray-100/60">
-                {availableNested.map(nested => (
-                  <button
-                    key={nested.id}
-                    onClick={() => toggleNestedSubCategory(nested.id)}
-                    className="flex flex-col items-center gap-2 group transition-all shrink-0"
-                  >
-                    <CategoryLogo
-                      name={nested.name}
-                      image={nested.image}
-                      icon={nested.icon}
-                      size="md"
-                      active={selectedNestedSubCategories.includes(nested.id)}
-                    />
-                    <span className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[85px] leading-tight transition-colors ${selectedNestedSubCategories.includes(nested.id) ? 'text-emerald-700 font-extrabold' : 'text-gray-600 group-hover:text-gray-900'
-                      }`}>
-                      {nested.name}
-                    </span>
-                  </button>
-                ))}
+          {/* Subcategories Horizontal Bar (Enlarged visual size and easy click targets) */}
+          {matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
+            <div className="py-4 mb-4 border-t border-b border-gray-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-500">
+                  {matchedCategory.name} Subcategories
+                </span>
+                <span className="text-xs text-emerald-700 font-bold">
+                  {matchedCategory.subcategories.length} Subcategories
+                </span>
               </div>
-            );
-          })()}
+              <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
+                {matchedCategory.subcategories.map(sub => {
+                  const isSubActive = matchedSubcategory?.id === sub.id || selectedSubCategories.includes(sub.id);
+                  const catSlug = getCategorySlug(matchedCategory);
+                  const subSlug = getSubcategorySlug(sub);
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => {
+                        navigate(`/categories/${catSlug}/${subSlug}`);
+                      }}
+                      className={`flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
+                        isSubActive
+                          ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                          : 'bg-white border-gray-100 hover:border-emerald-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <CategoryLogo
+                        name={sub.name}
+                        image={sub.image}
+                        icon={sub.icon}
+                        size="lg"
+                        active={isSubActive}
+                      />
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
+                        isSubActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
+                      }`}>
+                        {sub.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Dedicated Nested Subcategories Showcase for the active Subcategory */}
+          {matchedSubcategory && matchedSubcategory.subcategories && matchedSubcategory.subcategories.length > 0 && (
+            <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span>Explore {matchedSubcategory.name} Subcategories</span>
+                  </h3>
+                  <p className="text-xs text-gray-600 font-medium">Click to filter by nested subcategory</p>
+                </div>
+                {matchedNestedSubcategory && (
+                  <button
+                    onClick={() => {
+                      const catSlug = getCategorySlug(matchedCategory!);
+                      const subSlug = getSubcategorySlug(matchedSubcategory);
+                      navigate(`/categories/${catSlug}/${subSlug}`);
+                    }}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                  >
+                    View All in {matchedSubcategory.name}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+                {matchedSubcategory.subcategories.map(nested => {
+                  const isNestedActive = matchedNestedSubcategory?.id === nested.id || selectedNestedSubCategories.includes(nested.id);
+                  const catSlug = getCategorySlug(matchedCategory!);
+                  const subSlug = getSubcategorySlug(matchedSubcategory);
+                  const nestedSlug = getNestedSubcategorySlug(nested);
+                  return (
+                    <button
+                      key={nested.id}
+                      onClick={() => {
+                        if (isNestedActive) {
+                          navigate(`/categories/${catSlug}/${subSlug}`);
+                        } else {
+                          navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+                        }
+                      }}
+                      className={`flex flex-col items-center gap-2.5 group transition-all shrink-0 p-4 rounded-2xl border min-w-[115px] sm:min-w-[130px] cursor-pointer ${
+                        isNestedActive
+                          ? 'bg-white border-emerald-500 ring-2 ring-emerald-500 shadow-md'
+                          : 'bg-white/80 border-emerald-100/80 hover:border-emerald-400 hover:shadow-sm'
+                      }`}
+                    >
+                      <CategoryLogo
+                        name={nested.name}
+                        image={nested.image}
+                        icon={nested.icon}
+                        size="lg"
+                        active={isNestedActive}
+                      />
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[110px] leading-tight transition-colors ${
+                        isNestedActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
+                      }`}>
+                        {nested.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {searchParams.get('q') && (
             <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100 mb-4">

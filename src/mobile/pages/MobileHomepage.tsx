@@ -16,7 +16,7 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
-import { getProductSlug, getCategorySlug, getBannerSlug } from '../../shared/utilities/slug';
+import { getProductSlug, getCategorySlug, getSubcategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
@@ -821,76 +821,41 @@ export default function MobileHomepage() {
       <CashbackScheduleSection isMobile={true} />
 
       {/* ========================================================================= */}
-      {/* 6. SUBCATEGORIES & NESTED SUBCATEGORIES (Directly below Banners)          */}
+      {/* 6. SUBCATEGORIES (Directly below Banners)                                  */}
       {/* ========================================================================= */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
         <section className="w-full min-w-0 space-y-2">
-          <div className="bg-white rounded-[22px] p-3 shadow-sm border border-yellow-100 space-y-3">
-            {/* Subcategories Horizontal Bar */}
-            <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+          <div className="bg-white rounded-[24px] p-3.5 shadow-sm border border-yellow-100 space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-black text-gray-900 tracking-tight">
+                {activeCategoryObj.name} Subcategories
+              </span>
+              <span className="text-[10px] text-emerald-700 font-bold">
+                Tap to explore
+              </span>
+            </div>
+
+            {/* Subcategories Horizontal Bar with enlarged cards & touch targets */}
+            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
               {activeCategoryObj.subcategories.map(sub => {
-                const isSelected = selectedSubCatId === sub.id;
+                const catSlug = getCategorySlug(activeCategoryObj);
+                const subSlug = getSubcategorySlug(sub);
                 return (
                   <button
                     key={sub.id}
                     onClick={() => {
-                      if (isSelected) {
-                        setSelectedSubCatId(null);
-                        setSelectedNestedSubCatId(null);
-                      } else {
-                        setSelectedSubCatId(sub.id);
-                        setSelectedNestedSubCatId(null);
-                      }
+                      navigate(`/categories/${catSlug}/${subSlug}`);
                     }}
-                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${isSelected
-                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                        : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
-                      }`}
+                    className="flex flex-col items-center gap-2 p-3 rounded-2xl border shrink-0 bg-white border-gray-100 hover:border-emerald-400 active:scale-95 shadow-xs transition-all min-w-[92px] cursor-pointer"
                   >
-                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" active={isSelected} />
-                    <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                      }`}>
+                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="md" />
+                    <span className="text-xs font-extrabold text-center max-w-[85px] leading-tight line-clamp-1 text-gray-800">
                       {sub.name}
                     </span>
                   </button>
                 );
               })}
             </div>
-
-            {/* Nested Subcategories (Shown ONLY when subcategory clicked, with EQUAL size icons) */}
-            {(() => {
-              if (!selectedSubCatId) return null;
-              const selectedSubObj = activeCategoryObj.subcategories.find(s => s.id === selectedSubCatId);
-              const availableNested = selectedSubObj?.subcategories || [];
-
-              if (availableNested.length === 0) return null;
-
-              return (
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
-                    {availableNested.map(nested => {
-                      const isNestedSelected = selectedNestedSubCatId === nested.id;
-                      return (
-                        <button
-                          key={nested.id}
-                          onClick={() => setSelectedNestedSubCatId(isNestedSelected ? null : nested.id)}
-                          className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border shrink-0 transition-all ${isNestedSelected
-                              ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                              : 'bg-gray-50/60 border-gray-100 hover:border-emerald-300'
-                            }`}
-                        >
-                          <CategoryLogo name={nested.name} image={nested.image} size="md" active={isNestedSelected} />
-                          <span className={`text-[10px] font-extrabold text-center max-w-[75px] leading-tight line-clamp-1 ${isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                            }`}>
-                            {nested.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         </section>
       )}

@@ -52,6 +52,18 @@ export const getSubcategorySlug = (sub: { name?: string; slug?: string; id?: str
 };
 
 /**
+ * Generates nested subcategory slug
+ */
+export const getNestedSubcategorySlug = (nested: { name?: string; slug?: string; id?: string } | string): string => {
+  if (typeof nested === 'string') {
+    return createSlug(nested);
+  }
+  if (nested.slug) return nested.slug;
+  if (nested.name) return createSlug(nested.name);
+  return nested.id || '';
+};
+
+/**
  * Generates reward item slug
  */
 export const getRewardSlug = (reward: { title?: string; brandName?: string; slug?: string; id?: string } | string): string => {

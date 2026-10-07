@@ -268,65 +268,44 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 2: Subcategories Grid */}
+                {/* Level 2: Subcategories Grid - Enlarged visual size and easy tap targets */}
                 {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-black text-gray-900">
+                        {selectedCategory.name} Subcategories
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">
+                        {selectedCategory.subcategories.length} Subcategories
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       {selectedCategory.subcategories.map((sub) => {
-                        const isSubSelected = selectedSubCatId === sub.id;
+                        const catSlug = getCategorySlug(selectedCategory);
+                        const subSlug = getSubcategorySlug(sub);
                         return (
                           <motion.div
                             key={sub.id}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() => handleSubCategorySelect(sub.id)}
-                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isSubSelected
-                                ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
-                                : 'bg-white border-yellow-100 hover:border-emerald-300'
-                              }`}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              navigate(`/categories/${catSlug}/${subSlug}`);
+                            }}
+                            className="rounded-2xl p-4 border bg-white border-yellow-100 hover:border-emerald-400 shadow-xs flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95"
                           >
                             <CategoryLogo
                               name={sub.name}
                               image={sub.image}
                               icon={sub.icon}
-                              size="md"
-                              active={isSubSelected}
+                              size="lg"
                             />
-                            <span className={`text-xs font-bold leading-tight mt-1.5 ${isSubSelected ? 'text-emerald-900' : 'text-gray-900'}`}>
+                            <span className="text-xs sm:text-sm font-extrabold leading-tight mt-2 text-gray-900">
                               {sub.name}
                             </span>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Level 3: Nested Subcategories (Equal Icon Size, Shown ONLY when subcategory clicked) */}
-                {selectedSubCatId && availableNestedSubcategories.length > 0 && (
-                  <div className="space-y-2 bg-emerald-50/50 p-3 rounded-[22px] border border-emerald-100 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {availableNestedSubcategories.map((nested) => {
-                        const isNestedSelected = selectedNestedSubCatId === nested.id;
-                        return (
-                          <motion.div
-                            key={nested.id}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() => handleNestedSubCategorySelect(nested.id)}
-                            className={`rounded-[20px] p-3 border shadow-sm flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isNestedSelected
-                                ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
-                                : 'bg-white border-yellow-100 hover:border-emerald-300'
-                              }`}
-                          >
-                            <CategoryLogo
-                              name={nested.name}
-                              image={nested.image}
-                              icon={nested.icon}
-                              size="md"
-                              active={isNestedSelected}
-                            />
-                            <span className={`text-xs font-bold leading-tight mt-1.5 ${isNestedSelected ? 'text-emerald-900' : 'text-gray-900'}`}>
-                              {nested.name}
-                            </span>
+                            {sub.subcategories && sub.subcategories.length > 0 && (
+                              <span className="text-[10px] font-bold text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                {sub.subcategories.length} sub-items
+                              </span>
+                            )}
                           </motion.div>
                         );
                       })}
