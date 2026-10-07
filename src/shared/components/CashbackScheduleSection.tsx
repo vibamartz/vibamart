@@ -13,243 +13,6 @@ interface CashbackScheduleSectionProps {
   isMobile?: boolean;
 }
 
-// 3D Decorative Gold Coin SVG Component (Ultra-vibrant, glossy, embossed)
-function GoldCoin3D({
-  size = 40,
-  className = '',
-  style = {},
-}: {
-  size?: number;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={`drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)] select-none pointer-events-none ${className}`}
-      style={style}
-    >
-      <defs>
-        {/* Outer 3D Coin Bevel Rim Gradient */}
-        <linearGradient id="coinGoldRimVivid" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFBEB" />
-          <stop offset="20%" stopColor="#FDE047" />
-          <stop offset="45%" stopColor="#F59E0B" />
-          <stop offset="70%" stopColor="#B45309" />
-          <stop offset="90%" stopColor="#FBBF24" />
-          <stop offset="100%" stopColor="#78350F" />
-        </linearGradient>
-
-        {/* Inner Coin Core Radial Polish */}
-        <radialGradient id="coinGoldCoreVivid" cx="30%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#FEF08A" />
-          <stop offset="35%" stopColor="#FBBF24" />
-          <stop offset="70%" stopColor="#F59E0B" />
-          <stop offset="95%" stopColor="#B45309" />
-          <stop offset="100%" stopColor="#78350F" />
-        </radialGradient>
-
-        {/* Embossed Rupee Shadow */}
-        <linearGradient id="coinEmbossVivid" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="40%" stopColor="#FEF9C3" />
-          <stop offset="100%" stopColor="#B45309" />
-        </linearGradient>
-
-        {/* Glass Specular Sheen Reflection */}
-        <linearGradient id="coinSheenVivid" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-          <stop offset="30%" stopColor="#FFFFFF" stopOpacity="0.25" />
-          <stop offset="70%" stopColor="#FFFFFF" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* Outer 3D Rim Base */}
-      <circle cx="50" cy="50" r="47" fill="url(#coinGoldRimVivid)" stroke="#78350F" strokeWidth="1.5" />
-
-      {/* Inner Beveled Surface Disc */}
-      <circle cx="50" cy="50" r="41" fill="url(#coinGoldCoreVivid)" stroke="#FEF08A" strokeWidth="1.8" />
-
-      {/* Beaded Edge Ring */}
-      <circle
-        cx="50"
-        cy="50"
-        r="35"
-        fill="none"
-        stroke="#FFFBEB"
-        strokeWidth="1.8"
-        strokeDasharray="2.5 2.5"
-        opacity="0.9"
-      />
-
-      {/* Inner Concentric Bevel Ring */}
-      <circle cx="50" cy="50" r="30" fill="none" stroke="#92400E" strokeWidth="1.2" opacity="0.75" />
-
-      {/* Center 3D Embossed Rupee Symbol with Deep Shadow */}
-      <text
-        x="51.5"
-        y="62.5"
-        textAnchor="middle"
-        fontFamily="sans-serif"
-        fontSize="34"
-        fontWeight="900"
-        fill="#451A03"
-        opacity="0.65"
-      >
-        ₹
-      </text>
-      <text
-        x="50"
-        y="60.5"
-        textAnchor="middle"
-        fontFamily="sans-serif"
-        fontSize="34"
-        fontWeight="900"
-        fill="url(#coinEmbossVivid)"
-        stroke="#78350F"
-        strokeWidth="0.8"
-      >
-        ₹
-      </text>
-
-      {/* Specular Highlight Arc */}
-      <path
-        d="M 18 30 Q 50 14 82 30 Q 62 56 18 30 Z"
-        fill="url(#coinSheenVivid)"
-      />
-    </svg>
-  );
-}
-
-// 3D Decorative Indian Rupee Note Component (Crisp, High Contrast, Clearly Visible)
-function RupeeNote3D({
-  denomination = '500',
-  width = 90,
-  height = 48,
-  theme = 'emerald', // 'emerald' (₹500), 'saffron' (₹200), 'purple' (₹100), 'turquoise' (₹50)
-  className = '',
-  style = {},
-}: {
-  denomination?: string;
-  width?: number;
-  height?: number;
-  theme?: 'emerald' | 'saffron' | 'purple' | 'turquoise';
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const gradients = {
-    emerald: {
-      bg: 'linear-gradient(135deg, #064e3b 0%, #059669 45%, #10b981 75%, #047857 100%)',
-      accent: '#a7f3d0',
-      strip: '#34d399',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(6, 78, 59, 0.75)',
-    },
-    saffron: {
-      bg: 'linear-gradient(135deg, #9a3412 0%, #ea580c 45%, #fb923c 75%, #c2410c 100%)',
-      accent: '#fed7aa',
-      strip: '#f97316',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(154, 52, 18, 0.75)',
-    },
-    purple: {
-      bg: 'linear-gradient(135deg, #581c87 0%, #9333ea 45%, #c084fc 75%, #7e22ce 100%)',
-      accent: '#f3e8ff',
-      strip: '#d8b4fe',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(88, 28, 135, 0.75)',
-    },
-    turquoise: {
-      bg: 'linear-gradient(135deg, #0e7490 0%, #06b6d4 45%, #67e8f9 75%, #0891b2 100%)',
-      accent: '#cffafe',
-      strip: '#22d3ee',
-      border: 'rgba(255, 255, 255, 0.65)',
-      text: '#ffffff',
-      badgeBg: 'rgba(14, 116, 144, 0.75)',
-    },
-  }[theme];
-
-  return (
-    <div
-      className={`relative select-none pointer-events-none rounded-[6px] overflow-hidden drop-shadow-[0_12px_24px_rgba(0,0,0,0.45)] ${className}`}
-      style={{
-        width: `${width}px`,
-        height: `${height}px`,
-        background: gradients.bg,
-        border: `1.5px solid ${gradients.border}`,
-        boxShadow: 'inset 0 0 14px rgba(255,255,255,0.4), 0 10px 20px rgba(0,0,0,0.35)',
-        ...style,
-      }}
-    >
-      {/* Banknote Micro Guilloche Pattern */}
-      <div
-        className="absolute inset-0 opacity-25 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 50% 50%, ${gradients.accent} 1.2px, transparent 1.2px)`,
-          backgroundSize: '5px 5px',
-        }}
-      />
-
-      {/* Holographic / Security Strip with Metallic Glow */}
-      <div
-        className="absolute top-0 bottom-0 left-[26%] w-[11%] opacity-90"
-        style={{
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(251,191,36,0.95) 45%, rgba(245,158,11,0.95) 75%, rgba(255,255,255,0.9) 100%)',
-          boxShadow: '0 0 8px rgba(251,191,36,0.8)',
-        }}
-      />
-
-      {/* Decorative Border Frame */}
-      <div
-        className="absolute inset-[2.5px] rounded-[4px] border border-white/40 pointer-events-none flex flex-col justify-between p-1"
-      >
-        {/* Top Header Row */}
-        <div className="flex items-center justify-between text-[7px] font-black tracking-wider text-white leading-none drop-shadow-sm">
-          <span className="opacity-95 text-[6.5px]">RESERVE BANK</span>
-          <span style={{ color: gradients.accent }} className="font-extrabold font-mono text-[7.5px] bg-black/25 px-0.5 rounded">₹{denomination}</span>
-        </div>
-
-        {/* Center Note Emblem & Rupee Symbol */}
-        <div className="flex items-center justify-center gap-1.5 my-auto">
-          <div
-            className="w-4 h-4 rounded-full border border-white/60 flex items-center justify-center text-[9px] font-black text-white shadow-md shrink-0"
-            style={{ background: gradients.badgeBg }}
-          >
-            ₹
-          </div>
-          <span
-            className="text-[13px] font-black tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] leading-none"
-            style={{ color: gradients.text }}
-          >
-            ₹{denomination}
-          </span>
-        </div>
-
-        {/* Bottom Bar in Note */}
-        <div className="flex items-center justify-between text-[6px] font-bold text-white/90 leading-none drop-shadow-xs">
-          <span className="tracking-tighter font-extrabold">VIBA MART</span>
-          <span className="font-mono tracking-widest font-black">INDIA</span>
-        </div>
-      </div>
-
-      {/* 3D Specular Highlight Sweep */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-50"
-        style={{
-          background: 'linear-gradient(115deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.3) 75%, rgba(255,255,255,0) 100%)',
-        }}
-      />
-    </div>
-  );
-}
-
 // Subtle Twinkling Sparkle Particle
 function GoldSparkle({
   size = 14,
@@ -286,73 +49,95 @@ function GoldSparkle({
   );
 }
 
-// Background Floating 3D Layer for Cashback Section (Full coverage, clearly visible across entire card)
+// Realistic 3D Indian ₹100 Rupee Note Component
+function INR100Note3D({
+  width = 86,
+  className = '',
+  style = {},
+  blur = false,
+  opacity = 0.9,
+}: {
+  width?: number;
+  className?: string;
+  style?: React.CSSProperties;
+  blur?: boolean;
+  opacity?: number;
+}) {
+  return (
+    <div
+      className={`relative select-none pointer-events-none rounded-[5px] overflow-hidden drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)] ${
+        blur ? 'blur-[0.5px]' : ''
+      } ${className}`}
+      style={{
+        width: `${width}px`,
+        aspectRatio: '1449 / 618',
+        opacity,
+        boxShadow: '0 10px 25px -4px rgba(0, 0, 0, 0.45), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
+        transformStyle: 'preserve-3d',
+        ...style,
+      }}
+    >
+      <img
+        src="/assets/inr-100-note.png"
+        alt="₹100 Note"
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover rounded-[5px] block select-none pointer-events-none"
+        style={{
+          filter: 'contrast(1.05) saturate(1.05) brightness(1.02)',
+        }}
+      />
+      {/* 3D Specular Sheen Sweep for Realistic Crisp Finish */}
+      <div
+        className="absolute inset-0 pointer-events-none rounded-[5px]"
+        style={{
+          background:
+            'linear-gradient(115deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.15) 75%, rgba(255,255,255,0) 100%)',
+          boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.35)',
+        }}
+      />
+    </div>
+  );
+}
+
+// Background Floating 3D Layer for Cashback Section (Full coverage, clearly visible across entire card using supplied ₹100 note)
 function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean }) {
   if (isMobile) {
     return (
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        {/* Top-Left: 3D Gold Coin */}
-        <div
-          className="absolute top-1 left-2 animate-float-slow-1 opacity-90"
-          style={{ transform: 'rotateX(15deg) rotateY(-20deg) rotateZ(-10deg)' }}
-        >
-          <GoldCoin3D size={32} />
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0" style={{ perspective: '800px' }}>
+        {/* Top-Left: ₹100 Note */}
+        <div className="absolute top-1 left-2 animate-float-note-1 opacity-90">
+          <INR100Note3D width={58} />
         </div>
 
-        {/* Top-Right: ₹500 Emerald Note */}
-        <div
-          className="absolute top-1 right-2 animate-float-slow-2 opacity-85"
-          style={{ transform: 'rotateX(20deg) rotateY(15deg) rotateZ(12deg)' }}
-        >
-          <RupeeNote3D denomination="500" width={60} height={32} theme="emerald" />
+        {/* Top-Right: ₹100 Note */}
+        <div className="absolute top-1 right-2 animate-float-note-2 opacity-90">
+          <INR100Note3D width={62} />
         </div>
 
-        {/* Center-Left: 3D Gold Coin */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 left-1 animate-float-slow-3 opacity-90"
-          style={{ transform: 'rotateX(-15deg) rotateY(25deg) rotateZ(8deg)' }}
-        >
-          <GoldCoin3D size={30} />
+        {/* Center-Left: ₹100 Note */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-1 animate-float-note-3 opacity-80">
+          <INR100Note3D width={54} blur />
         </div>
 
-        {/* Center-Middle (Behind Amount): ₹200 Saffron Note */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-slow-4 opacity-75"
-          style={{ transform: 'rotateX(14deg) rotateY(-12deg) rotateZ(-6deg)' }}
-        >
-          <RupeeNote3D denomination="200" width={56} height={30} theme="saffron" />
+        {/* Center-Middle (Subtly behind Amount): ₹100 Note */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-note-5 opacity-40">
+          <INR100Note3D width={66} />
         </div>
 
-        {/* Center-Right: 3D Gold Coin */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 right-1 animate-float-slow-1 opacity-90"
-          style={{ transform: 'rotateX(18deg) rotateY(-22deg) rotateZ(-8deg)' }}
-        >
-          <GoldCoin3D size={32} />
+        {/* Center-Right: ₹100 Note */}
+        <div className="absolute top-1/2 -translate-y-1/2 right-1 animate-float-note-4 opacity-85">
+          <INR100Note3D width={56} />
         </div>
 
-        {/* Bottom-Left: ₹100 Purple Note */}
-        <div
-          className="absolute bottom-1 left-3 animate-float-slow-2 opacity-85"
-          style={{ transform: 'rotateX(-18deg) rotateY(-15deg) rotateZ(-8deg)' }}
-        >
-          <RupeeNote3D denomination="100" width={56} height={29} theme="purple" />
+        {/* Bottom-Left: ₹100 Note */}
+        <div className="absolute bottom-1 left-3 animate-float-note-2 opacity-85">
+          <INR100Note3D width={58} />
         </div>
 
-        {/* Bottom-Center: 3D Gold Coin */}
-        <div
-          className="absolute bottom-1 left-1/2 -translate-x-1/2 animate-float-slow-3 opacity-85"
-          style={{ transform: 'rotateX(12deg) rotateY(18deg) rotateZ(6deg)' }}
-        >
-          <GoldCoin3D size={28} />
-        </div>
-
-        {/* Bottom-Right: 3D Gold Coin */}
-        <div
-          className="absolute bottom-1 right-2 animate-float-slow-4 opacity-90"
-          style={{ transform: 'rotateX(-12deg) rotateY(18deg) rotateZ(10deg)' }}
-        >
-          <GoldCoin3D size={30} />
+        {/* Bottom-Right: ₹100 Note */}
+        <div className="absolute bottom-1 right-2 animate-float-note-1 opacity-90">
+          <INR100Note3D width={60} />
         </div>
 
         {/* Twinkling Gold Sparkles across mobile section */}
@@ -372,114 +157,75 @@ function Floating3DCashbackBackground({ isMobile = false }: { isMobile?: boolean
     );
   }
 
-  // Desktop Floating 3D Assets Layer (Full Coverage Across Entire Section)
+  // Desktop Floating 3D Assets Layer (Full Coverage Across Entire Section using ₹100 note)
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0" style={{ perspective: '1000px' }}>
       {/* ── TOP REGION ── */}
-      {/* Top-Left: Large 3D Gold Coin */}
-      <div
-        className="absolute top-2 left-8 animate-float-slow-1 opacity-90"
-        style={{ transform: 'rotateX(18deg) rotateY(-24deg) rotateZ(-12deg)' }}
-      >
-        <GoldCoin3D size={48} />
+      {/* Top-Left: ₹100 Note */}
+      <div className="absolute top-2 left-8 animate-float-note-1 opacity-90">
+        <INR100Note3D width={96} />
       </div>
 
-      {/* Top-Center-Left: ₹100 Purple Note */}
-      <div
-        className="absolute top-2 left-[28%] animate-float-slow-3 opacity-85"
-        style={{ transform: 'rotateX(20deg) rotateY(12deg) rotateZ(8deg)' }}
-      >
-        <RupeeNote3D denomination="100" width={82} height={44} theme="purple" />
+      {/* Top-Center-Left: ₹100 Note */}
+      <div className="absolute top-2 left-[28%] animate-float-note-3 opacity-85">
+        <INR100Note3D width={86} />
       </div>
 
-      {/* Top-Center-Right: 3D Gold Coin */}
-      <div
-        className="absolute top-2 right-[28%] animate-float-slow-2 opacity-90"
-        style={{ transform: 'rotateX(-16deg) rotateY(20deg) rotateZ(-10deg)' }}
-      >
-        <GoldCoin3D size={42} />
+      {/* Top-Center-Right: ₹100 Note */}
+      <div className="absolute top-2 right-[28%] animate-float-note-2 opacity-85">
+        <INR100Note3D width={88} />
       </div>
 
-      {/* Top-Right: ₹500 Emerald Note */}
-      <div
-        className="absolute top-2 right-10 animate-float-slow-4 opacity-90"
-        style={{ transform: 'rotateX(22deg) rotateY(-18deg) rotateZ(14deg)' }}
-      >
-        <RupeeNote3D denomination="500" width={92} height={48} theme="emerald" />
+      {/* Top-Right: ₹100 Note */}
+      <div className="absolute top-2 right-10 animate-float-note-4 opacity-90">
+        <INR100Note3D width={100} />
       </div>
 
       {/* ── MIDDLE REGION (Behind Amount & Progress Line) ── */}
-      {/* Middle-Far-Left: 3D Gold Coin */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 left-3 animate-float-slow-2 opacity-90"
-        style={{ transform: 'rotateX(-20deg) rotateY(26deg) rotateZ(12deg)' }}
-      >
-        <GoldCoin3D size={46} />
+      {/* Middle-Far-Left: ₹100 Note */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-3 animate-float-note-2 opacity-85">
+        <INR100Note3D width={92} />
       </div>
 
-      {/* Middle-Left: ₹200 Saffron Note */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 left-[16%] animate-float-slow-1 opacity-85"
-        style={{ transform: 'rotateX(16deg) rotateY(-15deg) rotateZ(-8deg)' }}
-      >
-        <RupeeNote3D denomination="200" width={84} height={45} theme="saffron" />
+      {/* Middle-Left: ₹100 Note */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-[16%] animate-float-note-1 opacity-80">
+        <INR100Note3D width={84} blur />
       </div>
 
-      {/* Middle-Center (Behind Amount Display): ₹500 Note floating subtly */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-slow-3 opacity-65"
-        style={{ transform: 'rotateX(14deg) rotateY(8deg) rotateZ(-4deg)' }}
-      >
-        <RupeeNote3D denomination="500" width={88} height={46} theme="emerald" />
+      {/* Middle-Center (Behind Amount Display): ₹100 Note floating subtly */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 animate-float-note-5 opacity-45">
+        <INR100Note3D width={94} />
       </div>
 
-      {/* Middle-Right: ₹50 Turquoise Note */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 right-[16%] animate-float-slow-4 opacity-85"
-        style={{ transform: 'rotateX(-15deg) rotateY(20deg) rotateZ(10deg)' }}
-      >
-        <RupeeNote3D denomination="50" width={82} height={44} theme="turquoise" />
+      {/* Middle-Right: ₹100 Note */}
+      <div className="absolute top-1/2 -translate-y-1/2 right-[16%] animate-float-note-4 opacity-80">
+        <INR100Note3D width={84} blur />
       </div>
 
-      {/* Middle-Far-Right: Large 3D Gold Coin */}
-      <div
-        className="absolute top-1/2 -translate-y-1/2 right-3 animate-float-slow-1 opacity-90"
-        style={{ transform: 'rotateX(24deg) rotateY(-28deg) rotateZ(-16deg)' }}
-      >
-        <GoldCoin3D size={50} />
+      {/* Middle-Far-Right: ₹100 Note */}
+      <div className="absolute top-1/2 -translate-y-1/2 right-3 animate-float-note-1 opacity-90">
+        <INR100Note3D width={96} />
       </div>
 
       {/* ── BOTTOM REGION ── */}
-      {/* Bottom-Left: ₹500 Emerald Note */}
-      <div
-        className="absolute bottom-2 left-12 animate-float-slow-4 opacity-85"
-        style={{ transform: 'rotateX(-20deg) rotateY(-16deg) rotateZ(-8deg)' }}
-      >
-        <RupeeNote3D denomination="500" width={86} height={45} theme="emerald" />
+      {/* Bottom-Left: ₹100 Note */}
+      <div className="absolute bottom-2 left-12 animate-float-note-4 opacity-85">
+        <INR100Note3D width={92} />
       </div>
 
-      {/* Bottom-Center-Left: 3D Gold Coin */}
-      <div
-        className="absolute bottom-2 left-[36%] animate-float-slow-2 opacity-90"
-        style={{ transform: 'rotateX(16deg) rotateY(-22deg) rotateZ(8deg)' }}
-      >
-        <GoldCoin3D size={40} />
+      {/* Bottom-Center-Left: ₹100 Note */}
+      <div className="absolute bottom-2 left-[36%] animate-float-note-2 opacity-85">
+        <INR100Note3D width={86} />
       </div>
 
-      {/* Bottom-Center-Right: 3D Gold Coin */}
-      <div
-        className="absolute bottom-2 right-[36%] animate-float-slow-3 opacity-90"
-        style={{ transform: 'rotateX(-14deg) rotateY(20deg) rotateZ(-6deg)' }}
-      >
-        <GoldCoin3D size={42} />
+      {/* Bottom-Center-Right: ₹100 Note */}
+      <div className="absolute bottom-2 right-[36%] animate-float-note-3 opacity-85">
+        <INR100Note3D width={88} />
       </div>
 
-      {/* Bottom-Right: ₹200 Saffron Note & Gold Coin */}
-      <div
-        className="absolute bottom-2 right-12 animate-float-slow-1 opacity-85"
-        style={{ transform: 'rotateX(18deg) rotateY(16deg) rotateZ(10deg)' }}
-      >
-        <RupeeNote3D denomination="200" width={86} height={45} theme="saffron" />
+      {/* Bottom-Right: ₹100 Note */}
+      <div className="absolute bottom-2 right-12 animate-float-note-1 opacity-90">
+        <INR100Note3D width={96} />
       </div>
 
       {/* ── GOLDEN PARTICLES & SPARKLES ACROSS THE SECTION ── */}
@@ -570,36 +316,44 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
               background-position: 0% 50%;
             }
           }
-          @keyframes floatSlow1 {
+          @keyframes float3DNote1 {
             0%, 100% {
-              transform: translateY(0px) rotate(0deg) scale(1);
+              transform: translateY(0px) rotateX(15deg) rotateY(-18deg) rotateZ(-10deg) scale(1);
             }
             50% {
-              transform: translateY(-8px) rotate(4deg) scale(1.04);
+              transform: translateY(-8px) rotateX(20deg) rotateY(-12deg) rotateZ(-6deg) scale(1.03);
             }
           }
-          @keyframes floatSlow2 {
+          @keyframes float3DNote2 {
             0%, 100% {
-              transform: translateY(0px) rotate(0deg) scale(1);
+              transform: translateY(0px) rotateX(-15deg) rotateY(16deg) rotateZ(8deg) scale(1);
             }
             50% {
-              transform: translateY(7px) rotate(-5deg) scale(0.97);
+              transform: translateY(7px) rotateX(-20deg) rotateY(22deg) rotateZ(12deg) scale(0.97);
             }
           }
-          @keyframes floatSlow3 {
+          @keyframes float3DNote3 {
             0%, 100% {
-              transform: translateY(0px) rotate(0deg) scale(1);
+              transform: translateY(0px) rotateX(18deg) rotateY(12deg) rotateZ(6deg) scale(1);
             }
             50% {
-              transform: translateY(-6px) rotate(-4deg) scale(1.03);
+              transform: translateY(-7px) rotateX(12deg) rotateY(6deg) rotateZ(2deg) scale(1.02);
             }
           }
-          @keyframes floatSlow4 {
+          @keyframes float3DNote4 {
             0%, 100% {
-              transform: translateY(0px) rotate(0deg) scale(1);
+              transform: translateY(0px) rotateX(-16deg) rotateY(-15deg) rotateZ(-8deg) scale(1);
             }
             50% {
-              transform: translateY(8px) rotate(6deg) scale(1.02);
+              transform: translateY(8px) rotateX(-10deg) rotateY(-20deg) rotateZ(-12deg) scale(0.98);
+            }
+          }
+          @keyframes float3DNote5 {
+            0%, 100% {
+              transform: translateY(0px) rotateX(12deg) rotateY(-8deg) rotateZ(-4deg) scale(1);
+            }
+            50% {
+              transform: translateY(-6px) rotateX(16deg) rotateY(-2deg) rotateZ(0deg) scale(1.02);
             }
           }
           @keyframes twinkleGlint {
@@ -617,23 +371,38 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             background-size: 400% 400%;
             animation: cashbackRgbFlow 10s ease infinite;
           }
-          .animate-float-slow-1 {
-            animation: floatSlow1 5.5s ease-in-out infinite;
+          .animate-float-note-1 {
+            animation: float3DNote1 5.5s ease-in-out infinite;
           }
-          .animate-float-slow-2 {
-            animation: floatSlow2 6.5s ease-in-out infinite;
+          .animate-float-note-2 {
+            animation: float3DNote2 6.5s ease-in-out infinite;
           }
-          .animate-float-slow-3 {
-            animation: floatSlow3 7s ease-in-out infinite;
+          .animate-float-note-3 {
+            animation: float3DNote3 7s ease-in-out infinite;
           }
-          .animate-float-slow-4 {
-            animation: floatSlow4 6s ease-in-out infinite;
+          .animate-float-note-4 {
+            animation: float3DNote4 6s ease-in-out infinite;
+          }
+          .animate-float-note-5 {
+            animation: float3DNote5 6.2s ease-in-out infinite;
           }
           .animate-twinkle {
             animation: twinkleGlint 3s ease-in-out infinite;
           }
           .animate-twinkle-delay {
             animation: twinkleGlint 3.5s ease-in-out infinite 1.5s;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .animate-float-note-1,
+            .animate-float-note-2,
+            .animate-float-note-3,
+            .animate-float-note-4,
+            .animate-float-note-5,
+            .animate-twinkle,
+            .animate-twinkle-delay,
+            .cashback-rgb-bg {
+              animation: none !important;
+            }
           }
         `}</style>
 
@@ -776,36 +545,44 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             background-position: 0% 50%;
           }
         }
-        @keyframes floatSlow1 {
+        @keyframes float3DNote1 {
           0%, 100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
+            transform: translateY(0px) rotateX(15deg) rotateY(-18deg) rotateZ(-10deg) scale(1);
           }
           50% {
-            transform: translateY(-9px) rotate(4deg) scale(1.04);
+            transform: translateY(-9px) rotateX(20deg) rotateY(-12deg) rotateZ(-6deg) scale(1.03);
           }
         }
-        @keyframes floatSlow2 {
+        @keyframes float3DNote2 {
           0%, 100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
+            transform: translateY(0px) rotateX(-15deg) rotateY(16deg) rotateZ(8deg) scale(1);
           }
           50% {
-            transform: translateY(8px) rotate(-5deg) scale(0.97);
+            transform: translateY(8px) rotateX(-20deg) rotateY(22deg) rotateZ(12deg) scale(0.97);
           }
         }
-        @keyframes floatSlow3 {
+        @keyframes float3DNote3 {
           0%, 100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
+            transform: translateY(0px) rotateX(18deg) rotateY(12deg) rotateZ(6deg) scale(1);
           }
           50% {
-            transform: translateY(-8px) rotate(-4deg) scale(1.03);
+            transform: translateY(-8px) rotateX(12deg) rotateY(6deg) rotateZ(2deg) scale(1.02);
           }
         }
-        @keyframes floatSlow4 {
+        @keyframes float3DNote4 {
           0%, 100% {
-            transform: translateY(0px) rotate(0deg) scale(1);
+            transform: translateY(0px) rotateX(-16deg) rotateY(-15deg) rotateZ(-8deg) scale(1);
           }
           50% {
-            transform: translateY(9px) rotate(5deg) scale(1.02);
+            transform: translateY(9px) rotateX(-10deg) rotateY(-20deg) rotateZ(-12deg) scale(0.98);
+          }
+        }
+        @keyframes float3DNote5 {
+          0%, 100% {
+            transform: translateY(0px) rotateX(12deg) rotateY(-8deg) rotateZ(-4deg) scale(1);
+          }
+          50% {
+            transform: translateY(-7px) rotateX(16deg) rotateY(-2deg) rotateZ(0deg) scale(1.02);
           }
         }
         @keyframes twinkleGlint {
@@ -823,23 +600,38 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           background-size: 400% 400%;
           animation: cashbackRgbFlow 10s ease infinite;
         }
-        .animate-float-slow-1 {
-          animation: floatSlow1 6s ease-in-out infinite;
+        .animate-float-note-1 {
+          animation: float3DNote1 6.5s ease-in-out infinite;
         }
-        .animate-float-slow-2 {
-          animation: floatSlow2 7s ease-in-out infinite;
+        .animate-float-note-2 {
+          animation: float3DNote2 7.5s ease-in-out infinite;
         }
-        .animate-float-slow-3 {
-          animation: floatSlow3 7.5s ease-in-out infinite;
+        .animate-float-note-3 {
+          animation: float3DNote3 8s ease-in-out infinite;
         }
-        .animate-float-slow-4 {
-          animation: floatSlow4 6.5s ease-in-out infinite;
+        .animate-float-note-4 {
+          animation: float3DNote4 7s ease-in-out infinite;
+        }
+        .animate-float-note-5 {
+          animation: float3DNote5 7.2s ease-in-out infinite;
         }
         .animate-twinkle {
           animation: twinkleGlint 3s ease-in-out infinite;
         }
         .animate-twinkle-delay {
           animation: twinkleGlint 3.5s ease-in-out infinite 1.5s;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-float-note-1,
+          .animate-float-note-2,
+          .animate-float-note-3,
+          .animate-float-note-4,
+          .animate-float-note-5,
+          .animate-twinkle,
+          .animate-twinkle-delay,
+          .cashback-rgb-bg {
+            animation: none !important;
+          }
         }
       `}</style>
 
