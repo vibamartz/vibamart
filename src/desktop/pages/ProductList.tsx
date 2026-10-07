@@ -348,20 +348,20 @@ export default function ProductList() {
   }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams]);
 
   const toggleCategory = (id: string) => {
-    setSelectedCategories(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+    setSelectedCategories(prev => prev.includes(id) ? [] : [id]);
   };
 
   const toggleSubCategory = (id: string) => {
-    setSelectedSubCategories(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+    setSelectedSubCategories(prev => prev.includes(id) ? [] : [id]);
   };
 
   const toggleBrand = (brand: string) => {
-    setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
+    setSelectedBrands(prev => prev.includes(brand) ? [] : [brand]);
   };
 
   const toggleNestedSubCategory = (id: string) => {
     setSelectedNestedSubCategories(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+      prev.includes(id) ? [] : [id]
     );
   };
 
