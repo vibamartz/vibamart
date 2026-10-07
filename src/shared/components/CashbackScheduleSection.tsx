@@ -640,20 +640,20 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
         <section className="w-full max-w-7xl mx-auto px-0 py-0">
           <div className="cashback-rgb-bg relative rounded-2xl py-1.5 px-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
             {/* Subtle Ambient Contrast Overlay */}
-            <div className="absolute inset-0 bg-black/10 pointer-events-none z-0" />
+            <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
 
             {/* Live Floating 3D Decorative Assets in Background */}
             <Floating3DCashbackBackground isMobile={true} />
 
             {/* Top Bar: Title & Reset badge on Left, Cashback History & Terms buttons on Right */}
-            <div className="relative z-10 flex items-start justify-between gap-2 pb-1 border-b border-white/20">
+            <div className="relative z-10 flex items-start justify-between gap-2 pb-1 border-b border-white/30">
               {/* Top Left: Title & Reset Badge */}
               <div className="flex flex-col items-start gap-0.5">
-                <h2 className="text-base font-black text-white tracking-tight leading-tight">
+                <h2 className="text-base font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
                   Monthly Cashback
                 </h2>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full border border-white/25 backdrop-blur-md shadow-xs">
-                  <RefreshCw className="w-2.5 h-2.5 text-white" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-black/40 text-amber-300 text-[10px] font-black rounded-full border border-amber-300/40 backdrop-blur-md shadow-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  <RefreshCw className="w-2.5 h-2.5 text-amber-300 shrink-0" />
                   (resets 1st of month)
                 </span>
               </div>
@@ -668,17 +668,17 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                       navigate('/cashback-history');
                     }
                   }}
-                  className="px-2 py-0.5 bg-white hover:bg-gray-100 text-gray-900 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1 active:scale-95"
+                  className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-950 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md border border-white transition-all flex items-center gap-1 active:scale-95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
                 >
-                  <Wallet className="w-3 h-3 text-gray-900" />
+                  <Wallet className="w-3 h-3 text-gray-950 shrink-0" />
                   Cashback History
                 </button>
 
                 <button
                   onClick={() => navigate('/cashback-terms')}
-                  className="px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold rounded-lg border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
+                  className="px-2.5 py-0.5 bg-black/40 hover:bg-black/60 text-white text-[10px] font-bold rounded-lg border border-white/40 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95 shadow-xs drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
                 >
-                  <ShieldCheck className="w-2.5 h-2.5 text-white" />
+                  <ShieldCheck className="w-2.5 h-2.5 text-amber-300 shrink-0" />
                   Terms
                 </button>
               </div>
@@ -686,10 +686,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
             {/* Center Prominent Amount & Description */}
             <div className="relative z-10 pt-1 pb-0.5 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
+              <span className="text-2xl font-black text-amber-300 tracking-tight leading-tight drop-shadow-[0_3px_8px_rgba(0,0,0,0.95)]">
                 ₹30 – ₹100
               </span>
-              <span className="text-xs text-white/90 font-medium tracking-wide mt-0.5">
+              <span className="text-xs text-white font-bold tracking-wide mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] bg-black/35 px-2.5 py-0.5 rounded-full border border-white/20 backdrop-blur-xs">
                 Cashback per eligible order
               </span>
             </div>
@@ -698,11 +698,11 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             <div className="relative z-10 py-1 px-3">
               <div className="relative flex items-center justify-between">
                 {/* Background Track Line */}
-                <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 bg-white/30 rounded-full z-0" />
+                <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-2 bg-black/40 border border-white/30 rounded-full z-0 shadow-inner" />
 
                 {/* Active Filled Progress Line */}
                 <motion.div
-                  className="absolute left-3 top-1/2 -translate-y-1/2 h-1.5 bg-white rounded-full z-0 shadow-sm"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-2 bg-white rounded-full z-0 shadow-[0_0_8px_rgba(255,255,255,0.8)]"
                   initial={{ width: '0%' }}
                   animate={{ width: `${(currentProgressPoint / 3) * 100}%` }}
                   transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -719,11 +719,11 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                   return (
                     <div
                       key={pt}
-                      className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-md ${isCurrent
-                          ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
+                      className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-lg ${isCurrent
+                          ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
                           : isReached
-                            ? 'bg-white text-gray-950 ring-2 ring-white/50'
-                            : 'bg-black/30 text-white/80 border-2 border-white/40'
+                            ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
+                            : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
                         }`}
                     >
                       {pt}
@@ -734,10 +734,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             </div>
 
             {/* Bottom Compact Footer */}
-            <div className="relative z-10 flex items-center justify-between gap-1 pt-1 border-t border-white/20 text-[10px]">
-              <div className="flex items-center gap-1 text-white/90 font-medium">
-                <Calendar className="w-3 h-3 text-white shrink-0" />
-                <span>
+            <div className="relative z-10 flex items-center justify-between gap-1 pt-1 border-t border-white/30 text-[10px]">
+              <div className="flex items-center gap-1 text-white font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                <Calendar className="w-3 h-3 text-amber-300 shrink-0" />
+                <span className="text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                   {user ? `${currentMonthName} 2026 Schedule` : 'Log in to track monthly progress'}
                 </span>
               </div>
@@ -750,9 +750,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                     navigate('/cashback-history?tab=payout_settings');
                   }
                 }}
-                className="text-white hover:text-amber-200 font-bold underline transition-colors flex items-center gap-0.5 ml-auto"
+                className="text-amber-300 hover:text-amber-200 font-black underline transition-colors flex items-center gap-0.5 ml-auto drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]"
               >
-                UPI / Bank Account <ArrowRight className="w-2.5 h-2.5" />
+                UPI / Bank Account <ArrowRight className="w-2.5 h-2.5 text-amber-300" />
               </button>
             </div>
           </div>
@@ -846,29 +846,29 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
         <div className="cashback-rgb-bg relative rounded-2xl sm:rounded-[32px] py-2.5 px-3 sm:py-3.5 sm:px-6 text-white shadow-xl border border-white/25 overflow-hidden">
           {/* Subtle Ambient Contrast Overlay */}
-          <div className="absolute inset-0 bg-black/10 pointer-events-none z-0" />
+          <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
 
           {/* Live Floating 3D Decorative Assets in Background */}
           <Floating3DCashbackBackground isMobile={false} />
 
           {/* Top Bar: Big Title, Reset Text & Quick Action Buttons */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-1.5 border-b border-white/20">
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2.5 pb-1 sm:pb-1.5 border-b border-white/30">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
-              <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white tracking-tight">
+              <h2 className="text-base sm:text-2xl md:text-3xl font-black text-white tracking-tight drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]">
                 Monthly Cashback
               </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 bg-white/20 text-white text-[11px] sm:text-sm font-bold rounded-full border border-white/25 backdrop-blur-md shadow-xs">
-                <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 bg-black/40 text-amber-300 text-[11px] sm:text-sm font-black rounded-full border border-amber-300/40 backdrop-blur-md shadow-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-300 shrink-0" />
                 (resets 1st of month)
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => navigate('/cashback-terms')}
-                className="px-2 py-1 sm:px-3 sm:py-1.5 bg-white/20 hover:bg-white/30 text-white text-[11px] sm:text-sm font-bold rounded-xl border border-white/30 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95"
+                className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 bg-black/40 hover:bg-black/60 text-white text-[11px] sm:text-sm font-bold rounded-xl border border-white/40 backdrop-blur-md transition-all flex items-center gap-1 active:scale-95 shadow-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
               >
-                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-300 shrink-0" />
                 Terms
               </button>
 
@@ -880,9 +880,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                     navigate('/cashback-history');
                   }
                 }}
-                className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white hover:bg-gray-100 text-gray-900 text-[11px] sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1 active:scale-95"
+                className="px-3 py-1 sm:px-4 sm:py-2 bg-white hover:bg-gray-100 text-gray-950 text-[11px] sm:text-sm font-black uppercase tracking-wider rounded-xl shadow-lg border border-white transition-all flex items-center gap-1.5 active:scale-95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
               >
-                <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-900" />
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-950 shrink-0" />
                 Cashback History
               </button>
             </div>
@@ -890,10 +890,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
           {/* Center Prominent Amount & Description */}
           <div className="relative z-10 pt-1.5 pb-1 sm:pt-2 sm:pb-1.5 flex flex-col items-center justify-center text-center">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-amber-300 tracking-tight leading-tight drop-shadow-[0_4px_10px_rgba(0,0,0,0.95)]">
               ₹30 – ₹100
             </span>
-            <span className="text-sm sm:text-base md:text-lg text-white/90 font-semibold tracking-wide mt-0.5">
+            <span className="text-sm sm:text-base md:text-lg text-white font-bold tracking-wide mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] bg-black/35 px-4 py-0.5 rounded-full border border-white/20 backdrop-blur-xs">
               Cashback per eligible order
             </span>
           </div>
@@ -902,11 +902,11 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           <div className="relative z-10 py-1 sm:py-2.5 px-2.5 sm:px-8">
             <div className="relative flex items-center justify-between">
               {/* Background Track Line */}
-              <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white/30 rounded-full z-0" />
+              <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-2 sm:h-2.5 bg-black/40 border border-white/30 rounded-full z-0 shadow-inner" />
 
               {/* Active Filled Progress Line */}
               <motion.div
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-1.5 sm:h-2 bg-white rounded-full z-0 shadow-sm"
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-2 sm:h-2.5 bg-white rounded-full z-0 shadow-[0_0_10px_rgba(255,255,255,0.9)]"
                 initial={{ width: '0%' }}
                 animate={{ width: `${(currentProgressPoint / 3) * 100}%` }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -923,11 +923,11 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                 return (
                   <div
                     key={pt}
-                    className={`relative z-10 w-5.5 h-5.5 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[10px] sm:text-sm transition-all duration-300 shadow-md ${isCurrent
-                        ? 'bg-white text-gray-950 ring-4 ring-white/40 scale-110'
+                    className={`relative z-10 w-6 h-6 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all duration-300 shadow-xl ${isCurrent
+                        ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
                         : isReached
-                          ? 'bg-white text-gray-950 ring-2 ring-white/50'
-                          : 'bg-black/30 text-white/80 border-2 border-white/40'
+                          ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
+                          : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
                       }`}
                   >
                     {pt}
@@ -938,10 +938,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           </div>
 
           {/* Bottom Compact Footer */}
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1 pt-1 sm:pt-1.5 border-t border-white/20 text-[10px] sm:text-sm">
-            <div className="flex items-center gap-1.5 text-white/90 font-medium">
-              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0" />
-              <span>
+          <div className="relative z-10 flex flex-wrap items-center justify-between gap-1 pt-1.5 sm:pt-2 border-t border-white/30 text-[10px] sm:text-sm">
+            <div className="flex items-center gap-1.5 text-white font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />
+              <span className="text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                 {user ? `${currentMonthName} 2026 Schedule` : 'Log in to track monthly progress'}
               </span>
             </div>
@@ -954,9 +954,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                   navigate('/cashback-history?tab=payout_settings');
                 }
               }}
-              className="text-white hover:text-amber-200 font-bold underline transition-colors flex items-center gap-1 ml-auto"
+              className="text-amber-300 hover:text-amber-200 font-black underline transition-colors flex items-center gap-1 ml-auto drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]"
             >
-              UPI / Bank Account <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              UPI / Bank Account <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-300" />
             </button>
           </div>
         </div>
