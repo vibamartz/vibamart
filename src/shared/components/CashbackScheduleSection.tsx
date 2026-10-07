@@ -686,7 +686,7 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
             {/* Center Prominent Amount & Description */}
             <div className="relative z-10 pt-1 pb-0.5 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-black text-amber-300 tracking-tight leading-tight drop-shadow-[0_3px_8px_rgba(0,0,0,0.95)]">
+              <span className="text-2xl font-black text-white tracking-tight drop-shadow-sm leading-tight">
                 ₹30 – ₹100
               </span>
               <span className="text-xs text-white font-bold tracking-wide mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] bg-black/35 px-2.5 py-0.5 rounded-full border border-white/20 backdrop-blur-xs">
@@ -720,10 +720,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                     <div
                       key={pt}
                       className={`relative z-10 w-5.5 h-5.5 rounded-full flex items-center justify-center font-black text-[10px] transition-all duration-300 shadow-lg ${isCurrent
-                          ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
-                          : isReached
-                            ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
-                            : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
+                        ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
+                        : isReached
+                          ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
+                          : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
                         }`}
                     >
                       {pt}
@@ -924,10 +924,10 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
                   <div
                     key={pt}
                     className={`relative z-10 w-6 h-6 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-[11px] sm:text-sm transition-all duration-300 shadow-xl ${isCurrent
-                        ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
-                        : isReached
-                          ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
-                          : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
+                      ? 'bg-amber-300 text-gray-950 ring-4 ring-black/40 scale-110 border-2 border-white'
+                      : isReached
+                        ? 'bg-white text-gray-950 ring-2 ring-black/30 border border-gray-300'
+                        : 'bg-gray-950/80 text-white border-2 border-white/60 shadow-md'
                       }`}
                   >
                     {pt}
