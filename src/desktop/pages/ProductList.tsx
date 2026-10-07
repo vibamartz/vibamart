@@ -572,47 +572,6 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Breadcrumbs Navigation */}
-          {matchedCategory && (
-            <nav className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-3 flex-wrap" aria-label="Breadcrumb">
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="hover:text-emerald-700 transition-colors cursor-pointer"
-              >
-                Home
-              </button>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <button
-                type="button"
-                onClick={() => navigate(`/categories/${getCategorySlug(matchedCategory)}`)}
-                className={`transition-colors cursor-pointer ${!matchedSubcategory ? 'text-emerald-700 font-bold' : 'hover:text-emerald-700'}`}
-              >
-                {matchedCategory.name}
-              </button>
-              {matchedSubcategory && (
-                <>
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory)}`)}
-                    className={`transition-colors cursor-pointer ${!matchedNestedSubcategory ? 'text-emerald-700 font-bold' : 'hover:text-emerald-700'}`}
-                  >
-                    {matchedSubcategory.name}
-                  </button>
-                </>
-              )}
-              {matchedNestedSubcategory && (
-                <>
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <span className="text-emerald-800 font-extrabold">
-                    {matchedNestedSubcategory.name}
-                  </span>
-                </>
-              )}
-            </nav>
-          )}
-
           {!matchedBanner && (
             <div className="mb-4">
               <div className="flex items-center gap-3 flex-wrap">

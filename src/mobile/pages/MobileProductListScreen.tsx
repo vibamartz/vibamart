@@ -305,49 +305,6 @@ export default function MobileProductListScreen() {
 
   return (
     <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
-      {/* Category / Subcategory Breadcrumbs & Back bar */}
-      {currentCategoryObj && (
-        <div className="bg-gray-50/80 rounded-2xl p-2.5 border border-gray-100 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 overflow-x-auto no-scrollbar py-0.5">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="text-gray-500 hover:text-emerald-700 shrink-0"
-            >
-              Home
-            </button>
-            <span className="text-gray-300">/</span>
-            <button
-              type="button"
-              onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj)}`)}
-              className={`shrink-0 ${!currentSubCategoryObj ? 'text-emerald-800 font-extrabold' : 'hover:text-emerald-700'}`}
-            >
-              {currentCategoryObj.name}
-            </button>
-            {currentSubCategoryObj && (
-              <>
-                <span className="text-gray-300">/</span>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj)}/${getSubcategorySlug(currentSubCategoryObj)}`)}
-                  className={`shrink-0 ${!currentNestedSubCategoryObj ? 'text-emerald-800 font-extrabold' : 'hover:text-emerald-700'}`}
-                >
-                  {currentSubCategoryObj.name}
-                </button>
-              </>
-            )}
-            {currentNestedSubCategoryObj && (
-              <>
-                <span className="text-gray-300">/</span>
-                <span className="text-emerald-700 font-black shrink-0">
-                  {currentNestedSubCategoryObj.name}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Top Filter & Sort Bar */}
       <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
