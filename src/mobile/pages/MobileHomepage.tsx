@@ -226,6 +226,16 @@ export default function MobileHomepage() {
     };
   }, []);
 
+  // Category-Specific Banners for Mobile Homepage (Strict Isolation)
+  const activeCategoryBanners = useMemo(() => {
+    if (activeCategorySlug === 'for-you') {
+      return banners.filter(b => b.categoryId === 'for-you' || !b.categoryId);
+    }
+    const targetId = activeCategoryObj?.id || activeCategorySlug;
+    const targetSlug = activeCategoryObj ? getCategorySlug(activeCategoryObj) : activeCategorySlug;
+    return banners.filter(b => b.categoryId === targetId || b.categoryId === targetSlug || b.categoryId === activeCategorySlug);
+  }, [banners, activeCategorySlug, activeCategoryObj]);
+
   const scrollToBannerSlide = (index: number) => {
     setCurrentSlide(index);
     if (bannerScrollRef.current) {
@@ -233,7 +243,7 @@ export default function MobileHomepage() {
       const child = container.children[index] as HTMLElement;
       if (child) {
         isAutoScrollingBanner.current = true;
-        const targetLeft = child.offsetLeft - (container.offsetWidth - child.offsetWidth) / 2;
+        const targetLeft = child.offsetLeft;
         container.scrollTo({
           left: Math.max(0, targetLeft),
           behavior: 'smooth',
@@ -269,26 +279,23 @@ export default function MobileHomepage() {
 
   // Banner auto slide
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (activeCategoryBanners.length <= 1) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => {
-        const next = (prev + 1) % banners.length;
+        const next = (prev + 1) % activeCategoryBanners.length;
         scrollToBannerSlide(next);
         return next;
       });
     }, 5000);
     return () => clearInterval(timer);
-  }, [banners.length]);
+  }, [activeCategoryBanners.length]);
 
-  // Category-Specific Banners for Mobile Homepage (Strict Isolation)
-  const activeCategoryBanners = useMemo(() => {
-    if (activeCategorySlug === 'for-you') {
-      return banners.filter(b => b.categoryId === 'for-you' || !b.categoryId);
+  useEffect(() => {
+    setCurrentSlide(0);
+    if (bannerScrollRef.current) {
+      bannerScrollRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
     }
-    const targetId = activeCategoryObj?.id || activeCategorySlug;
-    const targetSlug = activeCategoryObj ? getCategorySlug(activeCategoryObj) : activeCategorySlug;
-    return banners.filter(b => b.categoryId === targetId || b.categoryId === targetSlug || b.categoryId === activeCategorySlug);
-  }, [banners, activeCategorySlug, activeCategoryObj]);
+  }, [activeCategorySlug]);
 
   const handleLocationSelect = (pincode: string) => {
     toast.success(`Delivery location set to ${pincode}`);
@@ -762,14 +769,13 @@ export default function MobileHomepage() {
           <div
             ref={bannerScrollRef}
             onScroll={handleBannerScroll}
-            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-3 px-0.5 py-0.5 min-w-0 w-full"
+            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar min-w-0 w-full"
           >
             {activeCategoryBanners.map((banner, i) => (
               <div
                 key={banner.id || i}
                 onClick={() => navigateBanner(banner)}
-                className={`relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform ${activeCategoryBanners.length > 1 ? 'w-[88%] shrink-0 snap-center' : 'w-full'
-                  }`}
+                className="relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform w-full min-w-full flex-none shrink-0 snap-center"
               >
                 <img
                   src={banner.image}
