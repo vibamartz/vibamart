@@ -65,6 +65,18 @@ export default function Navbar() {
   }, [user]);
   const location = useLocation();
 
+  // Determine the currently active top-level category from the URL pathname (Strict Single Selection)
+  const currentActiveCategorySlug = useMemo(() => {
+    if (location.pathname === '/' || location.pathname === '/for-you') {
+      return 'for-you';
+    }
+    const catMatch = location.pathname.match(/^\/(?:category|categories)\/([^\/]+)/);
+    if (catMatch && catMatch[1]) {
+      return decodeURIComponent(catMatch[1]);
+    }
+    return null;
+  }, [location.pathname]);
+
   const getCategoryIcon = (cat: any) => {
     const catName = typeof cat === 'string' ? cat : (cat?.name || '');
     const catIcon = typeof cat === 'string' ? cat : (cat?.icon || '');
@@ -708,8 +720,17 @@ export default function Navbar() {
           >
             {navCategories.map(cat => {
               const catSlug = getCategorySlug(cat);
-              const isActive = (cat.id === 'for-you' && (location.pathname === '/' || location.pathname === '/for-you')) ||
-                (cat.id !== 'for-you' && (location.pathname === `/category/${catSlug}` || location.pathname === `/category/${cat.id}` || location.pathname.startsWith(`/categories/${catSlug}`)));
+              const isActive = Boolean(
+                currentActiveCategorySlug && (
+                  (cat.id === 'for-you' && currentActiveCategorySlug === 'for-you') ||
+                  (cat.id !== 'for-you' && currentActiveCategorySlug !== 'for-you' && (
+                    cat.id === currentActiveCategorySlug ||
+                    cat.slug === currentActiveCategorySlug ||
+                    cat.seoSlug === currentActiveCategorySlug ||
+                    catSlug === currentActiveCategorySlug
+                  ))
+                )
+              );
               return (
                 <Link
                   key={cat.id}
@@ -719,18 +740,6 @@ export default function Navbar() {
                       ? 'text-emerald-600 border-emerald-600 font-black'
                       : 'border-transparent text-gray-500 hover:text-emerald-600'
                   }`}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = '#059669';
-                      e.currentTarget.style.borderColor = '#059669';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = '';
-                      e.currentTarget.style.borderColor = 'transparent';
-                    }
-                  }}
                 >
                   <CategoryLogo
                     name={cat.name}
@@ -865,16 +874,7 @@ export default function Navbar() {
                       <Link
                         key={cat.id}
                         to={`/categories/${getCategorySlug(cat)}`}
-                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl transition-all group/cat border border-gray-50 hover:bg-white"
-                        style={{ borderColor: 'transparent' }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = cat.color || '#3b82f6';
-                          e.currentTarget.style.backgroundColor = (cat.color || '#3b82f6') + '10';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = 'transparent';
-                          e.currentTarget.style.backgroundColor = '#f9fafb';
-                        }}
+                        className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl transition-all group/cat border border-gray-100 hover:bg-white hover:border-emerald-300"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-gray-400 shadow-sm transition-colors">

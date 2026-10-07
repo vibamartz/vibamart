@@ -714,16 +714,19 @@ export default function MobileHomepage() {
           <section className="w-full min-w-0 space-y-1 pt-0">
             <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
               {navCategoriesList.map((cat) => {
-                const isSelected = activeCategorySlug === cat.id || activeCategorySlug === cat.slug;
+                const catSlug = getCategorySlug(cat);
+                const isSelected = activeCategorySlug === 'for-you'
+                  ? (cat.id === 'for-you' || cat.slug === 'for-you')
+                  : (cat.id === activeCategorySlug || cat.slug === activeCategorySlug || catSlug === activeCategorySlug || activeCategoryObj?.id === cat.id);
 
                 return (
                   <button
                     key={cat.id}
                     onClick={() => {
-                      if (cat.slug === 'for-you' || cat.id === 'for-you') {
+                      if (cat.slug === 'for-you' || cat.id === 'for-you' || catSlug === 'for-you') {
                         navigate('/for-you');
                       } else {
-                        navigate(`/category/${cat.slug}`);
+                        navigate(`/category/${catSlug}`);
                       }
                     }}
                     style={{
