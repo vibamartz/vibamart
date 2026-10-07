@@ -666,7 +666,10 @@ async function startServer() {
         os: os || 'unknown',
         browser: browser || 'unknown',
         appVersion: appVersion || '1.0.0',
+        isEnabled: true,
         isActive: true,
+        permissionState: 'granted',
+        lastActive: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
         metadata: metadata || {},
         updatedAt: new Date().toISOString()
@@ -803,6 +806,7 @@ async function startServer() {
         userAgent: userAgent || "Browser",
         deviceModel: deviceModel || "Web Browser",
         isEnabled: true,
+        isActive: true,
         permissionState: "granted",
         createdAt: new Date().toISOString(),
         lastActive: new Date().toISOString(),

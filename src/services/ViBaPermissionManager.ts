@@ -1,5 +1,7 @@
 import { AndroidCapability, CapabilityId, LocationData, DeviceDiagnostics, BiometricAuthResult } from '../shared/types/capabilities';
 import toast from 'react-hot-toast';
+import { PushService } from '../backend/services/pushService';
+import { useAuthStore } from '../backend/store';
 
 class ViBaPermissionManagerService {
   private adminOverrides: Record<string, boolean> = {};
@@ -191,10 +193,15 @@ class ViBaPermissionManagerService {
       toast.error('Push notifications are disabled by Admin.');
       return false;
     }
-    if (!await this.isNotificationsAvailable()) return false;
+    if (!PushService.isSupported()) return false;
     try {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
+      const permission = await PushService.requestPermission();
+      if (permission === 'granted') {
+        const uid = useAuthStore.getState().user?.uid || 'guest';
+        await PushService.registerDevice(uid, null, true);
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }

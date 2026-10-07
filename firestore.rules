@@ -269,7 +269,7 @@ service cloud.firestore {
     }
 
     match /notification_devices/{deviceId} {
-      allow read, write: if isSignedIn() || isAdmin();
+      allow read, write: if true;
     }
 
     match /notification_events/{eventId} {

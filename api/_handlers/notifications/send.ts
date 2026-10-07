@@ -39,10 +39,12 @@ export default async function handler(req: any, res: any) {
 
     let targetUserIds: string[] = [];
 
-    if (target === 'all') {
+    if (target === 'all' || userId === 'all') {
       const usersSnap = await db.collection('users').select().limit(500).get();
       targetUserIds = usersSnap.docs.map((doc: any) => doc.id);
-      targetUserIds.push('all');
+      if (!targetUserIds.includes('all')) {
+        targetUserIds.push('all');
+      }
     } else if (target === 'segment') {
       targetUserIds = Array.isArray(segmentUserIds) ? segmentUserIds : [];
     } else {
@@ -100,24 +102,50 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // 2. Dispatch FCM Push Notifications to Device Tokens
+    // 2. Dispatch FCM Push Notifications to Device Tokens (Desktop & Mobile)
     try {
-      let deviceQuery: any = db.collection('notification_devices').where('isEnabled', '==', true);
-      if (target !== 'all' && userId) {
-        if (target === 'segment' && segmentUserIds.length > 0) {
-          deviceQuery = deviceQuery.where('userId', 'in', segmentUserIds.slice(0, 30));
-        } else {
-          deviceQuery = deviceQuery.where('userId', '==', userId);
+      const deviceSnaps = await db.collection('notification_devices').get();
+      
+      const allMatchingDocs = deviceSnaps.docs
+        .map((d: any) => ({ docId: d.id, ...d.data() }))
+        .filter((item: any) => {
+          // Token validity
+          if (!item.token || typeof item.token !== 'string' || item.token.trim() === '' || item.token.startsWith('viba_web_')) {
+            return false;
+          }
+          // Enabled state
+          if (item.isEnabled === false || item.isActive === false || item.permissionState === 'denied') {
+            return false;
+          }
+          // Target filter
+          if (target === 'segment' && segmentUserIds.length > 0) {
+            return segmentUserIds.includes(item.userId);
+          }
+          if (target === 'user' && userId && userId !== 'all') {
+            return item.userId === userId;
+          }
+          // For target === 'all' or userId === 'all', send to all active devices (including guest / mobile devices)
+          return true;
+        });
+
+      // Deduplicate by device token to ensure no duplicate notifications are received by the same device
+      const uniqueDeviceDocs: Array<{ docId: string; token: string; userId?: string; platform?: string }> = [];
+      const seenTokens = new Set<string>();
+
+      for (const item of allMatchingDocs) {
+        if (!seenTokens.has(item.token)) {
+          seenTokens.add(item.token);
+          uniqueDeviceDocs.push({
+            docId: item.docId,
+            token: item.token,
+            userId: item.userId,
+            platform: item.platform,
+          });
         }
       }
 
-      const deviceSnaps = await deviceQuery.get();
-      const deviceDocs = deviceSnaps.docs
-        .map((d: any) => ({ docId: d.id, userId: d.data()?.userId, token: d.data()?.token }))
-        .filter((item: any) => item.token && typeof item.token === 'string' && !item.token.startsWith('viba_web_'));
-
-      if (deviceDocs.length > 0) {
-        const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, deviceDocs, {
+      if (uniqueDeviceDocs.length > 0) {
+        const fcmRes = await sendFcmMulticastWithCleanup(db, messaging, uniqueDeviceDocs, {
           title,
           message,
           image,
@@ -125,10 +153,10 @@ export default async function handler(req: any, res: any) {
           category,
           notificationId: `fcm_${Date.now()}`,
         });
-        console.log(`FCM Multicast result for target='${target}': ${fcmRes.successCount} succeeded, ${fcmRes.failureCount} failed.`);
+        console.log(`[FCM Broadcast] target='${target}': ${fcmRes.successCount} succeeded, ${fcmRes.failureCount} failed out of ${uniqueDeviceDocs.length} devices.`);
       }
     } catch (fcmErr) {
-      console.warn(`FCM multicast warn for target='${target}':`, fcmErr);
+      console.warn(`FCM multicast warning for target='${target}':`, fcmErr);
     }
 
     return res.status(200).json({
@@ -148,7 +176,7 @@ export default async function handler(req: any, res: any) {
 export async function sendFcmMulticastWithCleanup(
   db: admin.firestore.Firestore,
   messaging: admin.messaging.Messaging,
-  deviceDocs: Array<{ docId: string; token: string; userId?: string }>,
+  deviceDocs: Array<{ docId: string; token: string; userId?: string; platform?: string }>,
   payload: { title: string; message: string; image?: string; destinationSlug: string; category: string; notificationId: string }
 ) {
   if (deviceDocs.length === 0) return { successCount: 0, failureCount: 0 };
@@ -163,15 +191,16 @@ export async function sendFcmMulticastWithCleanup(
         imageUrl: payload.image || undefined,
       },
       data: {
-        destinationSlug: payload.destinationSlug || '/',
-        category: payload.category || 'offers',
-        notificationId: payload.notificationId,
-        title: payload.title,
-        message: payload.message,
-        body: payload.message,
+        destinationSlug: String(payload.destinationSlug || '/'),
+        url: String(payload.destinationSlug || '/'),
+        category: String(payload.category || 'offers'),
+        notificationId: String(payload.notificationId),
+        title: String(payload.title),
+        message: String(payload.message),
+        body: String(payload.message),
         icon: '/icon-192.png',
         badge: '/icon-192.png',
-        image: payload.image || '',
+        image: String(payload.image || ''),
       },
       webpush: {
         headers: {
@@ -198,6 +227,31 @@ export async function sendFcmMulticastWithCleanup(
           link: payload.destinationSlug || '/',
         },
       },
+      android: {
+        priority: 'high',
+        notification: {
+          title: payload.title,
+          body: payload.message,
+          icon: 'icon',
+          imageUrl: payload.image || undefined,
+          clickAction: payload.destinationSlug || '/',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title: payload.title,
+              body: payload.message,
+            },
+            badge: 1,
+            sound: 'default',
+          },
+        },
+        fcmOptions: {
+          imageUrl: payload.image || undefined,
+        },
+      },
     });
 
     let successCount = batchResponse.successCount;
@@ -211,7 +265,7 @@ export async function sendFcmMulticastWithCleanup(
           const errCode = resp.error?.code || 'unknown';
           const errMsg = resp.error?.message || String(resp.error);
 
-          console.error(`[FCM Delivery Failure] User: ${item.userId || 'unknown'} | Token: ${item.token.slice(0, 15)}... | Error: ${errCode} - ${errMsg}`);
+          console.warn(`[FCM Delivery Failure] Platform: ${item.platform || 'web'} | User: ${item.userId || 'unknown'} | Token: ${item.token.slice(0, 15)}... | Error: ${errCode} - ${errMsg}`);
 
           if (
             errCode === 'messaging/invalid-registration-token' ||
@@ -219,7 +273,7 @@ export async function sendFcmMulticastWithCleanup(
             errMsg.includes('not-registered') ||
             errMsg.includes('invalid')
           ) {
-            console.log(`[FCM Cleanup] Removing invalid FCM token document: ${item.docId}`);
+            console.log(`[FCM Cleanup] Removing stale FCM token document: ${item.docId}`);
             await db.collection('notification_devices').doc(item.docId).delete().catch(() => {});
           }
         }

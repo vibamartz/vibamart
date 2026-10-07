@@ -8,7 +8,7 @@ const LEGACY_STORAGE_KEY = 'viba_push_device_id';
 
 export class PushService {
   /**
-   * Check if web notifications are supported in the current environment
+   * Check if web push notifications are supported in the current environment
    */
   public static isSupported(): boolean {
     if (typeof window === 'undefined') return false;
@@ -101,10 +101,15 @@ export class PushService {
       const messaging = await getFcmMessaging();
       if (!messaging) return null;
 
-      let reg = swRegistration || (await this.registerServiceWorker());
-      if (reg && navigator.serviceWorker && navigator.serviceWorker.ready) {
+      let reg = swRegistration;
+      if (!reg) {
+        reg = await this.registerServiceWorker();
+      }
+
+      if ('serviceWorker' in navigator) {
         try {
-          reg = await navigator.serviceWorker.ready;
+          const readyReg = await navigator.serviceWorker.ready;
+          if (readyReg) reg = readyReg;
         } catch (rErr) {}
       }
 
@@ -114,13 +119,25 @@ export class PushService {
       // @ts-ignore
       const vapidKey = process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || 'BI5XgN7vW8KlbVFVtIB_Wq4ncDE0aqbbWMGllCIKRIbeO2fCoNQP6DnCAJ6ZuFGO9sHulaJrwGP5C_VvSJ9xDgY';
 
-      const token = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: reg,
-      });
+      let token: string | null = null;
+      try {
+        token = await getToken(messaging, {
+          vapidKey,
+          serviceWorkerRegistration: reg,
+        });
+      } catch (tokenErr) {
+        console.warn('Initial FCM getToken attempt, retrying with ready registration...', tokenErr);
+        if ('serviceWorker' in navigator) {
+          const activeReg = await navigator.serviceWorker.ready;
+          token = await getToken(messaging, {
+            vapidKey,
+            serviceWorkerRegistration: activeReg,
+          });
+        }
+      }
 
       if (token) {
-        console.log('Successfully acquired FCM Web Push Token for device');
+        console.log('Successfully acquired FCM Push Token for device');
         localStorage.setItem(DEVICE_STORAGE_KEY, token);
         return token;
       }
@@ -135,13 +152,29 @@ export class PushService {
    */
   public static async initializePushSystem(userId?: string): Promise<void> {
     const reg = await this.registerServiceWorker();
-    if (userId) {
-      await this.registerDevice(userId, reg);
+    const effectiveUid = userId || 'guest';
+    const perm = this.getPermission();
+    if (perm === 'granted') {
+      await this.registerDevice(effectiveUid, reg);
     }
   }
 
   /**
-   * Register device token to Firestore
+   * Detect device platform
+   */
+  private static detectPlatform(): 'android' | 'ios' | 'macos' | 'windows' | 'mobile_web' | 'web' {
+    if (typeof navigator === 'undefined') return 'web';
+    const ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+    if (/mac/i.test(ua)) return 'macos';
+    if (/win/i.test(ua)) return 'windows';
+    if (/mobile/i.test(ua)) return 'mobile_web';
+    return 'web';
+  }
+
+  /**
+   * Register device token to Firestore and Backend
    */
   public static async registerDevice(userId: string, swRegistration?: ServiceWorkerRegistration | null, autoPrompt: boolean = false): Promise<string | null> {
     if (!userId || !this.isSupported()) return null;
@@ -158,11 +191,7 @@ export class PushService {
 
       const docId = `${userId}_${token.slice(-12)}`;
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown';
-      let platform = 'web';
-      if (/android/i.test(userAgent)) platform = 'android';
-      else if (/iphone|ipad|ipod/i.test(userAgent)) platform = 'ios';
-      else if (/mac/i.test(userAgent)) platform = 'macos';
-      else if (/win/i.test(userAgent)) platform = 'windows';
+      const platform = this.detectPlatform();
 
       const deviceData: NotificationDevice = {
         id: docId,
@@ -176,8 +205,36 @@ export class PushService {
         lastActive: new Date().toISOString(),
       };
 
-      await setDoc(doc(db, 'notification_devices', docId), deviceData, { merge: true });
-      console.log('Device registered successfully for push notifications');
+      // 1. Direct Firestore setDoc
+      try {
+        await setDoc(doc(db, 'notification_devices', docId), {
+          ...deviceData,
+          isActive: true,
+        }, { merge: true });
+      } catch (firestoreErr) {
+        console.warn('Direct Firestore device registration warning:', firestoreErr);
+      }
+
+      // 2. Dual-sync with backend API endpoint to guarantee registration across all environments
+      try {
+        await fetch('/api/push/register-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            token,
+            platform,
+            userAgent,
+            deviceModel: platform === 'android' ? 'Android Device' : platform === 'ios' ? 'iOS Device' : 'Web Device',
+            isEnabled: true,
+            isActive: true,
+          }),
+        });
+      } catch (apiErr) {
+        // Non-blocking fallback
+      }
+
+      console.log(`Device registered successfully for push notifications (${platform})`);
       return token;
     } catch (err) {
       console.warn('Failed to register device for push:', err);
@@ -214,6 +271,7 @@ export class PushService {
         const docId = `${userId}_${token.slice(-12)}`;
         await updateDoc(doc(db, 'notification_devices', docId), {
           isEnabled: false,
+          isActive: false,
           permissionState: 'denied',
           lastActive: new Date().toISOString(),
         }).catch(() => {});
@@ -223,7 +281,7 @@ export class PushService {
       const q = query(collection(db, 'notification_devices'), where('userId', '==', userId));
       const snap = await getDocs(q);
       for (const docSnap of snap.docs) {
-        await updateDoc(docSnap.ref, { isEnabled: false });
+        await updateDoc(docSnap.ref, { isEnabled: false, isActive: false }).catch(() => {});
       }
 
       localStorage.removeItem(DEVICE_STORAGE_KEY);
@@ -244,6 +302,7 @@ export class PushService {
       const docId = `${userId}_${deviceToken.slice(-12)}`;
       await updateDoc(doc(db, 'notification_devices', docId), {
         isEnabled: enabled,
+        isActive: enabled,
         lastActive: new Date().toISOString(),
       });
     } catch (err) {
@@ -274,7 +333,7 @@ export class PushService {
   }
 
   /**
-   * Show a local in-browser notification when permission is granted (Android & Desktop compatible)
+   * Show a local in-browser notification when permission is granted (Mobile & Desktop compatible)
    */
   public static async showLocalPush(
     title: string,
@@ -296,7 +355,7 @@ export class PushService {
 
     try {
       if ('serviceWorker' in navigator) {
-        const reg = (await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js')) || (await navigator.serviceWorker.ready);
+        const reg = (await navigator.serviceWorker.getRegistration('/')) || (await navigator.serviceWorker.ready);
         if (reg && 'showNotification' in reg) {
           const swNotifOptions: any = {
             body: options?.body,
@@ -305,8 +364,10 @@ export class PushService {
             image: options?.image,
             tag,
             renotify: true,
+            vibrate: [200, 100, 200],
             data: {
               url: destinationUrl,
+              destinationSlug: destinationUrl,
               ...(options?.data || {}),
             },
           };
@@ -324,6 +385,7 @@ export class PushService {
         image: options?.image,
         data: {
           url: destinationUrl,
+          destinationSlug: destinationUrl,
           ...(options?.data || {}),
         },
       };
