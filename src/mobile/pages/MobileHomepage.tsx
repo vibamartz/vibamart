@@ -765,41 +765,39 @@ export default function MobileHomepage() {
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
       {settings.enableBanner && activeCategoryBanners.length > 0 && (
-        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 -mt-1 sm:-mt-2">
-          <div className="relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white w-full min-w-0">
-            <div
-              ref={bannerScrollRef}
-              onScroll={handleBannerScroll}
-              className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar w-full h-full min-w-0"
-            >
-              {activeCategoryBanners.map((banner, i) => (
-                <div
-                  key={banner.id || i}
-                  onClick={() => navigateBanner(banner)}
-                  className="relative w-full min-w-full h-full flex-none shrink-0 snap-center cursor-pointer group active:scale-[0.99] transition-transform"
-                >
-                  <img
-                    src={banner.image}
-                    alt={banner.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {(banner.title || banner.subtitle) && (
-                    <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-end pointer-events-none">
-                      {banner.subtitle && (
-                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-emerald-900 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md w-fit mb-1 border border-emerald-200/60 shadow-xs pointer-events-auto">
-                          {banner.subtitle}
-                        </span>
-                      )}
-                      {banner.title && (
-                        <h3 className="text-xs sm:text-base font-black text-white leading-tight line-clamp-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
-                          {banner.title}
-                        </h3>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+        <section ref={bannerSectionRef} className="w-full min-w-0 space-y-2 overflow-hidden -mt-1 sm:-mt-2">
+          <div
+            ref={bannerScrollRef}
+            onScroll={handleBannerScroll}
+            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar min-w-0 w-full"
+          >
+            {activeCategoryBanners.map((banner, i) => (
+              <div
+                key={banner.id || i}
+                onClick={() => navigateBanner(banner)}
+                className="relative rounded-[22px] overflow-hidden shadow-xs border border-gray-100 aspect-[2/1] bg-white cursor-pointer group active:scale-[0.99] transition-transform w-full min-w-full flex-none shrink-0 snap-center"
+              >
+                <img
+                  src={banner.image}
+                  alt={banner.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {(banner.title || banner.subtitle) && (
+                  <div className="absolute inset-0 p-3 sm:p-4 flex flex-col justify-end pointer-events-none">
+                    {banner.subtitle && (
+                      <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-emerald-900 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md w-fit mb-1 border border-emerald-200/60 shadow-xs pointer-events-auto">
+                        {banner.subtitle}
+                      </span>
+                    )}
+                    {banner.title && (
+                      <h3 className="text-xs sm:text-base font-black text-white leading-tight line-clamp-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                        {banner.title}
+                      </h3>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           {activeCategoryBanners.length > 1 && (
