@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import VisualNestedSubcategoryCard from './VisualNestedSubcategoryCard';
 import { Category, SubCategory } from '../types';
+import { createSlug } from '../utilities/slug';
 
 interface VisualNestedSubcategoriesSectionProps {
   categoryId?: string;
