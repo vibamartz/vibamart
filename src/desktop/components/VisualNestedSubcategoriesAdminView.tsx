@@ -40,6 +40,9 @@ export default function VisualNestedSubcategoriesAdminView() {
     subCategoryName: '',
     order: 1,
     isActive: true,
+    offerText: 'Under ₹299',
+    offerBgColor: '#047857',
+    offerTextColor: '#ffffff',
     seoTitle: ''
   });
 
@@ -168,6 +171,9 @@ export default function VisualNestedSubcategoriesAdminView() {
       subCategoryName: defaultSubObj?.name || '',
       order: items.length + 1,
       isActive: true,
+      offerText: 'Under ₹299',
+      offerBgColor: '#047857',
+      offerTextColor: '#ffffff',
       seoTitle: ''
     });
     setIsModalOpen(true);
@@ -176,7 +182,10 @@ export default function VisualNestedSubcategoriesAdminView() {
   const handleOpenEdit = (item: VisualNestedSubcategory) => {
     setEditingId(item.id);
     setFormData({
-      ...item
+      ...item,
+      offerText: item.offerText || 'Under ₹299',
+      offerBgColor: item.offerBgColor || '#047857',
+      offerTextColor: item.offerTextColor || '#ffffff',
     });
     setIsModalOpen(true);
   };
@@ -365,7 +374,10 @@ export default function VisualNestedSubcategoriesAdminView() {
     subCategoryId: formData.subCategoryId || 'sub',
     subCategoryName: formData.subCategoryName || 'Subcategory',
     order: Number(formData.order) || 1,
-    isActive: formData.isActive !== false
+    isActive: formData.isActive !== false,
+    offerText: formData.offerText || 'Under ₹299',
+    offerBgColor: formData.offerBgColor || '#047857',
+    offerTextColor: formData.offerTextColor || '#ffffff'
   }), [formData, editingId]);
 
   return (
@@ -541,11 +553,22 @@ export default function VisualNestedSubcategoriesAdminView() {
                   </div>
                 </div>
 
-                {/* Name */}
-                <div className="col-span-3 min-w-0 pr-2">
+                {/* Name & Offer Badge */}
+                <div className="col-span-3 min-w-0 pr-2 space-y-1">
                   <h4 className="text-sm font-black text-gray-900 truncate">
                     {item.name}
                   </h4>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight truncate max-w-full"
+                      style={{
+                        backgroundColor: item.offerBgColor || '#047857',
+                        color: item.offerTextColor || '#ffffff'
+                      }}
+                    >
+                      {item.offerText || item.badgeText || 'Under ₹299'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Parent Hierarchy */}
@@ -767,6 +790,148 @@ export default function VisualNestedSubcategoriesAdminView() {
                           onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
                           className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Offer / Price Strip Configuration */}
+                  <div className="p-4 bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-gray-50 rounded-2xl border border-emerald-100/80 space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-emerald-700" />
+                          Offer / Price Text (Bottom Strip) *
+                        </label>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                          Colored bottom strip
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Under ₹299, Min 50% Off, Starting ₹199"
+                        value={formData.offerText || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, offerText: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-2xl text-sm font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
+                      />
+
+                      {/* Quick Presets for Offer Text */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[
+                          'Under ₹299',
+                          'Under ₹499',
+                          'Under ₹999',
+                          'Starting ₹199',
+                          'Min 50% Off',
+                          'Min 70% Off',
+                          'Flat 40% Off',
+                          'Best Deals'
+                        ].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, offerText: preset }))}
+                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                              formData.offerText === preset
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'bg-white text-gray-700 hover:bg-emerald-100/60 border border-gray-200'
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Strip Colors (Background & Text) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-emerald-100/70">
+                      {/* Background Color */}
+                      <div>
+                        <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                          Strip Background Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={formData.offerBgColor || '#047857'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
+                            className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={formData.offerBgColor || '#047857'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
+                            placeholder="#047857"
+                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        {/* Preset color swatches */}
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {[
+                            { name: 'Emerald', color: '#047857' },
+                            { name: 'Teal', color: '#0f766e' },
+                            { name: 'Crimson', color: '#dc2626' },
+                            { name: 'Royal Blue', color: '#1d4ed8' },
+                            { name: 'Purple', color: '#7c3aed' },
+                            { name: 'Amber', color: '#d97706' },
+                            { name: 'Rose', color: '#be123c' },
+                            { name: 'Dark Slate', color: '#0f172a' }
+                          ].map(swatch => (
+                            <button
+                              key={swatch.color}
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, offerBgColor: swatch.color }))}
+                              title={swatch.name}
+                              className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
+                                formData.offerBgColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-black/10'
+                              }`}
+                              style={{ backgroundColor: swatch.color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Text Color */}
+                      <div>
+                        <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                          Strip Text Color
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={formData.offerTextColor || '#ffffff'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
+                            className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
+                          />
+                          <input
+                            type="text"
+                            value={formData.offerTextColor || '#ffffff'}
+                            onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
+                            placeholder="#ffffff"
+                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+                        {/* Preset text color swatches */}
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {[
+                            { name: 'White', color: '#ffffff' },
+                            { name: 'Yellow', color: '#fef08a' },
+                            { name: 'Light Cyan', color: '#cffafe' },
+                            { name: 'Light Green', color: '#bbf7d0' },
+                            { name: 'Black', color: '#000000' }
+                          ].map(swatch => (
+                            <button
+                              key={swatch.color}
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, offerTextColor: swatch.color }))}
+                              title={swatch.name}
+                              className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
+                                formData.offerTextColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-gray-300'
+                              }`}
+                              style={{ backgroundColor: swatch.color }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>

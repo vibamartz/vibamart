@@ -310,6 +310,9 @@ export interface VisualNestedSubcategory {
   order: number;
   isActive: boolean;
   isVisible?: boolean;
+  offerText?: string; // e.g. "Under ₹299", "Min 50% Off", "Starting ₹199"
+  offerBgColor?: string; // e.g. "#059669", "#dc2626", "#2563eb", "#d97706"
+  offerTextColor?: string; // e.g. "#ffffff"
   badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
   seoTitle?: string;
   seoDescription?: string;

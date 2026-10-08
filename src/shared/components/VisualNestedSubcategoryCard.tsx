@@ -59,6 +59,10 @@ export default function VisualNestedSubcategoryCard({
     navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
   };
 
+  const offerText = item.offerText || item.badgeText || 'Under ₹299';
+  const offerBgColor = item.offerBgColor || '#047857';
+  const offerTextColor = item.offerTextColor || '#ffffff';
+
   return (
     <motion.div
       whileHover={{ y: -4, scale: 1.02 }}
@@ -67,34 +71,56 @@ export default function VisualNestedSubcategoryCard({
       onClick={handleClick}
       className={`group cursor-pointer select-none flex flex-col ${className}`}
     >
-      {/* Image Container with strict Aspect Ratio & Preservation */}
-      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] bg-gray-100 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs hover:shadow-md border border-gray-100 transition-all duration-300">
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 animate-pulse" />
-        )}
-        
-        {item.image && !imageError ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            loading={priority ? 'eager' : 'lazy'}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-            className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 text-emerald-700">
-            <Layers className="w-8 h-8 sm:w-10 sm:h-10 mb-1.5 opacity-60" />
-            <span className="text-xs font-bold text-center px-2 line-clamp-2">{item.name}</span>
-          </div>
-        )}
+      {/* 
+        Card Container (Portrait Oriented) 
+        ┌───────────────────┐
+        │      IMAGE        │
+        ├───────────────────┤
+        │   Under ₹299      │
+        └───────────────────┘
+      */}
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md border border-gray-200/80 transition-all duration-300 flex flex-col justify-end">
+        {/* Portrait Image Area */}
+        <div className="absolute inset-0 w-full h-full">
+          {!imageLoaded && !imageError && (
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 animate-pulse" />
+          )}
+          
+          {item.image && !imageError ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              loading={priority ? 'eager' : 'lazy'}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+              className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 text-emerald-700">
+              <Layers className="w-8 h-8 sm:w-10 sm:h-10 mb-1.5 opacity-60" />
+            </div>
+          )}
+        </div>
+
+        {/* Colored Strip at the bottom of the image */}
+        <div
+          className="relative z-10 w-full py-1.5 px-2 text-center transition-colors shadow-xs"
+          style={{
+            backgroundColor: offerBgColor,
+            color: offerTextColor
+          }}
+        >
+          <span className="block text-[11px] sm:text-xs font-black tracking-tight leading-tight uppercase truncate">
+            {offerText}
+          </span>
+        </div>
       </div>
 
-      {/* ONLY ONE text/name below the card */}
-      <div className="pt-2 sm:pt-2.5 pb-1 px-1 text-center">
-        <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-1 group-hover:text-emerald-600 transition-colors">
+      {/* Category / Brand Name displayed separately BELOW the card */}
+      <div className="pt-2 pb-1 px-1 text-center">
+        <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-600 transition-colors">
           {item.name}
         </h4>
       </div>
