@@ -21,7 +21,7 @@ export async function seedVisualNestedSubcategoriesIfEmpty(): Promise<void> {
 }
 
 /**
- * Create a new Visual Nested Subcategory
+ * Create a new Visual Nested Subcategory (Manual Admin action only)
  */
 export async function createVisualNestedSubcategory(
   data: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'>
@@ -52,9 +52,6 @@ export async function createVisualNestedSubcategory(
   const docRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, generatedId);
   await setDoc(docRef, cleanForFirestore(newItem));
 
-  // Sync with parent category subcategories tree in Firestore
-  await syncCategoryDocWithVisualItem(newItem, 'add');
-
   return newItem;
 }
 
@@ -83,13 +80,6 @@ export async function updateVisualNestedSubcategory(
 
   const docRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, id);
   await updateDoc(docRef, cleanForFirestore(payload));
-
-  // Sync with parent category subcategories tree in Firestore
-  const updatedDocSnap = await getDoc(docRef);
-  if (updatedDocSnap.exists()) {
-    const fullItem = updatedDocSnap.data() as VisualNestedSubcategory;
-    await syncCategoryDocWithVisualItem(fullItem, 'update');
-  }
 }
 
 /**
@@ -97,28 +87,11 @@ export async function updateVisualNestedSubcategory(
  */
 export async function deleteVisualNestedSubcategory(
   id: string,
-  categoryId?: string,
-  subCategoryId?: string
+  _categoryId?: string,
+  _subCategoryId?: string
 ): Promise<void> {
   const docRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, id);
-  
-  // Fetch details if categoryId or subCategoryId not provided
-  let targetCatId = categoryId;
-  let targetSubId = subCategoryId;
-  if (!targetCatId || !targetSubId) {
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data() as VisualNestedSubcategory;
-      targetCatId = data.categoryId;
-      targetSubId = data.subCategoryId;
-    }
-  }
-
   await deleteDoc(docRef);
-
-  if (targetCatId && targetSubId) {
-    await syncCategoryDocWithVisualItem({ id, categoryId: targetCatId, subCategoryId: targetSubId } as any, 'delete');
-  }
 }
 
 /**
@@ -133,55 +106,4 @@ export async function reorderVisualNestedSubcategoriesInDb(
     batch.update(docRef, { order: index + 1, updatedAt: new Date().toISOString() });
   });
   await batch.commit();
-}
-
-/**
- * Helper to sync changes with the Category's recursive subcategories array
- */
-async function syncCategoryDocWithVisualItem(
-  item: VisualNestedSubcategory,
-  action: 'add' | 'update' | 'delete'
-): Promise<void> {
-  try {
-    if (!item.categoryId || !item.subCategoryId) return;
-    const catRef = doc(db, 'categories', item.categoryId);
-    const catSnap = await getDoc(catRef);
-    if (!catSnap.exists()) return;
-
-    const catData = catSnap.data() as Category;
-    if (!catData.subcategories) return;
-
-    const updatedSubs = catData.subcategories.map(sub => {
-      if (sub.id === item.subCategoryId) {
-        let nestedList = [...(sub.subcategories || [])];
-        if (action === 'delete') {
-          nestedList = nestedList.filter(n => n.id !== item.id && n.slug !== item.slug);
-        } else if (action === 'add' || action === 'update') {
-          const nestedPayload: SubCategory = {
-            id: item.id,
-            name: item.name,
-            slug: item.slug,
-            image: item.image,
-            description: item.description,
-            badgeText: item.badgeText,
-            order: item.order,
-            isActive: item.isActive,
-            isVisible: item.isActive
-          };
-          const existingIdx = nestedList.findIndex(n => n.id === item.id || n.slug === item.slug);
-          if (existingIdx >= 0) {
-            nestedList[existingIdx] = { ...nestedList[existingIdx], ...nestedPayload };
-          } else {
-            nestedList.push(nestedPayload);
-          }
-        }
-        return { ...sub, subcategories: nestedList };
-      }
-      return sub;
-    });
-
-    await updateDoc(catRef, { subcategories: updatedSubs });
-  } catch (err) {
-    console.warn('[VisualNestedSubcategories] Sync with category doc skipped/failed:', err);
-  }
 }

@@ -31,29 +31,66 @@ export default function VisualNestedSubcategoriesSection({
   // Find parent Category & Subcategory objects
   const activeCategory = useMemo(() => {
     if (!categoryId) return null;
-    return categories.find(c => c.id === categoryId || c.slug === categoryId || (c as any).seoSlug === categoryId) || null;
+    return categories.find(c => 
+      c.id === categoryId || 
+      c.slug === categoryId || 
+      (c as any).seoSlug === categoryId ||
+      createSlug(c.name) === categoryId ||
+      c.name.toLowerCase() === categoryId.toLowerCase()
+    ) || null;
   }, [categoryId, categories]);
 
   const activeSubCategory = useMemo(() => {
-    if (!subCategoryId || !activeCategory?.subcategories) return null;
-    return activeCategory.subcategories.find(s => s.id === subCategoryId || s.slug === subCategoryId) || null;
-  }, [subCategoryId, activeCategory]);
+    if (!subCategoryId) return null;
+    if (activeCategory?.subcategories) {
+      const found = activeCategory.subcategories.find(s => 
+        s.id === subCategoryId || 
+        s.slug === subCategoryId || 
+        (s as any).seoSlug === subCategoryId ||
+        createSlug(s.name) === subCategoryId ||
+        s.name.toLowerCase() === subCategoryId.toLowerCase()
+      );
+      if (found) return found;
+    }
+    for (const cat of categories) {
+      const found = cat.subcategories?.find(s => 
+        s.id === subCategoryId || 
+        s.slug === subCategoryId || 
+        (s as any).seoSlug === subCategoryId ||
+        createSlug(s.name) === subCategoryId ||
+        s.name.toLowerCase() === subCategoryId.toLowerCase()
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [subCategoryId, activeCategory, categories]);
 
   // Dynamically filter active visual nested subcategories
   const matchingItems = useMemo(() => {
     if (loading) return [];
+    if (!categoryId && !subCategoryId) return [];
     
     return items.filter(item => {
       if (item.isActive === false || item.isVisible === false) return false;
-      
-      // If subCategoryId is given, match specifically to that subcategory or its parent
-      if (subCategoryId) {
-        return item.subCategoryId === subCategoryId || item.subCategoryId === activeSubCategory?.id;
+
+      // 1. Strict Category Matching
+      if (categoryId) {
+        const matchesCategory = 
+          item.categoryId === categoryId ||
+          (activeCategory && item.categoryId === activeCategory.id) ||
+          (activeCategory && item.categoryName?.toLowerCase() === activeCategory.name.toLowerCase());
+        
+        if (!matchesCategory) return false;
       }
 
-      // If only categoryId is given, match all visual nested subcategories under that category
-      if (categoryId) {
-        return item.categoryId === categoryId || item.categoryId === activeCategory?.id;
+      // 2. Strict Subcategory Matching
+      if (subCategoryId) {
+        const matchesSubCategory = 
+          item.subCategoryId === subCategoryId ||
+          (activeSubCategory && item.subCategoryId === activeSubCategory.id) ||
+          (activeSubCategory && item.subCategoryName?.toLowerCase() === activeSubCategory.name.toLowerCase());
+        
+        if (!matchesSubCategory) return false;
       }
 
       return true;
