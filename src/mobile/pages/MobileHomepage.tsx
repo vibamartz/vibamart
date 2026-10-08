@@ -710,9 +710,9 @@ export default function MobileHomepage() {
             </AnimatePresence>
           </section>
 
-          {/* 4. COMPACT CATEGORY CAROUSEL (Top Category Section) */}
+          {/* 4. MAIN CATEGORY SECTION (Mobile - Clean Logo & Name) */}
           <section className="w-full min-w-0 space-y-1 pt-0">
-            <div className="flex overflow-x-auto gap-2 hide-scrollbar scroll-smooth snap-x py-0.5 px-0.5 min-w-0 w-full">
+            <div className="flex overflow-x-auto gap-3.5 sm:gap-4 hide-scrollbar scroll-smooth snap-x py-1 px-1 min-w-0 w-full items-start">
               {navCategoriesList.map((cat) => {
                 const catSlug = getCategorySlug(cat);
                 const isSelected = activeCategorySlug === 'for-you'
@@ -729,19 +729,26 @@ export default function MobileHomepage() {
                         navigate(`/category/${catSlug}`);
                       }
                     }}
-                    style={{
-                      width: 'clamp(62px, 16vw, 70px)',
-                      height: 'clamp(60px, 16vw, 66px)'
-                    }}
-                    className={`flex flex-col items-center justify-between p-1.5 flex-none shrink-0 rounded-[14px] transition-all snap-start border overflow-hidden ${isSelected
-                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20'
-                      : 'bg-white border-orange-100 text-gray-700 hover:bg-orange-50/50 hover:border-orange-200'
-                      }`}
+                    className={`flex flex-col items-center justify-start gap-1 flex-none shrink-0 transition-all snap-start min-w-[56px] max-w-[68px] cursor-pointer bg-transparent border-0 p-0 focus:outline-none ${
+                      isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
+                    }`}
                   >
-                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                      {renderCategoryFallbackIcon(cat.name, cat.icon, 'w-3.5 h-3.5', isSelected)}
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                      {cat.image && (cat.image.startsWith('http') || cat.image.startsWith('data:') || cat.image.startsWith('/')) ? (
+                        <img src={cat.image} alt={cat.name} className="w-full h-full object-contain" />
+                      ) : (
+                        renderCategoryFallbackIcon(
+                          cat.name,
+                          cat.icon,
+                          'w-6 h-6 sm:w-7 sm:h-7',
+                          false,
+                          isSelected ? 'text-emerald-600' : 'text-gray-700'
+                        )
+                      )}
                     </div>
-                    <span className={`text-[10px] tracking-tight leading-none text-center line-clamp-1 w-full px-0.5 ${isSelected ? 'font-bold text-white' : 'font-semibold text-gray-800'}`}>
+                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full ${
+                      isSelected ? 'font-black text-emerald-800' : 'font-semibold text-gray-800'
+                    }`}>
                       {cat.name}
                     </span>
 
@@ -749,7 +756,7 @@ export default function MobileHomepage() {
                     {isSelected ? (
                       <motion.div
                         layoutId="activeCategoryDot"
-                        className="w-3.5 h-0.5 bg-white rounded-full shrink-0"
+                        className="w-4 h-0.5 bg-emerald-600 rounded-full shrink-0 -mt-0.5"
                       />
                     ) : (
                       <div className="h-0.5 shrink-0" />
