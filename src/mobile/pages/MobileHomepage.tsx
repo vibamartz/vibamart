@@ -734,16 +734,12 @@ export default function MobileHomepage() {
                     }`}
                   >
                     <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
-                      {cat.image && (cat.image.startsWith('http') || cat.image.startsWith('data:') || cat.image.startsWith('/')) ? (
-                        <img src={cat.image} alt={cat.name} className="w-full h-full object-contain" />
-                      ) : (
-                        renderCategoryFallbackIcon(
-                          cat.name,
-                          cat.icon,
-                          'w-6 h-6 sm:w-7 sm:h-7',
-                          false,
-                          isSelected ? 'text-emerald-600' : 'text-gray-700'
-                        )
+                      {renderCategoryFallbackIcon(
+                        cat.name,
+                        cat.icon,
+                        'w-6 h-6 sm:w-7 sm:h-7',
+                        false,
+                        isSelected ? 'text-emerald-600' : 'text-gray-700'
                       )}
                     </div>
                     <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full ${

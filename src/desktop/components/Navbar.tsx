@@ -742,16 +742,12 @@ export default function Navbar() {
                   }`}
                 >
                   <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                    {'image' in cat && (cat as any).image && ((cat as any).image.startsWith('http') || (cat as any).image.startsWith('data:') || (cat as any).image.startsWith('/')) ? (
-                      <img src={(cat as any).image} alt={cat.name} className="w-full h-full object-contain" />
-                    ) : (
-                      renderCategoryFallbackIcon(
-                        cat.name,
-                        cat.icon,
-                        'w-5 h-5',
-                        false,
-                        isActive ? 'text-emerald-600' : 'text-gray-500 group-hover:text-emerald-600'
-                      )
+                    {renderCategoryFallbackIcon(
+                      cat.name,
+                      cat.icon,
+                      'w-5 h-5',
+                      false,
+                      isActive ? 'text-emerald-600' : 'text-gray-500 group-hover:text-emerald-600'
                     )}
                   </div>
                   <span>{cat.name}</span>
