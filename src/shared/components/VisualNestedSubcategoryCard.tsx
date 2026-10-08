@@ -30,25 +30,30 @@ export default function VisualNestedSubcategoryCard({
   const [imageError, setImageError] = useState(false);
 
   // Dynamically resolve parent category & subcategory slugs
-  const parentCat = category || categories.find(c => 
-    c.id === item.categoryId || 
-    c.slug === item.categoryId || 
-    (c as any).seoSlug === item.categoryId || 
-    createSlug(c.name) === item.categoryId ||
-    (item.categoryName && c.name.toLowerCase() === item.categoryName.toLowerCase())
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const parentCat = category || safeCategories.find(c => 
+    c && (
+      c.id === item.categoryId || 
+      c.slug === item.categoryId || 
+      (c as any).seoSlug === item.categoryId || 
+      (c.name && createSlug(c.name) === item.categoryId) ||
+      (item.categoryName && c.name && c.name.toLowerCase() === item.categoryName.toLowerCase())
+    )
   );
   const catSlug = parentCat ? getCategorySlug(parentCat) : (item.categoryId || 'categories');
   
   const parentSub = parentCat?.subcategories?.find(s => 
-    s.id === item.subCategoryId || 
-    s.slug === item.subCategoryId || 
-    (s as any).seoSlug === item.subCategoryId || 
-    createSlug(s.name) === item.subCategoryId ||
-    (item.subCategoryName && s.name.toLowerCase() === item.subCategoryName.toLowerCase())
+    s && (
+      s.id === item.subCategoryId || 
+      s.slug === item.subCategoryId || 
+      (s as any).seoSlug === item.subCategoryId || 
+      (s.name && createSlug(s.name) === item.subCategoryId) ||
+      (item.subCategoryName && s.name && s.name.toLowerCase() === item.subCategoryName.toLowerCase())
+    )
   );
   const subSlug = parentSub ? getSubcategorySlug(parentSub) : (subCategorySlug || item.subCategoryId || 'all');
   
-  const nestedSlug = item.seoSlug || item.slug || createSlug(item.name);
+  const nestedSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
 
   const handleClick = () => {
     navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);

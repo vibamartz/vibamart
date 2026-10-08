@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             set({ user: null, loading: false });
           }
         }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
           set({ loading: false });
         });
 
