@@ -298,7 +298,7 @@ export interface SubCategory {
 
 export interface VisualNestedSubcategory {
   id: string;
-  name: string;
+  name?: string;
   slug?: string;
   seoSlug?: string;
   description?: string;

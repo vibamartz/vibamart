@@ -12,6 +12,7 @@ import {
   createVisualNestedSubcategory,
   updateVisualNestedSubcategory,
   deleteVisualNestedSubcategory,
+  deleteAllVisualNestedSubcategories,
   reorderVisualNestedSubcategoriesInDb
 } from "./services/visualNestedSubcategoryService";
 
@@ -407,6 +408,7 @@ interface VisualNestedSubcategoryState {
   addItem: (data: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'>) => Promise<VisualNestedSubcategory>;
   updateItem: (id: string, updates: Partial<VisualNestedSubcategory>) => Promise<void>;
   deleteItem: (id: string, categoryId?: string, subCategoryId?: string) => Promise<void>;
+  deleteAllItems: () => Promise<void>;
   toggleActive: (id: string, isActive: boolean) => Promise<void>;
   reorderItems: (ordered: VisualNestedSubcategory[]) => Promise<void>;
   getByCategoryAndSubCategory: (categoryId?: string, subCategoryId?: string) => VisualNestedSubcategory[];
@@ -453,6 +455,11 @@ export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategorySta
     set(state => ({
       items: state.items.filter(item => item.id !== id)
     }));
+  },
+
+  deleteAllItems: async () => {
+    await deleteAllVisualNestedSubcategories();
+    set({ items: [] });
   },
 
   toggleActive: async (id, isActive) => {

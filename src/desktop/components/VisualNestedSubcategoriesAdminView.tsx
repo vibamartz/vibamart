@@ -13,7 +13,7 @@ import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
 
 export default function VisualNestedSubcategoriesAdminView() {
-  const { items, loading, addItem, updateItem, deleteItem, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
+  const { items, loading, addItem, updateItem, deleteItem, deleteAllItems, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
   const { categories } = useCategoryStore();
 
   // Filter & Search states
@@ -26,6 +26,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
   // Form State
@@ -97,11 +98,12 @@ export default function VisualNestedSubcategoriesAdminView() {
       // 1. Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchName = item.name.toLowerCase().includes(q);
-        const matchSlug = item.slug.toLowerCase().includes(q);
+        const matchName = item.name ? item.name.toLowerCase().includes(q) : false;
+        const matchOffer = item.offerText ? item.offerText.toLowerCase().includes(q) : false;
+        const matchSlug = item.slug ? item.slug.toLowerCase().includes(q) : false;
         const matchCat = item.categoryName?.toLowerCase().includes(q);
         const matchSub = item.subCategoryName?.toLowerCase().includes(q);
-        if (!matchName && !matchSlug && !matchCat && !matchSub) return false;
+        if (!matchName && !matchOffer && !matchSlug && !matchCat && !matchSub) return false;
       }
 
       // 2. Category Filter
@@ -308,11 +310,16 @@ export default function VisualNestedSubcategoriesAdminView() {
 
     setIsSaving(true);
     try {
+      const cardName = formData.name ? formData.name.trim() : '';
+      const fallbackSlug = cardName 
+        ? createSlug(cardName) 
+        : (formData.slug || (formData.offerText ? createSlug(formData.offerText) : `card-${Date.now().toString().slice(-4)}`));
+
       if (editingId) {
         await updateItem(editingId, {
-          name: formData.name.trim(),
-          slug: formData.slug || createSlug(formData.name),
-          seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
+          name: cardName,
+          slug: formData.slug || fallbackSlug,
+          seoSlug: formData.seoSlug || formData.slug || fallbackSlug,
           image: formData.image,
           categoryId: formData.categoryId,
           categoryName: formData.categoryName,
@@ -320,21 +327,27 @@ export default function VisualNestedSubcategoriesAdminView() {
           subCategoryName: formData.subCategoryName,
           order: Number(formData.order) || 1,
           isActive: formData.isActive !== false,
+          offerText: formData.offerText || 'Under ₹299',
+          offerBgColor: formData.offerBgColor || '#047857',
+          offerTextColor: formData.offerTextColor || '#ffffff',
           seoTitle: formData.seoTitle?.trim() || ''
         });
         toast.success('Visual nested subcategory updated successfully!');
       } else {
         await addItem({
-          name: formData.name.trim(),
-          slug: formData.slug || createSlug(formData.name),
-          seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
-          image: formData.image,
-          categoryId: formData.categoryId,
+          name: cardName,
+          slug: formData.slug || fallbackSlug,
+          seoSlug: formData.seoSlug || formData.slug || fallbackSlug,
+          image: formData.image || '',
+          categoryId: formData.categoryId || '',
           categoryName: formData.categoryName,
-          subCategoryId: formData.subCategoryId,
+          subCategoryId: formData.subCategoryId || '',
           subCategoryName: formData.subCategoryName,
           order: Number(formData.order) || (items.length + 1),
           isActive: formData.isActive !== false,
+          offerText: formData.offerText || 'Under ₹299',
+          offerBgColor: formData.offerBgColor || '#047857',
+          offerTextColor: formData.offerTextColor || '#ffffff',
           seoTitle: formData.seoTitle?.trim() || ''
         });
         toast.success('Visual nested subcategory created successfully!');
@@ -350,22 +363,44 @@ export default function VisualNestedSubcategoriesAdminView() {
 
   // Delete Handler
   const handleDelete = async (item: VisualNestedSubcategory) => {
-    if (!window.confirm(`Are you sure you want to delete visual nested subcategory "${item.name}"? This action cannot be undone.`)) {
+    const displayName = item.name || item.offerText || 'this card';
+    if (!window.confirm(`Are you sure you want to delete visual card "${displayName}"? This action cannot be undone.`)) {
       return;
     }
     try {
       await deleteItem(item.id, item.categoryId, item.subCategoryId);
-      toast.success(`Deleted "${item.name}" successfully`);
+      toast.success(`Deleted "${displayName}" successfully`);
     } catch (err) {
       console.error('Delete error:', err);
       toast.error('Failed to delete visual nested subcategory');
     }
   };
 
+  // Delete All Cards Handler (Removes all auto-generated & existing cards)
+  const handleDeleteAll = async () => {
+    if (items.length === 0) {
+      toast.error('No visual cards to remove.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete all ${items.length} visual nested subcategory cards? This will completely clear all auto-generated and existing cards.`)) {
+      return;
+    }
+    setIsDeletingAll(true);
+    try {
+      await deleteAllItems();
+      toast.success('All visual nested subcategory cards have been removed!');
+    } catch (err) {
+      console.error('Delete all error:', err);
+      toast.error('Failed to delete all items');
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   // Mock item for live preview in modal
   const previewItem: VisualNestedSubcategory = useMemo(() => ({
     id: editingId || 'preview-id',
-    name: formData.name || 'Sample Nested Subcategory',
+    name: formData.name || '',
     slug: formData.slug || 'sample-nested-subcategory',
     seoSlug: formData.seoSlug || 'sample-nested-subcategory',
     image: formData.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop',
@@ -404,6 +439,18 @@ export default function VisualNestedSubcategoriesAdminView() {
               Total: <strong>{items.length}</strong> | Active: <strong>{items.filter(i => i.isActive).length}</strong>
             </span>
           </div>
+
+          {items.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              disabled={isDeletingAll}
+              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2.5 rounded-2xl font-bold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Permanently remove all auto-generated and existing visual cards"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{isDeletingAll ? 'Removing All...' : 'Remove All Cards'}</span>
+            </button>
+          )}
 
           <button
             onClick={handleOpenAdd}
@@ -556,7 +603,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                 {/* Name & Offer Badge */}
                 <div className="col-span-3 min-w-0 pr-2 space-y-1">
                   <h4 className="text-sm font-black text-gray-900 truncate">
-                    {item.name}
+                    {item.name ? item.name : <span className="text-gray-400 font-normal italic text-xs">No name below card</span>}
                   </h4>
                   <div className="flex items-center gap-1.5">
                     <span
@@ -750,15 +797,19 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   )}
 
-                  {/* Name Input */}
+                  {/* Name Input (Optional) */}
                   <div>
-                    <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Card Name * (Displayed below card)
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                        Category / Brand Name (Optional)
+                      </label>
+                      <span className="text-[10px] font-bold text-gray-400">
+                        Optional (displayed below card)
+                      </span>
+                    </div>
                     <input
                       type="text"
-                      required
-                      placeholder="e.g. Graphic T-Shirts, Casual Shirts, Smartwatches"
+                      placeholder="e.g. Graphic T-Shirts (or leave blank to hide name below card)"
                       value={formData.name || ''}
                       onChange={handleNameChange}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -89,7 +89,7 @@ export default function VisualNestedSubcategoryCard({
           {item.image && !imageError ? (
             <img
               src={item.image}
-              alt={item.name}
+              alt={item.name || offerText || 'Visual Category'}
               loading={priority ? 'eager' : 'lazy'}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
@@ -118,12 +118,14 @@ export default function VisualNestedSubcategoryCard({
         </div>
       </div>
 
-      {/* Category / Brand Name displayed separately BELOW the card */}
-      <div className="pt-2 pb-1 px-1 text-center">
-        <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-600 transition-colors">
-          {item.name}
-        </h4>
-      </div>
+      {/* Category / Brand Name displayed separately BELOW the card (Optional) */}
+      {Boolean(item.name && item.name.trim()) && (
+        <div className="pt-2 pb-1 px-1 text-center">
+          <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-600 transition-colors">
+            {item.name}
+          </h4>
+        </div>
+      )}
     </motion.div>
   );
 }

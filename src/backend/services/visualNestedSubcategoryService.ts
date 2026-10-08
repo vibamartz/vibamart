@@ -26,12 +26,13 @@ export async function seedVisualNestedSubcategoriesIfEmpty(): Promise<void> {
 export async function createVisualNestedSubcategory(
   data: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<VisualNestedSubcategory> {
-  const generatedId = `vns-${data.categoryId}-${data.subCategoryId}-${createSlug(data.name)}-${Date.now().toString().slice(-4)}`;
+  const nameSlug = data.name && data.name.trim() ? createSlug(data.name.trim()) : `card-${Date.now().toString().slice(-4)}`;
+  const generatedId = `vns-${data.categoryId || 'general'}-${data.subCategoryId || 'all'}-${nameSlug}-${Date.now().toString().slice(-4)}`;
   
   let finalImage = data.image || '';
   if (finalImage.startsWith('data:') || finalImage.startsWith('blob:')) {
     try {
-      finalImage = await uploadCategoryImageToStorage(finalImage, 'visual-nested', createSlug(data.name));
+      finalImage = await uploadCategoryImageToStorage(finalImage, 'visual-nested', nameSlug);
     } catch {
       finalImage = await compressDataUrl(finalImage, 800, 800, 0.85);
     }
@@ -39,9 +40,10 @@ export async function createVisualNestedSubcategory(
 
   const newItem: VisualNestedSubcategory = {
     ...data,
+    name: data.name?.trim() || '',
     id: generatedId,
-    slug: data.slug || createSlug(data.name),
-    seoSlug: data.seoSlug || data.slug || createSlug(data.name),
+    slug: data.slug || nameSlug,
+    seoSlug: data.seoSlug || data.slug || nameSlug,
     image: finalImage,
     isActive: data.isActive !== false,
     isVisible: data.isActive !== false,
@@ -65,7 +67,8 @@ export async function updateVisualNestedSubcategory(
   let finalImage = updates.image;
   if (finalImage && (finalImage.startsWith('data:') || finalImage.startsWith('blob:'))) {
     try {
-      finalImage = await uploadCategoryImageToStorage(finalImage, 'visual-nested', createSlug(updates.name || id));
+      const nameSlug = updates.name && updates.name.trim() ? createSlug(updates.name.trim()) : id;
+      finalImage = await uploadCategoryImageToStorage(finalImage, 'visual-nested', nameSlug);
     } catch {
       finalImage = await compressDataUrl(finalImage, 800, 800, 0.85);
     }
@@ -73,6 +76,7 @@ export async function updateVisualNestedSubcategory(
 
   const payload: Partial<VisualNestedSubcategory> = {
     ...updates,
+    ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
     ...(finalImage ? { image: finalImage } : {}),
     ...(typeof updates.isActive === 'boolean' ? { isVisible: updates.isActive } : {}),
     updatedAt: new Date().toISOString()
@@ -92,6 +96,21 @@ export async function deleteVisualNestedSubcategory(
 ): Promise<void> {
   const docRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, id);
   await deleteDoc(docRef);
+}
+
+/**
+ * Delete all visual nested subcategories
+ */
+export async function deleteAllVisualNestedSubcategories(): Promise<void> {
+  const colRef = collection(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION);
+  const snapshot = await getDocs(colRef);
+  if (snapshot.empty) return;
+  
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(docSnap => {
+    batch.delete(docSnap.ref);
+  });
+  await batch.commit();
 }
 
 /**
