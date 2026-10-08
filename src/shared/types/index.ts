@@ -307,10 +307,16 @@ export interface VisualNestedSubcategory {
   categoryName?: string;
   subCategoryId: string; // Dynamic Parent SubCategory ID
   subCategoryName?: string;
+  targetUrl?: string; // Optional custom target URL or route
+  offerText?: string; // e.g. "MIN. 50% OFF", "UNDER ₹499", "FLAT 60% OFF"
+  offerBgColor?: string; // e.g. "#047857", "#E11D48", "#1E293B"
+  offerTextColor?: string; // e.g. "#FFFFFF", "#FEF08A"
+  badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
+  badgeBgColor?: string; // e.g. "#EF4444", "#10B981"
+  badgeTextColor?: string; // e.g. "#FFFFFF"
   order: number;
   isActive: boolean;
   isVisible?: boolean;
-  badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
   seoTitle?: string;
   seoDescription?: string;
   createdAt?: string;
