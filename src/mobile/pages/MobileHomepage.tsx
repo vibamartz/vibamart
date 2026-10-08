@@ -712,7 +712,7 @@ export default function MobileHomepage() {
 
           {/* 4. MAIN CATEGORY SECTION (Mobile - Clean Logo & Name) */}
           <section className="w-full min-w-0 space-y-1 pt-0">
-            <div className="flex overflow-x-auto gap-3.5 sm:gap-4 hide-scrollbar scroll-smooth snap-x py-1 px-1 min-w-0 w-full items-start">
+            <div className="flex overflow-x-auto gap-1 xs:gap-1.5 hide-scrollbar scroll-smooth snap-x py-1 px-0.5 min-w-0 w-full items-start">
               {navCategoriesList.map((cat) => {
                 const catSlug = getCategorySlug(cat);
                 const isSelected = activeCategorySlug === 'for-you'
