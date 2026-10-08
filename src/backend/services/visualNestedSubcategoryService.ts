@@ -9,66 +9,15 @@ import { compressDataUrl, uploadCategoryImageToStorage } from './categoryStorage
 export const VISUAL_NESTED_SUBCATEGORIES_COLLECTION = 'visual_nested_subcategories';
 
 /**
- * Builds default seed visual nested subcategories from initial category constants
+ * No automatic creation or auto-generation of visual nested subcategories.
+ * Admin must manually create and apply every visual nested subcategory.
  */
 export function getDefaultVisualNestedSubcategories(): VisualNestedSubcategory[] {
-  const list: VisualNestedSubcategory[] = [];
-  let orderCounter = 1;
-
-  CATEGORIES.forEach(cat => {
-    if (!cat.subcategories || cat.subcategories.length === 0) return;
-    cat.subcategories.forEach(sub => {
-      if (!sub.subcategories || sub.subcategories.length === 0) return;
-      sub.subcategories.forEach(nested => {
-        list.push({
-          id: nested.id || `vns-${cat.id}-${sub.id}-${createSlug(nested.name)}`,
-          name: nested.name,
-          slug: nested.slug || createSlug(nested.name),
-          seoSlug: nested.slug || createSlug(nested.name),
-          description: nested.description || `Explore ${nested.name} in ${sub.name}`,
-          image: nested.image || sub.image || cat.image || '',
-          categoryId: cat.id,
-          categoryName: cat.name,
-          subCategoryId: sub.id,
-          subCategoryName: sub.name,
-          order: orderCounter++,
-          isActive: nested.isVisible !== false,
-          isVisible: nested.isVisible !== false,
-          badgeText: (nested as any).badgeText || (orderCounter % 3 === 0 ? 'Trending' : orderCounter % 4 === 0 ? 'Popular' : undefined),
-          seoTitle: `${nested.name} - ${sub.name} | ViBa Mart`,
-          seoDescription: `Shop the latest ${nested.name} in ${sub.name} online at ViBa Mart with fast delivery and best discounts.`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      });
-    });
-  });
-
-  return list;
+  return [];
 }
 
-/**
- * Seed visual nested subcategories if collection is empty
- */
 export async function seedVisualNestedSubcategoriesIfEmpty(): Promise<void> {
-  try {
-    const colRef = collection(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION);
-    const snap = await getDocs(colRef);
-    if (snap.empty) {
-      const defaults = getDefaultVisualNestedSubcategories();
-      if (defaults.length > 0) {
-        const batch = writeBatch(db);
-        defaults.forEach(item => {
-          const docRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, item.id);
-          batch.set(docRef, cleanForFirestore(item));
-        });
-        await batch.commit();
-        console.log(`[VisualNestedSubcategories] Seeded ${defaults.length} initial items`);
-      }
-    }
-  } catch (err) {
-    console.warn('[VisualNestedSubcategories] Seeding check error:', err);
-  }
+  // Explicitly disabled: no automatic seeding or creation of visual nested subcategories.
 }
 
 /**

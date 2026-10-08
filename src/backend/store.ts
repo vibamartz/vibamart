@@ -427,11 +427,6 @@ export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategorySta
         fetched.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
         set({ items: fetched, loading: false });
       } else {
-        // Auto-seed if empty
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          await seedVisualNestedSubcategoriesIfEmpty();
-        }
         set({ items: [], loading: false });
       }
     }, (error) => {

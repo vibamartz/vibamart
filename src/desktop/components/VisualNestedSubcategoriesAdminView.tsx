@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Sparkles, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter,
   GripVertical, Image as ImageIcon, Upload, X, Save, Check, RefreshCw,
-  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor
+  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -33,7 +33,6 @@ export default function VisualNestedSubcategoriesAdminView() {
     name: '',
     slug: '',
     seoSlug: '',
-    description: '',
     image: '',
     categoryId: '',
     categoryName: '',
@@ -41,9 +40,7 @@ export default function VisualNestedSubcategoriesAdminView() {
     subCategoryName: '',
     order: 1,
     isActive: true,
-    badgeText: '',
-    seoTitle: '',
-    seoDescription: ''
+    seoTitle: ''
   });
 
   // Drag and Drop refs
@@ -64,6 +61,33 @@ export default function VisualNestedSubcategoriesAdminView() {
     return cat?.subcategories || [];
   }, [formData.categoryId, categories]);
 
+  // Existing nested subcategories inside currently selected parent subcategory
+  const formAvailableNestedSubCategories = useMemo(() => {
+    if (!formData.categoryId || !formData.subCategoryId) return [];
+    const cat = categories.find(c => c.id === formData.categoryId);
+    const sub = cat?.subcategories?.find(s => s.id === formData.subCategoryId);
+    return sub?.subcategories || [];
+  }, [formData.categoryId, formData.subCategoryId, categories]);
+
+  // All existing nested subcategories across the entire catalog
+  const allCatalogNestedSubcategories = useMemo(() => {
+    const list: { catId: string; catName: string; subId: string; subName: string; nested: SubCategory }[] = [];
+    categories.forEach(c => {
+      c.subcategories?.forEach(s => {
+        s.subcategories?.forEach(n => {
+          list.push({
+            catId: c.id,
+            catName: c.name,
+            subId: s.id,
+            subName: s.name,
+            nested: n
+          });
+        });
+      });
+    });
+    return list;
+  }, [categories]);
+
   // Filtered Items
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -71,11 +95,10 @@ export default function VisualNestedSubcategoriesAdminView() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = item.name.toLowerCase().includes(q);
-        const matchDesc = item.description?.toLowerCase().includes(q);
         const matchSlug = item.slug.toLowerCase().includes(q);
         const matchCat = item.categoryName?.toLowerCase().includes(q);
         const matchSub = item.subCategoryName?.toLowerCase().includes(q);
-        if (!matchName && !matchDesc && !matchSlug && !matchCat && !matchSub) return false;
+        if (!matchName && !matchSlug && !matchCat && !matchSub) return false;
       }
 
       // 2. Category Filter
@@ -138,7 +161,6 @@ export default function VisualNestedSubcategoriesAdminView() {
       name: '',
       slug: '',
       seoSlug: '',
-      description: '',
       image: '',
       categoryId: defaultCat,
       categoryName: defaultCatObj?.name || '',
@@ -146,9 +168,7 @@ export default function VisualNestedSubcategoriesAdminView() {
       subCategoryName: defaultSubObj?.name || '',
       order: items.length + 1,
       isActive: true,
-      badgeText: '',
-      seoTitle: '',
-      seoDescription: ''
+      seoTitle: ''
     });
     setIsModalOpen(true);
   };
@@ -184,6 +204,44 @@ export default function VisualNestedSubcategoriesAdminView() {
     }));
   };
 
+  // Quick select an existing nested subcategory within currently selected subcategory
+  const handleSelectExistingNested = (nestedId: string) => {
+    if (!nestedId) return;
+    const selected = formAvailableNestedSubCategories.find(n => n.id === nestedId);
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        name: selected.name,
+        slug: selected.slug || createSlug(selected.name),
+        seoSlug: (selected as any).seoSlug || selected.slug || createSlug(selected.name),
+        image: selected.image || prev.image || '',
+        seoTitle: `${selected.name} | ViBa Mart`
+      }));
+      toast.success(`Selected existing "${selected.name}"`);
+    }
+  };
+
+  // Quick select any existing nested subcategory across the entire catalog
+  const handleSelectCatalogNested = (compositeKey: string) => {
+    if (!compositeKey) return;
+    const found = allCatalogNestedSubcategories.find(item => `${item.catId}:::${item.subId}:::${item.nested.id}` === compositeKey);
+    if (found) {
+      setFormData(prev => ({
+        ...prev,
+        categoryId: found.catId,
+        categoryName: found.catName,
+        subCategoryId: found.subId,
+        subCategoryName: found.subName,
+        name: found.nested.name,
+        slug: found.nested.slug || createSlug(found.nested.name),
+        seoSlug: (found.nested as any).seoSlug || found.nested.slug || createSlug(found.nested.name),
+        image: found.nested.image || prev.image || '',
+        seoTitle: `${found.nested.name} | ViBa Mart`
+      }));
+      toast.success(`Linked "${found.nested.name}" (${found.catName} › ${found.subName})`);
+    }
+  };
+
   // Name change auto-generates slug and SEO metadata
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -193,7 +251,7 @@ export default function VisualNestedSubcategoriesAdminView() {
       name: val,
       slug: prev.slug && editingId ? prev.slug : slug,
       seoSlug: prev.seoSlug && editingId ? prev.seoSlug : slug,
-      seoTitle: prev.seoTitle && editingId ? prev.seoTitle : `${val} - Visual Collections | ViBa Mart`
+      seoTitle: prev.seoTitle && editingId ? prev.seoTitle : `${val} | ViBa Mart`
     }));
   };
 
@@ -246,7 +304,6 @@ export default function VisualNestedSubcategoriesAdminView() {
           name: formData.name.trim(),
           slug: formData.slug || createSlug(formData.name),
           seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
-          description: formData.description?.trim() || '',
           image: formData.image,
           categoryId: formData.categoryId,
           categoryName: formData.categoryName,
@@ -254,9 +311,7 @@ export default function VisualNestedSubcategoriesAdminView() {
           subCategoryName: formData.subCategoryName,
           order: Number(formData.order) || 1,
           isActive: formData.isActive !== false,
-          badgeText: formData.badgeText?.trim() || '',
-          seoTitle: formData.seoTitle?.trim() || '',
-          seoDescription: formData.seoDescription?.trim() || ''
+          seoTitle: formData.seoTitle?.trim() || ''
         });
         toast.success('Visual nested subcategory updated successfully!');
       } else {
@@ -264,7 +319,6 @@ export default function VisualNestedSubcategoriesAdminView() {
           name: formData.name.trim(),
           slug: formData.slug || createSlug(formData.name),
           seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
-          description: formData.description?.trim() || '',
           image: formData.image,
           categoryId: formData.categoryId,
           categoryName: formData.categoryName,
@@ -272,9 +326,7 @@ export default function VisualNestedSubcategoriesAdminView() {
           subCategoryName: formData.subCategoryName,
           order: Number(formData.order) || (items.length + 1),
           isActive: formData.isActive !== false,
-          badgeText: formData.badgeText?.trim() || '',
-          seoTitle: formData.seoTitle?.trim() || '',
-          seoDescription: formData.seoDescription?.trim() || ''
+          seoTitle: formData.seoTitle?.trim() || ''
         });
         toast.success('Visual nested subcategory created successfully!');
       }
@@ -307,15 +359,13 @@ export default function VisualNestedSubcategoriesAdminView() {
     name: formData.name || 'Sample Nested Subcategory',
     slug: formData.slug || 'sample-nested-subcategory',
     seoSlug: formData.seoSlug || 'sample-nested-subcategory',
-    description: formData.description || 'Premium curated collection and styles',
     image: formData.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop',
     categoryId: formData.categoryId || 'cat',
     categoryName: formData.categoryName || 'Category',
     subCategoryId: formData.subCategoryId || 'sub',
     subCategoryName: formData.subCategoryName || 'Subcategory',
     order: Number(formData.order) || 1,
-    isActive: formData.isActive !== false,
-    badgeText: formData.badgeText || 'Trending'
+    isActive: formData.isActive !== false
   }), [formData, editingId]);
 
   return (
@@ -332,7 +382,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-            Create and manage professional, large visual showcase cards for any category and subcategory.
+            Manually create and apply visual showcase cards for any category and subcategory.
           </p>
         </div>
 
@@ -361,7 +411,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, slug, tag..."
+              placeholder="Search by name, slug..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -439,7 +489,7 @@ export default function VisualNestedSubcategoriesAdminView() {
         <div className="grid grid-cols-12 gap-3 p-4 border-b border-gray-100 bg-gray-50 text-[11px] font-black text-gray-500 uppercase tracking-wider">
           <div className="col-span-1 text-center">Order</div>
           <div className="col-span-1 text-center">Card</div>
-          <div className="col-span-3">Name & Badge</div>
+          <div className="col-span-3">Name</div>
           <div className="col-span-3">Parent Hierarchy</div>
           <div className="col-span-2">Slug / URL</div>
           <div className="col-span-2 text-right pr-4">Actions</div>
@@ -459,7 +509,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
               {searchQuery || selectedCategoryFilter !== 'all'
                 ? 'No items matched your search/filter criteria. Try changing filters.'
-                : 'Click "Create Visual Subcategory" above to add your first visual showcase card.'}
+                : 'Click "Create Visual Subcategory" above to manually add your first visual showcase card.'}
             </p>
           </div>
         ) : (
@@ -491,23 +541,11 @@ export default function VisualNestedSubcategoriesAdminView() {
                   </div>
                 </div>
 
-                {/* Name & Badge & Description */}
+                {/* Name */}
                 <div className="col-span-3 min-w-0 pr-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-sm font-black text-gray-900 truncate">
-                      {item.name}
-                    </h4>
-                    {item.badgeText && (
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        {item.badgeText}
-                      </span>
-                    )}
-                  </div>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 truncate mt-0.5 font-medium">
-                      {item.description}
-                    </p>
-                  )}
+                  <h4 className="text-sm font-black text-gray-900 truncate">
+                    {item.name}
+                  </h4>
                 </div>
 
                 {/* Parent Hierarchy */}
@@ -593,7 +631,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       {editingId ? 'Edit Visual Nested Subcategory' : 'Create Visual Nested Subcategory'}
                     </h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      Configure card details, target parent category & subcategory, imagery, and SEO.
+                      Manually configure card details, parent hierarchy, imagery, and display.
                     </p>
                   </div>
                 </div>
@@ -610,20 +648,28 @@ export default function VisualNestedSubcategoriesAdminView() {
               <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto">
                 {/* Form Column */}
                 <form onSubmit={handleSave} className="lg:col-span-7 p-6 space-y-4 border-r border-gray-100">
-                  {/* Name Input */}
-                  <div>
-                    <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Graphic T-Shirts, Casual Shirts, Smartwatches"
-                      value={formData.name || ''}
-                      onChange={handleNameChange}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  
+                  {/* Quick Select from existing nested subcategories across the catalog */}
+                  {!editingId && allCatalogNestedSubcategories.length > 0 && (
+                    <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
+                      <label className="block text-[11px] font-black text-emerald-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        <Link2 className="w-3.5 h-3.5 text-emerald-700" />
+                        Quick Select Any Existing Nested Subcategory
+                      </label>
+                      <select
+                        onChange={(e) => handleSelectCatalogNested(e.target.value)}
+                        defaultValue=""
+                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="">-- Choose from existing catalog nested subcategories --</option>
+                        {allCatalogNestedSubcategories.map(item => (
+                          <option key={`${item.catId}-${item.subId}-${item.nested.id}`} value={`${item.catId}:::${item.subId}:::${item.nested.id}`}>
+                            {item.catName} › {item.subName} › {item.nested.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Parent Category & Parent SubCategory (Dynamic Cascading Selection) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -662,10 +708,44 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
+                  {/* Quick Select within selected subcategory (if available) */}
+                  {formAvailableNestedSubCategories.length > 0 && (
+                    <div>
+                      <label className="block text-[11px] font-black text-gray-600 uppercase tracking-wider mb-1">
+                        Select Existing Nested Subcategory in this Subcategory (Optional)
+                      </label>
+                      <select
+                        onChange={(e) => handleSelectExistingNested(e.target.value)}
+                        defaultValue=""
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="">-- Or type/customize name below --</option>
+                        {formAvailableNestedSubCategories.map(n => (
+                          <option key={n.id} value={n.id}>{n.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Name Input */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                      Card Name * (Displayed below card)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Graphic T-Shirts, Casual Shirts, Smartwatches"
+                      value={formData.name || ''}
+                      onChange={handleNameChange}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
                   {/* Image Upload & URL */}
                   <div>
                     <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Visual Card Image * (Aspect Ratio ~3:4 or 4:5 recommended)
+                      Visual Card Image *
                     </label>
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
@@ -691,35 +771,8 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
-                  {/* Description / Subtitle */}
-                  <div>
-                    <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Description / Offer Tagline (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Pure Cotton & Oversized Trends, Up to 40% Off"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  {/* Badge Text & Display Order */}
+                  {/* Display Order & URL Slug */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                        Promotional Badge (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Trending, Hot, New, Top Pick"
-                        value={formData.badgeText || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, badgeText: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
                     <div>
                       <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
                         Display Order
@@ -731,10 +784,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
-                  </div>
 
-                  {/* Slug & SEO Title */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
                         URL Slug
@@ -745,19 +795,6 @@ export default function VisualNestedSubcategoriesAdminView() {
                         value={formData.slug || ''}
                         onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value, seoSlug: e.target.value }))}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                        SEO Meta Title
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="SEO Title"
-                        value={formData.seoTitle || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, seoTitle: e.target.value }))}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
                   </div>

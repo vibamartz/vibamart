@@ -10,6 +10,8 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
+import { useVisualNestedSubcategoryStore } from '../../backend/store';
+import { createSlug } from '../../shared/utilities/slug';
 import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
 
 export default function CategoriesManagementView() {
@@ -482,6 +484,37 @@ export default function CategoriesManagementView() {
     }
   };
 
+  const handleAddNestedToVisual = async (cat: Category, sub: SubCategory, nested: SubCategory) => {
+    try {
+      const existing = useVisualNestedSubcategoryStore.getState().items.find(
+        i => i.categoryId === cat.id && i.subCategoryId === sub.id && (i.name.toLowerCase() === nested.name.toLowerCase() || i.slug === nested.slug)
+      );
+      if (existing) {
+        toast.success(`"${nested.name}" is already in Visual Nested Subcategories`);
+        setActiveSubTab('visual_nested');
+        return;
+      }
+      await useVisualNestedSubcategoryStore.getState().addItem({
+        name: nested.name,
+        slug: nested.slug || createSlug(nested.name),
+        seoSlug: (nested as any).seoSlug || nested.slug || createSlug(nested.name),
+        image: nested.image || sub.image || cat.image || '',
+        categoryId: cat.id,
+        categoryName: cat.name,
+        subCategoryId: sub.id,
+        subCategoryName: sub.name,
+        order: useVisualNestedSubcategoryStore.getState().items.length + 1,
+        isActive: true,
+        seoTitle: `${nested.name} | ViBa Mart`
+      });
+      toast.success(`Added "${nested.name}" to Visual Nested Subcategories!`);
+      setActiveSubTab('visual_nested');
+    } catch (err: any) {
+      console.error('Failed to add to visual nested:', err);
+      toast.error('Failed to add to Visual Nested Subcategories');
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -655,6 +688,13 @@ export default function CategoriesManagementView() {
                                       {nested.name}
                                     </div>
                                     <div className="col-span-4 flex items-center justify-end gap-1.5 pr-2">
+                                      <button
+                                        onClick={() => handleAddNestedToVisual(category, sub, nested)}
+                                        className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                                        title="Add to Visual Nested Subcategories"
+                                      >
+                                        <Sparkles className="w-3 h-3" />
+                                      </button>
                                       <button
                                         onClick={() => handleToggleNestedVisibility(category.id, sub.id, nested.id)}
                                         className={`p-1.5 rounded-lg transition-colors ${nested.isVisible ?? true ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-200'}`}
