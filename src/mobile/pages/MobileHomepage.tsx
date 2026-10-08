@@ -729,7 +729,7 @@ export default function MobileHomepage() {
                         navigate(`/category/${catSlug}`);
                       }
                     }}
-                    className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 transition-all snap-start min-w-[56px] max-w-[68px] cursor-pointer border-0 py-1.5 px-1 rounded-2xl focus:outline-none overflow-hidden ${
+                    className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 cursor-pointer border-0 py-1.5 px-0.5 rounded-2xl focus:outline-none overflow-hidden select-none ${
                       isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
                     }`}
                   >
@@ -751,21 +751,23 @@ export default function MobileHomepage() {
                         isSelected ? 'text-emerald-600' : 'text-gray-700'
                       )}
                     </div>
-                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full relative z-10 ${
+                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center truncate w-full px-0.5 relative z-10 ${
                       isSelected ? 'font-black text-emerald-800' : 'font-semibold text-gray-800'
                     }`}>
                       {cat.name}
                     </span>
 
-                    {/* Active indicator bar */}
-                    {isSelected ? (
-                      <motion.div
-                        layoutId="activeCategoryDot"
-                        className="w-4 h-0.5 bg-emerald-600 rounded-full shrink-0 -mt-0.5 relative z-10"
-                      />
-                    ) : (
-                      <div className="h-0.5 shrink-0" />
-                    )}
+                    {/* Active indicator bar - stable fixed height container */}
+                    <div className="h-1 flex items-center justify-center w-full shrink-0 relative z-10">
+                      {isSelected ? (
+                        <motion.div
+                          layoutId="activeCategoryDot"
+                          className="w-4 h-0.5 bg-emerald-600 rounded-full shrink-0"
+                        />
+                      ) : (
+                        <div className="w-4 h-0.5 bg-transparent shrink-0" />
+                      )}
+                    </div>
                   </button>
                 );
               })}
