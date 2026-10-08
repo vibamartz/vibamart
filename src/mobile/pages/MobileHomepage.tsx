@@ -729,11 +729,20 @@ export default function MobileHomepage() {
                         navigate(`/category/${catSlug}`);
                       }
                     }}
-                    className={`flex flex-col items-center justify-start gap-1 flex-none shrink-0 transition-all snap-start min-w-[56px] max-w-[68px] cursor-pointer bg-transparent border-0 p-0 focus:outline-none ${
+                    className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 transition-all snap-start min-w-[56px] max-w-[68px] cursor-pointer border-0 py-1.5 px-1 rounded-2xl focus:outline-none overflow-hidden ${
                       isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
                     }`}
                   >
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+                    {/* Light green gradient from below slowly fading up to invisible */}
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activeCategoryBgGradient"
+                        className="absolute inset-0 bg-gradient-to-t from-emerald-200/80 via-emerald-100/40 to-transparent rounded-2xl pointer-events-none"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
+
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 relative z-10">
                       {renderCategoryFallbackIcon(
                         cat.name,
                         cat.icon,
@@ -742,7 +751,7 @@ export default function MobileHomepage() {
                         isSelected ? 'text-emerald-600' : 'text-gray-700'
                       )}
                     </div>
-                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full ${
+                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center line-clamp-1 w-full relative z-10 ${
                       isSelected ? 'font-black text-emerald-800' : 'font-semibold text-gray-800'
                     }`}>
                       {cat.name}
@@ -752,7 +761,7 @@ export default function MobileHomepage() {
                     {isSelected ? (
                       <motion.div
                         layoutId="activeCategoryDot"
-                        className="w-4 h-0.5 bg-emerald-600 rounded-full shrink-0 -mt-0.5"
+                        className="w-4 h-0.5 bg-emerald-600 rounded-full shrink-0 -mt-0.5 relative z-10"
                       />
                     ) : (
                       <div className="h-0.5 shrink-0" />

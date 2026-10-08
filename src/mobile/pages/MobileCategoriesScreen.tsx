@@ -181,7 +181,7 @@ export default function MobileCategoriesScreen() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategorySelect(cat.id)}
                 className={`w-full p-2.5 flex flex-col items-center justify-center text-center transition-all relative ${isActive
-                    ? 'bg-emerald-50/90 text-emerald-900 font-extrabold'
+                    ? 'bg-gradient-to-t from-emerald-100/90 via-emerald-50/40 to-transparent text-emerald-900 font-extrabold'
                     : 'text-gray-600 hover:bg-yellow-50/40 font-semibold'
                   }`}
               >
