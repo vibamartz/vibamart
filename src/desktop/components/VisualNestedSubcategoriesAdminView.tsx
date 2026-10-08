@@ -2,8 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Sparkles, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter,
   GripVertical, Image as ImageIcon, Upload, X, Save, Check, RefreshCw,
-  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2,
-  Percent, Palette, ExternalLink
+  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -12,44 +11,6 @@ import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend
 import { createSlug } from '../../shared/utilities/slug';
 import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
-
-const OFFER_PRESETS = [
-  'MIN. 50% OFF',
-  'UNDER ₹499',
-  'UNDER ₹999',
-  'FLAT 60% OFF',
-  'UP TO 70% OFF',
-  'STARTING ₹199',
-  'BUY 1 GET 1',
-  'MEGA DEAL',
-  'HOT PICKS'
-];
-
-const OFFER_BG_PRESETS = [
-  { name: 'Emerald', color: '#047857' },
-  { name: 'Ruby', color: '#E11D48' },
-  { name: 'Amber', color: '#D97706' },
-  { name: 'Indigo', color: '#4F46E5' },
-  { name: 'Violet', color: '#7C3AED' },
-  { name: 'Teal', color: '#0F766E' },
-  { name: 'Slate', color: '#1E293B' },
-  { name: 'Rose', color: '#BE123C' }
-];
-
-const OFFER_TEXT_PRESETS = [
-  { name: 'White', color: '#FFFFFF' },
-  { name: 'Yellow', color: '#FEF08A' },
-  { name: 'Gold', color: '#FCD34D' },
-  { name: 'Light Cyan', color: '#CFFAFE' }
-];
-
-const BADGE_PRESETS = [
-  'TRENDING',
-  'HOT',
-  'NEW',
-  'BESTSELLER',
-  'TOP PICK'
-];
 
 export default function VisualNestedSubcategoriesAdminView() {
   const { items, loading, addItem, updateItem, deleteItem, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
@@ -77,13 +38,6 @@ export default function VisualNestedSubcategoriesAdminView() {
     categoryName: '',
     subCategoryId: '',
     subCategoryName: '',
-    targetUrl: '',
-    offerText: 'MIN. 50% OFF',
-    offerBgColor: '#047857',
-    offerTextColor: '#FFFFFF',
-    badgeText: '',
-    badgeBgColor: '#EF4444',
-    badgeTextColor: '#FFFFFF',
     order: 1,
     isActive: true,
     seoTitle: ''
@@ -141,11 +95,10 @@ export default function VisualNestedSubcategoriesAdminView() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = item.name.toLowerCase().includes(q);
-        const matchSlug = item.slug?.toLowerCase().includes(q) || false;
-        const matchCat = item.categoryName?.toLowerCase().includes(q) || false;
-        const matchSub = item.subCategoryName?.toLowerCase().includes(q) || false;
-        const matchOffer = item.offerText?.toLowerCase().includes(q) || false;
-        if (!matchName && !matchSlug && !matchCat && !matchSub && !matchOffer) return false;
+        const matchSlug = item.slug.toLowerCase().includes(q);
+        const matchCat = item.categoryName?.toLowerCase().includes(q);
+        const matchSub = item.subCategoryName?.toLowerCase().includes(q);
+        if (!matchName && !matchSlug && !matchCat && !matchSub) return false;
       }
 
       // 2. Category Filter
@@ -213,13 +166,6 @@ export default function VisualNestedSubcategoriesAdminView() {
       categoryName: defaultCatObj?.name || '',
       subCategoryId: defaultSub,
       subCategoryName: defaultSubObj?.name || '',
-      targetUrl: '',
-      offerText: 'MIN. 50% OFF',
-      offerBgColor: '#047857',
-      offerTextColor: '#FFFFFF',
-      badgeText: '',
-      badgeBgColor: '#EF4444',
-      badgeTextColor: '#FFFFFF',
       order: items.length + 1,
       isActive: true,
       seoTitle: ''
@@ -230,13 +176,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   const handleOpenEdit = (item: VisualNestedSubcategory) => {
     setEditingId(item.id);
     setFormData({
-      ...item,
-      offerText: item.offerText ?? 'MIN. 50% OFF',
-      offerBgColor: item.offerBgColor || '#047857',
-      offerTextColor: item.offerTextColor || '#FFFFFF',
-      badgeText: item.badgeText || '',
-      badgeBgColor: item.badgeBgColor || '#EF4444',
-      badgeTextColor: item.badgeTextColor || '#FFFFFF'
+      ...item
     });
     setIsModalOpen(true);
   };
@@ -341,7 +281,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name?.trim()) {
-      toast.error('Please enter a display name for the visual card.');
+      toast.error('Please enter a name for the visual nested subcategory.');
       return;
     }
     if (!formData.categoryId) {
@@ -353,38 +293,41 @@ export default function VisualNestedSubcategoriesAdminView() {
       return;
     }
     if (!formData.image) {
-      toast.error('Please upload or provide a portrait image for the visual card.');
+      toast.error('Please upload or provide an image for the visual card.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const payload: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: formData.name.trim(),
-        slug: formData.slug || createSlug(formData.name),
-        seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
-        image: formData.image,
-        categoryId: formData.categoryId,
-        categoryName: formData.categoryName,
-        subCategoryId: formData.subCategoryId,
-        subCategoryName: formData.subCategoryName,
-        targetUrl: formData.targetUrl?.trim() || '',
-        offerText: formData.offerText?.trim() || '',
-        offerBgColor: formData.offerBgColor || '#047857',
-        offerTextColor: formData.offerTextColor || '#FFFFFF',
-        badgeText: formData.badgeText?.trim() || '',
-        badgeBgColor: formData.badgeBgColor || '#EF4444',
-        badgeTextColor: formData.badgeTextColor || '#FFFFFF',
-        order: Number(formData.order) || (editingId ? 1 : items.length + 1),
-        isActive: formData.isActive !== false,
-        seoTitle: formData.seoTitle?.trim() || ''
-      };
-
       if (editingId) {
-        await updateItem(editingId, payload);
+        await updateItem(editingId, {
+          name: formData.name.trim(),
+          slug: formData.slug || createSlug(formData.name),
+          seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
+          image: formData.image,
+          categoryId: formData.categoryId,
+          categoryName: formData.categoryName,
+          subCategoryId: formData.subCategoryId,
+          subCategoryName: formData.subCategoryName,
+          order: Number(formData.order) || 1,
+          isActive: formData.isActive !== false,
+          seoTitle: formData.seoTitle?.trim() || ''
+        });
         toast.success('Visual nested subcategory updated successfully!');
       } else {
-        await addItem(payload);
+        await addItem({
+          name: formData.name.trim(),
+          slug: formData.slug || createSlug(formData.name),
+          seoSlug: formData.seoSlug || formData.slug || createSlug(formData.name),
+          image: formData.image,
+          categoryId: formData.categoryId,
+          categoryName: formData.categoryName,
+          subCategoryId: formData.subCategoryId,
+          subCategoryName: formData.subCategoryName,
+          order: Number(formData.order) || (items.length + 1),
+          isActive: formData.isActive !== false,
+          seoTitle: formData.seoTitle?.trim() || ''
+        });
         toast.success('Visual nested subcategory created successfully!');
       }
       setIsModalOpen(false);
@@ -413,7 +356,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   // Mock item for live preview in modal
   const previewItem: VisualNestedSubcategory = useMemo(() => ({
     id: editingId || 'preview-id',
-    name: formData.name || 'Sample Brand / Category',
+    name: formData.name || 'Sample Nested Subcategory',
     slug: formData.slug || 'sample-nested-subcategory',
     seoSlug: formData.seoSlug || 'sample-nested-subcategory',
     image: formData.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop',
@@ -421,12 +364,6 @@ export default function VisualNestedSubcategoriesAdminView() {
     categoryName: formData.categoryName || 'Category',
     subCategoryId: formData.subCategoryId || 'sub',
     subCategoryName: formData.subCategoryName || 'Subcategory',
-    offerText: formData.offerText || 'MIN. 50% OFF',
-    offerBgColor: formData.offerBgColor || '#047857',
-    offerTextColor: formData.offerTextColor || '#FFFFFF',
-    badgeText: formData.badgeText || '',
-    badgeBgColor: formData.badgeBgColor || '#EF4444',
-    badgeTextColor: formData.badgeTextColor || '#FFFFFF',
     order: Number(formData.order) || 1,
     isActive: formData.isActive !== false
   }), [formData, editingId]);
@@ -445,7 +382,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-            Create visual portrait cards with custom offer strips for any category and subcategory.
+            Manually create and apply visual showcase cards for any category and subcategory.
           </p>
         </div>
 
@@ -474,7 +411,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, offer, category..."
+              placeholder="Search by name, slug..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -552,9 +489,9 @@ export default function VisualNestedSubcategoriesAdminView() {
         <div className="grid grid-cols-12 gap-3 p-4 border-b border-gray-100 bg-gray-50 text-[11px] font-black text-gray-500 uppercase tracking-wider">
           <div className="col-span-1 text-center">Order</div>
           <div className="col-span-1 text-center">Card</div>
-          <div className="col-span-3">Name & Offer</div>
+          <div className="col-span-3">Name</div>
           <div className="col-span-3">Parent Hierarchy</div>
-          <div className="col-span-2">Target Route</div>
+          <div className="col-span-2">Slug / URL</div>
           <div className="col-span-2 text-right pr-4">Actions</div>
         </div>
 
@@ -572,7 +509,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
               {searchQuery || selectedCategoryFilter !== 'all'
                 ? 'No items matched your search/filter criteria. Try changing filters.'
-                : 'Click "Create Visual Subcategory" above to manually add your first portrait showcase card.'}
+                : 'Click "Create Visual Subcategory" above to manually add your first visual showcase card.'}
             </p>
           </div>
         ) : (
@@ -595,55 +532,20 @@ export default function VisualNestedSubcategoriesAdminView() {
 
                 {/* Card Thumbnail */}
                 <div className="col-span-1 flex justify-center">
-                  <div className="w-12 h-16 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm shrink-0 relative flex flex-col justify-end">
+                  <div className="w-12 h-14 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm shrink-0">
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="w-full h-full object-cover"
                     />
-                    {item.offerText && (
-                      <div
-                        style={{
-                          backgroundColor: item.offerBgColor || '#047857',
-                          color: item.offerTextColor || '#FFFFFF'
-                        }}
-                        className="relative z-10 text-[7px] font-black uppercase text-center py-0.5 px-0.5 truncate leading-tight"
-                      >
-                        {item.offerText}
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* Name & Offer Details */}
+                {/* Name */}
                 <div className="col-span-3 min-w-0 pr-2">
                   <h4 className="text-sm font-black text-gray-900 truncate">
                     {item.name}
                   </h4>
-                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {item.offerText && (
-                      <span
-                        style={{
-                          backgroundColor: item.offerBgColor || '#047857',
-                          color: item.offerTextColor || '#FFFFFF'
-                        }}
-                        className="text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-2xs"
-                      >
-                        {item.offerText}
-                      </span>
-                    )}
-                    {item.badgeText && (
-                      <span
-                        style={{
-                          backgroundColor: item.badgeBgColor || '#EF4444',
-                          color: item.badgeTextColor || '#FFFFFF'
-                        }}
-                        className="text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase"
-                      >
-                        {item.badgeText}
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {/* Parent Hierarchy */}
@@ -659,16 +561,9 @@ export default function VisualNestedSubcategoriesAdminView() {
                   </div>
                 </div>
 
-                {/* Slug / Target Route */}
+                {/* Slug / Route */}
                 <div className="col-span-2 text-xs font-mono text-gray-500 truncate">
-                  {item.targetUrl ? (
-                    <span className="text-indigo-600 font-bold flex items-center gap-1">
-                      <ExternalLink className="w-3 h-3" />
-                      {item.targetUrl}
-                    </span>
-                  ) : (
-                    <span>/{item.seoSlug || item.slug}</span>
-                  )}
+                  /{item.seoSlug || item.slug}
                 </div>
 
                 {/* Actions */}
@@ -723,10 +618,10 @@ export default function VisualNestedSubcategoriesAdminView() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl max-w-5xl w-full relative z-10 shadow-2xl border border-gray-100 overflow-hidden my-6 max-h-[92vh] flex flex-col"
+              className="bg-white rounded-3xl max-w-4xl w-full relative z-10 shadow-2xl border border-gray-100 overflow-hidden my-8 max-h-[90vh] flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-2xl bg-emerald-600 text-white shadow-sm">
                     <Sparkles className="w-5 h-5" />
@@ -736,7 +631,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       {editingId ? 'Edit Visual Nested Subcategory' : 'Create Visual Nested Subcategory'}
                     </h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      Configure portrait image, attached offer strip, parent hierarchy, and colors.
+                      Manually configure card details, parent hierarchy, imagery, and display.
                     </p>
                   </div>
                 </div>
@@ -759,7 +654,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                     <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
                       <label className="block text-[11px] font-black text-emerald-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                         <Link2 className="w-3.5 h-3.5 text-emerald-700" />
-                        Quick Select Any Existing Catalog Subcategory
+                        Quick Select Any Existing Nested Subcategory
                       </label>
                       <select
                         onChange={(e) => handleSelectCatalogNested(e.target.value)}
@@ -835,111 +730,26 @@ export default function VisualNestedSubcategoriesAdminView() {
                   {/* Name Input */}
                   <div>
                     <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Card Display Name * (Centered below card)
+                      Card Name * (Displayed below card)
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Puma, Nike, Casual Shirts, Smartwatches"
+                      placeholder="e.g. Graphic T-Shirts, Casual Shirts, Smartwatches"
                       value={formData.name || ''}
                       onChange={handleNameChange}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
-                  {/* Offer Text & Quick Presets */}
-                  <div className="bg-emerald-50/40 p-4 rounded-2xl border border-emerald-100/80 space-y-3">
-                    <label className="block text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                      <Percent className="w-3.5 h-3.5 text-emerald-700" />
-                      Offer / Price Strip Text (Attached to image bottom)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. MIN. 50% OFF, UNDER ₹499, FLAT 60% OFF"
-                      value={formData.offerText || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, offerText: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-2xl text-sm font-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-
-                    {/* Quick Offer Suggestions */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase">Presets:</span>
-                      {OFFER_PRESETS.map(preset => (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, offerText: preset }))}
-                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200 transition-colors cursor-pointer"
-                        >
-                          {preset}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Offer Strip Colors */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-emerald-100">
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5">
-                          Offer Strip Background
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={formData.offerBgColor || '#047857'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
-                            className="w-9 h-9 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-white shrink-0"
-                          />
-                          <div className="flex gap-1 flex-wrap">
-                            {OFFER_BG_PRESETS.slice(0, 5).map(p => (
-                              <button
-                                key={p.color}
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, offerBgColor: p.color }))}
-                                style={{ backgroundColor: p.color }}
-                                className="w-5 h-5 rounded-full border border-white shadow-xs cursor-pointer hover:scale-110 transition-transform"
-                                title={p.name}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-700 mb-1.5">
-                          Offer Strip Text Color
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={formData.offerTextColor || '#FFFFFF'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
-                            className="w-9 h-9 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-white shrink-0"
-                          />
-                          <div className="flex gap-1 flex-wrap">
-                            {OFFER_TEXT_PRESETS.map(p => (
-                              <button
-                                key={p.color}
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, offerTextColor: p.color }))}
-                                style={{ backgroundColor: p.color }}
-                                className="w-5 h-5 rounded-full border border-gray-300 shadow-xs cursor-pointer hover:scale-110 transition-transform"
-                                title={p.name}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Portrait Image Upload & URL */}
+                  {/* Image Upload & URL */}
                   <div>
                     <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                      Portrait Card Image *
+                      Visual Card Image *
                     </label>
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black rounded-2xl cursor-pointer transition-colors border border-emerald-200 shadow-sm shrink-0">
+                        <label className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black rounded-2xl cursor-pointer transition-colors border border-emerald-200 shadow-sm">
                           <Upload className="w-4 h-4" />
                           <span>Upload File</span>
                           <input
@@ -959,49 +769,6 @@ export default function VisualNestedSubcategoriesAdminView() {
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Optional Floating Top Badge */}
-                  <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/80 space-y-2">
-                    <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider">
-                      Optional Floating Badge (Top Left of Card)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. TRENDING, HOT, NEW"
-                        value={formData.badgeText || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, badgeText: e.target.value }))}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {BADGE_PRESETS.map(b => (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, badgeText: b }))}
-                            className="px-2 py-0.5 rounded-md bg-white hover:bg-gray-200 text-gray-700 text-[10px] font-bold border border-gray-200 transition-colors cursor-pointer"
-                          >
-                            {b}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Target Navigation URL / Route Override */}
-                  <div>
-                    <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                      <span>Target Route / URL (Optional)</span>
-                      <span className="text-[10px] text-gray-400 font-normal">Defaults to /categories/parent/sub/name</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. /deal259 or /products?brand=Puma or /categories/men/clothing"
-                      value={formData.targetUrl || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, targetUrl: e.target.value }))}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
                   </div>
 
                   {/* Display Order & URL Slug */}
@@ -1093,7 +860,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
 
                     <div className="flex justify-center p-2">
-                      <div className={previewDevice === 'mobile' ? 'w-40' : 'w-52'}>
+                      <div className={previewDevice === 'mobile' ? 'w-44' : 'w-56'}>
                         <VisualNestedSubcategoryCard
                           item={previewItem}
                         />

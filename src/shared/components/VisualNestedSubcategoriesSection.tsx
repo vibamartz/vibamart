@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Sparkles, ArrowRight, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Sparkles, ArrowRight, Grid, ChevronRight, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import VisualNestedSubcategoryCard from './VisualNestedSubcategoryCard';
@@ -27,8 +27,7 @@ export default function VisualNestedSubcategoriesSection({
 }: VisualNestedSubcategoriesSectionProps) {
   const { items, loading } = useVisualNestedSubcategoryStore();
   const { categories } = useCategoryStore();
-  const [showGrid, setShowGrid] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showAll, setShowAll] = useState(false);
 
   // Find parent Category & Subcategory objects
   const activeCategory = useMemo(() => {
@@ -110,128 +109,82 @@ export default function VisualNestedSubcategoriesSection({
     return null;
   }
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = scrollContainerRef.current.clientWidth * 0.75;
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
+  const displayedItems = showAll ? matchingItems : matchingItems.slice(0, limitCount);
+  const hasMore = matchingItems.length > limitCount;
 
   const dynamicTitle = title || (
     activeSubCategory
       ? `Popular ${activeSubCategory.name} Collections`
       : activeCategory
         ? `Explore ${activeCategory.name} Visual Collections`
-        : 'Featured Collections'
+        : 'Featured Visual Categories'
   );
 
   const dynamicSubtitle = subtitle || (
     activeSubCategory
-      ? `Discover trending styles and offers in ${activeSubCategory.name}`
+      ? `Discover trending styles and subcategories in ${activeSubCategory.name}`
       : activeCategory
         ? `Browse hand-picked visual collections and top styles in ${activeCategory.name}`
-        : 'Hand-picked visual subcategories with exclusive offers'
+        : 'Hand-picked visual subcategories with exclusive designs'
   );
 
   return (
-    <section className={`my-4 sm:my-6 lg:my-8 ${className}`}>
-      <div className="bg-gradient-to-b from-emerald-50/40 via-white to-white p-3.5 sm:p-5 lg:p-6 rounded-3xl border border-emerald-100/70 shadow-sm relative group">
-        
+    <section className={`my-6 sm:my-8 ${className}`}>
+      <div className="bg-gradient-to-b from-emerald-50/40 via-white to-white p-4 sm:p-6 lg:p-7 rounded-3xl border border-emerald-100/70 shadow-sm">
         {/* Section Header */}
-        <div className="flex items-center justify-between gap-2 mb-3.5 sm:mb-5 pb-2.5 sm:pb-3 border-b border-emerald-100/60">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="p-1.5 rounded-xl bg-emerald-600 text-white shadow-xs flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 sm:mb-6 pb-3 border-b border-emerald-100/60">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-emerald-600 text-white shadow-sm flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
               </span>
-              <h2 className="text-base sm:text-lg md:text-xl font-black text-gray-900 tracking-tight truncate">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                 {dynamicTitle}
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
-                {matchingItems.length} {matchingItems.length === 1 ? 'Item' : 'Items'}
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                {matchingItems.length} {matchingItems.length === 1 ? 'Collection' : 'Collections'}
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5 truncate">
+            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
               {dynamicSubtitle}
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            {matchingItems.length > 5 && (
-              <button
-                onClick={() => setShowGrid(prev => !prev)}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 px-2.5 py-1 rounded-xl hover:bg-emerald-50 transition-colors cursor-pointer"
-              >
-                {showGrid ? 'Horizontal View' : 'View All'}
-              </button>
-            )}
-
-            {/* Desktop / Tablet Scroll Navigation Arrows */}
-            {!showGrid && matchingItems.length > 3 && (
-              <div className="hidden sm:flex items-center gap-1">
-                <button
-                  onClick={() => scroll('left')}
-                  className="p-1.5 rounded-xl bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 border border-gray-200 hover:border-emerald-300 shadow-xs transition-all cursor-pointer active:scale-95"
-                  title="Scroll Left"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => scroll('right')}
-                  className="p-1.5 rounded-xl bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 border border-gray-200 hover:border-emerald-300 shadow-xs transition-all cursor-pointer active:scale-95"
-                  title="Scroll Right"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
+          {hasMore && (
+            <button
+              onClick={() => setShowAll(prev => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer self-start sm:self-center"
+            >
+              <span>{showAll ? 'Show Less' : `View All (${matchingItems.length})`}</span>
+              <ChevronRight className={`w-4 h-4 transition-transform ${showAll ? 'rotate-90' : ''}`} />
+            </button>
+          )}
         </div>
 
-        {/* Layout Modes */}
-        {showGrid ? (
-          /* Full Grid View (When View All is clicked) */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-            {matchingItems.map((item, index) => (
-              <VisualNestedSubcategoryCard
-                key={item.id || index}
-                item={item}
-                category={activeCategory}
-                subCategorySlug={activeSubCategory?.slug}
-                priority={index < 4}
-              />
-            ))}
-          </div>
-        ) : (
-          /* Standard Horizontal Scroll Track:
-             - Mobile: ~2–2.5 cards visible with touch swipe (w-[40vw] max-w-[160px])
-             - Tablet: ~3–4 cards visible (md:w-[23%])
-             - Desktop: ~5–6 cards visible (lg:w-[15.5%] xl:w-[15%])
-          */
-          <div
-            ref={scrollContainerRef}
-            className="flex gap-2.5 sm:gap-3.5 lg:gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-1 px-0.5"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            {matchingItems.map((item, index) => (
-              <div
-                key={item.id || index}
-                className="w-[38vw] min-w-[130px] max-w-[155px] sm:w-[28vw] sm:max-w-[170px] md:w-[22%] md:max-w-[190px] lg:w-[15.5%] xl:w-[15%] shrink-0 snap-start"
-              >
-                <VisualNestedSubcategoryCard
-                  item={item}
-                  category={activeCategory}
-                  subCategorySlug={activeSubCategory?.slug}
-                  priority={index < 4}
-                />
-              </div>
-            ))}
+        {/* Responsive Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+          {displayedItems.map((item, index) => (
+            <VisualNestedSubcategoryCard
+              key={item.id || index}
+              item={item}
+              category={activeCategory}
+              subCategorySlug={activeSubCategory?.slug}
+              priority={index < 4}
+            />
+          ))}
+        </div>
+
+        {/* Load more indicator / button at bottom if many items */}
+        {hasMore && !showAll && (
+          <div className="mt-5 pt-3 text-center">
+            <button
+              onClick={() => setShowAll(true)}
+              className="px-5 py-2 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 text-xs sm:text-sm font-black border border-emerald-200 shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              Load {matchingItems.length - limitCount} More Collections
+            </button>
           </div>
         )}
-
       </div>
     </section>
   );

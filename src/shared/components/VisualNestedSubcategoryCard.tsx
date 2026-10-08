@@ -56,19 +56,8 @@ export default function VisualNestedSubcategoryCard({
   const nestedSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
 
   const handleClick = () => {
-    if (item.targetUrl) {
-      if (item.targetUrl.startsWith('http://') || item.targetUrl.startsWith('https://')) {
-        window.location.href = item.targetUrl;
-      } else {
-        navigate(item.targetUrl);
-      }
-      return;
-    }
     navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
   };
-
-  const offerBg = item.offerBgColor || '#047857';
-  const offerColor = item.offerTextColor || '#FFFFFF';
 
   return (
     <motion.div
@@ -76,32 +65,14 @@ export default function VisualNestedSubcategoryCard({
       whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.2 }}
       onClick={handleClick}
-      className={`group cursor-pointer select-none flex flex-col shrink-0 ${className}`}
+      className={`group cursor-pointer select-none flex flex-col ${className}`}
     >
-      {/* Portrait Image Container with Attached Offer Strip */}
-      <div className="relative w-full aspect-[3/4] sm:aspect-[3/4.1] bg-gray-100 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs hover:shadow-md border border-gray-100/90 transition-all duration-300 flex flex-col justify-between">
-        
-        {/* Optional Floating Top Badge */}
-        {item.badgeText && (
-          <div className="absolute top-2 left-2 z-20">
-            <span
-              style={{
-                backgroundColor: item.badgeBgColor || '#EF4444',
-                color: item.badgeTextColor || '#FFFFFF'
-              }}
-              className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm drop-shadow-xs"
-            >
-              {item.badgeText}
-            </span>
-          </div>
-        )}
-
-        {/* Shimmer Placeholder */}
+      {/* Image Container with strict Aspect Ratio & Preservation */}
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] bg-gray-100 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs hover:shadow-md border border-gray-100 transition-all duration-300">
         {!imageLoaded && !imageError && (
           <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 animate-pulse" />
         )}
         
-        {/* Main Portrait Image */}
         {item.image && !imageError ? (
           <img
             src={item.image}
@@ -109,7 +80,7 @@ export default function VisualNestedSubcategoryCard({
             loading={priority ? 'eager' : 'lazy'}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
-            className={`absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ease-out ${
+            className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -119,22 +90,10 @@ export default function VisualNestedSubcategoryCard({
             <span className="text-xs font-bold text-center px-2 line-clamp-2">{item.name}</span>
           </div>
         )}
-
-        {/* Attached Colored Offer / Price Strip at bottom of image */}
-        {item.offerText ? (
-          <div
-            style={{ backgroundColor: offerBg, color: offerColor }}
-            className="relative z-10 mt-auto w-full py-1.5 sm:py-2 px-1.5 text-center font-black text-[10px] sm:text-xs tracking-wider uppercase shadow-xs transition-colors"
-          >
-            <span className="truncate block font-black leading-tight drop-shadow-xs">
-              {item.offerText}
-            </span>
-          </div>
-        ) : null}
       </div>
 
-      {/* Category / Brand / Subcategory Display Name Centered Below Card */}
-      <div className="pt-2 sm:pt-2.5 pb-0.5 px-1 text-center">
+      {/* ONLY ONE text/name below the card */}
+      <div className="pt-2 sm:pt-2.5 pb-1 px-1 text-center">
         <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-1 group-hover:text-emerald-600 transition-colors">
           {item.name}
         </h4>
