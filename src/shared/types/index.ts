@@ -310,9 +310,13 @@ export interface VisualNestedSubcategory {
   order: number;
   isActive: boolean;
   isVisible?: boolean;
+  frameShape?: string; // e.g. 'portrait-3-4', 'portrait-4-5', 'square', 'circle', 'scalloped-arch', 'scalloped-window', 'decorative-scalloped', 'ornamental-arch', 'mughal-arch', 'floral-scallop', 'temple-arch', 'classic-arch', 'moroccan-arch', 'capsule'
+  showOfferStrip?: boolean; // Toggle whether bottom offer strip is visible
   offerText?: string; // e.g. "Under ₹299", "Min 50% Off", "Starting ₹199"
   offerBgColor?: string; // e.g. "#059669", "#dc2626", "#2563eb", "#d97706"
   offerTextColor?: string; // e.g. "#ffffff"
+  offerFontSize?: string; // e.g. "10px", "11px", "12px", "14px"
+  offerFontWeight?: string; // e.g. "font-normal", "font-medium", "font-bold", "font-black"
   badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
   seoTitle?: string;
   seoDescription?: string;

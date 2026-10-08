@@ -505,9 +505,13 @@ export default function CategoriesManagementView() {
         subCategoryName: sub.name,
         order: useVisualNestedSubcategoryStore.getState().items.length + 1,
         isActive: true,
+        frameShape: 'portrait-3-4',
+        showOfferStrip: true,
         offerText: 'Under ₹299',
         offerBgColor: '#047857',
         offerTextColor: '#ffffff',
+        offerFontSize: '11px',
+        offerFontWeight: '900',
         seoTitle: `${nested.name} | ViBa Mart`
       });
       toast.success(`Added "${nested.name}" to Visual Nested Subcategories!`);

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
   Sparkles, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter,
   GripVertical, Image as ImageIcon, Upload, X, Save, Check, RefreshCw,
-  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2
+  Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2,
+  Shapes, Frame, Type, Sliders, Palette, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -11,6 +12,7 @@ import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend
 import { createSlug } from '../../shared/utilities/slug';
 import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
+import { FRAME_SHAPES, getFrameConfig, VisualFrameDefs } from '../../shared/components/visualFrames';
 
 export default function VisualNestedSubcategoriesAdminView() {
   const { items, loading, addItem, updateItem, deleteItem, deleteAllItems, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
@@ -21,6 +23,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [selectedSubCategoryFilter, setSelectedSubCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [selectedShapeFilter, setSelectedShapeFilter] = useState<string>('all');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +31,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [activeFrameTab, setActiveFrameTab] = useState<'all' | 'Standard Shapes' | 'Architectural & Scalloped Frames' | 'Traditional & Heritage'>('all');
 
   // Form State
   const [formData, setFormData] = useState<Partial<VisualNestedSubcategory>>({
@@ -41,9 +45,13 @@ export default function VisualNestedSubcategoriesAdminView() {
     subCategoryName: '',
     order: 1,
     isActive: true,
+    frameShape: 'portrait-3-4',
+    showOfferStrip: true,
     offerText: 'Under ₹299',
     offerBgColor: '#047857',
     offerTextColor: '#ffffff',
+    offerFontSize: '11px',
+    offerFontWeight: '900',
     seoTitle: ''
   });
 
@@ -103,7 +111,8 @@ export default function VisualNestedSubcategoriesAdminView() {
         const matchSlug = item.slug ? item.slug.toLowerCase().includes(q) : false;
         const matchCat = item.categoryName?.toLowerCase().includes(q);
         const matchSub = item.subCategoryName?.toLowerCase().includes(q);
-        if (!matchName && !matchOffer && !matchSlug && !matchCat && !matchSub) return false;
+        const matchShape = item.frameShape?.toLowerCase().includes(q);
+        if (!matchName && !matchOffer && !matchSlug && !matchCat && !matchSub && !matchShape) return false;
       }
 
       // 2. Category Filter
@@ -120,9 +129,15 @@ export default function VisualNestedSubcategoriesAdminView() {
       if (statusFilter === 'active' && item.isActive === false) return false;
       if (statusFilter === 'inactive' && item.isActive !== false) return false;
 
+      // 5. Shape Filter
+      if (selectedShapeFilter !== 'all') {
+        const itemShape = item.frameShape || 'portrait-3-4';
+        if (itemShape !== selectedShapeFilter) return false;
+      }
+
       return true;
     });
-  }, [items, searchQuery, selectedCategoryFilter, selectedSubCategoryFilter, statusFilter]);
+  }, [items, searchQuery, selectedCategoryFilter, selectedSubCategoryFilter, statusFilter, selectedShapeFilter]);
 
   // Drag and Drop ordering handlers
   const handleDragStart = (e: React.DragEvent, position: number) => {
@@ -173,9 +188,13 @@ export default function VisualNestedSubcategoriesAdminView() {
       subCategoryName: defaultSubObj?.name || '',
       order: items.length + 1,
       isActive: true,
+      frameShape: 'portrait-3-4',
+      showOfferStrip: true,
       offerText: 'Under ₹299',
       offerBgColor: '#047857',
       offerTextColor: '#ffffff',
+      offerFontSize: '11px',
+      offerFontWeight: '900',
       seoTitle: ''
     });
     setIsModalOpen(true);
@@ -185,9 +204,13 @@ export default function VisualNestedSubcategoriesAdminView() {
     setEditingId(item.id);
     setFormData({
       ...item,
+      frameShape: item.frameShape || 'portrait-3-4',
+      showOfferStrip: item.showOfferStrip !== undefined ? item.showOfferStrip : Boolean(item.offerText),
       offerText: item.offerText || 'Under ₹299',
       offerBgColor: item.offerBgColor || '#047857',
       offerTextColor: item.offerTextColor || '#ffffff',
+      offerFontSize: item.offerFontSize || '11px',
+      offerFontWeight: item.offerFontWeight || '900',
     });
     setIsModalOpen(true);
   };
@@ -278,7 +301,7 @@ export default function VisualNestedSubcategoriesAdminView() {
       reader.onloadend = async () => {
         const rawResult = reader.result as string;
         try {
-          const compressed = await compressDataUrl(rawResult, 800, 1000, 0.85);
+          const compressed = await compressDataUrl(rawResult, 900, 1200, 0.88);
           setFormData(prev => ({ ...prev, image: compressed }));
         } catch {
           setFormData(prev => ({ ...prev, image: rawResult }));
@@ -311,41 +334,32 @@ export default function VisualNestedSubcategoriesAdminView() {
         ? createSlug(cardName) 
         : (formData.slug || (formData.offerText ? createSlug(formData.offerText) : `card-${Date.now().toString().slice(-4)}`));
 
+      const payload: Partial<VisualNestedSubcategory> = {
+        name: cardName,
+        slug: formData.slug || fallbackSlug,
+        seoSlug: formData.seoSlug || formData.slug || fallbackSlug,
+        image: formData.image,
+        categoryId: formData.categoryId,
+        categoryName: formData.categoryName,
+        subCategoryId: formData.subCategoryId,
+        subCategoryName: formData.subCategoryName,
+        order: Number(formData.order) || 1,
+        isActive: formData.isActive !== false,
+        frameShape: formData.frameShape || 'portrait-3-4',
+        showOfferStrip: formData.showOfferStrip !== undefined ? formData.showOfferStrip : true,
+        offerText: formData.offerText || 'Under ₹299',
+        offerBgColor: formData.offerBgColor || '#047857',
+        offerTextColor: formData.offerTextColor || '#ffffff',
+        offerFontSize: formData.offerFontSize || '11px',
+        offerFontWeight: formData.offerFontWeight || '900',
+        seoTitle: formData.seoTitle?.trim() || ''
+      };
+
       if (editingId) {
-        await updateItem(editingId, {
-          name: cardName,
-          slug: formData.slug || fallbackSlug,
-          seoSlug: formData.seoSlug || formData.slug || fallbackSlug,
-          image: formData.image,
-          categoryId: formData.categoryId,
-          categoryName: formData.categoryName,
-          subCategoryId: formData.subCategoryId,
-          subCategoryName: formData.subCategoryName,
-          order: Number(formData.order) || 1,
-          isActive: formData.isActive !== false,
-          offerText: formData.offerText || 'Under ₹299',
-          offerBgColor: formData.offerBgColor || '#047857',
-          offerTextColor: formData.offerTextColor || '#ffffff',
-          seoTitle: formData.seoTitle?.trim() || ''
-        });
+        await updateItem(editingId, payload);
         toast.success('Visual nested subcategory updated successfully!');
       } else {
-        await addItem({
-          name: cardName,
-          slug: formData.slug || fallbackSlug,
-          seoSlug: formData.seoSlug || formData.slug || fallbackSlug,
-          image: formData.image || '',
-          categoryId: formData.categoryId || '',
-          categoryName: formData.categoryName,
-          subCategoryId: formData.subCategoryId || '',
-          subCategoryName: formData.subCategoryName,
-          order: Number(formData.order) || (items.length + 1),
-          isActive: formData.isActive !== false,
-          offerText: formData.offerText || 'Under ₹299',
-          offerBgColor: formData.offerBgColor || '#047857',
-          offerTextColor: formData.offerTextColor || '#ffffff',
-          seoTitle: formData.seoTitle?.trim() || ''
-        });
+        await addItem(payload as any);
         toast.success('Visual nested subcategory created successfully!');
       }
       setIsModalOpen(false);
@@ -372,13 +386,13 @@ export default function VisualNestedSubcategoriesAdminView() {
     }
   };
 
-  // Delete All Cards Handler (Removes all auto-generated & existing cards)
+  // Delete All Cards Handler
   const handleDeleteAll = async () => {
     if (items.length === 0) {
       toast.error('No visual cards to remove.');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete all ${items.length} visual nested subcategory cards? This will completely clear all auto-generated and existing cards.`)) {
+    if (!window.confirm(`Are you sure you want to delete all ${items.length} visual nested subcategory cards? This will completely clear all cards.`)) {
       return;
     }
     setIsDeletingAll(true);
@@ -393,6 +407,12 @@ export default function VisualNestedSubcategoriesAdminView() {
     }
   };
 
+  // Filter frame shapes based on active tab in modal
+  const filteredFrameShapes = useMemo(() => {
+    if (activeFrameTab === 'all') return FRAME_SHAPES;
+    return FRAME_SHAPES.filter(f => f.category === activeFrameTab);
+  }, [activeFrameTab]);
+
   // Mock item for live preview in modal
   const previewItem: VisualNestedSubcategory = useMemo(() => ({
     id: editingId || 'preview-id',
@@ -406,13 +426,20 @@ export default function VisualNestedSubcategoriesAdminView() {
     subCategoryName: formData.subCategoryName || 'Subcategory',
     order: Number(formData.order) || 1,
     isActive: formData.isActive !== false,
+    frameShape: formData.frameShape || 'portrait-3-4',
+    showOfferStrip: formData.showOfferStrip !== undefined ? formData.showOfferStrip : true,
     offerText: formData.offerText || 'Under ₹299',
     offerBgColor: formData.offerBgColor || '#047857',
-    offerTextColor: formData.offerTextColor || '#ffffff'
+    offerTextColor: formData.offerTextColor || '#ffffff',
+    offerFontSize: formData.offerFontSize || '11px',
+    offerFontWeight: formData.offerFontWeight || '900'
   }), [formData, editingId]);
 
   return (
     <div className="space-y-6">
+      {/* Global SVG clipPath definitions */}
+      <VisualFrameDefs />
+
       {/* Top Header & Actions Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
         <div>
@@ -425,7 +452,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-            Manually create and apply visual showcase cards for any category and subcategory.
+            Choose custom image ratios & decorative frames (Arch, Scallop, Mughal, Temple, Circle, etc.) with optional offer strip styling.
           </p>
         </div>
 
@@ -441,7 +468,7 @@ export default function VisualNestedSubcategoriesAdminView() {
               onClick={handleDeleteAll}
               disabled={isDeletingAll}
               className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2.5 rounded-2xl font-bold text-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-              title="Permanently remove all auto-generated and existing visual cards"
+              title="Permanently remove all visual cards"
             >
               <Trash2 className="w-4 h-4" />
               <span>{isDeletingAll ? 'Removing All...' : 'Remove All Cards'}</span>
@@ -460,13 +487,13 @@ export default function VisualNestedSubcategoriesAdminView() {
 
       {/* Dynamic Filters & Search */}
       <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search Box */}
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, slug..."
+              placeholder="Search by name, frame, slug..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -507,6 +534,20 @@ export default function VisualNestedSubcategoriesAdminView() {
             </select>
           </div>
 
+          {/* Shape / Frame Filter */}
+          <div>
+            <select
+              value={selectedShapeFilter}
+              onChange={(e) => setSelectedShapeFilter(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700 cursor-pointer"
+            >
+              <option value="all">All Frame Shapes ({FRAME_SHAPES.length})</option>
+              {FRAME_SHAPES.map(shape => (
+                <option key={shape.id} value={shape.id}>{shape.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Status Filter */}
           <div>
             <select
@@ -521,7 +562,7 @@ export default function VisualNestedSubcategoriesAdminView() {
           </div>
         </div>
 
-        {(searchQuery || selectedCategoryFilter !== 'all' || selectedSubCategoryFilter !== 'all' || statusFilter !== 'all') && (
+        {(searchQuery || selectedCategoryFilter !== 'all' || selectedSubCategoryFilter !== 'all' || statusFilter !== 'all' || selectedShapeFilter !== 'all') && (
           <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs text-gray-500">
             <span>Showing {filteredItems.length} of {items.length} visual nested subcategories</span>
             <button
@@ -529,9 +570,10 @@ export default function VisualNestedSubcategoriesAdminView() {
                 setSearchQuery('');
                 setSelectedCategoryFilter('all');
                 setSelectedSubCategoryFilter('all');
+                setSelectedShapeFilter('all');
                 setStatusFilter('all');
               }}
-              className="text-emerald-700 font-bold hover:underline"
+              className="text-emerald-700 font-bold hover:underline cursor-pointer"
             >
               Reset Filters
             </button>
@@ -543,10 +585,10 @@ export default function VisualNestedSubcategoriesAdminView() {
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-12 gap-3 p-4 border-b border-gray-100 bg-gray-50 text-[11px] font-black text-gray-500 uppercase tracking-wider">
           <div className="col-span-1 text-center">Order</div>
-          <div className="col-span-1 text-center">Card</div>
-          <div className="col-span-3">Name</div>
+          <div className="col-span-1 text-center">Shape Preview</div>
+          <div className="col-span-3">Name & Offer Strip</div>
           <div className="col-span-3">Parent Hierarchy</div>
-          <div className="col-span-2">Slug / URL</div>
+          <div className="col-span-2">Frame / Ratio</div>
           <div className="col-span-2 text-right pr-4">Actions</div>
         </div>
 
@@ -562,108 +604,132 @@ export default function VisualNestedSubcategoriesAdminView() {
             </div>
             <h3 className="text-base font-bold text-gray-800">No Visual Nested Subcategories Found</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              {searchQuery || selectedCategoryFilter !== 'all'
+              {searchQuery || selectedCategoryFilter !== 'all' || selectedShapeFilter !== 'all'
                 ? 'No items matched your search/filter criteria. Try changing filters.'
-                : 'Click "Create Visual Subcategory" above to manually add your first visual showcase card.'}
+                : 'Click "Create Visual Subcategory" above to add your first visual showcase card.'}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {filteredItems.map((item, index) => (
-              <div
-                key={item.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragEnter={(e) => handleDragEnter(e, index)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => e.preventDefault()}
-                className="grid grid-cols-12 gap-3 p-3.5 items-center hover:bg-emerald-50/30 transition-colors bg-white cursor-move group"
-              >
-                {/* Order & Drag Handle */}
-                <div className="col-span-1 flex items-center justify-center gap-1 text-gray-400 group-hover:text-emerald-600">
-                  <GripVertical className="w-4 h-4" />
-                  <span className="text-xs font-mono font-bold text-gray-500">{item.order || index + 1}</span>
-                </div>
-
-                {/* Card Thumbnail */}
-                <div className="col-span-1 flex justify-center">
-                  <div className="w-12 h-14 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
+            {filteredItems.map((item, index) => {
+              const frameConfig = getFrameConfig(item.frameShape);
+              const isOfferOn = item.showOfferStrip !== false && Boolean(item.offerText || item.badgeText);
+              
+              return (
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragEnter={(e) => handleDragEnter(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => e.preventDefault()}
+                  className="grid grid-cols-12 gap-3 p-3.5 items-center hover:bg-emerald-50/30 transition-colors bg-white cursor-move group"
+                >
+                  {/* Order & Drag Handle */}
+                  <div className="col-span-1 flex items-center justify-center gap-1 text-gray-400 group-hover:text-emerald-600">
+                    <GripVertical className="w-4 h-4" />
+                    <span className="text-xs font-mono font-bold text-gray-500">{item.order || index + 1}</span>
                   </div>
-                </div>
 
-                {/* Name & Offer Badge */}
-                <div className="col-span-3 min-w-0 pr-2 space-y-1">
-                  <h4 className="text-sm font-black text-gray-900 truncate">
-                    {item.name ? item.name : <span className="text-gray-400 font-normal italic text-xs">No name below card</span>}
-                  </h4>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight truncate max-w-full"
+                  {/* Card Thumbnail with true Frame Shape applied */}
+                  <div className="col-span-1 flex justify-center">
+                    <div 
+                      className={`w-11 h-13 overflow-hidden bg-gray-100 shadow-xs shrink-0 flex items-center justify-center ${
+                        !frameConfig.clipPathId ? (frameConfig.borderRadius || 'rounded-xl') : ''
+                      }`}
                       style={{
-                        backgroundColor: item.offerBgColor || '#047857',
-                        color: item.offerTextColor || '#ffffff'
+                        clipPath: frameConfig.clipPathId ? `url(#${frameConfig.clipPathId})` : undefined,
+                        WebkitClipPath: frameConfig.clipPathId ? `url(#${frameConfig.clipPathId})` : undefined,
                       }}
                     >
-                      {item.offerText || item.badgeText || 'Under ₹299'}
+                      <img
+                        src={item.image}
+                        alt={item.name || 'thumbnail'}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Name & Offer Badge */}
+                  <div className="col-span-3 min-w-0 pr-2 space-y-1">
+                    <h4 className="text-sm font-black text-gray-900 truncate">
+                      {item.name ? item.name : <span className="text-gray-400 font-normal italic text-xs">No name below card</span>}
+                    </h4>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {isOfferOn ? (
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-md text-[10px] uppercase tracking-tight truncate max-w-full"
+                          style={{
+                            backgroundColor: item.offerBgColor || '#047857',
+                            color: item.offerTextColor || '#ffffff',
+                            fontWeight: item.offerFontWeight || '900',
+                            fontSize: item.offerFontSize || '10px'
+                          }}
+                        >
+                          {item.offerText || item.badgeText || 'Under ₹299'}
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-500">
+                          Offer Strip: Disabled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Parent Hierarchy */}
+                  <div className="col-span-3 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 truncate">
+                      <span className="px-2 py-0.5 rounded-lg bg-gray-100 text-gray-800 truncate max-w-[120px]">
+                        {item.categoryName || item.categoryId}
+                      </span>
+                      <span className="text-gray-400">›</span>
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 truncate max-w-[120px]">
+                        {item.subCategoryName || item.subCategoryId}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Frame / Ratio Badge */}
+                  <div className="col-span-2 min-w-0">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold truncate">
+                      <Frame className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{frameConfig.name}</span>
                     </span>
                   </div>
-                </div>
 
-                {/* Parent Hierarchy */}
-                <div className="col-span-3 min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 truncate">
-                    <span className="px-2 py-0.5 rounded-lg bg-gray-100 text-gray-800">
-                      {item.categoryName || item.categoryId}
-                    </span>
-                    <span className="text-gray-400">›</span>
-                    <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {item.subCategoryName || item.subCategoryId}
-                    </span>
+                  {/* Actions */}
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 pr-2">
+                    <button
+                      onClick={() => toggleActive(item.id, !item.isActive)}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                        item.isActive
+                          ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                          : 'text-gray-400 bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      title={item.isActive ? 'Active (Visible on store)' : 'Inactive (Hidden)'}
+                    >
+                      {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEdit(item)}
+                      className="p-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer"
+                      title="Edit Visual Nested Subcategory"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                {/* Slug / Route */}
-                <div className="col-span-2 text-xs font-mono text-gray-500 truncate">
-                  /{item.seoSlug || item.slug}
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-2 flex items-center justify-end gap-1.5 pr-2">
-                  <button
-                    onClick={() => toggleActive(item.id, !item.isActive)}
-                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                      item.isActive
-                        ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
-                        : 'text-gray-400 bg-gray-100 hover:bg-gray-200'
-                    }`}
-                    title={item.isActive ? 'Active (Visible on store)' : 'Inactive (Hidden)'}
-                  >
-                    {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenEdit(item)}
-                    className="p-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer"
-                    title="Edit Visual Nested Subcategory"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(item)}
-                    className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -684,12 +750,12 @@ export default function VisualNestedSubcategoriesAdminView() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl max-w-4xl w-full relative z-10 shadow-2xl border border-gray-100 overflow-hidden my-8 max-h-[90vh] flex flex-col"
+              className="bg-white rounded-3xl max-w-5xl w-full relative z-10 shadow-2xl border border-gray-100 overflow-hidden my-6 max-h-[92vh] flex flex-col"
             >
               {/* Modal Header */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-2xl bg-emerald-600 text-white shadow-sm">
+                  <div className="p-2.5 rounded-2xl bg-emerald-600 text-white shadow-sm">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
@@ -697,7 +763,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       {editingId ? 'Edit Visual Nested Subcategory' : 'Create Visual Nested Subcategory'}
                     </h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      Manually configure card details, parent hierarchy, imagery, and display.
+                      Configure custom image frame shapes, optional offer strip, hierarchy, and imagery.
                     </p>
                   </div>
                 </div>
@@ -713,14 +779,14 @@ export default function VisualNestedSubcategoriesAdminView() {
               {/* Modal Body: Two Columns (Form + Live Preview) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto">
                 {/* Form Column */}
-                <form onSubmit={handleSave} className="lg:col-span-7 p-6 space-y-4 border-r border-gray-100">
+                <form onSubmit={handleSave} className="lg:col-span-7 p-6 space-y-5 border-r border-gray-100">
                   
                   {/* Quick Select from existing nested subcategories across the catalog */}
                   {!editingId && allCatalogNestedSubcategories.length > 0 && (
-                    <div className="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
-                      <label className="block text-[11px] font-black text-emerald-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
+                      <label className="block text-[11px] font-black text-emerald-900 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                         <Link2 className="w-3.5 h-3.5 text-emerald-700" />
-                        Quick Select Any Existing Nested Subcategory
+                        Quick Select Any Existing Catalog Subcategory
                       </label>
                       <select
                         onChange={(e) => handleSelectCatalogNested(e.target.value)}
@@ -774,25 +840,6 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
-                  {/* Quick Select within selected subcategory (if available) */}
-                  {formAvailableNestedSubCategories.length > 0 && (
-                    <div>
-                      <label className="block text-[11px] font-black text-gray-600 uppercase tracking-wider mb-1">
-                        Select Existing Nested Subcategory in this Subcategory (Optional)
-                      </label>
-                      <select
-                        onChange={(e) => handleSelectExistingNested(e.target.value)}
-                        defaultValue=""
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                      >
-                        <option value="">-- Or type/customize name below --</option>
-                        {formAvailableNestedSubCategories.map(n => (
-                          <option key={n.id} value={n.id}>{n.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
                   {/* Name Input (Optional) */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -800,12 +847,12 @@ export default function VisualNestedSubcategoriesAdminView() {
                         Category / Brand Name (Optional)
                       </label>
                       <span className="text-[10px] font-bold text-gray-400">
-                        Optional (displayed below card)
+                        Displayed below the card
                       </span>
                     </div>
                     <input
                       type="text"
-                      placeholder="e.g. Graphic T-Shirts (or leave blank to hide name below card)"
+                      placeholder="e.g. Graphic T-Shirts (or leave blank to hide text below card)"
                       value={formData.name || ''}
                       onChange={handleNameChange}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -841,146 +888,312 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
-                  {/* Offer / Price Strip Configuration */}
-                  <div className="p-4 bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-gray-50 rounded-2xl border border-emerald-100/80 space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-emerald-700" />
-                          Offer / Price Text (Bottom Strip) *
-                        </label>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                          Colored bottom strip
-                        </span>
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Under ₹299, Min 50% Off, Starting ₹199"
-                        value={formData.offerText || ''}
-                        onChange={(e) => setFormData(prev => ({ ...prev, offerText: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-emerald-200 rounded-2xl text-sm font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
-                      />
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  {/* FRAME / SHAPE SELECTION SECTION */}
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  <div className="p-4 bg-gradient-to-br from-indigo-50/40 via-white to-gray-50 rounded-2xl border border-indigo-100/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Shapes className="w-4 h-4 text-indigo-600" />
+                        Image / Frame Shape (Optional)
+                      </label>
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-full">
+                        {getFrameConfig(formData.frameShape).name}
+                      </span>
+                    </div>
 
-                      {/* Quick Presets for Offer Text */}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {[
-                          'Under ₹299',
-                          'Under ₹499',
-                          'Under ₹999',
-                          'Starting ₹199',
-                          'Min 50% Off',
-                          'Min 70% Off',
-                          'Flat 40% Off',
-                          'Best Deals'
-                        ].map((preset) => (
+                    <p className="text-[11px] text-gray-500 font-medium">
+                      Select any frame or image ratio. The image automatically adapts without distortion.
+                    </p>
+
+                    {/* Frame Category Tabs */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5">
+                      {[
+                        { id: 'all', label: 'All Frames' },
+                        { id: 'Standard Shapes', label: 'Standard Ratios' },
+                        { id: 'Architectural & Scalloped Frames', label: 'Arch & Scallop Frames' },
+                        { id: 'Traditional & Heritage', label: 'Heritage & Temple' }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveFrameTab(tab.id as any)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                            activeFrameTab === tab.id
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-white text-gray-600 hover:bg-indigo-50 border border-gray-200'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Frame Shapes Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                      {filteredFrameShapes.map(shape => {
+                        const isSelected = (formData.frameShape || 'portrait-3-4') === shape.id;
+                        return (
                           <button
-                            key={preset}
+                            key={shape.id}
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, offerText: preset }))}
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                              formData.offerText === preset
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-white text-gray-700 hover:bg-emerald-100/60 border border-gray-200'
+                            onClick={() => setFormData(prev => ({ ...prev, frameShape: shape.id }))}
+                            className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative ${
+                              isSelected
+                                ? 'bg-indigo-50/80 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs'
+                                : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
                             }`}
                           >
-                            {preset}
+                            <div className="flex items-start justify-between gap-1 mb-1">
+                              <span className="text-xs font-black text-gray-900 leading-tight">
+                                {shape.name}
+                              </span>
+                              {isSelected && (
+                                <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                              )}
+                            </div>
+                            <span className="text-[10px] text-gray-500 line-clamp-1">
+                              {shape.description}
+                            </span>
+                            <span className="mt-1 inline-block text-[9px] font-mono font-bold text-indigo-700 bg-indigo-100/60 px-1.5 py-0.5 rounded w-fit">
+                              {shape.aspectRatio}
+                            </span>
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    {/* Strip Colors (Background & Text) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-emerald-100/70">
-                      {/* Background Color */}
-                      <div>
-                        <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                          Strip Background Color
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={formData.offerBgColor || '#047857'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
-                            className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
-                          />
-                          <input
-                            type="text"
-                            value={formData.offerBgColor || '#047857'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
-                            placeholder="#047857"
-                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-                        {/* Preset color swatches */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {[
-                            { name: 'Emerald', color: '#047857' },
-                            { name: 'Teal', color: '#0f766e' },
-                            { name: 'Crimson', color: '#dc2626' },
-                            { name: 'Royal Blue', color: '#1d4ed8' },
-                            { name: 'Purple', color: '#7c3aed' },
-                            { name: 'Amber', color: '#d97706' },
-                            { name: 'Rose', color: '#be123c' },
-                            { name: 'Dark Slate', color: '#0f172a' }
-                          ].map(swatch => (
-                            <button
-                              key={swatch.color}
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, offerBgColor: swatch.color }))}
-                              title={swatch.name}
-                              className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
-                                formData.offerBgColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-black/10'
-                              }`}
-                              style={{ backgroundColor: swatch.color }}
-                            />
-                          ))}
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  {/* OFFER STRIP CONFIGURATION (OPTIONAL & CUSTOMIZABLE) */}
+                  {/* ─────────────────────────────────────────────────────────── */}
+                  <div className="p-4 bg-gradient-to-br from-emerald-50/50 via-teal-50/30 to-gray-50 rounded-2xl border border-emerald-100/80 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-emerald-700" />
+                        <div>
+                          <label className="block text-xs font-black text-emerald-950 uppercase tracking-wider">
+                            Bottom Offer / Price Strip
+                          </label>
+                          <span className="text-[11px] text-gray-500 font-medium">
+                            {formData.showOfferStrip !== false ? 'Offer strip is enabled' : 'Disabled (Shows clean image & name only)'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Text Color */}
-                      <div>
-                        <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                          Strip Text Color
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={formData.offerTextColor || '#ffffff'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
-                            className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
-                          />
+                      {/* Enable/Disable Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, showOfferStrip: prev.showOfferStrip === false ? true : false }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                          formData.showOfferStrip !== false ? 'bg-emerald-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            formData.showOfferStrip !== false ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {formData.showOfferStrip !== false ? (
+                      <div className="space-y-3 pt-2 border-t border-emerald-100/70">
+                        {/* Offer Text */}
+                        <div>
+                          <label className="block text-[11px] font-black text-emerald-950 uppercase tracking-wider mb-1.5">
+                            Offer / Price Text
+                          </label>
                           <input
                             type="text"
-                            value={formData.offerTextColor || '#ffffff'}
-                            onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
-                            placeholder="#ffffff"
-                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            placeholder="e.g. Under ₹299, Min 50% Off, Starting ₹199"
+                            value={formData.offerText || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, offerText: e.target.value }))}
+                            className="w-full px-4 py-2 bg-white border border-emerald-200 rounded-2xl text-sm font-black text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs"
                           />
+
+                          {/* Quick Presets for Offer Text */}
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {[
+                              'Under ₹299',
+                              'Under ₹499',
+                              'Under ₹999',
+                              'Starting ₹199',
+                              'Min 50% Off',
+                              'Min 70% Off',
+                              'Flat 40% Off',
+                              'Best Deals'
+                            ].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, offerText: preset }))}
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                                  formData.offerText === preset
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'bg-white text-gray-700 hover:bg-emerald-100/60 border border-gray-200'
+                                }`}
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        {/* Preset text color swatches */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {[
-                            { name: 'White', color: '#ffffff' },
-                            { name: 'Yellow', color: '#fef08a' },
-                            { name: 'Light Cyan', color: '#cffafe' },
-                            { name: 'Light Green', color: '#bbf7d0' },
-                            { name: 'Black', color: '#000000' }
-                          ].map(swatch => (
-                            <button
-                              key={swatch.color}
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, offerTextColor: swatch.color }))}
-                              title={swatch.name}
-                              className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
-                                formData.offerTextColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-gray-300'
-                              }`}
-                              style={{ backgroundColor: swatch.color }}
-                            />
-                          ))}
+
+                        {/* Strip Colors (Background & Text) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          {/* Background Color */}
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                              Strip Background Color
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={formData.offerBgColor || '#047857'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
+                                className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
+                              />
+                              <input
+                                type="text"
+                                value={formData.offerBgColor || '#047857'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, offerBgColor: e.target.value }))}
+                                placeholder="#047857"
+                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                            </div>
+                            {/* Preset color swatches */}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {[
+                                { name: 'Emerald', color: '#047857' },
+                                { name: 'Teal', color: '#0f766e' },
+                                { name: 'Crimson', color: '#dc2626' },
+                                { name: 'Royal Blue', color: '#1d4ed8' },
+                                { name: 'Purple', color: '#7c3aed' },
+                                { name: 'Amber', color: '#d97706' },
+                                { name: 'Rose', color: '#be123c' },
+                                { name: 'Dark Slate', color: '#0f172a' }
+                              ].map(swatch => (
+                                <button
+                                  key={swatch.color}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, offerBgColor: swatch.color }))}
+                                  title={swatch.name}
+                                  className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
+                                    formData.offerBgColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-black/10'
+                                  }`}
+                                  style={{ backgroundColor: swatch.color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Text Color */}
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                              Strip Text Color
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={formData.offerTextColor || '#ffffff'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
+                                className="w-9 h-9 rounded-xl border border-gray-200 p-0.5 cursor-pointer bg-white"
+                              />
+                              <input
+                                type="text"
+                                value={formData.offerTextColor || '#ffffff'}
+                                onChange={(e) => setFormData(prev => ({ ...prev, offerTextColor: e.target.value }))}
+                                placeholder="#ffffff"
+                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                            </div>
+                            {/* Preset text color swatches */}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {[
+                                { name: 'White', color: '#ffffff' },
+                                { name: 'Yellow', color: '#fef08a' },
+                                { name: 'Light Cyan', color: '#cffafe' },
+                                { name: 'Light Green', color: '#bbf7d0' },
+                                { name: 'Black', color: '#000000' }
+                              ].map(swatch => (
+                                <button
+                                  key={swatch.color}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, offerTextColor: swatch.color }))}
+                                  title={swatch.name}
+                                  className={`w-6 h-6 rounded-lg transition-transform hover:scale-110 cursor-pointer border ${
+                                    formData.offerTextColor === swatch.color ? 'ring-2 ring-emerald-500 scale-110' : 'border-gray-300'
+                                  }`}
+                                  style={{ backgroundColor: swatch.color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Font Size & Weight Controls */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                              Font Size
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {[
+                                { label: 'Small', value: '10px' },
+                                { label: 'Regular', value: '11px' },
+                                { label: 'Medium', value: '12px' },
+                                { label: 'Large', value: '14px' }
+                              ].map(sz => (
+                                <button
+                                  key={sz.value}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, offerFontSize: sz.value }))}
+                                  className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                                    (formData.offerFontSize || '11px') === sz.value
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'bg-white text-gray-700 hover:bg-emerald-100/50 border border-gray-200'
+                                  }`}
+                                >
+                                  {sz.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                              Font Weight
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              {[
+                                { label: 'Normal', value: '400' },
+                                { label: 'Medium', value: '500' },
+                                { label: 'Bold', value: '700' },
+                                { label: 'Black', value: '900' }
+                              ].map(wt => (
+                                <button
+                                  key={wt.value}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, offerFontWeight: wt.value }))}
+                                  className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                                    (formData.offerFontWeight || '900') === wt.value
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'bg-white text-gray-700 hover:bg-emerald-100/50 border border-gray-200'
+                                  }`}
+                                >
+                                  {wt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="p-3 bg-white rounded-xl border border-gray-200 text-xs text-gray-500 text-center font-medium">
+                        Offer strip is disabled. Only the shaped image and category name (if provided) will display.
+                      </div>
+                    )}
                   </div>
 
                   {/* Display Order & URL Slug */}
@@ -1077,6 +1290,15 @@ export default function VisualNestedSubcategoriesAdminView() {
                           item={previewItem}
                         />
                       </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-white/80 rounded-2xl border border-gray-200/70 text-center">
+                      <p className="text-[11px] font-bold text-gray-600">
+                        Frame: <span className="text-indigo-700">{getFrameConfig(formData.frameShape).name}</span> ({getFrameConfig(formData.frameShape).aspectRatio})
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        Offer Strip: {formData.showOfferStrip !== false ? <span className="text-emerald-700 font-bold">Enabled</span> : <span className="text-gray-500 font-medium">Disabled</span>}
+                      </p>
                     </div>
                   </div>
 
