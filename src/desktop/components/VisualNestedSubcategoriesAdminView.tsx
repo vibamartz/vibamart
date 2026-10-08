@@ -291,10 +291,6 @@ export default function VisualNestedSubcategoriesAdminView() {
   // Save Handler
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name?.trim()) {
-      toast.error('Please enter a name for the visual nested subcategory.');
-      return;
-    }
     if (!formData.categoryId) {
       toast.error('Please select a target parent category.');
       return;
