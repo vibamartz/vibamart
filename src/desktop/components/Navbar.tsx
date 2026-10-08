@@ -30,8 +30,7 @@ export default function Navbar() {
       name: 'For You',
       color: '#059669',
       icon: 'sparkles',
-      slug: 'for-you',
-      image: undefined as string | undefined
+      slug: 'for-you'
     },
     ...CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true))
   ];
@@ -702,22 +701,22 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Secondary Category Nav (Main Category Section) */}
-      <div className="border-t border-gray-100 bg-white relative group/secnav py-2">
+      {/* Secondary Category Nav (Top Category Section) */}
+      <div className="border-t border-gray-100 bg-white relative group/secnav">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative flex items-center">
           <button
             type="button"
             onClick={scrollNavCategoryLeft}
-            className="absolute left-1 z-10 p-1.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-600 hover:text-emerald-600 transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center -translate-x-2 cursor-pointer"
+            className="absolute left-1 z-10 p-1 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-600 hover:text-primary transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center"
             title="Scroll Left"
             aria-label="Scroll Left"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
           <div
             ref={navCategoryScrollRef}
-            className="flex items-center justify-start md:justify-center gap-6 sm:gap-8 md:gap-10 overflow-x-auto scroll-smooth hide-scrollbar min-w-0 w-full px-2"
+            className="flex items-center h-11 gap-8 whitespace-nowrap overflow-x-auto scroll-smooth hide-scrollbar text-[11px] font-black text-gray-500 uppercase tracking-widest min-w-0 w-full"
           >
             {navCategories.map(cat => {
               const catSlug = getCategorySlug(cat);
@@ -732,35 +731,22 @@ export default function Navbar() {
                   ))
                 )
               );
-
               return (
                 <Link
                   key={cat.id}
                   to={cat.id === 'for-you' ? '/for-you' : `/category/${catSlug}`}
-                  className={`flex flex-col items-center justify-center text-center group shrink-0 min-w-[56px] sm:min-w-[64px] transition-transform active:scale-95 cursor-pointer py-1`}
-                >
-                  {/* Category Logo / Image ONLY - No card/box containers, backgrounds, borders, shadows, or frames */}
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    {'image' in cat && cat.image && (cat.image.startsWith('http') || cat.image.startsWith('data:') || cat.image.startsWith('/')) ? (
-                      <img src={cat.image} alt={cat.name} className="w-full h-full object-contain" />
-                    ) : (
-                      renderCategoryFallbackIcon(cat.name, cat.icon, 'w-6 h-6 sm:w-7 sm:h-7', false, isActive ? '#059669' : '#374151')
-                    )}
-                  </div>
-
-                  {/* Category Name directly below logo/image */}
-                  <span className={`text-[11px] sm:text-xs tracking-tight line-clamp-1 mt-1 text-center transition-colors ${
+                  className={`transition-colors h-full flex items-center gap-2 border-b-2 pt-0.5 group shrink-0 ${
                     isActive
-                      ? 'text-emerald-600 font-black'
-                      : 'text-gray-700 font-semibold group-hover:text-emerald-600'
-                  }`}>
-                    {cat.name}
-                  </span>
-
-                  {/* Clean active indicator */}
-                  {isActive && (
-                    <span className="w-4 h-0.5 bg-emerald-600 rounded-full mt-1 shrink-0" />
-                  )}
+                      ? 'text-emerald-600 border-emerald-600 font-black'
+                      : 'border-transparent text-gray-500 hover:text-emerald-600'
+                  }`}
+                >
+                  <CategoryLogo
+                    name={cat.name}
+                    icon={cat.icon}
+                    size="sm"
+                  />
+                  <span>{cat.name}</span>
                 </Link>
               );
             })}
@@ -769,11 +755,11 @@ export default function Navbar() {
           <button
             type="button"
             onClick={scrollNavCategoryRight}
-            className="absolute right-1 z-10 p-1.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-600 hover:text-emerald-600 transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center translate-x-2 cursor-pointer"
+            className="absolute right-1 z-10 p-1 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-600 hover:text-primary transition-opacity opacity-0 group-hover/secnav:opacity-100 hidden md:flex items-center justify-center"
             title="Scroll Right"
             aria-label="Scroll Right"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
