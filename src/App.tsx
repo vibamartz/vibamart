@@ -143,9 +143,8 @@ function MainAppRoutes() {
             <Route path="/categories/:categorySlug" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/:subcategorySlug" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<MobileProductListScreen />} />
-            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:deepNestedSlug" element={<MobileProductListScreen />} />
-            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:deepNestedSlug/*" element={<MobileProductListScreen />} />
-            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/*" element={<MobileProductListScreen />} />
+            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:visualSlug" element={<MobileProductListScreen />} />
+            <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:visualSlug/:subLevel5" element={<MobileProductListScreen />} />
             <Route path="/categories/:categorySlug/*" element={<MobileProductListScreen />} />
             <Route path="/brands/:brandSlug" element={<MobileProductListScreen />} />
             <Route path="/search" element={<MobileSearchScreen />} />
@@ -223,12 +222,12 @@ function MainAppRoutes() {
           <Route path="/products" element={<ProductList />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/categories" element={<ProductList />} />
           <Route path="/categories/:categorySlug" element={<ProductList />} />
           <Route path="/categories/:categorySlug/:subcategorySlug" element={<ProductList />} />
           <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug" element={<ProductList />} />
-          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:deepNestedSlug" element={<ProductList />} />
-          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:deepNestedSlug/*" element={<ProductList />} />
-          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/*" element={<ProductList />} />
+          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:visualSlug" element={<ProductList />} />
+          <Route path="/categories/:categorySlug/:subcategorySlug/:nestedSubcategorySlug/:visualSlug/:subLevel5" element={<ProductList />} />
           <Route path="/categories/:categorySlug/*" element={<ProductList />} />
           <Route path="/brands/:brandSlug" element={<ProductList />} />
           <Route path="/offers" element={<ProductList />} />

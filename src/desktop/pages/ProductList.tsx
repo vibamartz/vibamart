@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
@@ -19,19 +19,20 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 export default function ProductList() {
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
+  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
-  const routeParams = useParams<{ 
-    categorySlug?: string; 
-    subcategorySlug?: string; 
-    nestedSubcategorySlug?: string; 
-    deepNestedSlug?: string; 
-    brandSlug?: string; 
+  const routeParams = useParams<{
+    categorySlug?: string;
+    subcategorySlug?: string;
+    nestedSubcategorySlug?: string;
+    visualSlug?: string;
+    subLevel5?: string;
+    brandSlug?: string;
     offerSlug?: string;
     '*'?: string;
   }>();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -46,112 +47,137 @@ export default function ProductList() {
     } catch { return []; }
   });
 
-  // Extract all dynamic path segments after /categories/
+  // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
-    if (location.pathname.startsWith('/categories/')) {
-      return location.pathname
-        .replace(/^\/categories\/?/, '')
-        .split('/')
-        .filter(Boolean)
-        .map(seg => decodeURIComponent(seg).trim());
-    }
-    return [
-      routeParams.categorySlug,
-      routeParams.subcategorySlug,
-      routeParams.nestedSubcategorySlug,
-      routeParams.deepNestedSlug,
-      routeParams['*']
-    ].filter(Boolean) as string[];
-  }, [location.pathname, routeParams]);
+    const cleanPath = location.pathname.replace(/^\/categories\/?/, '').replace(/\/+$/, '');
+    if (!cleanPath) return [];
+    return cleanPath.split('/').filter(Boolean).map(s => decodeURIComponent(s));
+  }, [location.pathname]);
 
-  // Resolve active category/subcategory/nestedSubcategory/brand/offer from route params or search params
-  const rawCat = pathSegments[0] || routeParams.categorySlug || searchParams.get('category') || '';
-  const rawSubCat = pathSegments[1] || routeParams.subcategorySlug || searchParams.get('subCategory') || '';
-  const rawNestedSubCat = pathSegments[2] || routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
-  const rawDeepNestedCat = pathSegments[3] || routeParams.deepNestedSlug || '';
+  // Resolve active category/subcategory/nestedSubcategory/brand/offer from route params, path segments, or search params
+  const rawCat = routeParams.categorySlug || pathSegments[0] || searchParams.get('category') || '';
+  const rawSubCat = routeParams.subcategorySlug || pathSegments[1] || searchParams.get('subCategory') || '';
+  const rawNestedSubCat = routeParams.nestedSubcategorySlug || pathSegments[2] || searchParams.get('nestedSubCategory') || '';
+  const rawVisual = routeParams.visualSlug || pathSegments[3] || searchParams.get('visual') || '';
+  const rawLevel5 = routeParams.subLevel5 || pathSegments[4] || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
-  // Match category object by ID, seoSlug, or generated slug
+  // Match root category object by ID, seoSlug, or generated slug
   const matchedCategory = useMemo(() => {
     if (!rawCat) return null;
     return CATEGORIES.find(c => 
-      c.id === rawCat || 
-      c.slug === rawCat || 
-      c.seoSlug === rawCat || 
-      createSlug(c.name) === rawCat ||
-      (c.name && c.name.toLowerCase() === rawCat.toLowerCase())
+      c && (
+        c.id === rawCat || 
+        c.slug === rawCat || 
+        c.seoSlug === rawCat || 
+        createSlug(c.name) === rawCat ||
+        (c.name && c.name.toLowerCase() === rawCat.toLowerCase())
+      )
     ) || null;
   }, [rawCat, CATEGORIES]);
 
-  // Match subcategory object by ID, slug, or generated slug
+  // Match subcategory object (Level 1) by ID, slug, or generated slug
   const matchedSubcategory = useMemo(() => {
-    if (!rawSubCat || !matchedCategory?.subcategories) return null;
-    return matchedCategory.subcategories.find(s => 
-      s.id === rawSubCat || 
-      s.slug === rawSubCat || 
-      (s as any).seoSlug === rawSubCat || 
-      createSlug(s.name) === rawSubCat ||
-      (s.name && s.name.toLowerCase() === rawSubCat.toLowerCase())
-    ) || null;
-  }, [rawSubCat, matchedCategory]);
+    if (!rawSubCat) return null;
+    if (matchedCategory?.subcategories) {
+      const found = matchedCategory.subcategories.find(s => 
+        s && (
+          s.id === rawSubCat || 
+          s.slug === rawSubCat || 
+          (s as any).seoSlug === rawSubCat || 
+          createSlug(s.name) === rawSubCat ||
+          (s.name && s.name.toLowerCase() === rawSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    for (const cat of CATEGORIES) {
+      const found = cat.subcategories?.find(s => 
+        s && (
+          s.id === rawSubCat || 
+          s.slug === rawSubCat || 
+          (s as any).seoSlug === rawSubCat || 
+          createSlug(s.name) === rawSubCat ||
+          (s.name && s.name.toLowerCase() === rawSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [rawSubCat, matchedCategory, CATEGORIES]);
 
-  // Match nested subcategory object by ID, slug, or generated slug
+  // Match nested subcategory object (Level 2) by ID, slug, or generated slug
   const matchedNestedSubcategory = useMemo(() => {
     if (!rawNestedSubCat) return null;
     if (matchedSubcategory?.subcategories) {
       const found = matchedSubcategory.subcategories.find(n => 
+        n && (
+          n.id === rawNestedSubCat || 
+          n.slug === rawNestedSubCat || 
+          (n as any).seoSlug === rawNestedSubCat || 
+          createSlug(n.name) === rawNestedSubCat ||
+          (n.name && n.name.toLowerCase() === rawNestedSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    return matchedCategory?.subcategories?.flatMap(s => s.subcategories || []).find(n => 
+      n && (
         n.id === rawNestedSubCat || 
         n.slug === rawNestedSubCat || 
         (n as any).seoSlug === rawNestedSubCat || 
         createSlug(n.name) === rawNestedSubCat ||
         (n.name && n.name.toLowerCase() === rawNestedSubCat.toLowerCase())
-      );
-      if (found) return found;
-    }
-    return matchedCategory?.subcategories?.flatMap(s => s.subcategories || []).find(n => 
-      n.id === rawNestedSubCat || 
-      n.slug === rawNestedSubCat || 
-      (n as any).seoSlug === rawNestedSubCat || 
-      createSlug(n.name) === rawNestedSubCat ||
-      (n.name && n.name.toLowerCase() === rawNestedSubCat.toLowerCase())
+      )
     ) || null;
   }, [rawNestedSubCat, matchedSubcategory, matchedCategory]);
 
-  // Match deep nested subcategory (Level 4+)
-  const matchedDeepNested = useMemo(() => {
-    if (!rawDeepNestedCat || !matchedNestedSubcategory?.subcategories) return null;
-    return matchedNestedSubcategory.subcategories.find(n => 
-      n.id === rawDeepNestedCat || 
-      n.slug === rawDeepNestedCat || 
-      (n as any).seoSlug === rawDeepNestedCat || 
-      createSlug(n.name) === rawDeepNestedCat ||
-      (n.name && n.name.toLowerCase() === rawDeepNestedCat.toLowerCase())
+  // Match deeper Level 3+ recursive child subcategory if present
+  const matchedDeepChildSubcategory = useMemo(() => {
+    const deepSlug = rawVisual || rawLevel5;
+    if (!deepSlug || !matchedNestedSubcategory?.subcategories) return null;
+    return matchedNestedSubcategory.subcategories.find(c => 
+      c && (
+        c.id === deepSlug || 
+        c.slug === deepSlug || 
+        (c as any).seoSlug === deepSlug || 
+        createSlug(c.name) === deepSlug ||
+        (c.name && c.name.toLowerCase() === deepSlug.toLowerCase())
+      )
     ) || null;
-  }, [rawDeepNestedCat, matchedNestedSubcategory]);
+  }, [rawVisual, rawLevel5, matchedNestedSubcategory]);
 
-  // Match Visual Nested Subcategory (if dedicated page opened)
+  // Match Visual Nested Subcategory object dynamically across all depth levels
   const matchedVisualNestedSubcategory = useMemo(() => {
-    if (!pathSegments.length || !visualNestedItems.length) return null;
-    const lastSeg = pathSegments[pathSegments.length - 1];
-    if (!lastSeg) return null;
+    if (!Array.isArray(visualNestedItems) || visualNestedItems.length === 0) return null;
+    const targetSlug = rawVisual || (!matchedDeepChildSubcategory && !matchedNestedSubcategory && rawNestedSubCat ? rawNestedSubCat : (!matchedSubcategory && rawSubCat ? rawSubCat : ''));
+    if (!targetSlug) return null;
 
-    const item = visualNestedItems.find(v => 
-      v.id === lastSeg || 
-      v.slug === lastSeg || 
-      v.seoSlug === lastSeg || 
-      createSlug(v.name || '') === lastSeg ||
-      (v.name && v.name.toLowerCase() === lastSeg.toLowerCase())
-    );
-    if (!item) return null;
+    return visualNestedItems.find(v => {
+      if (!v || v.isActive === false) return false;
+      const slugMatch = 
+        v.id === targetSlug || 
+        v.slug === targetSlug || 
+        v.seoSlug === targetSlug || 
+        createSlug(v.name || '') === targetSlug ||
+        (v.name && v.name.toLowerCase() === targetSlug.toLowerCase());
+      if (!slugMatch) return false;
 
-    if (matchedCategory && item.categoryId && item.categoryId !== matchedCategory.id) {
-      if (item.categoryName && matchedCategory.name && item.categoryName.toLowerCase() !== matchedCategory.name.toLowerCase()) {
-        return null;
+      // Align with active category hierarchy if present
+      if (matchedCategory && v.categoryId && v.categoryId !== matchedCategory.id && v.categoryId !== matchedCategory.slug && v.categoryId !== createSlug(matchedCategory.name)) {
+        if (v.categoryName && matchedCategory.name && v.categoryName.toLowerCase() !== matchedCategory.name.toLowerCase()) {
+          return false;
+        }
       }
-    }
-    return item;
-  }, [pathSegments, visualNestedItems, matchedCategory]);
+      if (matchedSubcategory && v.subCategoryId && v.subCategoryId !== matchedSubcategory.id && v.subCategoryId !== matchedSubcategory.slug && v.subCategoryId !== createSlug(matchedSubcategory.name)) {
+        if (v.subCategoryName && matchedSubcategory.name && v.subCategoryName.toLowerCase() !== matchedSubcategory.name.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    }) || null;
+  }, [rawVisual, rawNestedSubCat, rawSubCat, matchedCategory, matchedSubcategory, matchedNestedSubcategory, matchedDeepChildSubcategory, visualNestedItems]);
 
   // Match banner object if opening a banner route
   const matchedBanner = useMemo(() => {
@@ -305,13 +331,15 @@ export default function ProductList() {
 
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
-    const activeCatId = matchedCategory?.id || rawCat;
+    const activeCatId = matchedCategory?.id || matchedVisualNestedSubcategory?.categoryId || rawCat;
     if (activeCatId && !selectedCategories.includes(activeCatId)) {
       setSelectedCategories([activeCatId]);
     }
 
     if (matchedSubcategory) {
       setSelectedSubCategories([matchedSubcategory.id]);
+    } else if (matchedVisualNestedSubcategory?.subCategoryId && matchedVisualNestedSubcategory.subCategoryId !== 'all') {
+      setSelectedSubCategories([matchedVisualNestedSubcategory.subCategoryId]);
     } else if (rawSubCat) {
       const foundSub = matchedCategory?.subcategories?.find(s => s.id === rawSubCat || s.slug === rawSubCat || createSlug(s.name) === rawSubCat);
       if (foundSub) setSelectedSubCategories([foundSub.id]);
@@ -319,8 +347,12 @@ export default function ProductList() {
       setSelectedSubCategories([]);
     }
 
-    if (matchedNestedSubcategory) {
+    if (matchedDeepChildSubcategory) {
+      setSelectedNestedSubCategories([matchedDeepChildSubcategory.id]);
+    } else if (matchedNestedSubcategory) {
       setSelectedNestedSubCategories([matchedNestedSubcategory.id]);
+    } else if (matchedVisualNestedSubcategory?.nestedSubCategoryId) {
+      setSelectedNestedSubCategories([matchedVisualNestedSubcategory.nestedSubCategoryId]);
     } else if (rawNestedSubCat) {
       const foundNested = matchedSubcategory?.subcategories?.find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat);
       if (foundNested) setSelectedNestedSubCategories([foundNested.id]);
@@ -332,7 +364,7 @@ export default function ProductList() {
       const foundBrand = allProducts.find(p => p.brand && (p.brand === rawBrand || createSlug(p.brand) === rawBrand))?.brand || rawBrand;
       setSelectedBrands([foundBrand]);
     }
-  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand, allProducts]);
+  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, matchedDeepChildSubcategory, matchedVisualNestedSubcategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand, allProducts]);
 
   useEffect(() => {
     // Clear subcategories if they don't belong to any of the selected categories
@@ -360,46 +392,20 @@ export default function ProductList() {
         if (!assignedIds.has(p.id)) return false;
       }
 
-      // Category hierarchy filtering
-      if (!matchedBanner) {
-        if (matchedVisualNestedSubcategory) {
-          const v = matchedVisualNestedSubcategory;
-          const vId = v.id;
-          const vName = (v.name || '').toLowerCase();
-          const targetNested = v.nestedSubCategoryId;
-          const targetSub = v.subCategoryId;
-          const targetCat = v.categoryId;
-
-          const matchesVisual = 
-            p.nestedSubCategoryId === vId ||
-            p.subCategoryId === vId ||
-            (targetNested && p.nestedSubCategoryId === targetNested) ||
-            (targetSub && p.subCategoryId === targetSub && (!targetCat || p.categoryId === targetCat)) ||
-            (vName && [p.name, p.description, ...(p.tags || [])].some(t => t && t.toLowerCase().includes(vName)));
-          
-          if (!matchesVisual) return false;
-        } else if (matchedDeepNested) {
-          if (p.nestedSubCategoryId !== matchedDeepNested.id) return false;
-        } else if (matchedNestedSubcategory) {
-          if (p.nestedSubCategoryId !== matchedNestedSubcategory.id) return false;
-        } else if (matchedSubcategory) {
-          if (p.subCategoryId !== matchedSubcategory.id) return false;
-        } else if (matchedCategory) {
-          if (matchedCategory.id !== 'all-deals' && p.categoryId !== matchedCategory.id && !p.categories?.includes(matchedCategory.id)) return false;
-        } else if (selectedCategories.length > 0) {
-          if (selectedCategories.includes('all-deals')) {
-            if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
-          } else if (!selectedCategories.includes(p.categoryId)) {
-            return false;
-          }
+      // Category filter (Skip category filter if viewing explicit banner)
+      if (!matchedBanner && selectedCategories.length > 0) {
+        if (selectedCategories.includes('all-deals')) {
+          if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
+        } else if (!selectedCategories.includes(p.categoryId)) {
+          return false;
         }
-
-        // SubCategory filter fallback
-        if (selectedSubCategories.length > 0 && (!p.subCategoryId || !selectedSubCategories.includes(p.subCategoryId))) return false;
-
-        // Nested SubCategory filter fallback
-        if (selectedNestedSubCategories.length > 0 && (!p.nestedSubCategoryId || !selectedNestedSubCategories.includes(p.nestedSubCategoryId))) return false;
       }
+
+      // SubCategory filter
+      if (selectedSubCategories.length > 0 && (!p.subCategoryId || !selectedSubCategories.includes(p.subCategoryId))) return false;
+
+      // Nested SubCategory filter
+      if (selectedNestedSubCategories.length > 0 && (!p.nestedSubCategoryId || !selectedNestedSubCategories.includes(p.nestedSubCategoryId))) return false;
 
       // Brand filter
       if (selectedBrands.length > 0 && p.brand && !selectedBrands.includes(p.brand)) return false;
@@ -623,63 +629,6 @@ export default function ProductList() {
     </>
   );
 
-  const childCategoryData = useMemo(() => {
-    if (matchedDeepNested?.subcategories && matchedDeepNested.subcategories.length > 0) {
-      return { list: matchedDeepNested.subcategories, parentName: matchedDeepNested.name, level: 'deep' };
-    }
-    if (matchedNestedSubcategory?.subcategories && matchedNestedSubcategory.subcategories.length > 0) {
-      return { list: matchedNestedSubcategory.subcategories, parentName: matchedNestedSubcategory.name, level: 'nested' };
-    }
-    if (matchedSubcategory?.subcategories && matchedSubcategory.subcategories.length > 0 && !matchedNestedSubcategory && !matchedVisualNestedSubcategory) {
-      return { list: matchedSubcategory.subcategories, parentName: matchedSubcategory.name, level: 'sub' };
-    }
-    if (matchedCategory?.subcategories && matchedCategory.subcategories.length > 0 && !matchedSubcategory && !matchedVisualNestedSubcategory) {
-      return { list: matchedCategory.subcategories, parentName: matchedCategory.name, level: 'cat' };
-    }
-    return { list: [], parentName: '', level: 'none' };
-  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, matchedDeepNested, matchedVisualNestedSubcategory]);
-
-  const activeTitle = matchedVisualNestedSubcategory
-    ? (matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.seoTitle || 'Featured Collection')
-    : (matchedDeepNested
-        ? matchedDeepNested.name
-        : (matchedNestedSubcategory
-            ? matchedNestedSubcategory.name
-            : (matchedSubcategory
-                ? matchedSubcategory.name
-                : (matchedCategory
-                    ? matchedCategory.name
-                    : 'Browse Products'))));
-
-  const activeDescription = matchedVisualNestedSubcategory?.description ||
-    (matchedSubcategory
-      ? `Browse all ${matchedDeepNested ? matchedDeepNested.name : (matchedNestedSubcategory ? matchedNestedSubcategory.name : matchedSubcategory.name)} products and collections`
-      : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection'));
-
-  const activeBreadcrumbs = useMemo(() => {
-    const parts: { name: string; path: string }[] = [];
-    if (matchedCategory) {
-      const catSlug = getCategorySlug(matchedCategory);
-      parts.push({ name: matchedCategory.name, path: `/categories/${catSlug}` });
-      if (matchedSubcategory) {
-        const subSlug = getSubcategorySlug(matchedSubcategory);
-        parts.push({ name: matchedSubcategory.name, path: `/categories/${catSlug}/${subSlug}` });
-        if (matchedNestedSubcategory) {
-          const nestedSlug = getNestedSubcategorySlug(matchedNestedSubcategory);
-          parts.push({ name: matchedNestedSubcategory.name, path: `/categories/${catSlug}/${subSlug}/${nestedSlug}` });
-          if (matchedDeepNested) {
-            const deepSlug = getNestedSubcategorySlug(matchedDeepNested);
-            parts.push({ name: matchedDeepNested.name, path: `/categories/${catSlug}/${subSlug}/${nestedSlug}/${deepSlug}` });
-          }
-        }
-      }
-    }
-    if (matchedVisualNestedSubcategory && !parts.some(p => p.name.toLowerCase() === (matchedVisualNestedSubcategory.name || '').toLowerCase())) {
-      parts.push({ name: matchedVisualNestedSubcategory.name || 'Collection', path: location.pathname });
-    }
-    return parts;
-  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, matchedDeepNested, matchedVisualNestedSubcategory, location.pathname]);
-
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Header / Breadcrumbs */}
@@ -747,74 +696,167 @@ export default function ProductList() {
 
           {!matchedBanner && (
             <div className="mb-4">
+              {/* Hierarchical Breadcrumb Navigation */}
+              {matchedCategory && (
+                <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-gray-500 mb-2">
+                  <Link to={`/categories/${getCategorySlug(matchedCategory)}`} className="hover:text-emerald-700 text-emerald-800">
+                    {matchedCategory.name}
+                  </Link>
+                  {matchedSubcategory && (
+                    <>
+                      <span>›</span>
+                      <Link to={`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory)}`} className="hover:text-emerald-700 text-emerald-800">
+                        {matchedSubcategory.name}
+                      </Link>
+                    </>
+                  )}
+                  {matchedNestedSubcategory && (
+                    <>
+                      <span>›</span>
+                      <Link to={`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory!)}/${getNestedSubcategorySlug(matchedNestedSubcategory)}`} className="hover:text-emerald-700 text-emerald-800">
+                        {matchedNestedSubcategory.name}
+                      </Link>
+                    </>
+                  )}
+                  {matchedDeepChildSubcategory && (
+                    <>
+                      <span>›</span>
+                      <span className="text-gray-900">{matchedDeepChildSubcategory.name}</span>
+                    </>
+                  )}
+                  {matchedVisualNestedSubcategory && (
+                    <>
+                      <span>›</span>
+                      <span className="text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full text-[11px] font-black">
+                        {matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Collection'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                  {activeTitle}
+                  {matchedVisualNestedSubcategory
+                    ? (matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Visual Collection')
+                    : (matchedDeepChildSubcategory
+                      ? matchedDeepChildSubcategory.name
+                      : (matchedNestedSubcategory
+                        ? matchedNestedSubcategory.name
+                        : (matchedSubcategory
+                          ? matchedSubcategory.name
+                          : (matchedCategory ? matchedCategory.name : 'Browse Products'))))}
                 </h1>
-                {activeBreadcrumbs.length > 1 && (
+                {matchedCategory && (
                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-                    {activeBreadcrumbs.slice(0, -1).map(b => b.name).join(' › ')}
+                    {matchedVisualNestedSubcategory
+                      ? (matchedNestedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory?.name || ''} › ${matchedNestedSubcategory.name}` : (matchedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory.name}` : matchedCategory.name))
+                      : (matchedNestedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory?.name || ''}` : (matchedSubcategory ? matchedCategory.name : 'All Categories'))}
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 font-medium mt-1">
-                {activeDescription}
+                {matchedVisualNestedSubcategory
+                  ? (matchedVisualNestedSubcategory.description || `Discover trending styles and collections in ${matchedNestedSubcategory?.name || matchedSubcategory?.name || matchedCategory?.name || 'this collection'}`)
+                  : (matchedDeepChildSubcategory
+                    ? `Browse all ${matchedDeepChildSubcategory.name} products and collections`
+                    : (matchedNestedSubcategory
+                      ? `Browse all ${matchedNestedSubcategory.name} products and collections`
+                      : (matchedSubcategory
+                        ? `Browse all ${matchedSubcategory.name} products and collections`
+                        : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection'))))}
               </p>
             </div>
           )}
 
-          {/* Dedicated Child Subcategories Exploration Showcase for active node */}
-          {childCategoryData.list.length > 0 && (
+          {/* Subcategories Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+          {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
+            <div className="py-4 mb-4 border-t border-b border-gray-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-gray-500">
+                  {matchedCategory.name} Subcategories
+                </span>
+                <span className="text-xs text-emerald-700 font-bold">
+                  {matchedCategory.subcategories.length} Subcategories
+                </span>
+              </div>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
+                {matchedCategory.subcategories.map(sub => {
+                  const isSubActive = matchedSubcategory?.id === sub.id || selectedSubCategories.includes(sub.id);
+                  const catSlug = getCategorySlug(matchedCategory);
+                  const subSlug = getSubcategorySlug(sub);
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => {
+                        navigate(`/categories/${catSlug}/${subSlug}`);
+                      }}
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
+                    >
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                        isSubActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
+                      }`}>
+                        {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                          <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${isSubActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", isSubActive)}
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
+                        isSubActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
+                      }`}>
+                        {sub.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Level 3 Deep Subcategories Showcase (if matchedNestedSubcategory has children) */}
+          {matchedNestedSubcategory && matchedNestedSubcategory.subcategories && matchedNestedSubcategory.subcategories.length > 0 && (
             <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <span>Explore {childCategoryData.parentName} Subcategories</span>
+                    <span>Explore {matchedNestedSubcategory.name} Subcategories</span>
                   </h3>
-                  <p className="text-xs text-gray-600 font-medium">Click to view dedicated subcategory page</p>
+                  <p className="text-xs text-gray-600 font-medium">Click to filter by subcategory</p>
                 </div>
-                {(matchedNestedSubcategory || matchedDeepNested) && (
+                {matchedDeepChildSubcategory && (
                   <button
                     onClick={() => {
-                      const catSlug = matchedCategory ? getCategorySlug(matchedCategory) : 'categories';
-                      const subSlug = matchedSubcategory ? getSubcategorySlug(matchedSubcategory) : '';
-                      if (matchedDeepNested && matchedNestedSubcategory) {
-                        const nestedSlug = getNestedSubcategorySlug(matchedNestedSubcategory);
-                        navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
-                      } else if (subSlug) {
-                        navigate(`/categories/${catSlug}/${subSlug}`);
-                      } else {
-                        navigate(`/categories/${catSlug}`);
-                      }
+                      const catSlug = getCategorySlug(matchedCategory!);
+                      const subSlug = getSubcategorySlug(matchedSubcategory!);
+                      const nestedSlug = getNestedSubcategorySlug(matchedNestedSubcategory);
+                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
                     }}
                     className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
                   >
-                    View All in {matchedSubcategory?.name || matchedCategory?.name}
+                    View All in {matchedNestedSubcategory.name}
                   </button>
                 )}
               </div>
 
               <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-                {childCategoryData.list.map(child => {
+                {matchedNestedSubcategory.subcategories.map(child => {
+                  const isChildActive = matchedDeepChildSubcategory?.id === child.id;
+                  const catSlug = getCategorySlug(matchedCategory!);
+                  const subSlug = getSubcategorySlug(matchedSubcategory!);
+                  const nestedSlug = getNestedSubcategorySlug(matchedNestedSubcategory);
                   const childSlug = getNestedSubcategorySlug(child);
-                  const isChildActive = selectedNestedSubCategories.includes(child.id) || selectedSubCategories.includes(child.id);
                   return (
                     <button
                       key={child.id}
                       onClick={() => {
-                        const catSlug = matchedCategory ? getCategorySlug(matchedCategory) : 'categories';
-                        const subSlug = matchedSubcategory ? getSubcategorySlug(matchedSubcategory) : '';
-                        const nestedSlug = matchedNestedSubcategory ? getNestedSubcategorySlug(matchedNestedSubcategory) : '';
-                        if (childCategoryData.level === 'cat') {
-                          navigate(`/categories/${catSlug}/${childSlug}`);
-                        } else if (childCategoryData.level === 'sub') {
-                          navigate(`/categories/${catSlug}/${subSlug}/${childSlug}`);
-                        } else if (childCategoryData.level === 'nested') {
+                        if (isChildActive) {
+                          navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+                        } else {
                           navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${childSlug}`);
-                        } else if (childCategoryData.level === 'deep') {
-                          const deepSlug = matchedDeepNested ? getNestedSubcategorySlug(matchedDeepNested) : '';
-                          navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${deepSlug}/${childSlug}`);
                         }
                       }}
                       className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
@@ -842,13 +884,79 @@ export default function ProductList() {
             </div>
           )}
 
+          {/* Dedicated Nested Subcategories Showcase for the active Subcategory (Level 2) */}
+          {!matchedNestedSubcategory && matchedSubcategory && matchedSubcategory.subcategories && matchedSubcategory.subcategories.length > 0 && (
+            <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span>Explore {matchedSubcategory.name} Subcategories</span>
+                  </h3>
+                  <p className="text-xs text-gray-600 font-medium">Click to filter by nested subcategory</p>
+                </div>
+                {matchedNestedSubcategory && (
+                  <button
+                    onClick={() => {
+                      const catSlug = getCategorySlug(matchedCategory!);
+                      const subSlug = getSubcategorySlug(matchedSubcategory);
+                      navigate(`/categories/${catSlug}/${subSlug}`);
+                    }}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                  >
+                    View All in {matchedSubcategory.name}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+                {matchedSubcategory.subcategories.map(nested => {
+                  const isNestedActive = matchedNestedSubcategory?.id === nested.id || selectedNestedSubCategories.includes(nested.id);
+                  const catSlug = getCategorySlug(matchedCategory!);
+                  const subSlug = getSubcategorySlug(matchedSubcategory);
+                  const nestedSlug = getNestedSubcategorySlug(nested);
+                  return (
+                    <button
+                      key={nested.id}
+                      onClick={() => {
+                        if (isNestedActive) {
+                          navigate(`/categories/${catSlug}/${subSlug}`);
+                        } else {
+                          navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+                        }
+                      }}
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
+                    >
+                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                        isNestedActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
+                      }`}>
+                        {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
+                          <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${isNestedActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {renderCategoryFallbackIcon(nested.name, nested.icon, "w-8 h-8 sm:w-10 sm:h-10", isNestedActive)}
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
+                        isNestedActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
+                      }`}>
+                        {nested.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Dynamic Visual Nested Subcategories Showcase */}
           {matchedCategory && (
             <VisualNestedSubcategoriesSection
               categoryId={matchedCategory.id}
               subCategoryId={matchedSubcategory?.id}
-              nestedSubCategoryId={matchedDeepNested?.id || matchedNestedSubcategory?.id}
-              parentTargetId={matchedVisualNestedSubcategory?.id || matchedDeepNested?.id || matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
+              nestedSubCategoryId={matchedNestedSubcategory?.id}
+              parentTargetId={matchedVisualNestedSubcategory?.id || matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
             />
           )}
 

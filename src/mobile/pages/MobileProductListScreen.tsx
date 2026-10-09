@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { 
   Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles
 } from 'lucide-react';
@@ -17,68 +17,163 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const location = useLocation();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
-  const routeParams = useParams<{ 
-    categorySlug?: string; 
-    subcategorySlug?: string; 
-    nestedSubcategorySlug?: string; 
-    deepNestedSlug?: string;
-    brandSlug?: string; 
+  const routeParams = useParams<{
+    categorySlug?: string;
+    subcategorySlug?: string;
+    nestedSubcategorySlug?: string;
+    visualSlug?: string;
+    subLevel5?: string;
+    brandSlug?: string;
     offerSlug?: string;
     '*'?: string;
   }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { categories } = useCategoryStore();
+  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
 
-  // Extract all dynamic path segments after /categories/
+  // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
-    if (location.pathname.startsWith('/categories/')) {
-      return location.pathname
-        .replace(/^\/categories\/?/, '')
-        .split('/')
-        .filter(Boolean)
-        .map(seg => decodeURIComponent(seg).trim());
-    }
-    return [
-      routeParams.categorySlug,
-      routeParams.subcategorySlug,
-      routeParams.nestedSubcategorySlug,
-      routeParams.deepNestedSlug,
-      routeParams['*']
-    ].filter(Boolean) as string[];
-  }, [location.pathname, routeParams]);
+    const cleanPath = location.pathname.replace(/^\/categories\/?/, '').replace(/\/+$/, '');
+    if (!cleanPath) return [];
+    return cleanPath.split('/').filter(Boolean).map(s => decodeURIComponent(s));
+  }, [location.pathname]);
 
-  const rawCat = pathSegments[0] || routeParams.categorySlug || searchParams.get('category') || '';
-  const rawSubCat = pathSegments[1] || routeParams.subcategorySlug || searchParams.get('subCategory') || '';
-  const rawNestedSubCat = pathSegments[2] || routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
-  const rawDeepNestedCat = pathSegments[3] || routeParams.deepNestedSlug || '';
+  const rawCat = routeParams.categorySlug || pathSegments[0] || searchParams.get('category') || '';
+  const rawSubCat = routeParams.subcategorySlug || pathSegments[1] || searchParams.get('subCategory') || '';
+  const rawNestedSubCat = routeParams.nestedSubcategorySlug || pathSegments[2] || searchParams.get('nestedSubCategory') || '';
+  const rawVisual = routeParams.visualSlug || pathSegments[3] || searchParams.get('visual') || '';
+  const rawLevel5 = routeParams.subLevel5 || pathSegments[4] || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
-  const matchedCategory = useMemo(() => {
+  // Active Category Object
+  const currentCategoryObj = useMemo(() => {
     if (!rawCat) return null;
     return categories.find(c => 
-      c.id === rawCat || 
-      c.slug === rawCat || 
-      c.seoSlug === rawCat || 
-      createSlug(c.name) === rawCat ||
-      (c.name && c.name.toLowerCase() === rawCat.toLowerCase())
+      c && (
+        c.id === rawCat || 
+        c.slug === rawCat || 
+        c.seoSlug === rawCat || 
+        createSlug(c.name) === rawCat ||
+        (c.name && c.name.toLowerCase() === rawCat.toLowerCase())
+      )
     ) || null;
   }, [rawCat, categories]);
 
   // Backward compatibility redirect for numeric category routes
   useEffect(() => {
-    if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
-      const canonical = getCategorySlug(matchedCategory);
+    if (currentCategoryObj && (rawCat === currentCategoryObj.id || /^\d+$/.test(rawCat))) {
+      const canonical = getCategorySlug(currentCategoryObj);
       if (canonical && rawCat !== canonical) {
         navigate(`/category/${canonical}`, { replace: true });
       }
     }
-  }, [matchedCategory, rawCat, navigate]);
+  }, [currentCategoryObj, rawCat, navigate]);
+
+  // Active SubCategory Object (Level 1)
+  const currentSubCategoryObj = useMemo(() => {
+    if (!rawSubCat) return null;
+    if (currentCategoryObj?.subcategories) {
+      const found = currentCategoryObj.subcategories.find(s => 
+        s && (
+          s.id === rawSubCat || 
+          s.slug === rawSubCat || 
+          (s as any).seoSlug === rawSubCat || 
+          createSlug(s.name) === rawSubCat ||
+          (s.name && s.name.toLowerCase() === rawSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    for (const cat of categories) {
+      const found = cat.subcategories?.find(s => 
+        s && (
+          s.id === rawSubCat || 
+          s.slug === rawSubCat || 
+          (s as any).seoSlug === rawSubCat || 
+          createSlug(s.name) === rawSubCat ||
+          (s.name && s.name.toLowerCase() === rawSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [rawSubCat, currentCategoryObj, categories]);
+
+  // Active Nested SubCategory Object (Level 2)
+  const currentNestedSubCategoryObj = useMemo(() => {
+    if (!rawNestedSubCat) return null;
+    if (currentSubCategoryObj?.subcategories) {
+      const found = currentSubCategoryObj.subcategories.find(n => 
+        n && (
+          n.id === rawNestedSubCat || 
+          n.slug === rawNestedSubCat || 
+          (n as any).seoSlug === rawNestedSubCat || 
+          createSlug(n.name) === rawNestedSubCat ||
+          (n.name && n.name.toLowerCase() === rawNestedSubCat.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+    return currentCategoryObj?.subcategories?.flatMap(s => s.subcategories || []).find(n => 
+      n && (
+        n.id === rawNestedSubCat || 
+        n.slug === rawNestedSubCat || 
+        (n as any).seoSlug === rawNestedSubCat || 
+        createSlug(n.name) === rawNestedSubCat ||
+        (n.name && n.name.toLowerCase() === rawNestedSubCat.toLowerCase())
+      )
+    ) || null;
+  }, [rawNestedSubCat, currentSubCategoryObj, currentCategoryObj]);
+
+  // Active Level 3 Deep SubCategory Object
+  const currentDeepChildSubCategoryObj = useMemo(() => {
+    const deepSlug = rawVisual || rawLevel5;
+    if (!deepSlug || !currentNestedSubCategoryObj?.subcategories) return null;
+    return currentNestedSubCategoryObj.subcategories.find(c => 
+      c && (
+        c.id === deepSlug || 
+        c.slug === deepSlug || 
+        (c as any).seoSlug === deepSlug || 
+        createSlug(c.name) === deepSlug ||
+        (c.name && c.name.toLowerCase() === deepSlug.toLowerCase())
+      )
+    ) || null;
+  }, [rawVisual, rawLevel5, currentNestedSubCategoryObj]);
+
+  // Active Visual Nested SubCategory Object
+  const currentVisualNestedSubcategoryObj = useMemo(() => {
+    if (!Array.isArray(visualNestedItems) || visualNestedItems.length === 0) return null;
+    const targetSlug = rawVisual || (!currentDeepChildSubCategoryObj && !currentNestedSubCategoryObj && rawNestedSubCat ? rawNestedSubCat : (!currentSubCategoryObj && rawSubCat ? rawSubCat : ''));
+    if (!targetSlug) return null;
+
+    return visualNestedItems.find(v => {
+      if (!v || v.isActive === false) return false;
+      const slugMatch = 
+        v.id === targetSlug || 
+        v.slug === targetSlug || 
+        v.seoSlug === targetSlug || 
+        createSlug(v.name || '') === targetSlug ||
+        (v.name && v.name.toLowerCase() === targetSlug.toLowerCase());
+      if (!slugMatch) return false;
+
+      if (currentCategoryObj && v.categoryId && v.categoryId !== currentCategoryObj.id && v.categoryId !== currentCategoryObj.slug && v.categoryId !== createSlug(currentCategoryObj.name)) {
+        if (v.categoryName && currentCategoryObj.name && v.categoryName.toLowerCase() !== currentCategoryObj.name.toLowerCase()) {
+          return false;
+        }
+      }
+      if (currentSubCategoryObj && v.subCategoryId && v.subCategoryId !== currentSubCategoryObj.id && v.subCategoryId !== currentSubCategoryObj.slug && v.subCategoryId !== createSlug(currentSubCategoryObj.name)) {
+        if (v.subCategoryName && currentSubCategoryObj.name && v.subCategoryName.toLowerCase() !== currentSubCategoryObj.name.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    }) || null;
+  }, [rawVisual, rawNestedSubCat, rawSubCat, currentCategoryObj, currentSubCategoryObj, currentNestedSubCategoryObj, currentDeepChildSubCategoryObj, visualNestedItems]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -96,9 +191,9 @@ export default function MobileProductListScreen() {
   const [sortBy, setSortBy] = useState<'featured' | 'low-high' | 'high-low' | 'rating'>('featured');
 
   // Filter States
-  const [selectedCategory, setSelectedCategory] = useState<string>(matchedCategory?.id || rawCat);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(rawSubCat);
-  const [selectedNestedSubCategory, setSelectedNestedSubCategory] = useState<string>(rawNestedSubCat);
+  const [selectedCategory, setSelectedCategory] = useState<string>(currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || rawCat);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(currentSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.subCategoryId || rawSubCat);
+  const [selectedNestedSubCategory, setSelectedNestedSubCategory] = useState<string>(currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || rawNestedSubCat);
   const [selectedBrand, setSelectedBrand] = useState<string>(rawBrand);
   const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [minRating, setMinRating] = useState<number>(0);
@@ -107,108 +202,17 @@ export default function MobileProductListScreen() {
 
   // Sync state when URL params change
   useEffect(() => {
-    const activeCatId = matchedCategory?.id || rawCat;
+    const activeCatId = currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || rawCat;
     if (activeCatId) setSelectedCategory(activeCatId);
-    setSelectedSubCategory(rawSubCat);
-    setSelectedNestedSubCategory(rawNestedSubCat);
+    
+    const activeSubId = currentSubCategoryObj?.id || (currentVisualNestedSubcategoryObj?.subCategoryId !== 'all' ? currentVisualNestedSubcategoryObj?.subCategoryId : '') || rawSubCat;
+    setSelectedSubCategory(activeSubId || '');
+    
+    const activeNestedId = currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || rawNestedSubCat;
+    setSelectedNestedSubCategory(activeNestedId || '');
+    
     if (rawBrand) setSelectedBrand(rawBrand);
-  }, [matchedCategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand]);
-
-  // Active Category Object
-  const currentCategoryObj = useMemo(() => {
-    if (!selectedCategory) return null;
-    return categories.find(c => 
-      c.id === selectedCategory || 
-      c.slug === selectedCategory || 
-      createSlug(c.name) === selectedCategory ||
-      (c.name && c.name.toLowerCase() === selectedCategory.toLowerCase())
-    ) || null;
-  }, [selectedCategory, categories]);
-
-  // Active SubCategory Object
-  const currentSubCategoryObj = useMemo(() => {
-    if (!selectedSubCategory || !currentCategoryObj?.subcategories) return null;
-    return currentCategoryObj.subcategories.find(s => 
-      s.id === selectedSubCategory || 
-      s.slug === selectedSubCategory || 
-      (s as any).seoSlug === selectedSubCategory ||
-      createSlug(s.name) === selectedSubCategory ||
-      (s.name && s.name.toLowerCase() === selectedSubCategory.toLowerCase())
-    ) || null;
-  }, [selectedSubCategory, currentCategoryObj]);
-
-  // Active Nested SubCategory Object
-  const currentNestedSubCategoryObj = useMemo(() => {
-    if (!selectedNestedSubCategory || !currentCategoryObj) return null;
-    if (currentSubCategoryObj?.subcategories) {
-      return currentSubCategoryObj.subcategories.find(n => 
-        n.id === selectedNestedSubCategory || 
-        n.slug === selectedNestedSubCategory || 
-        (n as any).seoSlug === selectedNestedSubCategory ||
-        createSlug(n.name) === selectedNestedSubCategory ||
-        (n.name && n.name.toLowerCase() === selectedNestedSubCategory.toLowerCase())
-      ) || null;
-    }
-    return currentCategoryObj.subcategories?.flatMap(s => s.subcategories || []).find(n => 
-      n.id === selectedNestedSubCategory || 
-      n.slug === selectedNestedSubCategory || 
-      (n as any).seoSlug === selectedNestedSubCategory ||
-      createSlug(n.name) === selectedNestedSubCategory ||
-      (n.name && n.name.toLowerCase() === selectedNestedSubCategory.toLowerCase())
-    ) || null;
-  }, [selectedNestedSubCategory, currentSubCategoryObj, currentCategoryObj]);
-
-  // Active Deep Nested Subcategory (Level 4+)
-  const currentDeepNestedObj = useMemo(() => {
-    if (!rawDeepNestedCat || !currentNestedSubCategoryObj?.subcategories) return null;
-    return currentNestedSubCategoryObj.subcategories.find(n => 
-      n.id === rawDeepNestedCat || 
-      n.slug === rawDeepNestedCat || 
-      (n as any).seoSlug === rawDeepNestedCat || 
-      createSlug(n.name) === rawDeepNestedCat ||
-      (n.name && n.name.toLowerCase() === rawDeepNestedCat.toLowerCase())
-    ) || null;
-  }, [rawDeepNestedCat, currentNestedSubCategoryObj]);
-
-  // Active Visual Nested Subcategory
-  const currentVisualNestedSubcategoryObj = useMemo(() => {
-    if (!pathSegments.length || !visualNestedItems.length) return null;
-    const lastSeg = pathSegments[pathSegments.length - 1];
-    if (!lastSeg) return null;
-
-    const item = visualNestedItems.find(v => 
-      v.id === lastSeg || 
-      v.slug === lastSeg || 
-      v.seoSlug === lastSeg || 
-      createSlug(v.name || '') === lastSeg ||
-      (v.name && v.name.toLowerCase() === lastSeg.toLowerCase())
-    );
-    if (!item) return null;
-
-    if (currentCategoryObj && item.categoryId && item.categoryId !== currentCategoryObj.id) {
-      if (item.categoryName && currentCategoryObj.name && item.categoryName.toLowerCase() !== currentCategoryObj.name.toLowerCase()) {
-        return null;
-      }
-    }
-    return item;
-  }, [pathSegments, visualNestedItems, currentCategoryObj]);
-
-  // Child categories to explore on this dedicated mobile page
-  const childCategoryData = useMemo(() => {
-    if (currentDeepNestedObj?.subcategories && currentDeepNestedObj.subcategories.length > 0) {
-      return { list: currentDeepNestedObj.subcategories, parentName: currentDeepNestedObj.name, level: 'deep' };
-    }
-    if (currentNestedSubCategoryObj?.subcategories && currentNestedSubCategoryObj.subcategories.length > 0) {
-      return { list: currentNestedSubCategoryObj.subcategories, parentName: currentNestedSubCategoryObj.name, level: 'nested' };
-    }
-    if (currentSubCategoryObj?.subcategories && currentSubCategoryObj.subcategories.length > 0 && !currentNestedSubCategoryObj && !currentVisualNestedSubcategoryObj) {
-      return { list: currentSubCategoryObj.subcategories, parentName: currentSubCategoryObj.name, level: 'sub' };
-    }
-    if (currentCategoryObj?.subcategories && currentCategoryObj.subcategories.length > 0 && !currentSubCategoryObj && !currentVisualNestedSubcategoryObj) {
-      return { list: currentCategoryObj.subcategories, parentName: currentCategoryObj.name, level: 'cat' };
-    }
-    return { list: [], parentName: '', level: 'none' };
-  }, [currentCategoryObj, currentSubCategoryObj, currentNestedSubCategoryObj, currentDeepNestedObj, currentVisualNestedSubcategoryObj]);
+  }, [currentCategoryObj, currentSubCategoryObj, currentNestedSubCategoryObj, currentDeepChildSubCategoryObj, currentVisualNestedSubcategoryObj, rawCat, rawSubCat, rawNestedSubCat, rawBrand]);
 
   // Category-Specific Banners for active Category (Strict Isolation)
   const categoryBanners = useMemo(() => {
@@ -283,38 +287,23 @@ export default function MobileProductListScreen() {
 
       // Skip category hierarchy filtering if opening explicit banner
       if (!matchedBanner) {
-        if (currentVisualNestedSubcategoryObj) {
-          const v = currentVisualNestedSubcategoryObj;
-          const vId = v.id;
-          const vName = (v.name || '').toLowerCase();
-          const targetNested = v.nestedSubCategoryId;
-          const targetSub = v.subCategoryId;
-          const targetCat = v.categoryId;
-
-          const matchesVisual = 
-            product.nestedSubCategoryId === vId ||
-            product.subCategoryId === vId ||
-            (targetNested && product.nestedSubCategoryId === targetNested) ||
-            (targetSub && product.subCategoryId === targetSub && (!targetCat || product.categoryId === targetCat)) ||
-            (vName && [product.name, product.description, ...(product.tags || [])].some(t => t && t.toLowerCase().includes(vName)));
-          
-          if (!matchesVisual) return false;
-        } else if (currentDeepNestedObj) {
-          const target = currentDeepNestedObj.id.toLowerCase();
+        // 1. Nested SubCategory Filter
+        if (selectedNestedSubCategory) {
+          const targetNested = (currentNestedSubCategoryObj?.id || selectedNestedSubCategory).toLowerCase();
           const pNested = (product.nestedSubCategoryId || '').toLowerCase();
-          if (pNested !== target) return false;
-        } else if (currentNestedSubCategoryObj || selectedNestedSubCategory) {
-          const target = (currentNestedSubCategoryObj?.id || selectedNestedSubCategory).toLowerCase();
-          const pNested = (product.nestedSubCategoryId || '').toLowerCase();
-          if (pNested !== target) return false;
-        } else if (currentSubCategoryObj || selectedSubCategory) {
-          const target = (currentSubCategoryObj?.id || selectedSubCategory).toLowerCase();
+          if (pNested !== targetNested) return false;
+        }
+        // 2. SubCategory Filter
+        else if (selectedSubCategory) {
+          const targetSub = (currentSubCategoryObj?.id || selectedSubCategory).toLowerCase();
           const pSub = (product.subCategoryId || '').toLowerCase();
-          if (pSub !== target) return false;
-        } else if ((currentCategoryObj || selectedCategory) && selectedCategory !== 'all-deals') {
+          if (pSub !== targetSub) return false;
+        }
+        // 3. Category Filter
+        else if (selectedCategory && selectedCategory !== 'all-deals') {
           const catId = (product.categoryId || '').toLowerCase();
           const target = (currentCategoryObj?.id || selectedCategory).toLowerCase();
-          if (catId !== target && !product.categories?.some(c => c.toLowerCase() === target)) return false;
+          if (catId !== target) return false;
         }
       }
 
@@ -537,29 +526,129 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Dynamic Child Subcategories Showcase for active node */}
-      {childCategoryData.list.length > 0 && (
+      {/* Category / Subcategory / Nested Subcategory Breadcrumbs & Title Bar */}
+      {(currentCategoryObj || currentVisualNestedSubcategoryObj) && (
+        <div className="bg-white rounded-2xl p-3 shadow-xs border border-yellow-100/60 space-y-1">
+          <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-bold text-gray-500">
+            {currentCategoryObj && (
+              <span
+                onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj)}`)}
+                className="text-emerald-700 hover:underline cursor-pointer"
+              >
+                {currentCategoryObj.name}
+              </span>
+            )}
+            {currentSubCategoryObj && (
+              <>
+                <span>›</span>
+                <span
+                  onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj!)}/${getSubcategorySlug(currentSubCategoryObj)}`)}
+                  className="text-emerald-700 hover:underline cursor-pointer"
+                >
+                  {currentSubCategoryObj.name}
+                </span>
+              </>
+            )}
+            {currentNestedSubCategoryObj && (
+              <>
+                <span>›</span>
+                <span
+                  onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj!)}/${getSubcategorySlug(currentSubCategoryObj!)}/${getNestedSubcategorySlug(currentNestedSubCategoryObj)}`)}
+                  className="text-emerald-700 hover:underline cursor-pointer"
+                >
+                  {currentNestedSubCategoryObj.name}
+                </span>
+              </>
+            )}
+            {currentDeepChildSubCategoryObj && (
+              <>
+                <span>›</span>
+                <span className="text-gray-900 font-extrabold">{currentDeepChildSubCategoryObj.name}</span>
+              </>
+            )}
+            {currentVisualNestedSubcategoryObj && (
+              <>
+                <span>›</span>
+                <span className="text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-black">
+                  {currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Collection'}
+                </span>
+              </>
+            )}
+          </div>
+          <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-tight">
+            {currentVisualNestedSubcategoryObj
+              ? (currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Visual Collection')
+              : (currentDeepChildSubCategoryObj
+                ? currentDeepChildSubCategoryObj.name
+                : (currentNestedSubCategoryObj
+                  ? currentNestedSubCategoryObj.name
+                  : (currentSubCategoryObj
+                    ? currentSubCategoryObj.name
+                    : (currentCategoryObj ? currentCategoryObj.name : 'All Products'))))}
+          </h2>
+        </div>
+      )}
+
+      {/* Subcategories Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+      {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
+        <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-2.5">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-black text-gray-900">
+              {currentCategoryObj.name} Subcategories
+            </span>
+            <span className="text-[10px] text-emerald-700 font-bold">
+              {currentCategoryObj.subcategories.length} available
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+            {currentCategoryObj.subcategories.map(sub => {
+              const isSelected = selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory;
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => handleSubCategorySelect(sub.id)}
+                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
+                >
+                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
+                    isSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
+                  }`}>
+                    {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                      <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7", isSelected)}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
+                    isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                  }`}>
+                    {sub.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Level 3 Deep Subcategories Showcase (if currentNestedSubCategoryObj has children) */}
+      {currentNestedSubCategoryObj && currentNestedSubCategoryObj.subcategories && currentNestedSubCategoryObj.subcategories.length > 0 && (
         <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-xs font-black text-gray-900">
-                Explore {childCategoryData.parentName} Subcategories
+                Explore {currentNestedSubCategoryObj.name} Subcategories
               </span>
             </div>
-            {(currentNestedSubCategoryObj || currentDeepNestedObj) && (
+            {currentDeepChildSubCategoryObj && (
               <button
                 onClick={() => {
-                  const catSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj) : 'categories';
-                  const subSlug = currentSubCategoryObj ? getSubcategorySlug(currentSubCategoryObj) : '';
-                  if (currentDeepNestedObj && currentNestedSubCategoryObj) {
-                    const nestedSlug = getNestedSubcategorySlug(currentNestedSubCategoryObj);
-                    navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
-                  } else if (subSlug) {
-                    navigate(`/categories/${catSlug}/${subSlug}`);
-                  } else {
-                    navigate(`/categories/${catSlug}`);
-                  }
+                  const catSlug = getCategorySlug(currentCategoryObj!);
+                  const subSlug = getSubcategorySlug(currentSubCategoryObj!);
+                  const nestedSlug = getNestedSubcategorySlug(currentNestedSubCategoryObj);
+                  navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
                 }}
                 className="text-[10px] font-bold text-emerald-700 underline"
               >
@@ -568,25 +657,20 @@ export default function MobileProductListScreen() {
             )}
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-            {childCategoryData.list.map(child => {
-              const childSlug = getNestedSubcategorySlug(child);
-              const isChildSelected = selectedNestedSubCategory === child.id || selectedSubCategory === child.id;
+            {currentNestedSubCategoryObj.subcategories.map(child => {
+              const isChildSelected = currentDeepChildSubCategoryObj?.id === child.id || rawVisual === child.id || rawVisual === child.slug || createSlug(child.name) === rawVisual;
               return (
                 <button
                   key={child.id}
                   onClick={() => {
-                    const catSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj) : 'categories';
-                    const subSlug = currentSubCategoryObj ? getSubcategorySlug(currentSubCategoryObj) : '';
-                    const nestedSlug = currentNestedSubCategoryObj ? getNestedSubcategorySlug(currentNestedSubCategoryObj) : '';
-                    if (childCategoryData.level === 'cat') {
-                      navigate(`/categories/${catSlug}/${childSlug}`);
-                    } else if (childCategoryData.level === 'sub') {
-                      navigate(`/categories/${catSlug}/${subSlug}/${childSlug}`);
-                    } else if (childCategoryData.level === 'nested') {
+                    const catSlug = getCategorySlug(currentCategoryObj!);
+                    const subSlug = getSubcategorySlug(currentSubCategoryObj!);
+                    const nestedSlug = getNestedSubcategorySlug(currentNestedSubCategoryObj);
+                    const childSlug = getNestedSubcategorySlug(child);
+                    if (isChildSelected) {
+                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+                    } else {
                       navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${childSlug}`);
-                    } else if (childCategoryData.level === 'deep') {
-                      const deepSlug = currentDeepNestedObj ? getNestedSubcategorySlug(currentDeepNestedObj) : '';
-                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${deepSlug}/${childSlug}`);
                     }
                   }}
                   className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
@@ -614,13 +698,68 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
+      {/* Dedicated Nested Subcategories Showcase (Shown ONLY for active Subcategory) */}
+      {!currentNestedSubCategoryObj && currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.length > 0 && (
+        <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-xs font-black text-gray-900">
+                Explore {currentSubCategoryObj.name} Subcategories
+              </span>
+            </div>
+            {currentNestedSubCategoryObj && (
+              <button
+                onClick={() => {
+                  const catSlug = getCategorySlug(currentCategoryObj!);
+                  const subSlug = getSubcategorySlug(currentSubCategoryObj);
+                  navigate(`/categories/${catSlug}/${subSlug}`);
+                }}
+                className="text-[10px] font-bold text-emerald-700 underline"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
+            {currentSubCategoryObj.subcategories.map(nested => {
+              const isNestedSelected = selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory;
+              return (
+                <button
+                  key={nested.id}
+                  onClick={() => handleNestedSubCategorySelect(nested.id)}
+                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
+                >
+                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
+                    isNestedSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
+                  }`}>
+                    {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
+                      <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center ${isNestedSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {renderCategoryFallbackIcon(nested.name, nested.icon, "w-7 h-7", isNestedSelected)}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
+                    isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
+                  }`}>
+                    {nested.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Visual Nested Subcategories Showcase */}
-      {(currentCategoryObj || selectedCategory) && (
+      {(currentCategoryObj || selectedCategory || currentVisualNestedSubcategoryObj) && (
         <VisualNestedSubcategoriesSection
           categoryId={currentCategoryObj?.id || selectedCategory}
           subCategoryId={currentSubCategoryObj?.id || selectedSubCategory}
-          nestedSubCategoryId={currentDeepNestedObj?.id || currentNestedSubCategoryObj?.id || selectedNestedSubCategory}
-          parentTargetId={currentVisualNestedSubcategoryObj?.id || currentDeepNestedObj?.id || currentNestedSubCategoryObj?.id || selectedNestedSubCategory || currentSubCategoryObj?.id || selectedSubCategory || currentCategoryObj?.id || selectedCategory}
+          nestedSubCategoryId={currentNestedSubCategoryObj?.id || selectedNestedSubCategory}
+          parentTargetId={currentVisualNestedSubcategoryObj?.id || currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || selectedNestedSubCategory || currentSubCategoryObj?.id || selectedSubCategory || currentCategoryObj?.id || selectedCategory}
           isMobile={true}
         />
       )}
