@@ -39,7 +39,7 @@ export default function ProductNotFound() {
           {/* Decorative Icon */}
           <div className="relative w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
             <ShoppingBag className="w-12 h-12 text-rose-500" />
-            <motion.div 
+            <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
               className="absolute -top-1 -right-1 text-amber-500"
@@ -104,7 +104,7 @@ export default function ProductNotFound() {
                 </button>
               </div>
             </div>
-            
+
             <div
               ref={categoryScrollRef}
               className="flex gap-4 overflow-x-auto scroll-smooth hide-scrollbar py-2 min-w-0 w-full snap-x snap-mandatory px-1"

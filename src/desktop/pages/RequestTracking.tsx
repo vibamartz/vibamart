@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
-import { 
-  ArrowLeft, Clock, ShieldCheck, CheckCircle2, AlertCircle, 
+import {
+  ArrowLeft, Clock, ShieldCheck, CheckCircle2, AlertCircle,
   CreditCard, Calendar, Truck, FileText, Loader2, RefreshCw
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -144,7 +144,7 @@ export default function RequestTracking() {
   if (!requestId || error) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 bg-gray-50">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-12 rounded-[2.5rem] shadow-xl text-center max-w-md w-full border border-gray-100"
@@ -154,7 +154,7 @@ export default function RequestTracking() {
           </div>
           <h2 className="text-3xl font-black text-gray-900 mb-2">Track Request</h2>
           <p className="text-gray-500 mb-8 font-medium">Enter your Cancellation, Return, or Refund Request ID to check status.</p>
-          
+
           {error && (
             <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 flex items-center gap-2 text-sm font-bold text-left">
               <AlertCircle className="w-5 h-5 shrink-0" />
@@ -163,8 +163,8 @@ export default function RequestTracking() {
           )}
 
           <form onSubmit={handleSearch} className="space-y-4">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Enter Request ID (e.g. U7r3y...)"
@@ -187,7 +187,7 @@ export default function RequestTracking() {
   const type = request.type || request.requestType || 'refund';
   const status = request.status || 'requested';
   const steps = getTimelineSteps(type);
-  
+
   let currentStepIndex = steps.findIndex(s => s.status === status);
   if (currentStepIndex === -1) {
     if (status === 'rejected') {
@@ -204,7 +204,7 @@ export default function RequestTracking() {
   return (
     <div className="min-h-screen bg-white py-8 px-4 md:px-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        
+
         {/* Header Card */}
         <div className="p-8 md:p-10 rounded-3xl bg-gray-900 text-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -212,9 +212,8 @@ export default function RequestTracking() {
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Request Status Tracker</p>
               <div className="flex flex-wrap items-center gap-4">
                 <h1 className="text-3xl font-black tracking-tight select-all">#{request.requestId || request.id}</h1>
-                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                  isRejected ? 'bg-red-100 text-red-600' : 'bg-primary/20 text-blue-400'
-                }`}>
+                <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isRejected ? 'bg-red-100 text-red-600' : 'bg-primary/20 text-blue-400'
+                  }`}>
                   {isRejected ? 'Rejected' : steps[currentStepIndex]?.label || status.replace('_', ' ')}
                 </span>
               </div>
@@ -222,11 +221,11 @@ export default function RequestTracking() {
             <div className="text-left md:text-right">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Request Type</p>
               <p className="text-lg font-black uppercase tracking-wider text-blue-400 mb-4">{type}</p>
-              
+
               <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Submitted Date</p>
               <p className="text-xs font-bold text-gray-300">
-                {new Date(request.createdDate || request.createdAt).toLocaleDateString(undefined, { 
-                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                {new Date(request.createdDate || request.createdAt).toLocaleDateString(undefined, {
+                  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                 })}
               </p>
             </div>
@@ -234,19 +233,19 @@ export default function RequestTracking() {
         </div>
 
         <div className="space-y-10">
-          
+
           {/* Visual Timeline and Progress Bar */}
           {!isRejected ? (
             <div className="relative mb-28 mt-8 px-4">
               {/* Horizontal Progress Bar Background */}
               <div className="absolute top-1/2 left-0 w-full h-1.5 bg-gray-100 -translate-y-1/2 rounded-full" />
               {/* Filled Progress Bar */}
-              <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
                 className="absolute top-1/2 left-0 h-1.5 bg-primary -translate-y-1/2 rounded-full z-10"
               />
-              
+
               <div className="relative flex justify-between z-20">
                 {steps.map((stepConfig, index) => {
                   const Icon = stepConfig.icon;
@@ -254,12 +253,11 @@ export default function RequestTracking() {
 
                   return (
                     <div key={stepConfig.status} className="flex flex-col items-center">
-                      <div 
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${
-                          isCompleted 
-                            ? 'bg-primary text-white shadow-primary/30 scale-105 z-20' 
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted
+                            ? 'bg-primary text-white shadow-primary/30 scale-105 z-20'
                             : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
-                        }`}
+                          }`}
                       >
                         <Icon className="w-6 h-6" />
                       </div>
@@ -286,7 +284,7 @@ export default function RequestTracking() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8 border-t border-gray-100">
-            
+
             {/* Timeline details */}
             <div className="space-y-6">
               <div>
@@ -300,9 +298,8 @@ export default function RequestTracking() {
                         {index !== steps.length - 1 && (
                           <div className="absolute top-4 left-2 w-0.5 h-full bg-gray-100 -translate-x-1/2" />
                         )}
-                        <div className={`w-4 h-4 rounded-full mt-1.5 z-10 transition-colors duration-550 ${
-                          isCompleted ? 'bg-primary' : 'bg-gray-200'
-                        }`} />
+                        <div className={`w-4 h-4 rounded-full mt-1.5 z-10 transition-colors duration-550 ${isCompleted ? 'bg-primary' : 'bg-gray-200'
+                          }`} />
                         <div className="flex-1">
                           <p className={`text-sm font-black ${isCompleted ? 'text-gray-900' : 'text-gray-350'}`}>{step.label}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{step.desc}</p>
@@ -320,7 +317,7 @@ export default function RequestTracking() {
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-primary" /> Request Details
                 </h3>
-                
+
                 <div className="space-y-4 text-sm font-medium">
                   <div className="flex justify-between border-b border-gray-100 pb-3">
                     <span className="text-gray-500">Order ID</span>

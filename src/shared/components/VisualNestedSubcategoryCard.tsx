@@ -170,17 +170,17 @@ export default function VisualNestedSubcategoryCard({
             {/* Optional Offer / Price Strip at the bottom of the card */}
             {isOfferEnabled && (
               <div
-                className="relative z-10 w-full py-1.5 px-2 text-center transition-colors shadow-xs"
+                className="relative z-10 w-full py-1 sm:py-1.5 px-1 sm:px-2 text-center transition-colors shadow-xs"
                 style={{
                   backgroundColor: offerBgColor,
                   color: offerTextColor
                 }}
               >
                 <span
-                  className="block tracking-tight leading-tight uppercase truncate"
+                  className="block tracking-tight leading-tight uppercase truncate text-[8px] xs:text-[9px] sm:text-[11px]"
                   style={{
-                    fontSize: offerFontSize,
-                    fontWeight: offerFontWeight
+                    fontSize: offerFontSize && parseFloat(offerFontSize) <= 10 ? offerFontSize : undefined,
+                    fontWeight: offerFontWeight || '900'
                   }}
                 >
                   {offerText}
@@ -192,8 +192,8 @@ export default function VisualNestedSubcategoryCard({
 
         {/* Category / Brand Name displayed below the card (Optional) */}
         {Boolean(item.name && item.name.trim()) && (
-          <div className="pt-2 pb-1 px-1 text-center">
-            <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-700 transition-colors">
+          <div className="pt-1.5 sm:pt-2 pb-0.5 sm:pb-1 px-0.5 text-center">
+            <h4 className="text-[10px] xs:text-[11px] sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-700 transition-colors">
               {item.name}
             </h4>
           </div>
