@@ -54,7 +54,9 @@ export default function VisualNestedSubcategoryCard({
       (item.subCategoryName && s.name && s.name.toLowerCase() === item.subCategoryName.toLowerCase())
     )
   );
-  const subSlug = parentSub ? getSubcategorySlug(parentSub) : (subCategorySlug || item.subCategoryId || 'all');
+  const subSlug = parentSub 
+    ? getSubcategorySlug(parentSub) 
+    : (subCategorySlug && subCategorySlug !== 'all' ? subCategorySlug : (item.subCategoryId && item.subCategoryId !== 'all' ? item.subCategoryId : ''));
   
   const parentNested = parentSub?.subcategories?.find(n => 
     n && (
@@ -64,9 +66,11 @@ export default function VisualNestedSubcategoryCard({
       (item.nestedSubCategoryName && n.name && n.name.toLowerCase() === item.nestedSubCategoryName.toLowerCase())
     )
   );
-  const nestedParentSlug = parentNested ? (parentNested.slug || createSlug(parentNested.name)) : (nestedSubCategorySlug || item.nestedSubCategoryId);
+  const nestedParentSlug = parentNested 
+    ? (parentNested.slug || createSlug(parentNested.name)) 
+    : (nestedSubCategorySlug && nestedSubCategorySlug !== 'all' ? nestedSubCategorySlug : (item.nestedSubCategoryId && item.nestedSubCategoryId !== 'all' ? item.nestedSubCategoryId : ''));
 
-  const cardSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
+  const cardSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : (item.id || 'all'));
 
   const handleClick = () => {
     if (item.targetUrl && item.targetUrl.trim()) {
@@ -74,9 +78,9 @@ export default function VisualNestedSubcategoryCard({
       return;
     }
 
-    if (nestedParentSlug) {
+    if (nestedParentSlug && subSlug) {
       navigate(`/categories/${catSlug}/${subSlug}/${nestedParentSlug}/${cardSlug}`);
-    } else if (subSlug && subSlug !== 'all') {
+    } else if (subSlug) {
       navigate(`/categories/${catSlug}/${subSlug}/${cardSlug}`);
     } else {
       navigate(`/categories/${catSlug}/${cardSlug}`);
