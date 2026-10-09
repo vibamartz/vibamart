@@ -16,6 +16,8 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
+import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+
 export default function ProductList() {
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
@@ -41,11 +43,7 @@ export default function ProductList() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allBanners, setAllBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-    } catch { return []; }
-  });
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
@@ -203,27 +201,19 @@ export default function ProductList() {
     }
   }, [matchedCategory, rawCat, navigate]);
 
-  // Persist and restore search state
+  // Sync recent searches with storage events
   useEffect(() => {
-    const currentQuery = searchParams.toString();
-    if (!currentQuery) {
-      const savedSearch = sessionStorage.getItem('viba_last_search');
-      if (savedSearch) {
-        setSearchParams(new URLSearchParams(savedSearch), { replace: true });
-      }
-    } else {
-      sessionStorage.setItem('viba_last_search', currentQuery);
-      const q = searchParams.get('q');
-      if (q) {
-        setRecentSearches(prevArr => {
-          const filtered = prevArr.filter(item => item !== q);
-          const updated = [q, ...filtered].slice(0, 5);
-          localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
-          return updated;
-        });
-      }
-    }
-  }, [searchParams, setSearchParams]);
+    const loadRecent = () => {
+      setRecentSearches(getRecentSearches(5));
+    };
+    loadRecent();
+    window.addEventListener('storage', loadRecent);
+    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    return () => {
+      window.removeEventListener('storage', loadRecent);
+      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    };
+  }, []);
 
   // Filter States
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
@@ -974,7 +964,10 @@ export default function ProductList() {
                 {recentSearches.map((s, i) => (
                   <button
                     key={i}
-                    onClick={() => setSearchParams({ q: s })}
+                    onClick={() => {
+                      addRecentSearch(s, 10);
+                      setSearchParams({ q: s });
+                    }}
                     className="text-[10px] font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-full transition-colors whitespace-nowrap"
                   >
                     {s}

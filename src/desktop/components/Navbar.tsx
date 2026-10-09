@@ -269,7 +269,9 @@ export default function Navbar() {
       setSearchQuery(transcript);
       toast.success(`Heard: "${transcript}"`, { id: 'voice-search' });
       logSearch(transcript, 'voice');
-      navigate(`/products?q=${transcript}`);
+      const updated = addRecentSearch(transcript, 10);
+      setRecentSearches(updated);
+      navigate(`/products?q=${encodeURIComponent(transcript)}`);
       setIsSearchFocused(false);
     };
 
@@ -449,7 +451,9 @@ export default function Navbar() {
                                   key={i}
                                   onClick={() => {
                                     setSearchQuery(s);
-                                    navigate(`/products?q=${s}`);
+                                    const updated = addRecentSearch(s, 10);
+                                    setRecentSearches(updated);
+                                    navigate(`/products?q=${encodeURIComponent(s)}`);
                                     setIsSearchFocused(false);
                                   }}
                                   className="flex items-center justify-between group/item p-3 hover:bg-gray-50 rounded-xl transition-all"
@@ -485,7 +489,9 @@ export default function Navbar() {
                                 key={trend}
                                 onClick={() => {
                                   setSearchQuery(trend);
-                                  navigate(`/products?q=${trend}`);
+                                  const updated = addRecentSearch(trend, 10);
+                                  setRecentSearches(updated);
+                                  navigate(`/products?q=${encodeURIComponent(trend)}`);
                                   setIsSearchFocused(false);
                                 }}
                                 className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95"
@@ -987,6 +993,8 @@ export default function Navbar() {
           onSearch={(query) => {
             setSearchQuery(query);
             logSearch(query, 'visual');
+            const updated = addRecentSearch(query, 10);
+            setRecentSearches(updated);
             navigate(`/products?q=${encodeURIComponent(query)}`);
             setIsSearchFocused(false);
           }}

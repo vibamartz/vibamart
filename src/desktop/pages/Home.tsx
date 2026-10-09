@@ -11,8 +11,6 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import LocationPickerModal from '../components/LocationPickerModal';
-import CameraSearchModal from '../components/CameraSearchModal';
 import Logo from '../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -26,7 +24,6 @@ import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
-import { getRecentSearches, addRecentSearch, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -145,101 +142,7 @@ export default function Home() {
     }
   };
 
-  // Header & Modal states
-  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-
-  // Category selection state
-  const [selectedCategory, setSelectedCategory] = useState<string>('for-you');
-
-  // Load recent searches
-  useEffect(() => {
-    const loadRecent = () => {
-      setRecentSearches(getRecentSearches(5));
-    };
-    loadRecent();
-    window.addEventListener('storage', loadRecent);
-    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
-    return () => {
-      window.removeEventListener('storage', loadRecent);
-      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
-    };
-  }, [isSearchFocused]);
-
-  const trendingSearches = [
-    "5G Mobiles", "Wireless Earbuds", "Running Shoes", "Smart TVs", "Summer Fashion"
-  ];
-
-  // Voice Search Handler
-  const startVoiceSearch = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error('Voice search is not supported on this browser');
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        toast('Listening... Speak now', { icon: '🎙️' });
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setSearchQuery(transcript);
-        setIsListening(false);
-        saveSearchQuery(transcript);
-        navigate(`/products?search=${encodeURIComponent(transcript)}`);
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        toast.error('Could not catch that. Please try again.');
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } catch (err) {
-      console.error(err);
-      setIsListening(false);
-      toast.error('Voice search initialization failed');
-    }
-  };
-
-  const saveSearchQuery = (q: string) => {
-    if (!q.trim()) return;
-    const updated = addRecentSearch(q, 5);
-    setRecentSearches(updated);
-  };
-
-  const clearRecentHistory = () => {
-    clearRecentSearches();
-    setRecentSearches([]);
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      saveSearchQuery(searchQuery);
-      setIsSearchFocused(false);
-      navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
-    }
-  };
 
   useEffect(() => {
     const q = query(
@@ -584,21 +487,6 @@ export default function Home() {
           </div>
         )}
       </section>
-
-      {/* Modals */}
-      <LocationPickerModal
-        isOpen={isLocationModalOpen}
-        onClose={() => setIsLocationModalOpen(false)}
-      />
-
-      <CameraSearchModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-        onSearch={(query) => {
-          setIsCameraModalOpen(false);
-          navigate(`/products?q=${encodeURIComponent(query)}`);
-        }}
-      />
     </div>
   );
 }

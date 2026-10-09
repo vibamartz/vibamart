@@ -341,7 +341,7 @@ export default function MobileHomepage() {
     if (queryStr) {
       const updated = addRecentSearch(queryStr, 8);
       setRecentSearches(updated);
-      navigate(`/products?q=${queryStr}`);
+      navigate(`/products?q=${encodeURIComponent(queryStr)}`);
       setIsSearchFocused(false);
     }
   };
@@ -364,7 +364,10 @@ export default function MobileHomepage() {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
+      const updated = addRecentSearch(transcript, 8);
+      setRecentSearches(updated);
       navigate(`/products?q=${encodeURIComponent(transcript)}`);
+      setIsSearchFocused(false);
     };
 
     recognition.onerror = () => {
@@ -676,7 +679,9 @@ export default function MobileHomepage() {
                             key={i}
                             onClick={() => {
                               setSearchQuery(s);
-                              navigate(`/products?q=${s}`);
+                              const updated = addRecentSearch(s, 8);
+                              setRecentSearches(updated);
+                              navigate(`/products?q=${encodeURIComponent(s)}`);
                               setIsSearchFocused(false);
                             }}
                             className="bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
@@ -699,7 +704,9 @@ export default function MobileHomepage() {
                           key={i}
                           onClick={() => {
                             setSearchQuery(t);
-                            navigate(`/products?q=${t}`);
+                            const updated = addRecentSearch(t, 8);
+                            setRecentSearches(updated);
+                            navigate(`/products?q=${encodeURIComponent(t)}`);
                             setIsSearchFocused(false);
                           }}
                           className="bg-orange-50 text-orange-700 border border-orange-200/60 text-xs font-bold px-3 py-1.5 rounded-full transition-all"
