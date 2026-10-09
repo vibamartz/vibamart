@@ -16,6 +16,7 @@ import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
+import { getRecentSearches, addRecentSearch, clearRecentSearches as clearSearchHistory, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function MobileSearchScreen() {
   const navigate = useNavigate();
@@ -36,14 +37,20 @@ export default function MobileSearchScreen() {
   ];
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      setRecentSearches(saved);
-    } catch {
-      setRecentSearches([]);
-    }
+    const loadRecent = () => {
+      setRecentSearches(getRecentSearches(8));
+    };
+    loadRecent();
+    window.addEventListener('storage', loadRecent);
+    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+
     // Auto focus on mount
     setTimeout(() => searchInputRef.current?.focus(), 150);
+
+    return () => {
+      window.removeEventListener('storage', loadRecent);
+      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    };
   }, []);
 
   // Fetch live product suggestions on typing
@@ -83,9 +90,8 @@ export default function MobileSearchScreen() {
     if (e) e.preventDefault();
     const term = (customTerm || searchQuery).trim();
     if (term) {
-      const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const updated = [term, ...existing.filter((s: string) => s !== term)].slice(0, 8);
-      localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
+      const updated = addRecentSearch(term, 8);
+      setRecentSearches(updated);
 
       const cleanQ = cleanProductCode(term);
       try {
@@ -111,7 +117,7 @@ export default function MobileSearchScreen() {
   };
 
   const clearRecentSearches = () => {
-    localStorage.removeItem('viba_recent_searches');
+    clearSearchHistory();
     setRecentSearches([]);
   };
 

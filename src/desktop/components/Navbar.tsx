@@ -20,6 +20,7 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import toast from 'react-hot-toast';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { PushService } from '../../backend/services/pushService';
+import { getRecentSearches, addRecentSearch, removeRecentSearch as removeSearchFromHistory, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
@@ -148,14 +149,15 @@ export default function Navbar() {
 
   useEffect(() => {
     const loadRecent = () => {
-      try {
-        const saved = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-        setRecentSearches(saved);
-      } catch { setRecentSearches([]); }
+      setRecentSearches(getRecentSearches(10));
     };
     loadRecent();
     window.addEventListener('storage', loadRecent);
-    return () => window.removeEventListener('storage', loadRecent);
+    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    return () => {
+      window.removeEventListener('storage', loadRecent);
+      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    };
   }, [isSearchFocused]);
 
   const logSearch = async (queryStr: string, type: 'text' | 'voice' | 'visual') => {
@@ -176,10 +178,9 @@ export default function Navbar() {
     const queryStr = searchQuery.trim();
     if (queryStr) {
       logSearch(queryStr, 'text');
-      // Save to recent searches
-      const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const updated = [queryStr, ...existing.filter((s: string) => s !== queryStr)].slice(0, 10);
-      localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
+      // Save to recent searches (auto-expires after 24h)
+      const updated = addRecentSearch(queryStr, 10);
+      setRecentSearches(updated);
 
       // Check if search query is an exact 12-digit Product Code or Product ID match
       const cleanQ = cleanProductCode(queryStr);
@@ -290,15 +291,13 @@ export default function Navbar() {
 
   const removeRecentSearch = (e: React.MouseEvent, search: string) => {
     e.stopPropagation();
-    const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-    const updated = existing.filter((s: string) => s !== search);
-    localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
+    const updated = removeSearchFromHistory(search);
     setRecentSearches(updated);
   };
 
   const clearRecentHistory = (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.setItem('viba_recent_searches', JSON.stringify([]));
+    clearRecentSearches();
     setRecentSearches([]);
   };
 

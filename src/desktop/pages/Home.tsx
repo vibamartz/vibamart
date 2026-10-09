@@ -26,6 +26,7 @@ import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import { getRecentSearches, addRecentSearch, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -159,12 +160,16 @@ export default function Home() {
 
   // Load recent searches
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      setRecentSearches(saved);
-    } catch {
-      setRecentSearches([]);
-    }
+    const loadRecent = () => {
+      setRecentSearches(getRecentSearches(5));
+    };
+    loadRecent();
+    window.addEventListener('storage', loadRecent);
+    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    return () => {
+      window.removeEventListener('storage', loadRecent);
+      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    };
   }, [isSearchFocused]);
 
   const trendingSearches = [
@@ -218,19 +223,12 @@ export default function Home() {
 
   const saveSearchQuery = (q: string) => {
     if (!q.trim()) return;
-    try {
-      const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const filtered = existing.filter((item: string) => item.toLowerCase() !== q.toLowerCase());
-      const updated = [q, ...filtered].slice(0, 5);
-      localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
-      setRecentSearches(updated);
-    } catch (e) {
-      console.error(e);
-    }
+    const updated = addRecentSearch(q, 5);
+    setRecentSearches(updated);
   };
 
-  const clearRecentSearches = () => {
-    localStorage.removeItem('viba_recent_searches');
+  const clearRecentHistory = () => {
+    clearRecentSearches();
     setRecentSearches([]);
   };
 

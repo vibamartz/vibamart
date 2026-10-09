@@ -24,6 +24,7 @@ import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -156,12 +157,16 @@ export default function MobileHomepage() {
 
   // Load recent searches
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      setRecentSearches(saved);
-    } catch {
-      setRecentSearches([]);
-    }
+    const loadRecent = () => {
+      setRecentSearches(getRecentSearches(8));
+    };
+    loadRecent();
+    window.addEventListener('storage', loadRecent);
+    window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    return () => {
+      window.removeEventListener('storage', loadRecent);
+      window.removeEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+    };
   }, [isSearchFocused]);
 
   // Dynamic Nav Categories list from database
@@ -334,9 +339,8 @@ export default function MobileHomepage() {
     e.preventDefault();
     const queryStr = searchQuery.trim();
     if (queryStr) {
-      const existing = JSON.parse(localStorage.getItem('viba_recent_searches') || '[]');
-      const updated = [queryStr, ...existing.filter((s: string) => s !== queryStr)].slice(0, 8);
-      localStorage.setItem('viba_recent_searches', JSON.stringify(updated));
+      const updated = addRecentSearch(queryStr, 8);
+      setRecentSearches(updated);
       navigate(`/products?q=${queryStr}`);
       setIsSearchFocused(false);
     }
