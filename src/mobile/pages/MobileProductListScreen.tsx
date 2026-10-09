@@ -148,32 +148,44 @@ export default function MobileProductListScreen() {
   // Active Visual Nested SubCategory Object
   const currentVisualNestedSubcategoryObj = useMemo(() => {
     if (!Array.isArray(visualNestedItems) || visualNestedItems.length === 0) return null;
-    const targetSlug = rawVisual || (!currentDeepChildSubCategoryObj && !currentNestedSubCategoryObj && rawNestedSubCat ? rawNestedSubCat : (!currentSubCategoryObj && rawSubCat ? rawSubCat : ''));
-    if (!targetSlug) return null;
+    
+    // Check candidate slugs from deepest segment backwards
+    const candidateSlugs = [
+      searchParams.get('visual'),
+      rawLevel5,
+      rawVisual,
+      pathSegments[pathSegments.length - 1],
+      rawNestedSubCat,
+      rawSubCat,
+    ].filter(Boolean) as string[];
 
-    return visualNestedItems.find(v => {
-      if (!v || v.isActive === false) return false;
-      const slugMatch = 
-        v.id === targetSlug || 
-        v.slug === targetSlug || 
-        v.seoSlug === targetSlug || 
-        createSlug(v.name || '') === targetSlug ||
-        (v.name && v.name.toLowerCase() === targetSlug.toLowerCase());
-      if (!slugMatch) return false;
+    for (const targetSlug of candidateSlugs) {
+      const found = visualNestedItems.find(v => {
+        if (!v || v.isActive === false) return false;
+        const slugMatch = 
+          v.id === targetSlug || 
+          v.slug === targetSlug || 
+          v.seoSlug === targetSlug || 
+          createSlug(v.name || '') === targetSlug ||
+          (v.name && v.name.toLowerCase() === targetSlug.toLowerCase());
+        if (!slugMatch) return false;
 
-      if (currentCategoryObj && v.categoryId && v.categoryId !== currentCategoryObj.id && v.categoryId !== currentCategoryObj.slug && v.categoryId !== createSlug(currentCategoryObj.name)) {
-        if (v.categoryName && currentCategoryObj.name && v.categoryName.toLowerCase() !== currentCategoryObj.name.toLowerCase()) {
-          return false;
+        if (currentCategoryObj && v.categoryId && v.categoryId !== currentCategoryObj.id && v.categoryId !== currentCategoryObj.slug && v.categoryId !== createSlug(currentCategoryObj.name)) {
+          if (v.categoryName && currentCategoryObj.name && v.categoryName.toLowerCase() !== currentCategoryObj.name.toLowerCase()) {
+            return false;
+          }
         }
-      }
-      if (currentSubCategoryObj && v.subCategoryId && v.subCategoryId !== currentSubCategoryObj.id && v.subCategoryId !== currentSubCategoryObj.slug && v.subCategoryId !== createSlug(currentSubCategoryObj.name)) {
-        if (v.subCategoryName && currentSubCategoryObj.name && v.subCategoryName.toLowerCase() !== currentSubCategoryObj.name.toLowerCase()) {
-          return false;
+        if (currentSubCategoryObj && v.subCategoryId && v.subCategoryId !== currentSubCategoryObj.id && v.subCategoryId !== currentSubCategoryObj.slug && v.subCategoryId !== createSlug(currentSubCategoryObj.name)) {
+          if (v.subCategoryName && currentSubCategoryObj.name && v.subCategoryName.toLowerCase() !== currentSubCategoryObj.name.toLowerCase()) {
+            return false;
+          }
         }
-      }
-      return true;
-    }) || null;
-  }, [rawVisual, rawNestedSubCat, rawSubCat, currentCategoryObj, currentSubCategoryObj, currentNestedSubCategoryObj, currentDeepChildSubCategoryObj, visualNestedItems]);
+        return true;
+      });
+      if (found) return found;
+    }
+    return null;
+  }, [rawVisual, rawLevel5, pathSegments, rawNestedSubCat, rawSubCat, searchParams, currentCategoryObj, currentSubCategoryObj, visualNestedItems]);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -195,7 +207,7 @@ export default function MobileProductListScreen() {
   }, [currentSubCategoryObj, currentVisualNestedSubcategoryObj, rawSubCat]);
 
   const baseNestedId = useMemo(() => {
-    return currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || (rawNestedSubCat || '');
+    return currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || (currentVisualNestedSubcategoryObj?.parentTargetType === 'nested_subcategory' ? currentVisualNestedSubcategoryObj.parentTargetId : '') || (rawNestedSubCat || '');
   }, [currentDeepChildSubCategoryObj, currentNestedSubCategoryObj, currentVisualNestedSubcategoryObj, rawNestedSubCat]);
 
   const baseBrand = useMemo(() => {
@@ -670,14 +682,14 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Dedicated Nested Subcategories Showcase (Shown ONLY for active Subcategory) */}
+      {/* Dedicated Collections Showcase (Shown ONLY for active Subcategory) */}
       {!currentNestedSubCategoryObj && currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.length > 0 && (
         <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-xs font-black text-gray-900">
-                Explore {currentSubCategoryObj.name} Subcategories
+                Explore {currentSubCategoryObj.name}
               </span>
             </div>
             {currentNestedSubCategoryObj && (

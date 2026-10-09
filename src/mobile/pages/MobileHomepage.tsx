@@ -857,7 +857,7 @@ export default function MobileHomepage() {
           <div className="bg-white rounded-[24px] p-3.5 shadow-sm border border-yellow-100 space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-black text-gray-900 tracking-tight">
-                {activeCategoryObj.name} Subcategories
+                {activeCategoryObj.name}
               </span>
               <span className="text-[10px] text-emerald-700 font-bold">
                 Tap to explore

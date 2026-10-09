@@ -1486,6 +1486,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       <div className={previewDevice === 'mobile' ? 'w-44' : 'w-56'}>
                         <VisualNestedSubcategoryCard
                           item={previewItem}
+                          onClick={() => {}}
                         />
                       </div>
                     </div>
