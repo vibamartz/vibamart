@@ -62,7 +62,7 @@ export default function VisualNestedSubcategoryCard({
       return;
     }
 
-    // 2. Dynamically build dedicated route
+    // 2. Dynamically build dedicated route for this visual card
     const cat = category || categories.find(c => 
       c && (
         c.id === item.categoryId || 
@@ -83,7 +83,7 @@ export default function VisualNestedSubcategoryCard({
         (item.subCategoryName && s.name && s.name.toLowerCase() === item.subCategoryName.toLowerCase())
       )
     );
-    const subSlug = sub ? getSubcategorySlug(sub) : (subCategorySlug || (item.subCategoryName ? createSlug(item.subCategoryName) : (item.subCategoryId && item.subCategoryId !== 'all' ? item.subCategoryId : '')));
+    const subSlug = sub ? getSubcategorySlug(sub) : (item.subCategoryName ? createSlug(item.subCategoryName) : (item.subCategoryId && item.subCategoryId !== 'all' ? item.subCategoryId : ''));
 
     const nested = sub?.subcategories?.find(n => 
       n && (
@@ -94,25 +94,18 @@ export default function VisualNestedSubcategoryCard({
         (item.nestedSubCategoryName && n.name && n.name.toLowerCase() === item.nestedSubCategoryName.toLowerCase())
       )
     );
-    const nestedSlug = nested ? getNestedSubcategorySlug(nested) : (nestedSubCategorySlug || (item.nestedSubCategoryName ? createSlug(item.nestedSubCategoryName) : (item.nestedSubCategoryId || '')));
+    const nestedSlug = nested ? getNestedSubcategorySlug(nested) : (item.nestedSubCategoryName ? createSlug(item.nestedSubCategoryName) : (item.nestedSubCategoryId || ''));
 
-    const visualSlug = item.slug || item.seoSlug || (item.name ? createSlug(item.name) : item.id);
+    // Dedicated unique card slug
+    const cardSlug = item.slug || item.seoSlug || (item.name ? createSlug(item.name) : '') || item.id;
 
     let routeUrl = `/categories/${catSlug}`;
     if (subSlug && nestedSlug) {
-      if (visualSlug && visualSlug !== nestedSlug && visualSlug !== subSlug) {
-        routeUrl = `/categories/${catSlug}/${subSlug}/${nestedSlug}/${visualSlug}`;
-      } else {
-        routeUrl = `/categories/${catSlug}/${subSlug}/${nestedSlug}`;
-      }
+      routeUrl = `/categories/${catSlug}/${subSlug}/${nestedSlug}/${cardSlug}`;
     } else if (subSlug) {
-      if (visualSlug && visualSlug !== subSlug) {
-        routeUrl = `/categories/${catSlug}/${subSlug}/${visualSlug}`;
-      } else {
-        routeUrl = `/categories/${catSlug}/${subSlug}`;
-      }
-    } else if (visualSlug && visualSlug !== catSlug) {
-      routeUrl = `/categories/${catSlug}/${visualSlug}`;
+      routeUrl = `/categories/${catSlug}/${subSlug}/${cardSlug}`;
+    } else {
+      routeUrl = `/categories/${catSlug}/${cardSlug}`;
     }
 
     navigate(routeUrl);

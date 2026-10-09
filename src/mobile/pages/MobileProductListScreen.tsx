@@ -556,19 +556,52 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Category / Collection Title Bar */}
-      {(currentCategoryObj || currentVisualNestedSubcategoryObj) && (
+      {/* Visual Nested Subcategory Dedicated Hero Card */}
+      {currentVisualNestedSubcategoryObj && (
+        <div className="bg-gradient-to-r from-emerald-950 via-teal-950 to-gray-900 text-white rounded-2xl p-3.5 shadow-md border border-emerald-500/20 flex items-center gap-3">
+          {currentVisualNestedSubcategoryObj.image && (
+            <div className="w-18 h-24 rounded-xl overflow-hidden shrink-0 border border-white/20 shadow-sm bg-white/10">
+              <img src={currentVisualNestedSubcategoryObj.image} alt={currentVisualNestedSubcategoryObj.name || 'Visual Collection'} className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                Visual Collection
+              </span>
+              {currentVisualNestedSubcategoryObj.offerText && (
+                <span 
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-xs"
+                  style={{
+                    backgroundColor: currentVisualNestedSubcategoryObj.offerBgColor || '#047857',
+                    color: currentVisualNestedSubcategoryObj.offerTextColor || '#ffffff'
+                  }}
+                >
+                  {currentVisualNestedSubcategoryObj.offerText}
+                </span>
+              )}
+            </div>
+            <h2 className="text-sm sm:text-base font-black text-white tracking-tight leading-tight line-clamp-1">
+              {currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Visual Collection'}
+            </h2>
+            <p className="text-[11px] text-emerald-100/80 line-clamp-2">
+              {currentVisualNestedSubcategoryObj.description || `Browse curated products in ${currentVisualNestedSubcategoryObj.name || 'this collection'}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Category / Collection Title Bar (When not viewing dedicated visual card) */}
+      {!currentVisualNestedSubcategoryObj && currentCategoryObj && (
         <div className="bg-white rounded-2xl p-3 shadow-xs border border-yellow-100/60 space-y-1">
           <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-tight">
-            {currentVisualNestedSubcategoryObj
-              ? (currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Visual Collection')
-              : (currentDeepChildSubCategoryObj
-                ? currentDeepChildSubCategoryObj.name
-                : (currentNestedSubCategoryObj
-                  ? currentNestedSubCategoryObj.name
-                  : (currentSubCategoryObj
-                    ? currentSubCategoryObj.name
-                    : (currentCategoryObj ? currentCategoryObj.name : 'All Products'))))}
+            {currentDeepChildSubCategoryObj
+              ? currentDeepChildSubCategoryObj.name
+              : (currentNestedSubCategoryObj
+                ? currentNestedSubCategoryObj.name
+                : (currentSubCategoryObj
+                  ? currentSubCategoryObj.name
+                  : (currentCategoryObj ? currentCategoryObj.name : 'All Products')))}
           </h2>
         </div>
       )}
