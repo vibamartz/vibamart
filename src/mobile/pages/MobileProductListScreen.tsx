@@ -6,7 +6,7 @@ import {
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
-import { useCartStore, useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
@@ -17,17 +17,15 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; nestedSubcategorySlug?: string; visualSubcategorySlug?: string; brandSlug?: string; offerSlug?: string; '*'?: string }>();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; nestedSubcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
   const navigate = useNavigate();
   const { categories } = useCategoryStore();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
   const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
   const rawNestedSubCat = routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
-  const rawVisualSubCat = routeParams.visualSubcategorySlug || routeParams['*'] || searchParams.get('visualSubCategory') || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
@@ -100,20 +98,6 @@ export default function MobileProductListScreen() {
     }
     return currentCategoryObj.subcategories?.flatMap(s => s.subcategories || []).find(n => n.id === selectedNestedSubCategory || n.slug === selectedNestedSubCategory || createSlug(n.name) === selectedNestedSubCategory) || null;
   }, [selectedNestedSubCategory, currentSubCategoryObj, currentCategoryObj]);
-
-  // Active Visual Nested Subcategory Object
-  const matchedVisualNestedSubcategory = useMemo(() => {
-    const targetSlug = rawVisualSubCat || (rawNestedSubCat && !currentNestedSubCategoryObj ? rawNestedSubCat : '');
-    if (!targetSlug) return null;
-    return visualNestedItems.find(v => 
-      v && (
-        v.id === targetSlug || 
-        v.slug === targetSlug || 
-        v.seoSlug === targetSlug || 
-        (v.name && createSlug(v.name) === targetSlug)
-      )
-    ) || null;
-  }, [rawVisualSubCat, rawNestedSubCat, currentNestedSubCategoryObj, visualNestedItems]);
 
   // Category-Specific Banners for active Category (Strict Isolation)
   const categoryBanners = useMemo(() => {
@@ -531,7 +515,7 @@ export default function MobileProductListScreen() {
           categoryId={currentCategoryObj?.id || selectedCategory}
           subCategoryId={currentSubCategoryObj?.id || selectedSubCategory}
           nestedSubCategoryId={currentNestedSubCategoryObj?.id || selectedNestedSubCategory}
-          parentTargetId={matchedVisualNestedSubcategory?.id || currentNestedSubCategoryObj?.id || selectedNestedSubCategory || currentSubCategoryObj?.id || selectedSubCategory || currentCategoryObj?.id || selectedCategory}
+          parentTargetId={currentNestedSubCategoryObj?.id || selectedNestedSubCategory || currentSubCategoryObj?.id || selectedSubCategory || currentCategoryObj?.id || selectedCategory}
           isMobile={true}
         />
       )}
