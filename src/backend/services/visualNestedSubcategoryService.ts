@@ -27,7 +27,8 @@ export async function createVisualNestedSubcategory(
   data: Omit<VisualNestedSubcategory, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<VisualNestedSubcategory> {
   const nameSlug = data.name && data.name.trim() ? createSlug(data.name.trim()) : `card-${Date.now().toString().slice(-4)}`;
-  const generatedId = `vns-${data.categoryId || 'general'}-${data.subCategoryId || 'all'}-${nameSlug}-${Date.now().toString().slice(-4)}`;
+  const parentIdPart = data.parentTargetId || data.nestedSubCategoryId || data.subCategoryId || data.categoryId || 'general';
+  const generatedId = `vns-${parentIdPart}-${nameSlug}-${Date.now().toString().slice(-4)}`;
   
   let finalImage = data.image || '';
   if (finalImage.startsWith('data:') || finalImage.startsWith('blob:')) {
@@ -47,6 +48,7 @@ export async function createVisualNestedSubcategory(
     image: finalImage,
     isActive: data.isActive !== false,
     isVisible: data.isActive !== false,
+    parentTargetId: data.parentTargetId || data.nestedSubCategoryId || data.subCategoryId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };

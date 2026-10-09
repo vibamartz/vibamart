@@ -9,6 +9,8 @@ import { createSlug } from '../utilities/slug';
 interface VisualNestedSubcategoriesSectionProps {
   categoryId?: string;
   subCategoryId?: string;
+  nestedSubCategoryId?: string;
+  parentTargetId?: string;
   title?: string;
   subtitle?: string;
   isMobile?: boolean;
@@ -19,6 +21,8 @@ interface VisualNestedSubcategoriesSectionProps {
 export default function VisualNestedSubcategoriesSection({
   categoryId,
   subCategoryId,
+  nestedSubCategoryId,
+  parentTargetId,
   title,
   subtitle,
   isMobile = false,
@@ -29,7 +33,7 @@ export default function VisualNestedSubcategoriesSection({
   const { categories } = useCategoryStore();
   const [showAll, setShowAll] = useState(false);
 
-  // Find parent Category & Subcategory objects
+  // 1. Find Root Parent Category
   const activeCategory = useMemo(() => {
     if (!categoryId || !Array.isArray(categories)) return null;
     return categories.find(c => 
@@ -43,6 +47,7 @@ export default function VisualNestedSubcategoriesSection({
     ) || null;
   }, [categoryId, categories]);
 
+  // 2. Find Level 1 SubCategory
   const activeSubCategory = useMemo(() => {
     if (!subCategoryId || !Array.isArray(categories)) return null;
     if (activeCategory?.subcategories) {
@@ -72,39 +77,134 @@ export default function VisualNestedSubcategoriesSection({
     return null;
   }, [subCategoryId, activeCategory, categories]);
 
-  // Dynamically filter active visual nested subcategories
+  // 3. Find Level 2+ Nested SubCategory
+  const activeNestedSubCategory = useMemo(() => {
+    const targetNestedId = nestedSubCategoryId || (parentTargetId && parentTargetId !== subCategoryId && parentTargetId !== categoryId ? parentTargetId : null);
+    if (!targetNestedId || !Array.isArray(categories)) return null;
+
+    if (activeSubCategory?.subcategories) {
+      const found = activeSubCategory.subcategories.find(n => 
+        n && (
+          n.id === targetNestedId || 
+          n.slug === targetNestedId || 
+          (n as any).seoSlug === targetNestedId ||
+          (n.name && createSlug(n.name) === targetNestedId) ||
+          (n.name && n.name.toLowerCase() === targetNestedId.toLowerCase())
+        )
+      );
+      if (found) return found;
+    }
+
+    for (const cat of categories) {
+      for (const sub of cat.subcategories || []) {
+        const found = sub.subcategories?.find(n => 
+          n && (
+            n.id === targetNestedId || 
+            n.slug === targetNestedId || 
+            (n as any).seoSlug === targetNestedId ||
+            (n.name && createSlug(n.name) === targetNestedId) ||
+            (n.name && n.name.toLowerCase() === targetNestedId.toLowerCase())
+          )
+        );
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [nestedSubCategoryId, parentTargetId, subCategoryId, categoryId, activeSubCategory, categories]);
+
+  // 4. Resolve effective active target ID and level
+  const effectiveTargetId = useMemo(() => {
+    if (parentTargetId) return parentTargetId;
+    if (activeNestedSubCategory) return activeNestedSubCategory.id;
+    if (nestedSubCategoryId) return nestedSubCategoryId;
+    if (activeSubCategory) return activeSubCategory.id;
+    if (subCategoryId) return subCategoryId;
+    if (activeCategory) return activeCategory.id;
+    return categoryId || '';
+  }, [parentTargetId, activeNestedSubCategory, nestedSubCategoryId, activeSubCategory, subCategoryId, activeCategory, categoryId]);
+
+  const isNestedLevelActive = Boolean(activeNestedSubCategory || nestedSubCategoryId || (parentTargetId && activeSubCategory && parentTargetId !== activeSubCategory.id));
+  const isSubCategoryLevelActive = Boolean(!isNestedLevelActive && (activeSubCategory || subCategoryId));
+
+  // 5. Dynamically filter active visual nested subcategories with strict isolation
   const matchingItems = useMemo(() => {
-    if (loading || !Array.isArray(items)) return [];
-    if (!categoryId && !subCategoryId) return [];
-    
+    if (loading || !Array.isArray(items) || items.length === 0) return [];
+    if (!categoryId && !subCategoryId && !nestedSubCategoryId && !parentTargetId) return [];
+
+    const activeCatId = activeCategory?.id || categoryId;
+    const activeSubId = activeSubCategory?.id || subCategoryId;
+    const activeNestedId = activeNestedSubCategory?.id || nestedSubCategoryId;
+
     return items.filter(item => {
       if (!item || item.isActive === false || item.isVisible === false) return false;
 
-      // 1. Strict Category Matching
-      if (categoryId) {
-        const matchesCategory = 
-          item.categoryId === categoryId ||
-          (activeCategory && item.categoryId === activeCategory.id) ||
-          (activeCategory && item.categoryName && activeCategory.name && item.categoryName.toLowerCase() === activeCategory.name.toLowerCase());
+      // Case A: A Nested Subcategory (Level 2+) is currently active
+      if (isNestedLevelActive) {
+        const matchesTarget = 
+          item.parentTargetId === activeNestedId ||
+          item.parentTargetId === effectiveTargetId ||
+          item.nestedSubCategoryId === activeNestedId ||
+          item.nestedSubCategoryId === effectiveTargetId ||
+          (activeNestedSubCategory && item.nestedSubCategoryName && activeNestedSubCategory.name && item.nestedSubCategoryName.toLowerCase() === activeNestedSubCategory.name.toLowerCase());
         
-        if (!matchesCategory) return false;
+        return Boolean(matchesTarget);
       }
 
-      // 2. Strict Subcategory Matching
-      if (subCategoryId) {
-        const matchesSubCategory = 
-          item.subCategoryId === subCategoryId ||
-          (activeSubCategory && item.subCategoryId === activeSubCategory.id) ||
+      // Case B: A Subcategory (Level 1) is currently active (and no nested subcategory is selected)
+      if (isSubCategoryLevelActive) {
+        // Must NOT match items that belong to a child nested subcategory
+        if (item.nestedSubCategoryId && item.nestedSubCategoryId.trim() !== '') {
+          return false;
+        }
+        if (item.parentTargetType === 'nested_subcategory') {
+          return false;
+        }
+
+        const matchesSub = 
+          item.parentTargetId === activeSubId ||
+          item.parentTargetId === effectiveTargetId ||
+          item.subCategoryId === activeSubId ||
+          item.subCategoryId === effectiveTargetId ||
           (activeSubCategory && item.subCategoryName && activeSubCategory.name && item.subCategoryName.toLowerCase() === activeSubCategory.name.toLowerCase());
-        
-        if (!matchesSubCategory) return false;
+
+        if (!matchesSub) return false;
+
+        // Ensure category matches if specified
+        if (activeCatId && item.categoryId && item.categoryId !== activeCatId) {
+          if (activeCategory && item.categoryName && activeCategory.name && item.categoryName.toLowerCase() !== activeCategory.name.toLowerCase()) {
+            return false;
+          }
+        }
+
+        return true;
       }
 
-      return true;
-    });
-  }, [items, categoryId, subCategoryId, activeCategory, activeSubCategory, loading]);
+      // Case C: Top Category Level (no subcategory or nested subcategory active)
+      if (activeCatId) {
+        // Must NOT match items belonging to any subcategory or nested subcategory
+        if (item.subCategoryId && item.subCategoryId !== 'all' && item.subCategoryId.trim() !== '') {
+          return false;
+        }
+        if (item.nestedSubCategoryId && item.nestedSubCategoryId.trim() !== '') {
+          return false;
+        }
+        if (item.parentTargetType === 'subcategory' || item.parentTargetType === 'nested_subcategory') {
+          return false;
+        }
 
-  // If no items match, hide section completely
+        const matchesCat = 
+          item.categoryId === activeCatId ||
+          item.parentTargetId === activeCatId ||
+          (activeCategory && item.categoryName && activeCategory.name && item.categoryName.toLowerCase() === activeCategory.name.toLowerCase());
+
+        return Boolean(matchesCat);
+      }
+
+      return false;
+    });
+  }, [items, categoryId, subCategoryId, nestedSubCategoryId, parentTargetId, effectiveTargetId, isNestedLevelActive, isSubCategoryLevelActive, activeCategory, activeSubCategory, activeNestedSubCategory, loading]);
+
+  // If no items match, hide section completely without an empty gap
   if (!loading && matchingItems.length === 0) {
     return null;
   }
@@ -112,20 +212,25 @@ export default function VisualNestedSubcategoriesSection({
   const displayedItems = showAll ? matchingItems : matchingItems.slice(0, limitCount);
   const hasMore = matchingItems.length > limitCount;
 
+  // Clean user-friendly titles without route paths or breadcrumbs
   const dynamicTitle = title || (
-    activeSubCategory
-      ? `Popular ${activeSubCategory.name} Collections`
-      : activeCategory
-        ? `Explore ${activeCategory.name} Visual Collections`
-        : 'Featured Visual Categories'
+    activeNestedSubCategory
+      ? `Popular ${activeNestedSubCategory.name} Collections`
+      : activeSubCategory
+        ? `Popular ${activeSubCategory.name} Collections`
+        : activeCategory
+          ? `Explore ${activeCategory.name} Visual Collections`
+          : 'Featured Visual Categories'
   );
 
   const dynamicSubtitle = subtitle || (
-    activeSubCategory
-      ? `Discover trending styles and subcategories in ${activeSubCategory.name}`
-      : activeCategory
-        ? `Browse hand-picked visual collections and top styles in ${activeCategory.name}`
-        : 'Hand-picked visual subcategories with exclusive designs'
+    activeNestedSubCategory
+      ? `Discover trending styles and collections in ${activeNestedSubCategory.name}`
+      : activeSubCategory
+        ? `Discover trending styles and subcategories in ${activeSubCategory.name}`
+        : activeCategory
+          ? `Browse hand-picked visual collections and top styles in ${activeCategory.name}`
+          : 'Hand-picked visual subcategories with exclusive designs'
   );
 
   return (
@@ -169,6 +274,7 @@ export default function VisualNestedSubcategoriesSection({
               item={item}
               category={activeCategory}
               subCategorySlug={activeSubCategory?.slug}
+              nestedSubCategorySlug={activeNestedSubCategory?.slug}
               priority={index < 4}
             />
           ))}

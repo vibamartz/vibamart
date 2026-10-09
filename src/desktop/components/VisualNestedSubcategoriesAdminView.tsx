@@ -3,7 +3,7 @@ import {
   Sparkles, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter,
   GripVertical, Image as ImageIcon, Upload, X, Save, Check, RefreshCw,
   Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2,
-  Shapes, Frame, Type, Sliders, Palette, CheckCircle2
+  Shapes, Frame, Type, Sliders, Palette, CheckCircle2, GitBranch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -13,6 +13,24 @@ import { createSlug } from '../../shared/utilities/slug';
 import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
 import { FRAME_SHAPES, getFrameConfig, VisualFrameDefs } from '../../shared/components/visualFrames';
+
+interface FlatParentOption {
+  key: string;
+  catId: string;
+  catName: string;
+  subId: string;
+  subName: string;
+  nestedId?: string;
+  nestedName?: string;
+  parentTargetId: string;
+  parentTargetName: string;
+  parentTargetType: 'subcategory' | 'nested_subcategory';
+  parentPathIds: string[];
+  parentPathNames: string[];
+  level: number;
+  label: string;
+  item: SubCategory;
+}
 
 export default function VisualNestedSubcategoriesAdminView() {
   const { items, loading, addItem, updateItem, deleteItem, deleteAllItems, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
@@ -43,6 +61,14 @@ export default function VisualNestedSubcategoriesAdminView() {
     categoryName: '',
     subCategoryId: '',
     subCategoryName: '',
+    nestedSubCategoryId: '',
+    nestedSubCategoryName: '',
+    parentTargetId: '',
+    parentTargetName: '',
+    parentTargetType: 'subcategory',
+    parentPathIds: [],
+    parentPathNames: [],
+    targetUrl: '',
     order: 1,
     isActive: true,
     frameShape: 'portrait-3-4',
@@ -59,12 +85,82 @@ export default function VisualNestedSubcategoriesAdminView() {
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
 
+  // All catalog parent hierarchy nodes (subcategories, nested subcategories, and deeper)
+  const allCatalogParentOptions = useMemo(() => {
+    const list: FlatParentOption[] = [];
+    if (!Array.isArray(categories)) return list;
+
+    categories.forEach(cat => {
+      cat.subcategories?.forEach(sub => {
+        // Level 1 Subcategory option
+        list.push({
+          key: `${cat.id}:::${sub.id}:::root`,
+          catId: cat.id,
+          catName: cat.name,
+          subId: sub.id,
+          subName: sub.name,
+          parentTargetId: sub.id,
+          parentTargetName: sub.name,
+          parentTargetType: 'subcategory',
+          parentPathIds: [cat.id, sub.id],
+          parentPathNames: [cat.name, sub.name],
+          level: 1,
+          label: `${cat.name} › ${sub.name}`,
+          item: sub
+        });
+
+        // Level 2 Nested Subcategories
+        sub.subcategories?.forEach(nested => {
+          list.push({
+            key: `${cat.id}:::${sub.id}:::${nested.id}`,
+            catId: cat.id,
+            catName: cat.name,
+            subId: sub.id,
+            subName: sub.name,
+            nestedId: nested.id,
+            nestedName: nested.name,
+            parentTargetId: nested.id,
+            parentTargetName: nested.name,
+            parentTargetType: 'nested_subcategory',
+            parentPathIds: [cat.id, sub.id, nested.id],
+            parentPathNames: [cat.name, sub.name, nested.name],
+            level: 2,
+            label: `${cat.name} › ${sub.name} › ${nested.name}`,
+            item: nested
+          });
+
+          // Level 3 Deeper Subcategories (if any exist)
+          nested.subcategories?.forEach(deep => {
+            list.push({
+              key: `${cat.id}:::${sub.id}:::${nested.id}:::${deep.id}`,
+              catId: cat.id,
+              catName: cat.name,
+              subId: sub.id,
+              subName: sub.name,
+              nestedId: deep.id,
+              nestedName: deep.name,
+              parentTargetId: deep.id,
+              parentTargetName: deep.name,
+              parentTargetType: 'nested_subcategory',
+              parentPathIds: [cat.id, sub.id, nested.id, deep.id],
+              parentPathNames: [cat.name, sub.name, nested.name, deep.name],
+              level: 3,
+              label: `${cat.name} › ${sub.name} › ${nested.name} › ${deep.name}`,
+              item: deep
+            });
+          });
+        });
+      });
+    });
+
+    return list;
+  }, [categories]);
+
   // Subcategories available for filter
   const filterAvailableSubCategories = useMemo(() => {
     if (selectedCategoryFilter === 'all') return [];
-    const cat = categories.find(c => c.id === selectedCategoryFilter);
-    return cat?.subcategories || [];
-  }, [selectedCategoryFilter, categories]);
+    return allCatalogParentOptions.filter(p => p.catId === selectedCategoryFilter);
+  }, [selectedCategoryFilter, allCatalogParentOptions]);
 
   // Subcategories available in modal form based on selected parent category
   const formAvailableSubCategories = useMemo(() => {
@@ -73,7 +169,7 @@ export default function VisualNestedSubcategoriesAdminView() {
     return cat?.subcategories || [];
   }, [formData.categoryId, categories]);
 
-  // Existing nested subcategories inside currently selected parent subcategory
+  // Nested subcategories available inside currently selected parent subcategory
   const formAvailableNestedSubCategories = useMemo(() => {
     if (!formData.categoryId || !formData.subCategoryId) return [];
     const cat = categories.find(c => c.id === formData.categoryId);
@@ -81,26 +177,7 @@ export default function VisualNestedSubcategoriesAdminView() {
     return sub?.subcategories || [];
   }, [formData.categoryId, formData.subCategoryId, categories]);
 
-  // All existing nested subcategories across the entire catalog
-  const allCatalogNestedSubcategories = useMemo(() => {
-    const list: { catId: string; catName: string; subId: string; subName: string; nested: SubCategory }[] = [];
-    categories.forEach(c => {
-      c.subcategories?.forEach(s => {
-        s.subcategories?.forEach(n => {
-          list.push({
-            catId: c.id,
-            catName: c.name,
-            subId: s.id,
-            subName: s.name,
-            nested: n
-          });
-        });
-      });
-    });
-    return list;
-  }, [categories]);
-
-  // Filtered Items
+  // Filtered Items for Admin View
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       // 1. Search Query
@@ -111,8 +188,10 @@ export default function VisualNestedSubcategoriesAdminView() {
         const matchSlug = item.slug ? item.slug.toLowerCase().includes(q) : false;
         const matchCat = item.categoryName?.toLowerCase().includes(q);
         const matchSub = item.subCategoryName?.toLowerCase().includes(q);
+        const matchNested = item.nestedSubCategoryName?.toLowerCase().includes(q);
+        const matchTarget = item.parentTargetName?.toLowerCase().includes(q);
         const matchShape = item.frameShape?.toLowerCase().includes(q);
-        if (!matchName && !matchOffer && !matchSlug && !matchCat && !matchSub && !matchShape) return false;
+        if (!matchName && !matchOffer && !matchSlug && !matchCat && !matchSub && !matchNested && !matchTarget && !matchShape) return false;
       }
 
       // 2. Category Filter
@@ -120,9 +199,13 @@ export default function VisualNestedSubcategoriesAdminView() {
         return false;
       }
 
-      // 3. SubCategory Filter
-      if (selectedSubCategoryFilter !== 'all' && item.subCategoryId !== selectedSubCategoryFilter) {
-        return false;
+      // 3. SubCategory / Target Parent Filter
+      if (selectedSubCategoryFilter !== 'all') {
+        const isMatch = 
+          item.parentTargetId === selectedSubCategoryFilter ||
+          item.nestedSubCategoryId === selectedSubCategoryFilter ||
+          item.subCategoryId === selectedSubCategoryFilter;
+        if (!isMatch) return false;
       }
 
       // 4. Status Filter
@@ -186,6 +269,14 @@ export default function VisualNestedSubcategoriesAdminView() {
       categoryName: defaultCatObj?.name || '',
       subCategoryId: defaultSub,
       subCategoryName: defaultSubObj?.name || '',
+      nestedSubCategoryId: '',
+      nestedSubCategoryName: '',
+      parentTargetId: defaultSub,
+      parentTargetName: defaultSubObj?.name || '',
+      parentTargetType: 'subcategory',
+      parentPathIds: [defaultCat, defaultSub].filter(Boolean),
+      parentPathNames: [defaultCatObj?.name, defaultSubObj?.name].filter(Boolean) as string[],
+      targetUrl: '',
       order: items.length + 1,
       isActive: true,
       frameShape: 'portrait-3-4',
@@ -204,6 +295,9 @@ export default function VisualNestedSubcategoriesAdminView() {
     setEditingId(item.id);
     setFormData({
       ...item,
+      parentTargetId: item.parentTargetId || item.nestedSubCategoryId || item.subCategoryId,
+      parentTargetName: item.parentTargetName || item.nestedSubCategoryName || item.subCategoryName || '',
+      parentTargetType: item.parentTargetType || (item.nestedSubCategoryId ? 'nested_subcategory' : 'subcategory'),
       frameShape: item.frameShape || 'portrait-3-4',
       showOfferStrip: item.showOfferStrip !== undefined ? item.showOfferStrip : Boolean(item.offerText),
       offerText: item.offerText || 'Under ₹299',
@@ -224,7 +318,14 @@ export default function VisualNestedSubcategoriesAdminView() {
       categoryId: catId,
       categoryName: catObj?.name || '',
       subCategoryId: firstSub?.id || '',
-      subCategoryName: firstSub?.name || ''
+      subCategoryName: firstSub?.name || '',
+      nestedSubCategoryId: '',
+      nestedSubCategoryName: '',
+      parentTargetId: firstSub?.id || '',
+      parentTargetName: firstSub?.name || '',
+      parentTargetType: 'subcategory',
+      parentPathIds: [catId, firstSub?.id].filter(Boolean) as string[],
+      parentPathNames: [catObj?.name, firstSub?.name].filter(Boolean) as string[]
     }));
   };
 
@@ -234,31 +335,54 @@ export default function VisualNestedSubcategoriesAdminView() {
     setFormData(prev => ({
       ...prev,
       subCategoryId: subId,
-      subCategoryName: subObj?.name || ''
+      subCategoryName: subObj?.name || '',
+      nestedSubCategoryId: '',
+      nestedSubCategoryName: '',
+      parentTargetId: subId,
+      parentTargetName: subObj?.name || '',
+      parentTargetType: 'subcategory',
+      parentPathIds: [prev.categoryId || '', subId].filter(Boolean),
+      parentPathNames: [prev.categoryName || '', subObj?.name || ''].filter(Boolean)
     }));
   };
 
-  // Quick select an existing nested subcategory within currently selected subcategory
-  const handleSelectExistingNested = (nestedId: string) => {
-    if (!nestedId) return;
-    const selected = formAvailableNestedSubCategories.find(n => n.id === nestedId);
-    if (selected) {
+  // Handle Target Placement Level change (Directly under Subcategory vs. Under a specific Nested Subcategory)
+  const handleFormPlacementChange = (targetValue: string) => {
+    if (targetValue === 'direct_sub') {
+      const subObj = formAvailableSubCategories.find(s => s.id === formData.subCategoryId);
       setFormData(prev => ({
         ...prev,
-        name: selected.name,
-        slug: selected.slug || createSlug(selected.name),
-        seoSlug: (selected as any).seoSlug || selected.slug || createSlug(selected.name),
-        image: selected.image || prev.image || '',
-        seoTitle: `${selected.name} | ViBa Mart`
+        nestedSubCategoryId: '',
+        nestedSubCategoryName: '',
+        parentTargetId: prev.subCategoryId || '',
+        parentTargetName: subObj?.name || prev.subCategoryName || '',
+        parentTargetType: 'subcategory',
+        parentPathIds: [prev.categoryId || '', prev.subCategoryId || ''].filter(Boolean),
+        parentPathNames: [prev.categoryName || '', subObj?.name || prev.subCategoryName || ''].filter(Boolean)
       }));
-      toast.success(`Selected existing "${selected.name}"`);
+      return;
+    }
+
+    // A specific nested subcategory was selected
+    const nestedObj = formAvailableNestedSubCategories.find(n => n.id === targetValue);
+    if (nestedObj) {
+      setFormData(prev => ({
+        ...prev,
+        nestedSubCategoryId: nestedObj.id,
+        nestedSubCategoryName: nestedObj.name,
+        parentTargetId: nestedObj.id,
+        parentTargetName: nestedObj.name,
+        parentTargetType: 'nested_subcategory',
+        parentPathIds: [prev.categoryId || '', prev.subCategoryId || '', nestedObj.id].filter(Boolean),
+        parentPathNames: [prev.categoryName || '', prev.subCategoryName || '', nestedObj.name].filter(Boolean)
+      }));
     }
   };
 
-  // Quick select any existing nested subcategory across the entire catalog
-  const handleSelectCatalogNested = (compositeKey: string) => {
+  // Quick select ANY existing subcategory or nested subcategory across the entire catalog
+  const handleQuickSelectParentNode = (compositeKey: string) => {
     if (!compositeKey) return;
-    const found = allCatalogNestedSubcategories.find(item => `${item.catId}:::${item.subId}:::${item.nested.id}` === compositeKey);
+    const found = allCatalogParentOptions.find(item => item.key === compositeKey);
     if (found) {
       setFormData(prev => ({
         ...prev,
@@ -266,13 +390,20 @@ export default function VisualNestedSubcategoriesAdminView() {
         categoryName: found.catName,
         subCategoryId: found.subId,
         subCategoryName: found.subName,
-        name: found.nested.name,
-        slug: found.nested.slug || createSlug(found.nested.name),
-        seoSlug: (found.nested as any).seoSlug || found.nested.slug || createSlug(found.nested.name),
-        image: found.nested.image || prev.image || '',
-        seoTitle: `${found.nested.name} | ViBa Mart`
+        nestedSubCategoryId: found.nestedId || '',
+        nestedSubCategoryName: found.nestedName || '',
+        parentTargetId: found.parentTargetId,
+        parentTargetName: found.parentTargetName,
+        parentTargetType: found.parentTargetType,
+        parentPathIds: found.parentPathIds,
+        parentPathNames: found.parentPathNames,
+        name: prev.name || found.item.name || '',
+        slug: prev.slug || found.item.slug || createSlug(found.item.name),
+        seoSlug: prev.seoSlug || (found.item as any).seoSlug || found.item.slug || createSlug(found.item.name),
+        image: prev.image || found.item.image || '',
+        seoTitle: `${found.item.name} | ViBa Mart`
       }));
-      toast.success(`Linked "${found.nested.name}" (${found.catName} › ${found.subName})`);
+      toast.success(`Target set to: ${found.label}`);
     }
   };
 
@@ -334,6 +465,10 @@ export default function VisualNestedSubcategoriesAdminView() {
         ? createSlug(cardName) 
         : (formData.slug || (formData.offerText ? createSlug(formData.offerText) : `card-${Date.now().toString().slice(-4)}`));
 
+      const effectiveTargetId = formData.parentTargetId || formData.nestedSubCategoryId || formData.subCategoryId || '';
+      const effectiveTargetName = formData.parentTargetName || formData.nestedSubCategoryName || formData.subCategoryName || '';
+      const effectiveTargetType = formData.parentTargetType || (formData.nestedSubCategoryId ? 'nested_subcategory' : 'subcategory');
+
       const payload: Partial<VisualNestedSubcategory> = {
         name: cardName,
         slug: formData.slug || fallbackSlug,
@@ -343,6 +478,14 @@ export default function VisualNestedSubcategoriesAdminView() {
         categoryName: formData.categoryName,
         subCategoryId: formData.subCategoryId,
         subCategoryName: formData.subCategoryName,
+        nestedSubCategoryId: formData.nestedSubCategoryId || '',
+        nestedSubCategoryName: formData.nestedSubCategoryName || '',
+        parentTargetId: effectiveTargetId,
+        parentTargetName: effectiveTargetName,
+        parentTargetType: effectiveTargetType,
+        parentPathIds: formData.parentPathIds || [formData.categoryId, formData.subCategoryId, ...(formData.nestedSubCategoryId ? [formData.nestedSubCategoryId] : [])].filter(Boolean) as string[],
+        parentPathNames: formData.parentPathNames || [formData.categoryName, formData.subCategoryName, ...(formData.nestedSubCategoryName ? [formData.nestedSubCategoryName] : [])].filter(Boolean) as string[],
+        targetUrl: formData.targetUrl || '',
         order: Number(formData.order) || 1,
         isActive: formData.isActive !== false,
         frameShape: formData.frameShape || 'portrait-3-4',
@@ -424,6 +567,11 @@ export default function VisualNestedSubcategoriesAdminView() {
     categoryName: formData.categoryName || 'Category',
     subCategoryId: formData.subCategoryId || 'sub',
     subCategoryName: formData.subCategoryName || 'Subcategory',
+    nestedSubCategoryId: formData.nestedSubCategoryId || '',
+    nestedSubCategoryName: formData.nestedSubCategoryName || '',
+    parentTargetId: formData.parentTargetId || formData.subCategoryId || 'sub',
+    parentTargetName: formData.parentTargetName || formData.subCategoryName || 'Subcategory',
+    parentTargetType: formData.parentTargetType || 'subcategory',
     order: Number(formData.order) || 1,
     isActive: formData.isActive !== false,
     frameShape: formData.frameShape || 'portrait-3-4',
@@ -452,7 +600,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-            Choose custom image ratios & decorative frames (Arch, Scallop, Mughal, Temple, Circle, etc.) with optional offer strip styling.
+            Configure visual showcase cards under any Subcategory or Nested Subcategory across the catalog hierarchy.
           </p>
         </div>
 
@@ -493,7 +641,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by name, frame, slug..."
+              placeholder="Search by name, parent, frame..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
@@ -517,7 +665,7 @@ export default function VisualNestedSubcategoriesAdminView() {
             </select>
           </div>
 
-          {/* Parent Subcategory Filter Dropdown */}
+          {/* Target Subcategory / Nested Subcategory Filter Dropdown */}
           <div>
             <select
               value={selectedSubCategoryFilter}
@@ -526,10 +674,12 @@ export default function VisualNestedSubcategoriesAdminView() {
               className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-gray-700 cursor-pointer disabled:opacity-50"
             >
               <option value="all">
-                {selectedCategoryFilter === 'all' ? 'Select Category First' : `All Subcategories (${filterAvailableSubCategories.length})`}
+                {selectedCategoryFilter === 'all' ? 'Select Category First' : `All Target Parents (${filterAvailableSubCategories.length})`}
               </option>
-              {filterAvailableSubCategories.map(sub => (
-                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              {filterAvailableSubCategories.map(p => (
+                <option key={p.key} value={p.parentTargetId}>
+                  {p.level === 2 ? '↳ ' : ''}{p.parentTargetName} ({p.parentTargetType === 'nested_subcategory' ? 'Nested' : 'Subcategory'})
+                </option>
               ))}
             </select>
           </div>
@@ -587,7 +737,7 @@ export default function VisualNestedSubcategoriesAdminView() {
           <div className="col-span-1 text-center">Order</div>
           <div className="col-span-1 text-center">Shape Preview</div>
           <div className="col-span-3">Name & Offer Strip</div>
-          <div className="col-span-3">Parent Hierarchy</div>
+          <div className="col-span-3">Parent Hierarchy & Target</div>
           <div className="col-span-2">Frame / Ratio</div>
           <div className="col-span-2 text-right pr-4">Actions</div>
         </div>
@@ -614,6 +764,11 @@ export default function VisualNestedSubcategoriesAdminView() {
             {filteredItems.map((item, index) => {
               const frameConfig = getFrameConfig(item.frameShape);
               const isOfferOn = item.showOfferStrip !== false && Boolean(item.offerText || item.badgeText);
+              const isNestedTarget = Boolean(item.nestedSubCategoryId || item.parentTargetType === 'nested_subcategory');
+
+              const breadcrumb = item.parentPathNames && item.parentPathNames.length > 0
+                ? item.parentPathNames.join(' › ')
+                : `${item.categoryName || item.categoryId} › ${item.subCategoryName || item.subCategoryId}${item.nestedSubCategoryName ? ` › ${item.nestedSubCategoryName}` : ''}`;
               
               return (
                 <div
@@ -676,16 +831,23 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
-                  {/* Parent Hierarchy */}
-                  <div className="col-span-3 min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 truncate">
-                      <span className="px-2 py-0.5 rounded-lg bg-gray-100 text-gray-800 truncate max-w-[120px]">
-                        {item.categoryName || item.categoryId}
-                      </span>
-                      <span className="text-gray-400">›</span>
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 truncate max-w-[120px]">
-                        {item.subCategoryName || item.subCategoryId}
-                      </span>
+                  {/* Parent Hierarchy & Target Badge */}
+                  <div className="col-span-3 min-w-0 space-y-1">
+                    <div className="text-xs font-bold text-gray-800 truncate" title={breadcrumb}>
+                      {breadcrumb}
+                    </div>
+                    <div>
+                      {isNestedTarget ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <GitBranch className="w-3 h-3" />
+                          Nested Subcategory Target
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Layers className="w-3 h-3" />
+                          Subcategory Target
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -763,7 +925,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       {editingId ? 'Edit Visual Nested Subcategory' : 'Create Visual Nested Subcategory'}
                     </h3>
                     <p className="text-xs text-gray-500 font-medium">
-                      Configure custom image frame shapes, optional offer strip, hierarchy, and imagery.
+                      Place visual showcase cards under any Subcategory or Nested Subcategory.
                     </p>
                   </div>
                 </div>
@@ -781,22 +943,22 @@ export default function VisualNestedSubcategoriesAdminView() {
                 {/* Form Column */}
                 <form onSubmit={handleSave} className="lg:col-span-7 p-6 space-y-5 border-r border-gray-100">
                   
-                  {/* Quick Select from existing nested subcategories across the catalog */}
-                  {!editingId && allCatalogNestedSubcategories.length > 0 && (
+                  {/* Quick Select from any existing subcategory or nested subcategory across the entire catalog */}
+                  {!editingId && allCatalogParentOptions.length > 0 && (
                     <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/80">
                       <label className="block text-[11px] font-black text-emerald-900 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                         <Link2 className="w-3.5 h-3.5 text-emerald-700" />
-                        Quick Select Any Existing Catalog Subcategory
+                        Quick Select Target Parent (Subcategory or Nested Subcategory)
                       </label>
                       <select
-                        onChange={(e) => handleSelectCatalogNested(e.target.value)}
+                        onChange={(e) => handleQuickSelectParentNode(e.target.value)}
                         defaultValue=""
                         className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                       >
-                        <option value="">-- Choose from existing catalog nested subcategories --</option>
-                        {allCatalogNestedSubcategories.map(item => (
-                          <option key={`${item.catId}-${item.subId}-${item.nested.id}`} value={`${item.catId}:::${item.subId}:::${item.nested.id}`}>
-                            {item.catName} › {item.subName} › {item.nested.name}
+                        <option value="">-- Choose from existing catalog subcategories & nested items --</option>
+                        {allCatalogParentOptions.map(item => (
+                          <option key={item.key} value={item.key}>
+                            {item.label} ({item.level === 2 ? 'Nested Subcategory' : item.level === 3 ? 'Deep Subcategory' : 'Subcategory'})
                           </option>
                         ))}
                       </select>
@@ -837,6 +999,42 @@ export default function VisualNestedSubcategoriesAdminView() {
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Placement Level & Specific Target Selector */}
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
+                    <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <GitBranch className="w-4 h-4 text-emerald-600" />
+                      Placement Level & Target Parent Item *
+                    </label>
+                    <p className="text-[11px] text-gray-500">
+                      Choose whether this visual card appears directly when clicking the Subcategory or inside a specific Nested Subcategory.
+                    </p>
+
+                    <select
+                      value={formData.nestedSubCategoryId || 'direct_sub'}
+                      onChange={(e) => handleFormPlacementChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="direct_sub">
+                        Directly under {formData.subCategoryName || 'Subcategory'} (Level 1 Subcategory)
+                      </option>
+                      {formAvailableNestedSubCategories.map(n => (
+                        <option key={n.id} value={n.id}>
+                          Under {formData.subCategoryName} › {n.name} (Level 2 Nested Subcategory)
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center gap-2 pt-1 text-[11px] text-gray-600">
+                      <span className="font-bold">Active Placement:</span>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-black">
+                        {formData.parentTargetName || formData.subCategoryName || 'Subcategory'}
+                      </span>
+                      <span className="text-gray-400">
+                        ({formData.nestedSubCategoryId ? 'Nested Subcategory' : 'Subcategory'})
+                      </span>
                     </div>
                   </div>
 
@@ -1292,12 +1490,12 @@ export default function VisualNestedSubcategoriesAdminView() {
                       </div>
                     </div>
 
-                    <div className="mt-4 p-3 bg-white/80 rounded-2xl border border-gray-200/70 text-center">
+                    <div className="mt-4 p-3 bg-white/80 rounded-2xl border border-gray-200/70 text-center space-y-1">
                       <p className="text-[11px] font-bold text-gray-600">
                         Frame: <span className="text-indigo-700">{getFrameConfig(formData.frameShape).name}</span> ({getFrameConfig(formData.frameShape).aspectRatio})
                       </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        Offer Strip: {formData.showOfferStrip !== false ? <span className="text-emerald-700 font-bold">Enabled</span> : <span className="text-gray-500 font-medium">Disabled</span>}
+                      <p className="text-[10px] text-gray-500">
+                        Target Parent: <span className="text-emerald-800 font-bold">{formData.parentTargetName || formData.subCategoryName || 'Subcategory'}</span>
                       </p>
                     </div>
                   </div>

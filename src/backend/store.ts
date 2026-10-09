@@ -411,7 +411,7 @@ interface VisualNestedSubcategoryState {
   deleteAllItems: () => Promise<void>;
   toggleActive: (id: string, isActive: boolean) => Promise<void>;
   reorderItems: (ordered: VisualNestedSubcategory[]) => Promise<void>;
-  getByCategoryAndSubCategory: (categoryId?: string, subCategoryId?: string) => VisualNestedSubcategory[];
+  getByCategoryAndSubCategory: (categoryId?: string, subCategoryId?: string, nestedSubCategoryId?: string, parentTargetId?: string) => VisualNestedSubcategory[];
 }
 
 export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategoryState>((set, get) => ({
@@ -474,12 +474,22 @@ export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategorySta
     await reorderVisualNestedSubcategoriesInDb(ordered);
   },
 
-  getByCategoryAndSubCategory: (categoryId, subCategoryId) => {
+  getByCategoryAndSubCategory: (categoryId, subCategoryId, nestedSubCategoryId, parentTargetId) => {
     const all = get().items;
     return all.filter(item => {
-      if (item.isActive === false || item.isVisible === false) return false;
-      if (categoryId && item.categoryId !== categoryId) return false;
-      if (subCategoryId && item.subCategoryId !== subCategoryId) return false;
+      if (!item || item.isActive === false || item.isVisible === false) return false;
+      if (parentTargetId) {
+        return item.parentTargetId === parentTargetId || item.nestedSubCategoryId === parentTargetId || item.subCategoryId === parentTargetId;
+      }
+      if (nestedSubCategoryId) {
+        return item.parentTargetId === nestedSubCategoryId || item.nestedSubCategoryId === nestedSubCategoryId;
+      }
+      if (subCategoryId) {
+        return (item.parentTargetId === subCategoryId || (!item.nestedSubCategoryId && item.subCategoryId === subCategoryId)) && (!categoryId || item.categoryId === categoryId);
+      }
+      if (categoryId) {
+        return item.categoryId === categoryId && (!item.subCategoryId || item.subCategoryId === 'all') && !item.nestedSubCategoryId;
+      }
       return true;
     });
   }

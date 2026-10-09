@@ -303,10 +303,18 @@ export interface VisualNestedSubcategory {
   seoSlug?: string;
   description?: string;
   image: string;
-  categoryId: string; // Dynamic Parent Category ID
+  categoryId: string; // Dynamic Parent Root Category ID
   categoryName?: string;
   subCategoryId: string; // Dynamic Parent SubCategory ID
   subCategoryName?: string;
+  nestedSubCategoryId?: string; // Optional Parent Nested SubCategory ID (when placed under a nested subcategory)
+  nestedSubCategoryName?: string;
+  parentTargetId?: string; // Exact Database ID of the parent item (Category, SubCategory, or Nested SubCategory)
+  parentTargetName?: string; // Exact Name of the parent item
+  parentTargetType?: 'category' | 'subcategory' | 'nested_subcategory'; // Type/depth of parent
+  parentPathIds?: string[]; // Chain of parent IDs: [catId, subId, nestedId, ...]
+  parentPathNames?: string[]; // Chain of parent Names: ['Fashion', 'Men', 'Topwear']
+  targetUrl?: string; // Optional custom navigation target route
   order: number;
   isActive: boolean;
   isVisible?: boolean;

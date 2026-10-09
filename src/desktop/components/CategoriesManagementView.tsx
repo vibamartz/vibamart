@@ -487,7 +487,7 @@ export default function CategoriesManagementView() {
   const handleAddNestedToVisual = async (cat: Category, sub: SubCategory, nested: SubCategory) => {
     try {
       const existing = useVisualNestedSubcategoryStore.getState().items.find(
-        i => i.categoryId === cat.id && i.subCategoryId === sub.id && (i.name.toLowerCase() === nested.name.toLowerCase() || i.slug === nested.slug)
+        i => i.categoryId === cat.id && i.subCategoryId === sub.id && (i.name?.toLowerCase() === nested.name.toLowerCase() || i.slug === nested.slug)
       );
       if (existing) {
         toast.success(`"${nested.name}" is already in Visual Nested Subcategories`);
@@ -503,6 +503,13 @@ export default function CategoriesManagementView() {
         categoryName: cat.name,
         subCategoryId: sub.id,
         subCategoryName: sub.name,
+        nestedSubCategoryId: nested.id,
+        nestedSubCategoryName: nested.name,
+        parentTargetId: sub.id,
+        parentTargetName: sub.name,
+        parentTargetType: 'subcategory',
+        parentPathIds: [cat.id, sub.id, nested.id],
+        parentPathNames: [cat.name, sub.name, nested.name],
         order: useVisualNestedSubcategoryStore.getState().items.length + 1,
         isActive: true,
         frameShape: 'portrait-3-4',

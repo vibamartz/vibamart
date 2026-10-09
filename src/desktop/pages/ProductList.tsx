@@ -711,6 +711,8 @@ export default function ProductList() {
             <VisualNestedSubcategoriesSection
               categoryId={matchedCategory.id}
               subCategoryId={matchedSubcategory?.id}
+              nestedSubCategoryId={matchedNestedSubcategory?.id}
+              parentTargetId={matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
             />
           )}
 

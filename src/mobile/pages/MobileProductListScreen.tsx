@@ -514,6 +514,8 @@ export default function MobileProductListScreen() {
         <VisualNestedSubcategoriesSection
           categoryId={currentCategoryObj?.id || selectedCategory}
           subCategoryId={currentSubCategoryObj?.id || selectedSubCategory}
+          nestedSubCategoryId={currentNestedSubCategoryObj?.id || selectedNestedSubCategory}
+          parentTargetId={currentNestedSubCategoryObj?.id || selectedNestedSubCategory || currentSubCategoryObj?.id || selectedSubCategory || currentCategoryObj?.id || selectedCategory}
           isMobile={true}
         />
       )}

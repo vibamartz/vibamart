@@ -12,6 +12,7 @@ export interface VisualNestedSubcategoryCardProps {
   item: VisualNestedSubcategory;
   category?: Category | null;
   subCategorySlug?: string;
+  nestedSubCategorySlug?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   priority?: boolean;
@@ -21,6 +22,7 @@ export default function VisualNestedSubcategoryCard({
   item,
   category,
   subCategorySlug,
+  nestedSubCategorySlug,
   className = '',
   size = 'md',
   priority = false
@@ -30,7 +32,7 @@ export default function VisualNestedSubcategoryCard({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // Dynamically resolve parent category & subcategory slugs
+  // Dynamically resolve parent category, subcategory, and nested subcategory
   const safeCategories = Array.isArray(categories) ? categories : [];
   const parentCat = category || safeCategories.find(c => 
     c && (
@@ -54,10 +56,31 @@ export default function VisualNestedSubcategoryCard({
   );
   const subSlug = parentSub ? getSubcategorySlug(parentSub) : (subCategorySlug || item.subCategoryId || 'all');
   
-  const nestedSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
+  const parentNested = parentSub?.subcategories?.find(n => 
+    n && (
+      n.id === item.nestedSubCategoryId ||
+      n.id === item.parentTargetId ||
+      n.slug === item.nestedSubCategoryId ||
+      (item.nestedSubCategoryName && n.name && n.name.toLowerCase() === item.nestedSubCategoryName.toLowerCase())
+    )
+  );
+  const nestedParentSlug = parentNested ? (parentNested.slug || createSlug(parentNested.name)) : (nestedSubCategorySlug || item.nestedSubCategoryId);
+
+  const cardSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
 
   const handleClick = () => {
-    navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+    if (item.targetUrl && item.targetUrl.trim()) {
+      navigate(item.targetUrl);
+      return;
+    }
+
+    if (nestedParentSlug) {
+      navigate(`/categories/${catSlug}/${subSlug}/${nestedParentSlug}/${cardSlug}`);
+    } else if (subSlug && subSlug !== 'all') {
+      navigate(`/categories/${catSlug}/${subSlug}/${cardSlug}`);
+    } else {
+      navigate(`/categories/${catSlug}/${cardSlug}`);
+    }
   };
 
   // Frame shape configuration
