@@ -25,18 +25,17 @@ export async function getRewardProductIds(): Promise<Set<string>> {
 }
 
 /**
- * Helper to filter out reward products from general product arrays
+ * Helper to filter products for general product arrays
  * (Home, Categories, Subcategories, Search, Recommendations, etc.)
+ * Respects existing admin visibility controls and product status,
+ * ensuring products assigned to special sections (Deal 259, Rewards, Deals, Offers, etc.)
+ * remain visible across the main ViBa Mart catalog.
  */
-export function filterOutRewardProducts(products: Product[], rewardProductIds?: Set<string>): Product[] {
+export function filterOutRewardProducts(products: Product[], _rewardProductIds?: Set<string>): Product[] {
   if (!products || !Array.isArray(products)) return [];
   return products.filter(p => {
     if (p.isVisible === false) return false;
     if (p.status === 'inactive') return false;
-    if (rewardProductIds && rewardProductIds.has(p.id)) return false;
-    if ((p as any).isRewardProduct) return false;
-    // Deal 259 products must NOT appear on general store pages unless explicitly enabled by Admin via showInGeneralStore
-    if (p.isDeal259 && !p.showInGeneralStore) return false;
     return true;
   });
 }

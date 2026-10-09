@@ -110,7 +110,7 @@ export default function Deal259AdminManagementView() {
         isDeal259: true,
         deal259Status: 'active',
         deal259Order: assignedProducts.length + 1,
-        showInGeneralStore: false // Explicitly isolated to Deal 259 unless changed by Admin
+        showInGeneralStore: true
       };
       if (customPrice !== undefined && customPrice !== null) {
         updateData.deal259Price = customPrice;
@@ -161,7 +161,7 @@ export default function Deal259AdminManagementView() {
         updateDoc(doc(db, 'products', id), {
           isDeal259: true,
           deal259Status: 'active',
-          showInGeneralStore: false
+          showInGeneralStore: true
         })
       );
       await Promise.all(promises);

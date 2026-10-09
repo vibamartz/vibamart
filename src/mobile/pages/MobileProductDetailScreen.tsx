@@ -193,10 +193,7 @@ export default function MobileProductDetailScreen() {
           );
 
           try {
-            const rewardIds = await getRewardProductIds();
-            if (!rewardIds.has(foundProduct.id) && !(foundProduct as any).isRewardProduct) {
-              addRecentlyViewedId(foundProduct.id);
-            }
+            addRecentlyViewedId(foundProduct.id);
           } catch (err) {
             console.error("Error updating recently viewed:", err);
           }

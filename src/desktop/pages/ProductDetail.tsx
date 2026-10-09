@@ -233,10 +233,6 @@ export default function ProductDetail() {
     const trackRecent = async () => {
       if (product && product.id) {
         try {
-          const rewardIds = await getRewardProductIds();
-          if (rewardIds.has(product.id) || (product as any).isRewardProduct) {
-            return;
-          }
           addRecentlyViewedId(product.id);
         } catch (err) {
           console.error("Error updating recently viewed:", err);
