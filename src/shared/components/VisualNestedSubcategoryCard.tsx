@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { Layers } from 'lucide-react';
 import { VisualNestedSubcategory, Category } from '../types';
-import { createSlug, getCategorySlug, getSubcategorySlug } from '../utilities/slug';
-import { useCategoryStore } from '../../backend/store';
 import { getFrameConfig, VisualFrameDefs } from './visualFrames';
 
 export interface VisualNestedSubcategoryCardProps {
@@ -27,61 +23,8 @@ export default function VisualNestedSubcategoryCard({
   size = 'md',
   priority = false
 }: VisualNestedSubcategoryCardProps) {
-  const navigate = useNavigate();
-  const { categories } = useCategoryStore();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-
-  // Dynamically resolve parent category, subcategory, and nested subcategory
-  const safeCategories = Array.isArray(categories) ? categories : [];
-  const parentCat = category || safeCategories.find(c => 
-    c && (
-      c.id === item.categoryId || 
-      c.slug === item.categoryId || 
-      (c as any).seoSlug === item.categoryId || 
-      (c.name && createSlug(c.name) === item.categoryId) ||
-      (item.categoryName && c.name && c.name.toLowerCase() === item.categoryName.toLowerCase())
-    )
-  );
-  const catSlug = parentCat ? getCategorySlug(parentCat) : (item.categoryId || 'categories');
-  
-  const parentSub = parentCat?.subcategories?.find(s => 
-    s && (
-      s.id === item.subCategoryId || 
-      s.slug === item.subCategoryId || 
-      (s as any).seoSlug === item.subCategoryId || 
-      (s.name && createSlug(s.name) === item.subCategoryId) ||
-      (item.subCategoryName && s.name && s.name.toLowerCase() === item.subCategoryName.toLowerCase())
-    )
-  );
-  const subSlug = parentSub ? getSubcategorySlug(parentSub) : (subCategorySlug || item.subCategoryId || 'all');
-  
-  const parentNested = parentSub?.subcategories?.find(n => 
-    n && (
-      n.id === item.nestedSubCategoryId ||
-      n.id === item.parentTargetId ||
-      n.slug === item.nestedSubCategoryId ||
-      (item.nestedSubCategoryName && n.name && n.name.toLowerCase() === item.nestedSubCategoryName.toLowerCase())
-    )
-  );
-  const nestedParentSlug = parentNested ? (parentNested.slug || createSlug(parentNested.name)) : (nestedSubCategorySlug || item.nestedSubCategoryId);
-
-  const cardSlug = item.seoSlug || item.slug || (item.name ? createSlug(item.name) : 'all');
-
-  const handleClick = () => {
-    if (item.targetUrl && item.targetUrl.trim()) {
-      navigate(item.targetUrl);
-      return;
-    }
-
-    if (nestedParentSlug) {
-      navigate(`/categories/${catSlug}/${subSlug}/${nestedParentSlug}/${cardSlug}`);
-    } else if (subSlug && subSlug !== 'all') {
-      navigate(`/categories/${catSlug}/${subSlug}/${cardSlug}`);
-    } else {
-      navigate(`/categories/${catSlug}/${cardSlug}`);
-    }
-  };
 
   // Frame shape configuration
   const frame = getFrameConfig(item.frameShape);
@@ -104,16 +47,12 @@ export default function VisualNestedSubcategoryCard({
       {/* SVG Defs for shaped clip paths */}
       <VisualFrameDefs />
 
-      <motion.div
-        whileHover={{ y: -4, scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.2 }}
-        onClick={handleClick}
-        className={`group cursor-pointer select-none flex flex-col ${className}`}
+      <div
+        className={`group select-none flex flex-col ${className}`}
       >
         {/* Frame Outer Wrapper with Drop Shadow / Hover Styling */}
         <div
-          className="relative w-full transition-all duration-300 filter drop-shadow-xs group-hover:drop-shadow-md"
+          className="relative w-full transition-all duration-300 filter drop-shadow-xs"
           style={{
             filter: isSvgClipped ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.08))' : undefined
           }}
@@ -177,12 +116,12 @@ export default function VisualNestedSubcategoryCard({
         {/* Category / Brand Name displayed below the card (Optional) */}
         {Boolean(item.name && item.name.trim()) && (
           <div className="pt-2 pb-1 px-1 text-center">
-            <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-600 transition-colors">
+            <h4 className="text-xs sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2">
               {item.name}
             </h4>
           </div>
         )}
-      </motion.div>
+      </div>
     </>
   );
 }
