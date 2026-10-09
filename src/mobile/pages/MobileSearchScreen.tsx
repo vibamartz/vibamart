@@ -195,7 +195,7 @@ export default function MobileSearchScreen() {
       {liveSuggestions.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-md border border-yellow-100 space-y-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-            Matching Products ({liveSuggestions.length})
+            Matching Products
           </span>
           <div className="divide-y divide-gray-100">
             {liveSuggestions.map((item) => (

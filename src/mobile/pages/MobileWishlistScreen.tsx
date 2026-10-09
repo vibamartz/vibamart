@@ -184,7 +184,7 @@ export default function MobileWishlistScreen() {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black text-gray-900 flex items-center gap-1.5">
             <Heart className="w-4 h-4 text-rose-500 fill-current" />
-            Your Wishlist Products ({products.length})
+            Your Wishlist Products
           </h2>
 
           <button

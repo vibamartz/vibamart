@@ -177,7 +177,7 @@ export default function Wishlist() {
             <div>
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">Your Wishlist Products</h1>
               <p className="text-gray-500 text-sm font-bold mt-0.5">
-                {products.length} {products.length === 1 ? 'product' : 'products'} saved for later
+                Products saved for later
               </p>
             </div>
           </div>

@@ -85,7 +85,7 @@ export default function RewardProducts() {
           if (snap.exists()) {
             matched = { id: snap.id, ...snap.data() } as BrandCoupon;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (!matched) {
@@ -99,7 +99,7 @@ export default function RewardProducts() {
           if (foundDoc) {
             matched = { id: foundDoc.id, ...foundDoc.data() } as BrandCoupon;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (matched) {
@@ -311,7 +311,7 @@ export default function RewardProducts() {
         <div>
           <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
             <ShoppingBag className="w-6 h-6 text-amber-500" />
-            Reward Products ({products.length})
+            Reward Products
           </h2>
           <p className="text-xs text-gray-500">
             Browse and buy products assigned under <strong>{rewardCard.brandName}</strong>. Add to cart or instant checkout.
@@ -374,9 +374,8 @@ export default function RewardProducts() {
 
                     {/* Availability Tag */}
                     <div className="absolute top-2.5 right-2.5">
-                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black shadow-sm ${
-                        isOutOfStock ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-500 text-white'
-                      }`}>
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black shadow-sm ${isOutOfStock ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-500 text-white'
+                        }`}>
                         {isOutOfStock ? 'OUT OF STOCK' : `IN STOCK (${product.stock})`}
                       </span>
                     </div>
@@ -409,13 +408,12 @@ export default function RewardProducts() {
                   <button
                     onClick={(e) => handleAddToCart(product, e)}
                     disabled={isOutOfStock}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      isOutOfStock
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isOutOfStock
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : isInCart
-                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                        : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 shadow-sm'
-                    }`}
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                          : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 shadow-sm'
+                      }`}
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
                     {isOutOfStock ? 'Unavailable' : isInCart ? 'In Cart' : 'Add to Cart'}
@@ -424,11 +422,10 @@ export default function RewardProducts() {
                   <button
                     onClick={(e) => handleBuyNow(product, e)}
                     disabled={isOutOfStock}
-                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                      isOutOfStock
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${isOutOfStock
                         ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
                         : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
-                    }`}
+                      }`}
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />
                     {isOutOfStock ? 'Out of Stock' : 'Buy Now'}

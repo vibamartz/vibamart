@@ -246,9 +246,6 @@ export default function VisualNestedSubcategoriesSection({
               <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                 {dynamicTitle}
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {matchingItems.length} {matchingItems.length === 1 ? 'Collection' : 'Collections'}
-              </span>
             </div>
             <p className="text-[11px] sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1">
               {dynamicSubtitle}
@@ -260,7 +257,7 @@ export default function VisualNestedSubcategoriesSection({
               onClick={() => setShowAll(prev => !prev)}
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer self-start sm:self-center"
             >
-              <span>{showAll ? 'Show Less' : `View All (${matchingItems.length})`}</span>
+              <span>{showAll ? 'Show Less' : 'View All'}</span>
               <ChevronRight className={`w-4 h-4 transition-transform ${showAll ? 'rotate-90' : ''}`} />
             </button>
           )}
@@ -287,7 +284,7 @@ export default function VisualNestedSubcategoriesSection({
               onClick={() => setShowAll(true)}
               className="px-5 py-2 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-800 text-xs sm:text-sm font-black border border-emerald-200 shadow-sm hover:shadow transition-all cursor-pointer"
             >
-              Load {matchingItems.length - limitCount} More Collections
+              Load More Collections
             </button>
           </div>
         )}

@@ -1792,9 +1792,6 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
           <h2 className="text-2xl font-black text-gray-900 tracking-tight">My Wishlist</h2>
           <p className="text-sm text-gray-500 mt-1">Items you've saved for later</p>
         </div>
-        <div className="bg-rose-50 text-rose-600 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest">
-          {products.length} Items
-        </div>
       </div>
 
       {products.length > 0 ? (

@@ -517,7 +517,7 @@ export default function MobileProductListScreen() {
             <p className="text-xs text-gray-300 font-medium line-clamp-2">{matchedBanner.subtitle}</p>
           )}
           <div className="flex items-center justify-between text-[10px] text-indigo-300 pt-1 font-bold">
-            <span>{matchedBanner.productIds?.length || 0} Products Assigned</span>
+            <span>Products Assigned to this Banner</span>
           </div>
         </div>
       )}
@@ -528,9 +528,6 @@ export default function MobileProductListScreen() {
           <div className="flex items-center justify-between px-1">
             <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-500" /> {currentCategoryObj?.name || 'Category'} Banners
-            </span>
-            <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-              {categoryBanners.length} Banners Available
             </span>
           </div>
           <div className="flex gap-2.5 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-0.5">
@@ -579,9 +576,6 @@ export default function MobileProductListScreen() {
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
               {currentCategoryObj.name}
-            </span>
-            <span className="text-[10px] text-emerald-700 font-bold">
-              {currentCategoryObj.subcategories.length} available
             </span>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
@@ -748,20 +742,17 @@ export default function MobileProductListScreen() {
         />
       )}
 
-      {/* Item Count & Active Filter Pills */}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-black text-gray-700">
-          Showing {filteredProducts.length} Products
-        </span>
-        {activeFilterCount > 0 && (
+      {/* Active Filter Pills */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center justify-end px-1">
           <button
             onClick={clearAllFilters}
             className="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-1"
           >
             <RefreshCw className="w-3 h-3" /> Clear All
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Product List Grid */}
       {loading ? (
@@ -1030,7 +1021,7 @@ export default function MobileProductListScreen() {
                   onClick={() => setIsFilterOpen(false)}
                   className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md"
                 >
-                  Apply Filters ({filteredProducts.length})
+                  Apply Filters
                 </button>
               </div>
             </motion.div>

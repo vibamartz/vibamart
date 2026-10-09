@@ -198,10 +198,9 @@ export default function Deal259Page() {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            All Deal 259 Items ({products.length})
+            All Deal 259 Items
           </button>
           {subDeals.map((sd) => {
-            const count = products.filter(p => p.deal259SubDealId === sd.id).length;
             const isActive = activeSubDealId === sd.id;
             return (
               <button
@@ -214,7 +213,7 @@ export default function Deal259Page() {
                 }`}
               >
                 <span>{sd.icon || '⚡'}</span>
-                {sd.title} ({count})
+                {sd.title}
               </button>
             );
           })}

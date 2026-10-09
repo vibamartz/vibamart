@@ -181,8 +181,8 @@ export default function MobileCategoriesScreen() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategorySelect(cat.id)}
                 className={`w-full p-2.5 flex flex-col items-center justify-center text-center transition-all relative ${isActive
-                    ? 'bg-gradient-to-t from-emerald-100/90 via-emerald-50/40 to-transparent text-emerald-900 font-extrabold'
-                    : 'text-gray-600 hover:bg-yellow-50/40 font-semibold'
+                  ? 'bg-gradient-to-t from-emerald-100/90 via-emerald-50/40 to-transparent text-emerald-900 font-extrabold'
+                  : 'text-gray-600 hover:bg-yellow-50/40 font-semibold'
                   }`}
               >
                 {isActive && (
@@ -276,9 +276,6 @@ export default function MobileCategoriesScreen() {
                       <span className="text-xs font-black text-gray-900">
                         {selectedCategory.name}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-bold">
-                        {selectedCategory.subcategories.length} Items
-                      </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {selectedCategory.subcategories.map((sub) => {
@@ -305,11 +302,6 @@ export default function MobileCategoriesScreen() {
                             <span className="text-xs sm:text-sm font-extrabold leading-tight text-gray-900 line-clamp-1 w-full px-0.5">
                               {sub.name}
                             </span>
-                            {sub.subcategories && sub.subcategories.length > 0 && (
-                              <span className="text-[10px] font-bold text-emerald-700 mt-1 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                {sub.subcategories.length} sub-items
-                              </span>
-                            )}
                           </motion.div>
                         );
                       })}
@@ -330,11 +322,6 @@ export default function MobileCategoriesScreen() {
 
                 {/* Category / Subcategory / Nested Subcategory Products Display */}
                 <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between px-1 border-b border-gray-100 pb-2">
-                    <span className="text-[10px] font-bold text-gray-500">
-                      {categoryProducts.length} Items Available
-                    </span>
-                  </div>
 
                   {loading ? (
                     <div className="grid grid-cols-2 gap-2.5">
@@ -394,8 +381,8 @@ export default function MobileCategoriesScreen() {
                               <button
                                 onClick={(e) => handleAddToCart(e, product)}
                                 className={`w-full py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${isInCart
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
                                   }`}
                               >
                                 {isInCart ? <Check className="w-3 h-3 text-emerald-600" /> : <ShoppingCart className="w-3 h-3" />}

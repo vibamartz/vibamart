@@ -330,7 +330,7 @@ export default function MobileRewardProductsScreen() {
         <div className="flex justify-between items-center pt-2">
           <h3 className="text-sm font-black text-gray-900 flex items-center gap-1.5">
             <ShoppingBag className="w-4 h-4 text-amber-500" />
-            Reward Products ({products.length})
+            Reward Products
           </h3>
           <span className="text-[11px] font-bold text-gray-500">Live Inventory</span>
         </div>

@@ -679,7 +679,7 @@ export default function ProductList() {
                 )}
                 <p className="text-xs text-indigo-300 font-bold flex items-center gap-1.5 pt-1">
                   <Layers className="w-4 h-4 text-indigo-400" />
-                  Showing ONLY the {matchedBanner.productIds?.length || 0} Products assigned to this banner
+                  Showing products assigned to this banner
                 </p>
               </div>
               {matchedBanner.image && (
@@ -751,9 +751,6 @@ export default function ProductList() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">
                   {matchedCategory.name}
-                </span>
-                <span className="text-xs text-emerald-700 font-bold">
-                  {matchedCategory.subcategories.length} Collections
                 </span>
               </div>
               <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
@@ -942,7 +939,7 @@ export default function ProductList() {
               <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchParams({})} />
             </p>
           )}
-          <p className="text-gray-500 font-medium">Discover {filteredProducts.length} items matching your criteria</p>
+          <p className="text-gray-500 font-medium">Discover products matching your selection</p>
           {recentSearches.length > 0 && (
             <div className="flex items-center gap-3 mt-6 overflow-x-auto no-scrollbar pb-1">
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap">Recently Searched:</span>
