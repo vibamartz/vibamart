@@ -645,8 +645,8 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                       {category.name}
                       <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{category.subcategories?.length || 0}/30 subs</span>
                     </div>
-                    <div className="col-span-3 text-sm text-gray-500 font-mono text-xs truncate pr-4">
-                      /{category.seoSlug}
+                    <div className="col-span-3 text-xs text-gray-400 font-mono truncate pr-4">
+                      {category.id}
                     </div>
                     <div className="col-span-3 flex items-center justify-end gap-2 pr-2">
                       <button

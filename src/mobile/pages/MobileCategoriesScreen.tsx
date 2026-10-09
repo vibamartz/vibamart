@@ -274,10 +274,10 @@ export default function MobileCategoriesScreen() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between px-1">
                       <span className="text-xs font-black text-gray-900">
-                        {selectedCategory.name} Subcategories
+                        {selectedCategory.name}
                       </span>
                       <span className="text-[10px] text-gray-400 font-bold">
-                        {selectedCategory.subcategories.length} Subcategories
+                        {selectedCategory.subcategories.length} Items
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

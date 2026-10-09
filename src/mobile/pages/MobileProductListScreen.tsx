@@ -526,55 +526,9 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Category / Subcategory / Nested Subcategory Breadcrumbs & Title Bar */}
+      {/* Category / Collection Title Bar */}
       {(currentCategoryObj || currentVisualNestedSubcategoryObj) && (
         <div className="bg-white rounded-2xl p-3 shadow-xs border border-yellow-100/60 space-y-1">
-          <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-bold text-gray-500">
-            {currentCategoryObj && (
-              <span
-                onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj)}`)}
-                className="text-emerald-700 hover:underline cursor-pointer"
-              >
-                {currentCategoryObj.name}
-              </span>
-            )}
-            {currentSubCategoryObj && (
-              <>
-                <span>›</span>
-                <span
-                  onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj!)}/${getSubcategorySlug(currentSubCategoryObj)}`)}
-                  className="text-emerald-700 hover:underline cursor-pointer"
-                >
-                  {currentSubCategoryObj.name}
-                </span>
-              </>
-            )}
-            {currentNestedSubCategoryObj && (
-              <>
-                <span>›</span>
-                <span
-                  onClick={() => navigate(`/categories/${getCategorySlug(currentCategoryObj!)}/${getSubcategorySlug(currentSubCategoryObj!)}/${getNestedSubcategorySlug(currentNestedSubCategoryObj)}`)}
-                  className="text-emerald-700 hover:underline cursor-pointer"
-                >
-                  {currentNestedSubCategoryObj.name}
-                </span>
-              </>
-            )}
-            {currentDeepChildSubCategoryObj && (
-              <>
-                <span>›</span>
-                <span className="text-gray-900 font-extrabold">{currentDeepChildSubCategoryObj.name}</span>
-              </>
-            )}
-            {currentVisualNestedSubcategoryObj && (
-              <>
-                <span>›</span>
-                <span className="text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-black">
-                  {currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Collection'}
-                </span>
-              </>
-            )}
-          </div>
           <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-tight">
             {currentVisualNestedSubcategoryObj
               ? (currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Visual Collection')
@@ -589,12 +543,12 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Subcategories Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+      {/* Collections Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
       {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
-              {currentCategoryObj.name} Subcategories
+              {currentCategoryObj.name}
             </span>
             <span className="text-[10px] text-emerald-700 font-bold">
               {currentCategoryObj.subcategories.length} available
@@ -632,14 +586,14 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Dedicated Level 3 Deep Subcategories Showcase (if currentNestedSubCategoryObj has children) */}
+      {/* Dedicated Level 3 Deep Collections Showcase (if currentNestedSubCategoryObj has children) */}
       {currentNestedSubCategoryObj && currentNestedSubCategoryObj.subcategories && currentNestedSubCategoryObj.subcategories.length > 0 && (
         <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-xs font-black text-gray-900">
-                Explore {currentNestedSubCategoryObj.name} Subcategories
+                Explore {currentNestedSubCategoryObj.name}
               </span>
             </div>
             {currentDeepChildSubCategoryObj && (

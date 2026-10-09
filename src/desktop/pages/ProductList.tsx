@@ -537,7 +537,7 @@ export default function ProductList() {
         </FilterSection>
       )}
 
-      <FilterSection title="Subcategory">
+      <FilterSection title="Collections">
         {uniqueSubCategories.length > 0 ? uniqueSubCategories.map(sub => (
           <FilterOption
             key={sub.id}
@@ -547,7 +547,7 @@ export default function ProductList() {
             onChange={() => toggleSubCategory(sub.id)}
           />
         )) : (
-          <p className="text-xs text-gray-400">No subcategories</p>
+          <p className="text-xs text-gray-400">No items available</p>
         )}
       </FilterSection>
 
@@ -686,45 +686,6 @@ export default function ProductList() {
 
           {!matchedBanner && (
             <div className="mb-4">
-              {/* Hierarchical Breadcrumb Navigation */}
-              {matchedCategory && (
-                <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold text-gray-500 mb-2">
-                  <Link to={`/categories/${getCategorySlug(matchedCategory)}`} className="hover:text-emerald-700 text-emerald-800">
-                    {matchedCategory.name}
-                  </Link>
-                  {matchedSubcategory && (
-                    <>
-                      <span>›</span>
-                      <Link to={`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory)}`} className="hover:text-emerald-700 text-emerald-800">
-                        {matchedSubcategory.name}
-                      </Link>
-                    </>
-                  )}
-                  {matchedNestedSubcategory && (
-                    <>
-                      <span>›</span>
-                      <Link to={`/categories/${getCategorySlug(matchedCategory)}/${getSubcategorySlug(matchedSubcategory!)}/${getNestedSubcategorySlug(matchedNestedSubcategory)}`} className="hover:text-emerald-700 text-emerald-800">
-                        {matchedNestedSubcategory.name}
-                      </Link>
-                    </>
-                  )}
-                  {matchedDeepChildSubcategory && (
-                    <>
-                      <span>›</span>
-                      <span className="text-gray-900">{matchedDeepChildSubcategory.name}</span>
-                    </>
-                  )}
-                  {matchedVisualNestedSubcategory && (
-                    <>
-                      <span>›</span>
-                      <span className="text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full text-[11px] font-black">
-                        {matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Collection'}
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
-
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">
                   {matchedVisualNestedSubcategory
@@ -737,13 +698,6 @@ export default function ProductList() {
                           ? matchedSubcategory.name
                           : (matchedCategory ? matchedCategory.name : 'Browse Products'))))}
                 </h1>
-                {matchedCategory && (
-                  <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-                    {matchedVisualNestedSubcategory
-                      ? (matchedNestedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory?.name || ''} › ${matchedNestedSubcategory.name}` : (matchedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory.name}` : matchedCategory.name))
-                      : (matchedNestedSubcategory ? `${matchedCategory.name} › ${matchedSubcategory?.name || ''}` : (matchedSubcategory ? matchedCategory.name : 'All Categories'))}
-                  </span>
-                )}
               </div>
               <p className="text-xs text-gray-500 font-medium mt-1">
                 {matchedVisualNestedSubcategory
@@ -754,20 +708,20 @@ export default function ProductList() {
                       ? `Browse all ${matchedNestedSubcategory.name} products and collections`
                       : (matchedSubcategory
                         ? `Browse all ${matchedSubcategory.name} products and collections`
-                        : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection'))))}
+                        : (matchedCategory ? `Explore all products and collections in ${matchedCategory.name}` : 'Discover products matching your selection'))))}
               </p>
             </div>
           )}
 
-          {/* Subcategories Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+          {/* Categories/Collections Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
           {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
             <div className="py-4 mb-4 border-t border-b border-gray-100 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">
-                  {matchedCategory.name} Subcategories
+                  {matchedCategory.name}
                 </span>
                 <span className="text-xs text-emerald-700 font-bold">
-                  {matchedCategory.subcategories.length} Subcategories
+                  {matchedCategory.subcategories.length} Collections
                 </span>
               </div>
               <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
@@ -806,16 +760,16 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Level 3 Deep Subcategories Showcase (if matchedNestedSubcategory has children) */}
+          {/* Deep Collections Showcase (if matchedNestedSubcategory has children) */}
           {matchedNestedSubcategory && matchedNestedSubcategory.subcategories && matchedNestedSubcategory.subcategories.length > 0 && (
             <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <span>Explore {matchedNestedSubcategory.name} Subcategories</span>
+                    <span>Explore {matchedNestedSubcategory.name}</span>
                   </h3>
-                  <p className="text-xs text-gray-600 font-medium">Click to filter by subcategory</p>
+                  <p className="text-xs text-gray-600 font-medium">Click to filter by collection</p>
                 </div>
                 {matchedDeepChildSubcategory && (
                   <button

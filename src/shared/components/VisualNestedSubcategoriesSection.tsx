@@ -227,10 +227,10 @@ export default function VisualNestedSubcategoriesSection({
     activeNestedSubCategory
       ? `Discover trending styles and collections in ${activeNestedSubCategory.name}`
       : activeSubCategory
-        ? `Discover trending styles and subcategories in ${activeSubCategory.name}`
+        ? `Discover trending styles and collections in ${activeSubCategory.name}`
         : activeCategory
           ? `Browse hand-picked visual collections and top styles in ${activeCategory.name}`
-          : 'Hand-picked visual subcategories with exclusive designs'
+          : 'Hand-picked visual collections with exclusive designs'
   );
 
   return (

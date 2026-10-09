@@ -457,33 +457,7 @@ export default function ProductDetail() {
   const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
   return (
-    <div className="bg-gray-50/50 min-h-screen pb-10">
-      {/* Breadcrumbs */}
-      <div className="max-w-7xl mx-auto px-4 py-2.5 sm:px-6 lg:px-8 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 flex-wrap">
-        <Link to="/" className="hover:text-green-600 transition-colors">Home</Link>
-        <ChevronRight className="w-3 h-3 text-gray-300" />
-        <Link to="/products" className="hover:text-green-600 transition-colors">Shop</Link>
-        {categoryObj && (
-          <>
-            <ChevronRight className="w-3 h-3 text-gray-300" />
-            <Link to={`/category/${getCategorySlug(categoryObj)}`} className="hover:text-green-600 transition-colors">{categoryObj.name}</Link>
-          </>
-        )}
-        {subCategoryObj && (
-          <>
-            <ChevronRight className="w-3 h-3 text-gray-300" />
-            <span className="text-gray-400">{subCategoryObj.name}</span>
-          </>
-        )}
-        {nestedSubCategoryObj && (
-          <>
-            <ChevronRight className="w-3 h-3 text-gray-300" />
-            <span className="text-gray-400">{nestedSubCategoryObj.name}</span>
-          </>
-        )}
-        <ChevronRight className="w-3 h-3 text-gray-300" />
-        <span className="text-gray-900 truncate max-w-[240px] font-extrabold">{product.name}</span>
-      </div>
+    <div className="bg-gray-50/50 min-h-screen py-4 sm:py-6 pb-10">
 
       {/* Main Product Card: Left Image Gallery + Right Info */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
