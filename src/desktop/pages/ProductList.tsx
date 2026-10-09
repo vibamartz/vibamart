@@ -690,53 +690,8 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Matched Visual Nested Subcategory Hero Header */}
-          {matchedVisualNestedSubcategory && !matchedBanner && (
-            <div className="mb-6 rounded-3xl overflow-hidden shadow-lg border border-emerald-100 bg-gradient-to-r from-emerald-950 via-teal-950 to-gray-900 text-white p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-3 max-w-xl">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-400/30 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-emerald-400" /> Visual Collection
-                  </span>
-                  {matchedVisualNestedSubcategory.offerText && (
-                    <span 
-                      className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border shadow-sm"
-                      style={{
-                        backgroundColor: matchedVisualNestedSubcategory.offerBgColor || '#047857',
-                        color: matchedVisualNestedSubcategory.offerTextColor || '#ffffff',
-                        borderColor: 'rgba(255,255,255,0.2)'
-                      }}
-                    >
-                      {matchedVisualNestedSubcategory.offerText}
-                    </span>
-                  )}
-                  {matchedCategory && (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-400/20">
-                      {matchedCategory.name}
-                    </span>
-                  )}
-                </div>
-                <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
-                  {matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Visual Collection'}
-                </h1>
-                <p className="text-sm text-emerald-100/90 font-medium">
-                  {matchedVisualNestedSubcategory.description || `Explore exclusive handpicked styles and trending products in ${matchedVisualNestedSubcategory.name || 'this collection'}.`}
-                </p>
-                <p className="text-xs text-emerald-300 font-bold flex items-center gap-1.5 pt-1">
-                  <Layers className="w-4 h-4 text-emerald-400" />
-                  Showing products belonging to this Visual Collection
-                </p>
-              </div>
-              {matchedVisualNestedSubcategory.image && (
-                <div className="w-36 sm:w-44 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 shrink-0 bg-white/10">
-                  <img src={matchedVisualNestedSubcategory.image} alt={matchedVisualNestedSubcategory.name || 'Visual Collection'} className="w-full h-full object-cover" />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Category-Specific Banners Carousel (When Category is selected and not in dedicated visual page) */}
-          {categoryBanners.length > 0 && !matchedBanner && !matchedVisualNestedSubcategory && (
+          {/* Category-Specific Banners Carousel (When Category is selected) */}
+          {categoryBanners.length > 0 && !matchedBanner && (
             <div className="mb-6 space-y-2">
               <div className="flex gap-4 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
                 {categoryBanners.map(b => (
@@ -761,27 +716,31 @@ export default function ProductList() {
             </div>
           )}
 
-          {!matchedBanner && !matchedVisualNestedSubcategory && (
+          {!matchedBanner && (
             <div className="mb-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                  {matchedDeepChildSubcategory
-                    ? matchedDeepChildSubcategory.name
-                    : (matchedNestedSubcategory
-                      ? matchedNestedSubcategory.name
-                      : (matchedSubcategory
-                        ? matchedSubcategory.name
-                        : (matchedCategory ? matchedCategory.name : 'Browse Products')))}
+                  {matchedVisualNestedSubcategory
+                    ? (matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Visual Collection')
+                    : (matchedDeepChildSubcategory
+                      ? matchedDeepChildSubcategory.name
+                      : (matchedNestedSubcategory
+                        ? matchedNestedSubcategory.name
+                        : (matchedSubcategory
+                          ? matchedSubcategory.name
+                          : (matchedCategory ? matchedCategory.name : 'Browse Products'))))}
                 </h1>
               </div>
               <p className="text-xs text-gray-500 font-medium mt-1">
-                {matchedDeepChildSubcategory
-                  ? `Browse all ${matchedDeepChildSubcategory.name} products and collections`
-                  : (matchedNestedSubcategory
-                    ? `Browse all ${matchedNestedSubcategory.name} products and collections`
-                    : (matchedSubcategory
-                      ? `Browse all ${matchedSubcategory.name} products and collections`
-                      : (matchedCategory ? `Explore all products and collections in ${matchedCategory.name}` : 'Discover products matching your selection')))}
+                {matchedVisualNestedSubcategory
+                  ? (matchedVisualNestedSubcategory.description || `Browse all products in ${matchedVisualNestedSubcategory.name || 'this collection'}`)
+                  : (matchedDeepChildSubcategory
+                    ? `Browse all ${matchedDeepChildSubcategory.name} products and collections`
+                    : (matchedNestedSubcategory
+                      ? `Browse all ${matchedNestedSubcategory.name} products and collections`
+                      : (matchedSubcategory
+                        ? `Browse all ${matchedSubcategory.name} products and collections`
+                        : (matchedCategory ? `Explore all products and collections in ${matchedCategory.name}` : 'Discover products matching your selection'))))}
               </p>
             </div>
           )}
@@ -967,13 +926,13 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Dynamic Visual Nested Subcategories Showcase */}
-          {matchedCategory && (
+          {/* Dynamic Visual Nested Subcategories Showcase (Only shown when not already on a dedicated visual card page) */}
+          {matchedCategory && !matchedVisualNestedSubcategory && (
             <VisualNestedSubcategoriesSection
               categoryId={matchedCategory.id}
               subCategoryId={matchedSubcategory?.id}
               nestedSubCategoryId={matchedNestedSubcategory?.id}
-              parentTargetId={matchedVisualNestedSubcategory?.id || matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
+              parentTargetId={matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
             />
           )}
 
