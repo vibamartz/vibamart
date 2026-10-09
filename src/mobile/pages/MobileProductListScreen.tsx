@@ -185,16 +185,33 @@ export default function MobileProductListScreen() {
     return banners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
   }, [rawOffer, banners]);
 
+  // Base Page Context (from route / visual / brand / category hierarchy)
+  const baseCatId = useMemo(() => {
+    return currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || (rawCat && rawCat !== 'products' && rawCat !== 'categories' ? rawCat : '');
+  }, [currentCategoryObj, currentVisualNestedSubcategoryObj, rawCat]);
+
+  const baseSubId = useMemo(() => {
+    return currentSubCategoryObj?.id || (currentVisualNestedSubcategoryObj?.subCategoryId && currentVisualNestedSubcategoryObj.subCategoryId !== 'all' ? currentVisualNestedSubcategoryObj.subCategoryId : '') || (rawSubCat || '');
+  }, [currentSubCategoryObj, currentVisualNestedSubcategoryObj, rawSubCat]);
+
+  const baseNestedId = useMemo(() => {
+    return currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || (rawNestedSubCat || '');
+  }, [currentDeepChildSubCategoryObj, currentNestedSubCategoryObj, currentVisualNestedSubcategoryObj, rawNestedSubCat]);
+
+  const baseBrand = useMemo(() => {
+    return rawBrand || '';
+  }, [rawBrand]);
+
   // Layout state
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'featured' | 'low-high' | 'high-low' | 'rating'>('featured');
 
   // Filter States
-  const [selectedCategory, setSelectedCategory] = useState<string>(currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || rawCat);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(currentSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.subCategoryId || rawSubCat);
-  const [selectedNestedSubCategory, setSelectedNestedSubCategory] = useState<string>(currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || rawNestedSubCat);
-  const [selectedBrand, setSelectedBrand] = useState<string>(rawBrand);
+  const [selectedCategory, setSelectedCategory] = useState<string>(baseCatId);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(baseSubId);
+  const [selectedNestedSubCategory, setSelectedNestedSubCategory] = useState<string>(baseNestedId);
+  const [selectedBrand, setSelectedBrand] = useState<string>(baseBrand);
   const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [minRating, setMinRating] = useState<number>(0);
   const [minDiscount, setMinDiscount] = useState<number>(0);
@@ -202,28 +219,22 @@ export default function MobileProductListScreen() {
 
   // Sync state when URL params change
   useEffect(() => {
-    const activeCatId = currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || rawCat;
-    if (activeCatId) setSelectedCategory(activeCatId);
-    
-    const activeSubId = currentSubCategoryObj?.id || (currentVisualNestedSubcategoryObj?.subCategoryId !== 'all' ? currentVisualNestedSubcategoryObj?.subCategoryId : '') || rawSubCat;
-    setSelectedSubCategory(activeSubId || '');
-    
-    const activeNestedId = currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || rawNestedSubCat;
-    setSelectedNestedSubCategory(activeNestedId || '');
-    
-    if (rawBrand) setSelectedBrand(rawBrand);
-  }, [currentCategoryObj, currentSubCategoryObj, currentNestedSubCategoryObj, currentDeepChildSubCategoryObj, currentVisualNestedSubcategoryObj, rawCat, rawSubCat, rawNestedSubCat, rawBrand]);
+    setSelectedCategory(baseCatId);
+    setSelectedSubCategory(baseSubId);
+    setSelectedNestedSubCategory(baseNestedId);
+    setSelectedBrand(baseBrand);
+  }, [baseCatId, baseSubId, baseNestedId, baseBrand]);
 
   // Category-Specific Banners for active Category (Strict Isolation)
   const categoryBanners = useMemo(() => {
-    const catId = currentCategoryObj?.id || selectedCategory;
-    const catSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj) : selectedCategory;
+    const catId = currentCategoryObj?.id || selectedCategory || baseCatId;
+    const catSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj) : (selectedCategory || baseCatId);
     if (!catId) return [];
     if (catId === 'for-you' || catSlug === 'for-you') {
       return banners.filter(b => (b.categoryId === 'for-you' || !b.categoryId) && b.active !== false);
     }
     return banners.filter(b => (b.categoryId === catId || b.categoryId === catSlug) && b.active !== false);
-  }, [currentCategoryObj, selectedCategory, banners]);
+  }, [currentCategoryObj, selectedCategory, baseCatId, banners]);
 
   // Fetch Products & Banners from Firestore
   useEffect(() => {
@@ -287,28 +298,34 @@ export default function MobileProductListScreen() {
 
       // Skip category hierarchy filtering if opening explicit banner
       if (!matchedBanner) {
+        const effectiveNested = selectedNestedSubCategory || baseNestedId;
+        const effectiveSub = selectedSubCategory || baseSubId;
+        const effectiveCat = selectedCategory || baseCatId;
+
         // 1. Nested SubCategory Filter
-        if (selectedNestedSubCategory) {
-          const targetNested = (currentNestedSubCategoryObj?.id || selectedNestedSubCategory).toLowerCase();
+        if (effectiveNested) {
+          const targetNested = (currentNestedSubCategoryObj?.id || effectiveNested).toLowerCase();
           const pNested = (product.nestedSubCategoryId || '').toLowerCase();
           if (pNested !== targetNested) return false;
         }
         // 2. SubCategory Filter
-        else if (selectedSubCategory) {
-          const targetSub = (currentSubCategoryObj?.id || selectedSubCategory).toLowerCase();
+        else if (effectiveSub) {
+          const targetSub = (currentSubCategoryObj?.id || effectiveSub).toLowerCase();
           const pSub = (product.subCategoryId || '').toLowerCase();
           if (pSub !== targetSub) return false;
         }
         // 3. Category Filter
-        else if (selectedCategory && selectedCategory !== 'all-deals') {
+        else if (effectiveCat && effectiveCat !== 'all-deals') {
           const catId = (product.categoryId || '').toLowerCase();
-          const target = (currentCategoryObj?.id || selectedCategory).toLowerCase();
-          if (catId !== target) return false;
+          const target = (currentCategoryObj?.id || effectiveCat).toLowerCase();
+          const targetSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj).toLowerCase() : target;
+          if (catId !== target && catId !== targetSlug) return false;
         }
       }
 
       // Brand filter
-      if (selectedBrand && product.brand !== selectedBrand) {
+      const effectiveBrand = selectedBrand || baseBrand;
+      if (effectiveBrand && product.brand !== effectiveBrand) {
         return false;
       }
 
@@ -337,22 +354,23 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, selectedNestedSubCategory, selectedBrand, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
-  const activeFilterCount = (selectedCategory ? 1 : 0) +
-    (selectedSubCategory ? 1 : 0) +
-    (selectedNestedSubCategory ? 1 : 0) +
-    (selectedBrand ? 1 : 0) +
+  const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
+    (selectedSubCategory !== baseSubId ? 1 : 0) +
+    (selectedNestedSubCategory !== baseNestedId ? 1 : 0) +
+    (selectedBrand !== baseBrand ? 1 : 0) +
     (maxPrice < 100000 ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
     (minDiscount > 0 ? 1 : 0) +
-    (inStockOnly ? 1 : 0);
+    (inStockOnly ? 1 : 0) +
+    (querySearch ? 1 : 0);
 
   const clearAllFilters = () => {
-    setSelectedCategory('');
-    setSelectedSubCategory('');
-    setSelectedNestedSubCategory('');
-    setSelectedBrand('');
+    setSelectedCategory(baseCatId);
+    setSelectedSubCategory(baseSubId);
+    setSelectedNestedSubCategory(baseNestedId);
+    setSelectedBrand(baseBrand);
     setMaxPrice(100000);
     setMinRating(0);
     setMinDiscount(0);

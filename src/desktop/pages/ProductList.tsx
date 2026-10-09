@@ -215,38 +215,59 @@ export default function ProductList() {
     };
   }, []);
 
+  // Base Page Context (from route / visual / brand / category hierarchy)
+  const baseCatId = useMemo(() => {
+    return matchedCategory?.id || matchedVisualNestedSubcategory?.categoryId || (rawCat && rawCat !== 'products' && rawCat !== 'categories' ? rawCat : '');
+  }, [matchedCategory, matchedVisualNestedSubcategory, rawCat]);
+
+  const baseSubId = useMemo(() => {
+    return matchedSubcategory?.id || (matchedVisualNestedSubcategory?.subCategoryId && matchedVisualNestedSubcategory.subCategoryId !== 'all' ? matchedVisualNestedSubcategory.subCategoryId : '');
+  }, [matchedSubcategory, matchedVisualNestedSubcategory]);
+
+  const baseNestedId = useMemo(() => {
+    return matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedVisualNestedSubcategory?.nestedSubCategoryId || '';
+  }, [matchedDeepChildSubcategory, matchedNestedSubcategory, matchedVisualNestedSubcategory]);
+
+  const baseBrand = useMemo(() => {
+    if (!rawBrand) return '';
+    return allProducts.find(p => p.brand && (p.brand === rawBrand || createSlug(p.brand) === rawBrand))?.brand || rawBrand;
+  }, [rawBrand, allProducts]);
+
   // Filter States
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const cat = searchParams.get('category');
-    return cat ? [cat] : [];
+    return cat ? [cat] : (baseCatId ? [baseCatId] : []);
   });
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
-  const [selectedNestedSubCategories, setSelectedNestedSubCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>(baseSubId ? [baseSubId] : []);
+  const [selectedNestedSubCategories, setSelectedNestedSubCategories] = useState<string[]>(baseNestedId ? [baseNestedId] : []);
   const [expandedFilterCats, setExpandedFilterCats] = useState<string[]>([]);
   const [expandedFilterSubs, setExpandedFilterSubs] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState(200000);
   const [minRating, setMinRating] = useState(0);
   const [minDiscount, setMinDiscount] = useState(0);
   const [onlyInStock, setOnlyInStock] = useState(false);
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>(baseBrand ? [baseBrand] : []);
 
   // Helper for dynamic faceted search counts
   const getFilterCount = (filterType: string, value: any) => {
     return allProducts.filter(p => {
       // Category filter
-      if (selectedCategories.length > 0) {
-        if (selectedCategories.includes('all-deals')) {
-          if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
-        } else if (!selectedCategories.includes(p.categoryId)) {
+      const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
+      if (effectiveCats.length > 0) {
+        if (effectiveCats.includes('all-deals')) {
+          if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
+        } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
           return false;
         }
       }
 
       // SubCategory filter
-      if (filterType !== 'subcategory' && selectedSubCategories.length > 0 && p.subCategoryId && !selectedSubCategories.includes(p.subCategoryId)) return false;
+      const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
+      if (effectiveSubs.length > 0 && p.subCategoryId && !effectiveSubs.includes(p.subCategoryId)) return false;
 
       // Brand filter
-      if (filterType !== 'brand' && selectedBrands.length > 0 && p.brand && !selectedBrands.includes(p.brand)) return false;
+      const effectiveBrands = filterType !== 'brand' && selectedBrands.length > 0 ? selectedBrands : (filterType !== 'brand' && baseBrand ? [baseBrand] : []);
+      if (effectiveBrands.length > 0 && p.brand && !effectiveBrands.includes(p.brand)) return false;
 
       const effectivePrice = p.discountPrice || p.price;
       if (filterType !== 'price' && effectivePrice > priceRange) return false;
@@ -321,15 +342,13 @@ export default function ProductList() {
 
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
-    const activeCatId = matchedCategory?.id || matchedVisualNestedSubcategory?.categoryId || rawCat;
+    const activeCatId = baseCatId;
     if (activeCatId && !selectedCategories.includes(activeCatId)) {
       setSelectedCategories([activeCatId]);
     }
 
-    if (matchedSubcategory) {
-      setSelectedSubCategories([matchedSubcategory.id]);
-    } else if (matchedVisualNestedSubcategory?.subCategoryId && matchedVisualNestedSubcategory.subCategoryId !== 'all') {
-      setSelectedSubCategories([matchedVisualNestedSubcategory.subCategoryId]);
+    if (baseSubId) {
+      setSelectedSubCategories([baseSubId]);
     } else if (rawSubCat) {
       const foundSub = matchedCategory?.subcategories?.find(s => s.id === rawSubCat || s.slug === rawSubCat || createSlug(s.name) === rawSubCat);
       if (foundSub) setSelectedSubCategories([foundSub.id]);
@@ -337,12 +356,8 @@ export default function ProductList() {
       setSelectedSubCategories([]);
     }
 
-    if (matchedDeepChildSubcategory) {
-      setSelectedNestedSubCategories([matchedDeepChildSubcategory.id]);
-    } else if (matchedNestedSubcategory) {
-      setSelectedNestedSubCategories([matchedNestedSubcategory.id]);
-    } else if (matchedVisualNestedSubcategory?.nestedSubCategoryId) {
-      setSelectedNestedSubCategories([matchedVisualNestedSubcategory.nestedSubCategoryId]);
+    if (baseNestedId) {
+      setSelectedNestedSubCategories([baseNestedId]);
     } else if (rawNestedSubCat) {
       const foundNested = matchedSubcategory?.subcategories?.find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat);
       if (foundNested) setSelectedNestedSubCategories([foundNested.id]);
@@ -350,11 +365,10 @@ export default function ProductList() {
       setSelectedNestedSubCategories([]);
     }
 
-    if (rawBrand && !selectedBrands.includes(rawBrand)) {
-      const foundBrand = allProducts.find(p => p.brand && (p.brand === rawBrand || createSlug(p.brand) === rawBrand))?.brand || rawBrand;
-      setSelectedBrands([foundBrand]);
+    if (baseBrand && !selectedBrands.includes(baseBrand)) {
+      setSelectedBrands([baseBrand]);
     }
-  }, [matchedCategory, matchedSubcategory, matchedNestedSubcategory, matchedDeepChildSubcategory, matchedVisualNestedSubcategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand, allProducts]);
+  }, [baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedSubcategory, rawSubCat, rawNestedSubCat]);
 
   useEffect(() => {
     // Clear subcategories if they don't belong to any of the selected categories
@@ -372,7 +386,7 @@ export default function ProductList() {
       );
       setSelectedNestedSubCategories(prev => prev.filter(id => validNestedIds.includes(id)));
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, CATEGORIES]);
 
   const filteredProducts = useMemo(() => {
     let result = allProducts.filter(p => {
@@ -383,22 +397,28 @@ export default function ProductList() {
       }
 
       // Category filter (Skip category filter if viewing explicit banner)
-      if (!matchedBanner && selectedCategories.length > 0) {
-        if (selectedCategories.includes('all-deals')) {
-          if (!p.discountPrice && !selectedCategories.includes(p.categoryId)) return false;
-        } else if (!selectedCategories.includes(p.categoryId)) {
-          return false;
+      if (!matchedBanner) {
+        const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
+        if (effectiveCats.length > 0) {
+          if (effectiveCats.includes('all-deals')) {
+            if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
+          } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
+            return false;
+          }
         }
       }
 
       // SubCategory filter
-      if (selectedSubCategories.length > 0 && (!p.subCategoryId || !selectedSubCategories.includes(p.subCategoryId))) return false;
+      const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
+      if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
 
       // Nested SubCategory filter
-      if (selectedNestedSubCategories.length > 0 && (!p.nestedSubCategoryId || !selectedNestedSubCategories.includes(p.nestedSubCategoryId))) return false;
+      const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
+      if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
 
       // Brand filter
-      if (selectedBrands.length > 0 && p.brand && !selectedBrands.includes(p.brand)) return false;
+      const effectiveBrands = selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []);
+      if (effectiveBrands.length > 0 && p.brand && !effectiveBrands.includes(p.brand)) return false;
 
       // Price filter
       const effectivePrice = p.discountPrice || p.price;
@@ -457,7 +477,7 @@ export default function ProductList() {
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return result;
-  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams]);
+  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);
@@ -486,10 +506,10 @@ export default function ProductList() {
   };
 
   const clearFilters = () => {
-    setSelectedCategories([]);
-    setSelectedSubCategories([]);
-    setSelectedNestedSubCategories([]);
-    setSelectedBrands([]);
+    setSelectedCategories(baseCatId ? [baseCatId] : []);
+    setSelectedSubCategories(baseSubId ? [baseSubId] : []);
+    setSelectedNestedSubCategories(baseNestedId ? [baseNestedId] : []);
+    setSelectedBrands(baseBrand ? [baseBrand] : []);
     setPriceRange(200000);
     setMinRating(0);
     setMinDiscount(0);
