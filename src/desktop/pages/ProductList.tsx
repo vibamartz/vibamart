@@ -15,23 +15,13 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
-import { useVisualNestedSubcategoryStore } from '../../backend/store';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES } = useCategoryStore();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const routeParams = useParams<{
-    categorySlug?: string;
-    subcategorySlug?: string;
-    nestedSubcategorySlug?: string;
-    visualNestedSlug?: string;
-    brandSlug?: string;
-    offerSlug?: string;
-    '*'?: string;
-  }>();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; nestedSubcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
   const navigate = useNavigate();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -46,49 +36,33 @@ export default function ProductList() {
     } catch { return []; }
   });
 
-  // Resolve active category/subcategory/nestedSubcategory/visualNestedSubcategory/brand/offer from route params or search params
+  // Resolve active category/subcategory/nestedSubcategory/brand/offer from route params or search params
   const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
   const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
   const rawNestedSubCat = routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
-  const rawVisualNested = routeParams.visualNestedSlug || searchParams.get('visualNested') || searchParams.get('vns') || routeParams['*'] || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
-  // Match visual nested subcategory object if viewing a direct or dedicated visual subcategory route
-  const matchedVisualNested = useMemo(() => {
-    if (!rawVisualNested) return null;
-    return visualNestedItems.find(v => 
-      v.id === rawVisualNested || 
-      v.slug === rawVisualNested || 
-      v.seoSlug === rawVisualNested || 
-      (v.name && createSlug(v.name) === rawVisualNested) ||
-      (v.name && v.name.toLowerCase() === rawVisualNested.toLowerCase())
-    ) || null;
-  }, [rawVisualNested, visualNestedItems]);
-
   // Match category object by ID, seoSlug, or generated slug
   const matchedCategory = useMemo(() => {
-    const targetCat = rawCat || matchedVisualNested?.categoryId;
-    if (!targetCat) return null;
-    return CATEGORIES.find(c => c.id === targetCat || c.slug === targetCat || c.seoSlug === targetCat || createSlug(c.name) === targetCat) || null;
-  }, [rawCat, matchedVisualNested, CATEGORIES]);
+    if (!rawCat) return null;
+    return CATEGORIES.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
+  }, [rawCat, CATEGORIES]);
 
   // Match subcategory object by ID, slug, or generated slug
   const matchedSubcategory = useMemo(() => {
-    const targetSub = rawSubCat || matchedVisualNested?.subCategoryId;
-    if (!targetSub || !matchedCategory?.subcategories) return null;
-    return matchedCategory.subcategories.find(s => s.id === targetSub || s.slug === targetSub || createSlug(s.name) === targetSub) || null;
-  }, [rawSubCat, matchedVisualNested, matchedCategory]);
+    if (!rawSubCat || !matchedCategory?.subcategories) return null;
+    return matchedCategory.subcategories.find(s => s.id === rawSubCat || s.slug === rawSubCat || createSlug(s.name) === rawSubCat) || null;
+  }, [rawSubCat, matchedCategory]);
 
   // Match nested subcategory object by ID, slug, or generated slug
   const matchedNestedSubcategory = useMemo(() => {
-    const targetNested = rawNestedSubCat || matchedVisualNested?.nestedSubCategoryId;
-    if (!targetNested) return null;
+    if (!rawNestedSubCat) return null;
     if (matchedSubcategory?.subcategories) {
-      return matchedSubcategory.subcategories.find(n => n.id === targetNested || n.slug === targetNested || createSlug(n.name) === targetNested) || null;
+      return matchedSubcategory.subcategories.find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat) || null;
     }
-    return matchedCategory?.subcategories?.flatMap(s => s.subcategories || []).find(n => n.id === targetNested || n.slug === targetNested || createSlug(n.name) === targetNested) || null;
-  }, [rawNestedSubCat, matchedVisualNested, matchedSubcategory, matchedCategory]);
+    return matchedCategory?.subcategories?.flatMap(s => s.subcategories || []).find(n => n.id === rawNestedSubCat || n.slug === rawNestedSubCat || createSlug(n.name) === rawNestedSubCat) || null;
+  }, [rawNestedSubCat, matchedSubcategory, matchedCategory]);
 
   // Match banner object if opening a banner route
   const matchedBanner = useMemo(() => {
@@ -603,20 +577,18 @@ export default function ProductList() {
             <div className="mb-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                  {matchedVisualNested ? (matchedVisualNested.name || matchedVisualNested.offerText || 'Visual Collection') : (matchedNestedSubcategory ? matchedNestedSubcategory.name : (matchedSubcategory ? matchedSubcategory.name : (matchedCategory ? matchedCategory.name : 'Browse Products')))}
+                  {matchedNestedSubcategory ? matchedNestedSubcategory.name : (matchedSubcategory ? matchedSubcategory.name : (matchedCategory ? matchedCategory.name : 'Browse Products'))}
                 </h1>
-                {matchedCategory && (
+                {matchedSubcategory && matchedCategory && (
                   <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-                    {matchedCategory.name} {matchedSubcategory ? `› ${matchedSubcategory.name}` : ''} {matchedNestedSubcategory ? `› ${matchedNestedSubcategory.name}` : ''}
+                    {matchedCategory.name} {matchedNestedSubcategory ? `› ${matchedSubcategory.name}` : ''}
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 font-medium mt-1">
-                {matchedVisualNested
-                  ? `Browse exclusive collections and styles in ${matchedVisualNested.name || 'this collection'}`
-                  : (matchedSubcategory
-                    ? `Browse all ${matchedNestedSubcategory ? matchedNestedSubcategory.name : matchedSubcategory.name} products and collections`
-                    : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection'))}
+                {matchedSubcategory
+                  ? `Browse all ${matchedNestedSubcategory ? matchedNestedSubcategory.name : matchedSubcategory.name} products and collections`
+                  : (matchedCategory ? `Explore all subcategories and items under ${matchedCategory.name}` : 'Discover products matching your selection')}
               </p>
             </div>
           )}

@@ -6,7 +6,7 @@ import {
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
-import { useCartStore, useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCartStore, useCategoryStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
@@ -17,45 +17,22 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const routeParams = useParams<{
-    categorySlug?: string;
-    subcategorySlug?: string;
-    nestedSubcategorySlug?: string;
-    visualNestedSlug?: string;
-    brandSlug?: string;
-    offerSlug?: string;
-    '*'?: string;
-  }>();
+  const routeParams = useParams<{ categorySlug?: string; subcategorySlug?: string; nestedSubcategorySlug?: string; brandSlug?: string; offerSlug?: string }>();
   const navigate = useNavigate();
   const { categories } = useCategoryStore();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const rawCat = routeParams.categorySlug || searchParams.get('category') || '';
   const rawSubCat = routeParams.subcategorySlug || searchParams.get('subCategory') || '';
   const rawNestedSubCat = routeParams.nestedSubcategorySlug || searchParams.get('nestedSubCategory') || '';
-  const rawVisualNested = routeParams.visualNestedSlug || searchParams.get('visualNested') || searchParams.get('vns') || routeParams['*'] || '';
   const rawBrand = routeParams.brandSlug || searchParams.get('brand') || '';
   const rawOffer = routeParams.offerSlug || searchParams.get('offer') || '';
 
-  // Match visual nested subcategory object if viewing a direct or dedicated visual subcategory route
-  const matchedVisualNested = useMemo(() => {
-    if (!rawVisualNested) return null;
-    return visualNestedItems.find(v => 
-      v.id === rawVisualNested || 
-      v.slug === rawVisualNested || 
-      v.seoSlug === rawVisualNested || 
-      (v.name && createSlug(v.name) === rawVisualNested) ||
-      (v.name && v.name.toLowerCase() === rawVisualNested.toLowerCase())
-    ) || null;
-  }, [rawVisualNested, visualNestedItems]);
-
   const matchedCategory = useMemo(() => {
-    const targetCat = rawCat || matchedVisualNested?.categoryId;
-    if (!targetCat) return null;
-    return categories.find(c => c.id === targetCat || c.slug === targetCat || c.seoSlug === targetCat || createSlug(c.name) === targetCat) || null;
-  }, [rawCat, matchedVisualNested, categories]);
+    if (!rawCat) return null;
+    return categories.find(c => c.id === rawCat || c.slug === rawCat || c.seoSlug === rawCat || createSlug(c.name) === rawCat) || null;
+  }, [rawCat, categories]);
 
   // Backward compatibility redirect for numeric category routes
   useEffect(() => {
@@ -94,12 +71,12 @@ export default function MobileProductListScreen() {
 
   // Sync state when URL params change
   useEffect(() => {
-    const activeCatId = matchedCategory?.id || rawCat || matchedVisualNested?.categoryId;
+    const activeCatId = matchedCategory?.id || rawCat;
     if (activeCatId) setSelectedCategory(activeCatId);
-    setSelectedSubCategory(rawSubCat || matchedVisualNested?.subCategoryId || '');
-    setSelectedNestedSubCategory(rawNestedSubCat || matchedVisualNested?.nestedSubCategoryId || '');
+    setSelectedSubCategory(rawSubCat);
+    setSelectedNestedSubCategory(rawNestedSubCat);
     if (rawBrand) setSelectedBrand(rawBrand);
-  }, [matchedCategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand, matchedVisualNested]);
+  }, [matchedCategory, rawCat, rawSubCat, rawNestedSubCat, rawBrand]);
 
   // Active Category Object
   const currentCategoryObj = useMemo(() => {
