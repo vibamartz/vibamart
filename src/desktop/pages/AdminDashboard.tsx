@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, EyeOff, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet, Sparkles
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -25,6 +25,7 @@ import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../../shared/constants';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
 import NewCategoriesManagementView from '../components/CategoriesManagementView';
+import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
@@ -630,6 +631,7 @@ function AdminDashboardContent() {
           <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
 
           <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
@@ -1171,7 +1173,8 @@ function AdminDashboardContent() {
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'cashback-management' && <AdminCashbackManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
-          {activeTab === 'categories' && <NewCategoriesManagementView />}
+          {activeTab === 'categories' && <NewCategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
+          {activeTab === 'visual-nested-subcategories' && <VisualNestedSubcategoriesAdminView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
           {activeTab === 'vendors' && <VendorsManagementView />}
@@ -1180,7 +1183,7 @@ function AdminDashboardContent() {
           {activeTab === 'terms-management' && <AdminTermsManagementView />}
           {activeTab === 'privacy-management' && <AdminPrivacyManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />

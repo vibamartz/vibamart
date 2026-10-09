@@ -14,7 +14,11 @@ import { useVisualNestedSubcategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
 
-export default function CategoriesManagementView() {
+interface CategoriesManagementViewProps {
+  onNavigateToVisualNested?: () => void;
+}
+
+export default function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManagementViewProps = {}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
@@ -491,7 +495,8 @@ export default function CategoriesManagementView() {
       );
       if (existing) {
         toast.success(`"${nested.name}" is already in Visual Nested Subcategories`);
-        setActiveSubTab('visual_nested');
+        if (onNavigateToVisualNested) onNavigateToVisualNested();
+        else setActiveSubTab('visual_nested');
         return;
       }
       await useVisualNestedSubcategoryStore.getState().addItem({
@@ -522,7 +527,8 @@ export default function CategoriesManagementView() {
         seoTitle: `${nested.name} | ViBa Mart`
       });
       toast.success(`Added "${nested.name}" to Visual Nested Subcategories!`);
-      setActiveSubTab('visual_nested');
+      if (onNavigateToVisualNested) onNavigateToVisualNested();
+      else setActiveSubTab('visual_nested');
     } catch (err: any) {
       console.error('Failed to add to visual nested:', err);
       toast.error('Failed to add to Visual Nested Subcategories');
@@ -552,7 +558,13 @@ export default function CategoriesManagementView() {
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('visual_nested')}
+          onClick={() => {
+            if (onNavigateToVisualNested) {
+              onNavigateToVisualNested();
+            } else {
+              setActiveSubTab('visual_nested');
+            }
+          }}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
             activeSubTab === 'visual_nested'
               ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'

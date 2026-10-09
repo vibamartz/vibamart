@@ -211,11 +211,10 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
                       key={item.productId}
                       type="button"
                       onClick={() => setSelectedProductId(item.productId)}
-                      className={`flex items-center gap-2 p-2 rounded-xl border transition-all shrink-0 text-left ${
-                        isSelected
+                      className={`flex items-center gap-2 p-2 rounded-xl border transition-all shrink-0 text-left ${isSelected
                           ? 'border-emerald-600 bg-emerald-50/50 text-gray-900 shadow-sm'
                           : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                      }`}
+                        }`}
                     >
                       <img src={item.image} alt="" className="w-9 h-9 rounded-lg object-cover border border-gray-200" />
                       <div className="max-w-[120px]">
@@ -274,9 +273,8 @@ export default function ReviewModal({ isOpen, onClose, order, user, initialProdu
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className={`p-2 rounded-xl transition-all transform active:scale-90 ${
-                        rating >= star ? 'text-amber-400 bg-amber-50 scale-105' : 'text-gray-300 bg-gray-50 hover:text-amber-300'
-                      }`}
+                      className={`p-2 rounded-xl transition-all transform active:scale-90 ${rating >= star ? 'text-amber-400 bg-amber-50 scale-105' : 'text-gray-300 bg-gray-50 hover:text-amber-300'
+                        }`}
                     >
                       <Star className={`w-7 h-7 ${rating >= star ? 'fill-amber-400' : ''}`} />
                     </button>
