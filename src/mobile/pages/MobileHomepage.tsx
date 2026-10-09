@@ -859,9 +859,6 @@ export default function MobileHomepage() {
               <span className="text-xs font-black text-gray-900 tracking-tight">
                 {activeCategoryObj.name}
               </span>
-              <span className="text-[10px] text-emerald-700 font-bold">
-                Tap to explore
-              </span>
             </div>
 
             {/* Subcategories Horizontal Bar with enlarged cards & touch targets */}
