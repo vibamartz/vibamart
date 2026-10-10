@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import GoogleMapsLoader from './GoogleMapsLoader';
+import GoogleMapsLoader, { hasValidGoogleMapsKey } from './GoogleMapsLoader';
+import OpenStreetMapPicker from './OpenStreetMapPicker';
 import { Address } from '../../shared/types';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { useAuthStore } from '../../backend/store';
@@ -629,14 +630,25 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
         {showMap && !showAddressForm && (
           <div className="flex flex-col h-full relative">
             <div className="relative w-full h-[360px] sm:h-[400px] bg-gray-100 overflow-hidden border-b border-gray-200">
-              <Map
-                defaultCenter={markerPosition}
-                defaultZoom={16}
-                gestureHandling={'greedy'}
-                disableDefaultUI={true}
-                className="w-full h-full"
-              >
-                <MapDragController
+              {hasValidGoogleMapsKey() ? (
+                <Map
+                  defaultCenter={markerPosition}
+                  defaultZoom={16}
+                  gestureHandling={'greedy'}
+                  disableDefaultUI={true}
+                  className="w-full h-full"
+                >
+                  <MapDragController
+                    center={markerPosition}
+                    onCenterChange={(pos) => setMarkerPosition(pos)}
+                    onDragEnd={async (pos) => {
+                      setMarkerPosition(pos);
+                      await doReverseGeocode(pos);
+                    }}
+                  />
+                </Map>
+              ) : (
+                <OpenStreetMapPicker
                   center={markerPosition}
                   onCenterChange={(pos) => setMarkerPosition(pos)}
                   onDragEnd={async (pos) => {
@@ -644,10 +656,10 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
                     await doReverseGeocode(pos);
                   }}
                 />
-              </Map>
+              )}
 
               {/* Fixed Map Center Pin Overlay */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[500]">
                 <div className="relative -mt-8 flex flex-col items-center">
                   <div className="px-2.5 py-1 bg-gray-900/90 backdrop-blur-xs text-white text-[10px] font-black rounded-lg shadow-lg mb-1 whitespace-nowrap border border-white/20 flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-emerald-400 fill-emerald-400" />
@@ -662,7 +674,7 @@ function LocationPickerContent({ onClose, onLocationSelect }: {
               <button 
                 onClick={useCurrentLocation}
                 aria-label="Locate me"
-                className="absolute bottom-4 right-4 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl hover:bg-white transition-all border border-gray-200/80 z-20 flex items-center gap-2 text-gray-900 active:scale-95"
+                className="absolute bottom-4 right-4 p-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl hover:bg-white transition-all border border-gray-200/80 z-[500] flex items-center gap-2 text-gray-900 active:scale-95"
               >
                 <Navigation className="w-4 h-4 text-emerald-600 fill-emerald-600" />
                 <span className="text-xs font-black">GPS Recenter</span>

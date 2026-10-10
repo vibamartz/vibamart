@@ -1,9 +1,7 @@
 import React from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
-const DEFAULT_KEY = "";
-
-const getApiKey = () => {
+export const getGoogleMapsApiKey = (): string => {
   const metaEnv = (import.meta as any).env;
   if (metaEnv) {
     if (metaEnv.VITE_GOOGLE_MAPS_PLATFORM_KEY) return metaEnv.VITE_GOOGLE_MAPS_PLATFORM_KEY;
@@ -13,44 +11,38 @@ const getApiKey = () => {
     if (process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY) return process.env.VITE_GOOGLE_MAPS_PLATFORM_KEY;
     if (process.env.GOOGLE_MAPS_PLATFORM_KEY) return process.env.GOOGLE_MAPS_PLATFORM_KEY;
   }
-  return DEFAULT_KEY;
+  return '';
 };
 
-const API_KEY = getApiKey();
-const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY' && API_KEY !== 'YOUR_GOOGLE_MAPS_KEY';
+export const hasValidGoogleMapsKey = (): boolean => {
+  const key = getGoogleMapsApiKey();
+  return Boolean(
+    key &&
+    key.trim() !== '' &&
+    !key.toLowerCase().includes('your_') &&
+    key !== 'YOUR_API_KEY' &&
+    key !== 'YOUR_GOOGLE_MAPS_KEY'
+  );
+};
 
 interface GoogleMapsLoaderProps {
   children: React.ReactNode;
 }
 
 export default function GoogleMapsLoader({ children }: GoogleMapsLoaderProps) {
-  if (!hasValidKey) {
+  const isKeyValid = hasValidGoogleMapsKey();
+  const apiKey = getGoogleMapsApiKey();
+
+  // If a valid Google Maps API Key is provided, wrap children with Google Maps APIProvider
+  if (isKeyValid) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-        <h2 className="text-xl font-black text-gray-900 mb-4">Google Maps API Key Required</h2>
-        <p className="text-sm text-gray-500 mb-6 max-w-md">
-          To enable exact location tracking, please add your Google Maps Platform API key in the app secrets.
-        </p>
-        <div className="bg-white p-6 rounded-2xl shadow-xl text-left text-sm space-y-4 max-w-lg">
-          <p><strong>To add your API key:</strong></p>
-          <ol className="list-decimal ml-4 space-y-2 text-gray-600">
-            <li>Get an API key: <a href="https://console.cloud.google.com/google/maps-apis/start" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">Console Cloud</a></li>
-            <li>Open <strong>Settings</strong> (⚙️ gear icon, top-right corner)</li>
-            <li>Select <strong>Secrets</strong></li>
-            <li>Add <code>GOOGLE_MAPS_PLATFORM_KEY</code> as the name</li>
-            <li>Paste your key as the value</li>
-          </ol>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-4 italic">
-            The app will rebuild automatically after saving.
-          </p>
-        </div>
-      </div>
+      <APIProvider apiKey={apiKey} version="quarterly" libraries={['marker', 'places', 'geocoding']}>
+        {children}
+      </APIProvider>
     );
   }
 
-  return (
-    <APIProvider apiKey={API_KEY} version="quarterly" libraries={['marker', 'places', 'geocoding']}>
-      {children}
-    </APIProvider>
-  );
+  // Graceful fallback: render children directly so that delivery address selection,
+  // GPS detection, pincode lookup, and address management operate smoothly without blocking
+  return <>{children}</>;
 }
