@@ -47,7 +47,10 @@ export default function ProductList() {
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
-    const cleanPath = location.pathname.replace(/^\/categories\/?/, '').replace(/\/+$/, '');
+    if (!location.pathname.startsWith('/categories') && !location.pathname.startsWith('/category')) {
+      return [];
+    }
+    const cleanPath = location.pathname.replace(/^\/(categories|category)\/?/, '').replace(/\/+$/, '');
     if (!cleanPath) return [];
     return cleanPath.split('/').filter(Boolean).map(s => decodeURIComponent(s));
   }, [location.pathname]);
@@ -192,7 +195,25 @@ export default function ProductList() {
   // Match banner object if opening a banner route
   const matchedBanner = useMemo(() => {
     if (!rawOffer) return null;
-    return allBanners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
+    const cleanOffer = decodeURIComponent(rawOffer).trim().toLowerCase();
+    return allBanners.find(b => {
+      if (!b) return false;
+      const bId = (b.id || '').toLowerCase();
+      const bSlug = (b.slug || '').toLowerCase();
+      const bGenSlug = getBannerSlug(b).toLowerCase();
+      const bLink = (b.link || '').toLowerCase();
+      return bId === cleanOffer ||
+             bSlug === cleanOffer ||
+             bGenSlug === cleanOffer ||
+             bLink === cleanOffer ||
+             bLink === `/offers/${cleanOffer}` ||
+             bLink === `/offer/${cleanOffer}` ||
+             bLink === `/banner/${cleanOffer}` ||
+             bLink === `/banners/${cleanOffer}` ||
+             bLink.endsWith(`/${cleanOffer}`) ||
+             bLink.includes(`/offers/${cleanOffer}`) ||
+             bLink.includes(`/banner/${cleanOffer}`);
+    }) || null;
   }, [rawOffer, allBanners]);
 
   // Category-Specific Banners for the selected category (Strict Isolation)
@@ -327,9 +348,14 @@ export default function ProductList() {
   };
 
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'products'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      data.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
       const rewardIds = await getRewardProductIds();
       setAllProducts(filterOutRewardProducts(data, rewardIds));
       setLoading(false);
@@ -404,8 +430,8 @@ export default function ProductList() {
     let result = allProducts.filter(p => {
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
       if (matchedBanner) {
-        const assignedIds = new Set(matchedBanner.productIds || []);
-        if (!assignedIds.has(p.id)) return false;
+        const assignedIds = new Set((matchedBanner.productIds || []).map(id => String(id).trim()));
+        if (!assignedIds.has(String(p.id).trim())) return false;
       }
 
       // Category filter (Skip category filter if viewing explicit banner)
@@ -420,17 +446,25 @@ export default function ProductList() {
         }
       }
 
-      // SubCategory filter
-      const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
-      if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
+      // SubCategory filter (Skip if viewing explicit banner)
+      if (!matchedBanner) {
+        const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
+        if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
+      }
 
-      // Nested SubCategory filter
-      const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
-      if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
+      // Nested SubCategory filter (Skip if viewing explicit banner)
+      if (!matchedBanner) {
+        const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
+        if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
+      }
 
-      // Brand filter
-      const effectiveBrands = selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []);
-      if (effectiveBrands.length > 0 && p.brand && !effectiveBrands.includes(p.brand)) return false;
+      // Brand filter (Skip hierarchy brand if viewing explicit banner, unless user checked brand in sidebar)
+      if (!matchedBanner) {
+        const effectiveBrands = selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []);
+        if (effectiveBrands.length > 0 && p.brand && !effectiveBrands.includes(p.brand)) return false;
+      } else if (selectedBrands.length > 0) {
+        if (p.brand && !selectedBrands.includes(p.brand)) return false;
+      }
 
       // Price filter
       const effectivePrice = p.discountPrice || p.price;
