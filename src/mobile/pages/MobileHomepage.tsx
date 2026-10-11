@@ -27,7 +27,7 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function MobileHomepage() {
-  const { categories: CATEGORIES } = useCategoryStore();
+  const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
   const { settings } = useSettingsStore();
   const { user } = useAuthStore();
   const { addItem, items } = useCartStore();
@@ -783,6 +783,22 @@ export default function MobileHomepage() {
                   </button>
                 );
               })}
+
+              {/* In loading state, if db categories haven't loaded yet, show animated skeleton placeholders so "For You" is never alone */}
+              {catsLoading && CATEGORIES.length === 0 && (
+                <>
+                  {['Mobiles', 'Fashion', 'Electronics', 'Home', 'Beauty', 'Sports'].map((item, idx) => (
+                    <div
+                      key={`cat-skeleton-${idx}`}
+                      className="relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 py-1.5 px-0.5 rounded-2xl animate-pulse select-none pointer-events-none"
+                    >
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-100/80 flex items-center justify-center shrink-0" />
+                      <div className="w-10 h-2.5 bg-gray-200/80 rounded-full mt-0.5" />
+                      <div className="h-1 w-4" />
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </section>
         </div>

@@ -24,7 +24,7 @@ import { getRecentSearches, addRecentSearch, removeRecentSearch as removeSearchF
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
-  const { categories: CATEGORIES } = useCategoryStore();
+  const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
   const navCategories = [
     {
       id: 'for-you',
@@ -759,6 +759,21 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Desktop skeleton placeholders while categories are loading if empty */}
+            {catsLoading && CATEGORIES.length === 0 && (
+              <>
+                {['Mobiles', 'Fashion', 'Electronics', 'Home & Living', 'Beauty', 'Sports'].map((name, idx) => (
+                  <div
+                    key={`nav-cat-skeleton-${idx}`}
+                    className="h-full flex items-center gap-2 animate-pulse text-gray-300 shrink-0 pointer-events-none select-none"
+                  >
+                    <div className="w-5 h-5 rounded-full bg-gray-200 shrink-0" />
+                    <div className="w-16 h-3 bg-gray-200 rounded-full" />
+                  </div>
+                ))}
+              </>
+            )}
           </div>
 
           <button

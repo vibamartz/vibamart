@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory } from "../shared/types";
-import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG } from "../shared/constants";
+import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -372,38 +372,69 @@ interface CategoryState {
   initCategories: () => void;
 }
 
-export const useCategoryStore = create<CategoryState>((set) => ({
-  categories: [],
-  loading: true,
-  initCategories: () => {
-    const q = collection(db, 'categories');
-    onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const fetchedCategories = snapshot.docs.map(doc => {
-          const catData = { id: doc.id, ...doc.data() } as Category;
-          if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
-            catData.icon = 'gamepad';
-          }
-          if (catData.name === 'Food & Health' || catData.id === '8' || catData.slug === 'food-health') {
-            catData.icon = 'apple';
-          }
-          if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
-            catData.icon = 'armchair';
-          }
-          return catData;
-        });
+const CACHED_CATEGORIES_KEY = 'viba_cached_categories';
 
-        fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-        set({ categories: fetchedCategories, loading: false });
-      } else {
-        set({ categories: [], loading: false });
+const getInitialCategories = (): Category[] => {
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem(CACHED_CATEGORIES_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'categories', false);
-      set({ loading: false });
-    });
+    } catch (e) {
+      console.warn('Failed to parse cached categories from localStorage:', e);
+    }
   }
-}));
+  // Fallback to default constants CATEGORIES so categories like Mobiles, Fashion, Electronics
+  // are never empty on initial render and don't load late while "For You" is already shown!
+  return DEFAULT_CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true));
+};
+
+export const useCategoryStore = create<CategoryState>((set) => {
+  const initial = getInitialCategories();
+  return {
+    categories: initial,
+    loading: initial.length === 0,
+    initCategories: () => {
+      const q = collection(db, 'categories');
+      onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const fetchedCategories = snapshot.docs.map(doc => {
+            const catData = { id: doc.id, ...doc.data() } as Category;
+            if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
+              catData.icon = 'gamepad';
+            }
+            if (catData.name === 'Food & Health' || catData.id === '8' || catData.slug === 'food-health') {
+              catData.icon = 'apple';
+            }
+            if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
+              catData.icon = 'armchair';
+            }
+            return catData;
+          });
+
+          fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(CACHED_CATEGORIES_KEY, JSON.stringify(fetchedCategories));
+            } catch (e) {
+              console.warn('Failed to cache categories to localStorage:', e);
+            }
+          }
+          set({ categories: fetchedCategories, loading: false });
+        } else {
+          set({ categories: [], loading: false });
+        }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'categories', false);
+        set({ loading: false });
+      });
+    }
+  };
+});
 
 interface VisualNestedSubcategoryState {
   items: VisualNestedSubcategory[];
