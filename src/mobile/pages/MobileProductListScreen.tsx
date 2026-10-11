@@ -190,6 +190,8 @@ export default function MobileProductListScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   // Match banner if accessing a banner route
   const matchedBanner = useMemo(() => {
@@ -250,14 +252,18 @@ export default function MobileProductListScreen() {
 
   // Fetch Products & Banners from Firestore
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(docs, rewardIds));
+      setLoadError(false);
       setLoading(false);
     }, (error) => {
       console.error('Failed to fetch products:', error);
+      setLoadError(true);
       setLoading(false);
     });
 
@@ -273,7 +279,7 @@ export default function MobileProductListScreen() {
       unsubscribeProducts();
       unsubscribeBanners();
     };
-  }, []);
+  }, [retryKey]);
 
   // Derive unique brands
   const availableBrands = useMemo(() => {
@@ -758,10 +764,50 @@ export default function MobileProductListScreen() {
 
       {/* Product List Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-3">
-          {Array(6).fill(0).map((_, i) => (
-            <div key={i} className="h-64 bg-white rounded-2xl animate-pulse border border-yellow-100" />
-          ))}
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-2 gap-3">
+            {Array(6).fill(0).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-2 shadow-xs border border-yellow-100 flex flex-col justify-between h-[230px] animate-pulse">
+                <div className="aspect-[4/5] rounded-xl bg-gray-100 mb-1" />
+                <div className="space-y-1 mb-1">
+                  <div className="h-2 bg-gray-100 rounded w-1/3" />
+                  <div className="h-3 bg-gray-100 rounded w-4/5" />
+                </div>
+                <div className="pt-1 border-t border-gray-100">
+                  <div className="h-3.5 bg-gray-100 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Array(5).fill(0).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-2 shadow-xs border border-yellow-100 flex gap-2.5 animate-pulse">
+                <div className="w-24 h-24 rounded-xl bg-gray-100 shrink-0" />
+                <div className="flex-1 flex flex-col justify-between py-1">
+                  <div className="space-y-1.5">
+                    <div className="h-2 bg-gray-100 rounded w-1/4" />
+                    <div className="h-3.5 bg-gray-100 rounded w-4/5" />
+                  </div>
+                  <div className="h-3.5 bg-gray-100 rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : loadError && products.length === 0 ? (
+        <div className="bg-white rounded-2xl p-6 text-center border border-yellow-100 space-y-3 my-4">
+          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <RefreshCw className="w-5 h-5" />
+          </div>
+          <h4 className="text-xs font-bold text-gray-900">Failed to load products</h4>
+          <p className="text-[11px] text-gray-500">Please check your internet connection and try again.</p>
+          <button
+            onClick={() => setRetryKey(k => k + 1)}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm"
+          >
+            Try Again
+          </button>
         </div>
       ) : filteredProducts.length > 0 ? (
         <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>

@@ -328,7 +328,13 @@ export default function MobileCategoriesScreen() {
                   {loading ? (
                     <div className="grid grid-cols-2 gap-2.5">
                       {Array(4).fill(0).map((_, i) => (
-                        <div key={i} className="h-48 bg-white rounded-2xl animate-pulse border border-yellow-100" />
+                        <div key={i} className="bg-white rounded-xl p-1.5 shadow-xs border border-yellow-100 flex flex-col justify-between animate-pulse">
+                          <div className="aspect-square rounded-lg bg-gray-100 mb-1" />
+                          <div className="h-2 bg-gray-100 rounded w-1/2 mb-1" />
+                          <div className="h-3 bg-gray-100 rounded w-3/4 mb-2" />
+                          <div className="h-4 bg-gray-100 rounded w-1/3 mb-1" />
+                          <div className="h-6 bg-gray-100 rounded-lg w-full" />
+                        </div>
                       ))}
                     </div>
                   ) : categoryProducts.length > 0 ? (

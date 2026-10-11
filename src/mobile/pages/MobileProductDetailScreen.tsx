@@ -35,6 +35,8 @@ export default function MobileProductDetailScreen() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
@@ -112,6 +114,7 @@ export default function MobileProductDetailScreen() {
   useEffect(() => {
     if (!targetSlugOrId) return;
     setLoading(true);
+    setFetchError(false);
 
     const fetchProduct = async () => {
       try {
@@ -231,13 +234,14 @@ export default function MobileProductDetailScreen() {
         }
       } catch (err) {
         console.error("Error fetching product:", err);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [targetSlugOrId, navigate]);
+  }, [targetSlugOrId, navigate, retryTrigger]);
 
   const handleToggleWishlist = async () => {
     if (!user) {
@@ -329,16 +333,77 @@ export default function MobileProductDetailScreen() {
     }
   };
 
-  if (loading || !product) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-gray-500">Loading Product...</span>
+      <div className="min-h-screen bg-gray-50/50 pb-28 animate-pulse select-none">
+        {/* Top App Bar Skeleton */}
+        <div className="sticky top-0 z-30 bg-white/95 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+          <div className="w-8 h-8 rounded-full bg-gray-100" />
+          <div className="h-4 w-32 bg-gray-100 rounded" />
+          <div className="flex gap-2">
+            <div className="w-8 h-8 rounded-full bg-gray-100" />
+            <div className="w-8 h-8 rounded-full bg-gray-100" />
+          </div>
+        </div>
+
+        {/* Product Image Carousel Skeleton */}
+        <div className="w-full aspect-[4/3] bg-gray-100 relative" />
+
+        {/* Content Box */}
+        <div className="bg-white rounded-t-3xl -mt-4 relative p-4 space-y-4 border-t border-gray-100 shadow-sm">
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-100 rounded w-20" />
+            <div className="h-5 bg-gray-200 rounded w-4/5" />
+            <div className="h-4 bg-gray-100 rounded w-1/3" />
+          </div>
+
+          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+            <div className="h-6 bg-gray-200 rounded w-36" />
+            <div className="h-3 bg-gray-100 rounded w-28" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="h-3.5 bg-gray-100 rounded w-24" />
+            <div className="flex gap-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-9 w-20 bg-gray-100 rounded-xl" />
+              ))}
+            </div>
+          </div>
+
+          <div className="h-24 bg-gray-50 rounded-2xl border border-gray-100" />
+        </div>
+
+        {/* Bottom Floating Bar Skeleton */}
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t border-gray-100 flex gap-2 z-30">
+          <div className="h-12 flex-1 bg-gray-100 rounded-xl" />
+          <div className="h-12 flex-1 bg-gray-200 rounded-xl" />
         </div>
       </div>
     );
   }
+
+  if (fetchError && !product) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-gray-100 shadow-xl text-center flex flex-col items-center">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+            <RefreshCcw className="w-5 h-5" />
+          </div>
+          <h3 className="text-base font-black text-gray-900 mb-1">Failed to load product</h3>
+          <p className="text-xs text-gray-500 mb-4">Please check your network connection and try again.</p>
+          <button
+            onClick={() => setRetryTrigger(k => k + 1)}
+            className="w-full py-2.5 px-4 font-black text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5 text-xs"
+          >
+            <RefreshCcw className="w-3.5 h-3.5" /> Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) return null;
 
   const activeVariants = (product.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
   const selectedVariant = activeVariants.find(v => v.id === selectedVariantId);

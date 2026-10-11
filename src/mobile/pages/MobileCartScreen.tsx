@@ -53,8 +53,15 @@ function MobileRecentlyViewedSection() {
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Recently Viewed</h3>
       </div>
       {loading ? (
-        <div className="py-4 text-center">
-          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar py-1 min-w-0 w-full">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="w-[135px] sm:w-[150px] shrink-0 bg-gray-50 rounded-xl p-2 border border-gray-100 animate-pulse space-y-2">
+              <div className="w-full aspect-square bg-gray-200 rounded-lg" />
+              <div className="h-3 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div className="h-6 bg-gray-200 rounded w-full" />
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No recently viewed items yet.</p>
@@ -141,8 +148,15 @@ function MobileWishlistSection() {
         <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Your Wishlist Products</h3>
       </div>
       {loading ? (
-        <div className="py-4 text-center">
-          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar py-1 min-w-0 w-full">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="w-[135px] sm:w-[150px] shrink-0 bg-gray-50 rounded-xl p-2 border border-gray-100 animate-pulse space-y-2">
+              <div className="w-full aspect-square bg-gray-200 rounded-lg" />
+              <div className="h-3 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div className="h-6 bg-gray-200 rounded w-full" />
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No wishlist products saved yet.</p>

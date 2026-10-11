@@ -128,7 +128,7 @@ export default function VisualNestedSubcategoriesSection({
 
   // 5. Dynamically filter active visual nested subcategories with strict isolation
   const matchingItems = useMemo(() => {
-    if (loading || !Array.isArray(items) || items.length === 0) return [];
+    if (!Array.isArray(items) || items.length === 0) return [];
     if (!categoryId && !subCategoryId && !nestedSubCategoryId && !parentTargetId) return [];
 
     const activeCatId = activeCategory?.id || categoryId;
@@ -204,8 +204,8 @@ export default function VisualNestedSubcategoriesSection({
     });
   }, [items, categoryId, subCategoryId, nestedSubCategoryId, parentTargetId, effectiveTargetId, isNestedLevelActive, isSubCategoryLevelActive, activeCategory, activeSubCategory, activeNestedSubCategory, loading]);
 
-  // If no items match, hide section completely without an empty gap
-  if (!loading && matchingItems.length === 0) {
+  // If no items match or still initializing, hide section completely without an empty gap
+  if (matchingItems.length === 0) {
     return null;
   }
 

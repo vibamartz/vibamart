@@ -455,8 +455,42 @@ export default function OrderTracking() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6 animate-pulse select-none" aria-hidden="true">
+        {/* Header Skeleton */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="space-y-1">
+              <div className="h-4 bg-gray-200 rounded w-36" />
+              <div className="h-3 bg-gray-200 rounded w-24" />
+            </div>
+            <div className="h-6 bg-gray-200 rounded-full w-24" />
+          </div>
+
+          {/* Stepper Progress */}
+          <div className="py-6 flex items-center justify-between">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                <div className="w-8 h-8 rounded-full bg-gray-200" />
+                <div className="h-2.5 bg-gray-200 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Items Card */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="h-4 bg-gray-200 rounded w-28" />
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="flex gap-4 items-center py-2 border-b border-gray-50 last:border-0">
+              <div className="w-16 h-16 rounded-2xl bg-gray-200 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-1/3" />
+              </div>
+              <div className="h-4 bg-gray-200 rounded w-16" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

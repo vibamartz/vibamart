@@ -6,7 +6,7 @@ import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore, useVisu
 import { Product, Banner } from '../../shared/types';
 import { toast } from 'react-hot-toast';
 import {
-  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight
+  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
@@ -43,6 +43,8 @@ export default function ProductList() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allBanners, setAllBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
 
   // Extract all path segments after "/categories"
@@ -327,14 +329,18 @@ export default function ProductList() {
   };
 
   useEffect(() => {
+    setLoading(true);
+    setLoadError(false);
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
       setAllProducts(filterOutRewardProducts(data, rewardIds));
+      setLoadError(false);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
+      setLoadError(true);
       setLoading(false);
     });
 
@@ -352,7 +358,7 @@ export default function ProductList() {
       unsubscribeProducts();
       unsubscribeBanners();
     };
-  }, []);
+  }, [retryKey]);
 
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
@@ -1029,8 +1035,50 @@ export default function ProductList() {
               </div>
             </div>
 
-            {/* Grid */}
-            {filteredProducts.length > 0 ? (
+            {/* Grid / Skeletons / States */}
+            {loading ? (
+              viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
+                  {Array(10).fill(0).map((_, i) => (
+                    <div key={i} className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3">
+                      <div className="w-full aspect-square bg-gray-100 rounded-2xl" />
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-100 rounded w-1/3" />
+                        <div className="h-4 bg-gray-100 rounded w-3/4" />
+                        <div className="h-4 bg-gray-100 rounded w-1/2 pt-1" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Array(6).fill(0).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 animate-pulse flex gap-4 items-center">
+                      <div className="w-24 h-24 bg-gray-100 rounded-xl shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-gray-100 rounded w-1/4" />
+                        <div className="h-4 bg-gray-100 rounded w-1/2" />
+                        <div className="h-4 bg-gray-100 rounded w-1/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : loadError && allProducts.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm max-w-md mx-auto my-8">
+                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <RefreshCw className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Failed to load products</h3>
+                <p className="text-xs text-gray-500 mb-4">Please check your network connection and try again.</p>
+                <button
+                  onClick={() => setRetryKey(k => k + 1)}
+                  className="px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className={viewMode === 'grid' ? 'grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6' : 'space-y-6'}>
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />

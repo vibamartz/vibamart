@@ -343,26 +343,31 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const isStoreLoading = loading || catsLoading || settingsLoading;
-    
-    // Minimum 700ms display for smooth feel, hide when stores finish
-    const minTimer = setTimeout(() => {
-      if (!isStoreLoading) {
-        setShowSplash(false);
-      }
-    }, 700);
+  const [minDelayPassed, setMinDelayPassed] = useState(false);
 
-    // Hard fallback safety timer (2.5s) so app never hangs permanently
+  useEffect(() => {
+    // Smooth initial 500ms threshold from mount
+    const timer = setTimeout(() => {
+      setMinDelayPassed(true);
+    }, 500);
+
+    // Hard fallback safety timer (2s) so app never hangs permanently
     const maxSafetyTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 2500);
+    }, 2000);
 
     return () => {
-      clearTimeout(minTimer);
+      clearTimeout(timer);
       clearTimeout(maxSafetyTimer);
     };
-  }, [loading, catsLoading, settingsLoading]);
+  }, []);
+
+  useEffect(() => {
+    const isStoreLoading = loading || catsLoading || settingsLoading;
+    if (minDelayPassed && !isStoreLoading) {
+      setShowSplash(false);
+    }
+  }, [minDelayPassed, loading, catsLoading, settingsLoading]);
 
   const handlePermissionsAccept = () => {
     localStorage.setItem('permissionsAcknowledged', 'true');

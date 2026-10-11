@@ -927,8 +927,12 @@ export default function MobileHomepage() {
               Array(3).fill(0).map((_, i) => (
                 <div
                   key={i}
-                  className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[145px]' : 'w-[145px] sm:w-[165px] h-[195px]'} bg-white/10 rounded-[16px] animate-pulse shrink-0`}
-                />
+                  className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white/15 rounded-[16px] p-1.5 animate-pulse shrink-0 space-y-1.5`}
+                >
+                  <div className="w-full aspect-[4/5] bg-white/20 rounded-[10px]" />
+                  <div className="h-2.5 bg-white/20 rounded w-3/4" />
+                  <div className="h-3 bg-white/25 rounded w-1/2" />
+                </div>
               ))
             ) : (
               filteredProducts.slice(0, 8).map((product) => (
@@ -966,8 +970,12 @@ export default function MobileHomepage() {
             Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[145px]' : 'w-[145px] sm:w-[165px] h-[195px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
-              />
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5`}
+              >
+                <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
+                <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
             ))
           ) : (
             filteredProducts.slice(0, 10).map((product) => (
@@ -1004,8 +1012,12 @@ export default function MobileHomepage() {
             Array(3).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)] h-[145px]' : 'w-[145px] sm:w-[165px] h-[195px]'} bg-white rounded-[16px] animate-pulse border border-gray-100 shrink-0`}
-              />
+                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5`}
+              >
+                <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
+                <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
             ))
           ) : (
             displayRecentAndPopular.map((product) => (

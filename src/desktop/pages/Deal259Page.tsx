@@ -26,7 +26,12 @@ export default function Deal259Page() {
 
   const { categories } = useCategoryStore();
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+
     // Listen to Deal 259 config
     const unsubConfig = onSnapshot(doc(db, 'settings', 'deal259'), (snap) => {
       if (snap.exists()) {
@@ -37,6 +42,8 @@ export default function Deal259Page() {
           subDeals: data.subDeals && data.subDeals.length > 0 ? data.subDeals : DEFAULT_DEAL259_SUBDEALS
         });
       }
+    }, (err) => {
+      console.error("Deal259 config error:", err);
     });
 
     // Listen to all products, filter ONLY those specifically assigned to Deal 259
@@ -44,6 +51,10 @@ export default function Deal259Page() {
       const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       const dealProds = getDeal259Products(allDocs);
       setProducts(dealProds);
+      setLoading(false);
+    }, (err) => {
+      console.error("Deal259 products error:", err);
+      setLoadError("Failed to load Deal 259 products. Please check your network connection.");
       setLoading(false);
     });
 
@@ -118,12 +129,60 @@ export default function Deal259Page() {
     return categories.filter(c => catIds.has(c.id));
   }, [products, categories]);
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-gray-100 shadow-xl text-center space-y-4">
+          <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <RefreshCw className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900">Failed to Load Deals</h2>
+          <p className="text-xs text-gray-500">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3 bg-rose-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-rose-700 transition-colors shadow-md"
+          >
+            Retry Now
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-rose-600 animate-spin" />
-          <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Loading Deal 259 Store...</p>
+      <div className="min-h-screen bg-gray-50/60 font-sans pb-24">
+        {/* Hero Header Skeleton */}
+        <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 py-10 px-4 sm:px-6 lg:px-8 shadow-xl animate-pulse">
+          <div className="max-w-7xl mx-auto space-y-3">
+            <div className="h-6 w-48 bg-white/30 rounded-full" />
+            <div className="h-10 w-72 sm:w-96 bg-white/30 rounded-2xl" />
+            <div className="h-5 w-60 bg-white/20 rounded-lg" />
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+          {/* Sub Deals Pills Skeleton */}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-10 w-28 bg-gray-200 rounded-2xl shrink-0 animate-pulse" />
+            ))}
+          </div>
+
+          {/* Filter Bar Skeleton */}
+          <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm h-14 animate-pulse" />
+
+          {/* Product Grid Skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-3 space-y-3 animate-pulse">
+                <div className="aspect-square bg-gray-200 rounded-xl" />
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-9 bg-gray-200 rounded-xl" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

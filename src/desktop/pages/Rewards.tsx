@@ -461,7 +461,24 @@ export default function Rewards() {
           </div>
 
           {/* COUPON CARDS GRID */}
-          {filteredCoupons.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl border border-gray-100 shadow-md overflow-hidden flex flex-col justify-between animate-pulse">
+                  <div className="h-56 bg-gray-200" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-5 bg-gray-200 rounded w-3/4" />
+                    <div className="h-4 bg-gray-100 rounded w-1/2" />
+                    <div className="h-10 bg-gray-100 rounded-2xl" />
+                  </div>
+                  <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex gap-2">
+                    <div className="h-9 bg-gray-200 rounded-xl flex-1" />
+                    <div className="h-9 w-9 bg-gray-200 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredCoupons.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 space-y-3">
               <Tag className="w-12 h-12 text-gray-300 mx-auto" />
               <h3 className="text-lg font-bold text-gray-900">No brand coupons found</h3>
@@ -625,7 +642,26 @@ export default function Rewards() {
             </div>
           </div>
 
-          {filteredHistory.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-gray-50/50 p-5 rounded-2xl border border-gray-200/80 space-y-4 animate-pulse">
+                  <div className="flex justify-between items-center pb-3 border-b border-gray-200/60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200" />
+                      <div className="space-y-1">
+                        <div className="w-24 h-3 bg-gray-200 rounded" />
+                        <div className="w-40 h-4 bg-gray-200 rounded" />
+                      </div>
+                    </div>
+                    <div className="w-20 h-4 bg-gray-200 rounded" />
+                  </div>
+                  <div className="h-10 bg-gray-200 rounded-xl" />
+                  <div className="h-14 bg-gray-200 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          ) : filteredHistory.length === 0 ? (
             <div className="text-center py-16 text-gray-400 space-y-3">
               <ShoppingBag className="w-12 h-12 mx-auto opacity-30" />
               <h3 className="text-base font-bold text-gray-900">No reward order history found</h3>

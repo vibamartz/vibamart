@@ -132,10 +132,29 @@ export default function RequestTracking() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center bg-gray-50/50">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading request timeline...</p>
+      <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6 animate-pulse select-none" aria-hidden="true">
+        <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-gray-100 shadow-sm space-y-6">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-48" />
+              <div className="h-3 bg-gray-100 rounded w-28" />
+            </div>
+            <div className="h-7 bg-gray-200 rounded-full w-24" />
+          </div>
+
+          <div className="py-6 flex justify-between items-center">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1">
+                <div className="w-9 h-9 rounded-full bg-gray-200" />
+                <div className="h-2.5 bg-gray-100 rounded w-16" />
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 bg-gray-50 rounded-2xl space-y-2">
+            <div className="h-3.5 bg-gray-200 rounded w-32" />
+            <div className="h-3 bg-gray-100 rounded w-3/4" />
+          </div>
         </div>
       </div>
     );

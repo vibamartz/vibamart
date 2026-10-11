@@ -353,7 +353,32 @@ export default function MobileRewardsScreen() {
         {/* COUPONS STOREFRONT */}
         {activeTab === 'vouchers' && (
           <div className="space-y-4">
-            {filteredCoupons.map((coupon) => (
+            {loading ? (
+              [...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl p-3.5 border border-amber-100 shadow-md space-y-2.5 animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full bg-gray-200" />
+                      <div className="space-y-1">
+                        <div className="w-20 h-3 bg-gray-200 rounded" />
+                        <div className="w-14 h-2.5 bg-gray-200 rounded" />
+                      </div>
+                    </div>
+                    <div className="w-16 h-5 bg-gray-200 rounded-full" />
+                  </div>
+                  <div className="h-44 rounded-2xl bg-gray-200" />
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-9 bg-gray-200 rounded-xl" />
+                </div>
+              ))
+            ) : filteredCoupons.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-3xl border border-gray-100 space-y-2">
+                <Tag className="w-10 h-10 text-gray-300 mx-auto" />
+                <h3 className="text-sm font-bold text-gray-900">No brand coupons found</h3>
+                <p className="text-xs text-gray-400">Try adjusting your search or filters</p>
+              </div>
+            ) : (
+              filteredCoupons.map((coupon) => (
               <motion.div
                 key={coupon.id}
                 whileTap={{ scale: 0.98 }}
@@ -434,14 +459,28 @@ export default function MobileRewardsScreen() {
                   </button>
                 </div>
               </motion.div>
-            ))}
+            )))}
           </div>
         )}
 
         {/* MY ORDERS & UNLOCKED COUPONS */}
         {activeTab === 'history' && (
           <div className="space-y-4">
-            {filteredHistory.length === 0 ? (
+            {loading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-md space-y-3 animate-pulse">
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gray-200" />
+                      <div className="w-20 h-3 bg-gray-200 rounded" />
+                    </div>
+                    <div className="w-16 h-3 bg-gray-200 rounded" />
+                  </div>
+                  <div className="w-32 h-3.5 bg-gray-200 rounded" />
+                  <div className="h-14 bg-gray-100 rounded-2xl" />
+                </div>
+              ))
+            ) : filteredHistory.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-3xl border border-amber-100 text-gray-400 text-xs">
                 No reward order history.
               </div>

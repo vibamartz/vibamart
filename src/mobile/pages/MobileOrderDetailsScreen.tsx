@@ -25,6 +25,8 @@ export default function MobileOrderDetailsScreen() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
@@ -54,6 +56,8 @@ export default function MobileOrderDetailsScreen() {
   // Fetch Order
   useEffect(() => {
     if (!orderId) return;
+    setLoading(true);
+    setFetchError(false);
 
     const fetchOrder = async () => {
       try {
@@ -69,13 +73,14 @@ export default function MobileOrderDetailsScreen() {
         }
       } catch (err) {
         console.error("Error fetching order:", err);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchOrder();
-  }, [orderId, navigate]);
+  }, [orderId, navigate, retryTrigger]);
 
   // Listen to Firestore requests for this order
   useEffect(() => {
@@ -341,16 +346,76 @@ export default function MobileOrderDetailsScreen() {
     }
   };
 
-  if (loading || !order) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-gray-500">Loading Order Details...</span>
+      <div className="min-h-screen bg-gray-50/50 pb-20 p-4 space-y-4 animate-pulse select-none">
+        {/* Header Skeleton */}
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="space-y-1.5">
+              <div className="h-4 bg-gray-200 rounded w-32" />
+              <div className="h-3 bg-gray-100 rounded w-24" />
+            </div>
+            <div className="h-6 bg-gray-200 rounded-full w-20" />
+          </div>
+
+          {/* Stepper Progress */}
+          <div className="py-4 flex items-center justify-between">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                <div className="w-7 h-7 rounded-full bg-gray-200" />
+                <div className="h-2 bg-gray-100 rounded w-12" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Items Card Skeleton */}
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs space-y-3">
+          <div className="h-3.5 bg-gray-200 rounded w-28" />
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="flex gap-3 items-center py-2 border-b border-gray-50 last:border-0">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-3/4" />
+                <div className="h-2.5 bg-gray-100 rounded w-1/3" />
+              </div>
+              <div className="h-4 bg-gray-200 rounded w-14" />
+            </div>
+          ))}
+        </div>
+
+        {/* Details Card Skeleton */}
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs space-y-2">
+          <div className="h-3.5 bg-gray-200 rounded w-24" />
+          <div className="h-3 bg-gray-100 rounded w-full" />
+          <div className="h-3 bg-gray-100 rounded w-2/3" />
         </div>
       </div>
     );
   }
+
+  if (fetchError && !order) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-gray-100 shadow-xl text-center flex flex-col items-center">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+            <RefreshCcw className="w-5 h-5" />
+          </div>
+          <h3 className="text-base font-black text-gray-900 mb-1">Failed to load order</h3>
+          <p className="text-xs text-gray-500 mb-4">Could not retrieve order details. Please check your connection.</p>
+          <button
+            onClick={() => setRetryTrigger(k => k + 1)}
+            className="w-full py-2.5 px-4 font-black text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5 text-xs"
+          >
+            <RefreshCcw className="w-3.5 h-3.5" /> Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) return null;
 
   const STAGES: { key: OrderStatus; label: string }[] = [
     { key: 'pending', label: 'Order Placed' },

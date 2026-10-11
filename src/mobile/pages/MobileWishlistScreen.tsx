@@ -19,13 +19,19 @@ export default function MobileWishlistScreen() {
   const [loading, setLoading] = useState(true);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   useEffect(() => {
     if (!user || !user.wishlist || user.wishlist.length === 0) {
       setProducts([]);
       setLoading(false);
+      setFetchError(false);
       return;
     }
+
+    setLoading(true);
+    setFetchError(false);
 
     const fetchWishlist = async () => {
       try {
@@ -52,22 +58,32 @@ export default function MobileWishlistScreen() {
           return;
         }
 
-        const q = query(
-          collection(db, 'products'),
-          where(documentId(), 'in', validWishlistIds)
+        // Batch queries in chunks of 30 to comply with Firestore 'in' limit
+        const chunks: string[][] = [];
+        for (let i = 0; i < validWishlistIds.length; i += 30) {
+          chunks.push(validWishlistIds.slice(i, i + 30));
+        }
+
+        const snapshots = await Promise.all(
+          chunks.map(chunk => getDocs(query(collection(db, 'products'), where(documentId(), 'in', chunk))))
         );
-        const querySnapshot = await getDocs(q);
-        const wishProds = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+
+        const wishProds = snapshots.flatMap(snap =>
+          snap.docs.map(d => ({ id: d.id, ...d.data() } as Product))
+        );
+
         setProducts(wishProds);
+        setFetchError(false);
       } catch (err) {
         console.error("Error fetching mobile wishlist:", err);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchWishlist();
-  }, [user]);
+  }, [user, retryTrigger]);
 
   const handleSingleRemove = async (productId: string) => {
     if (!user) return;
@@ -156,10 +172,35 @@ export default function MobileWishlistScreen() {
 
   if (loading) {
     return (
-      <div className="p-4 grid grid-cols-2 gap-3">
+      <div className="p-4 grid grid-cols-2 gap-3 animate-pulse select-none" aria-hidden="true">
         {Array(4).fill(0).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl h-56 animate-pulse border border-gray-100" />
+          <div key={i} className="bg-white rounded-2xl p-2.5 h-56 border border-gray-100 flex flex-col justify-between">
+            <div className="aspect-square rounded-xl bg-gray-100 mb-2" />
+            <div className="space-y-1.5 flex-1">
+              <div className="h-3 bg-gray-100 rounded w-3/4" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 pt-1" />
+          </div>
         ))}
+      </div>
+    );
+  }
+
+  if (fetchError && products.length === 0) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-3">
+          <Heart className="w-6 h-6" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900">Failed to load wishlist</h3>
+        <p className="text-xs text-gray-500 mb-4">Please check your connection and try again.</p>
+        <button
+          onClick={() => setRetryTrigger(k => k + 1)}
+          className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider"
+        >
+          Try Again
+        </button>
       </div>
     );
   }

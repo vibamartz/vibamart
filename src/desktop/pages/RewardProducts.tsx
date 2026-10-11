@@ -215,8 +215,19 @@ export default function RewardProducts() {
 
   if (loading && !rewardCard) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-pulse font-sans">
+        <div className="h-6 w-32 bg-gray-200 rounded-lg" />
+        <div className="h-56 bg-slate-800 rounded-3xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-3 space-y-3">
+              <div className="aspect-square bg-gray-200 rounded-xl" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-5 bg-gray-200 rounded w-1/2" />
+              <div className="h-9 bg-gray-200 rounded-xl" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -328,9 +339,15 @@ export default function RewardProducts() {
 
       {/* Product Grid */}
       {loading ? (
-        <div className="text-center py-16">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500 mx-auto" />
-          <p className="text-xs text-gray-400 mt-3 font-bold">Loading reward products...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-3 space-y-3 animate-pulse">
+              <div className="aspect-square bg-gray-200 rounded-xl" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-5 bg-gray-200 rounded w-1/2" />
+              <div className="h-9 bg-gray-200 rounded-xl" />
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 space-y-3">

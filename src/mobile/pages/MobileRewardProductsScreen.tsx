@@ -215,8 +215,19 @@ export default function MobileRewardProductsScreen() {
 
   if (loading && !rewardCard) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
+      <div className="min-h-screen bg-white p-4 space-y-4 animate-pulse font-sans">
+        <div className="h-10 bg-gray-100 rounded-xl" />
+        <div className="h-44 bg-slate-800 rounded-3xl" />
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-2 space-y-2">
+              <div className="aspect-[4/5] bg-gray-200 rounded-xl" />
+              <div className="h-3 bg-gray-200 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-7 bg-gray-200 rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -337,9 +348,15 @@ export default function MobileRewardProductsScreen() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto" />
-            <p className="text-xs text-gray-400 mt-2 font-bold">Loading products...</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-amber-100 p-2 space-y-2 animate-pulse">
+                <div className="aspect-[4/5] bg-gray-200 rounded-xl" />
+                <div className="h-3 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-7 bg-gray-200 rounded-lg" />
+              </div>
+            ))}
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl p-6 border border-amber-100 space-y-2">

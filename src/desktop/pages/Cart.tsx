@@ -54,8 +54,15 @@ function RecentlyViewedCartSection() {
         </div>
       </div>
       {loading ? (
-        <div className="py-8 text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="flex overflow-x-auto gap-4 hide-scrollbar py-1 min-w-0 w-full">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 bg-white rounded-2xl border border-gray-100 p-3 flex flex-col animate-pulse">
+              <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3" />
+              <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-1/2 mb-3" />
+              <div className="h-5 bg-gray-100 rounded w-1/3 mt-auto" />
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <p className="text-xs text-gray-400 font-medium py-4 text-center">No recently viewed items yet.</p>
@@ -116,8 +123,15 @@ function WishlistCartSection() {
         </div>
       </div>
       {loading ? (
-        <div className="py-8 text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="flex overflow-x-auto gap-4 hide-scrollbar py-1 min-w-0 w-full">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 bg-white rounded-2xl border border-gray-100 p-3 flex flex-col animate-pulse">
+              <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3" />
+              <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-1/2 mb-3" />
+              <div className="h-5 bg-gray-100 rounded w-1/3 mt-auto" />
+            </div>
+          ))}
         </div>
       ) : products.length === 0 ? (
         <p className="text-xs text-gray-400 font-medium py-4 text-center">No wishlist products saved yet.</p>

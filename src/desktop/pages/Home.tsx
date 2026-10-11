@@ -155,6 +155,9 @@ export default function Home() {
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(data, rewardIds));
       setLoading(false);
+    }, (error) => {
+      console.error("Home products error:", error);
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -175,6 +178,8 @@ export default function Home() {
           return now >= start && now <= end;
         });
       setBanners(desktopBanners);
+    }, (error) => {
+      console.error("Home banners error:", error);
     });
     return () => unsubscribeBanners();
   }, []);

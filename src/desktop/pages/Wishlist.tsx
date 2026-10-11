@@ -18,6 +18,8 @@ export default function Wishlist() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
@@ -54,30 +56,38 @@ export default function Wishlist() {
           return;
         }
 
-        const q = query(
-          collection(db, 'products'),
-          where(documentId(), 'in', validWishlistIds)
+        // Batch queries in chunks of 30 to comply with Firestore 'in' limit
+        const chunks: string[][] = [];
+        for (let i = 0; i < validWishlistIds.length; i += 30) {
+          chunks.push(validWishlistIds.slice(i, i + 30));
+        }
+
+        const snapshots = await Promise.all(
+          chunks.map(chunk => getDocs(query(collection(db, 'products'), where(documentId(), 'in', chunk))))
         );
-        const querySnapshot = await getDocs(q);
-        const wishlistProducts = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Product[];
+
+        const wishlistProducts = snapshots.flatMap(snap =>
+          snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+        );
 
         setProducts(wishlistProducts);
+        setFetchError(false);
       } catch (err) {
         console.error("Error fetching wishlist products:", err);
+        setFetchError(true);
       } finally {
         setFetching(false);
       }
     };
 
     if (!loading && user) {
+      setFetching(true);
+      setFetchError(false);
       fetchWishlist();
     } else if (!loading && !user) {
       setFetching(false);
     }
-  }, [user, loading]);
+  }, [user, loading, retryTrigger]);
 
   const handleSingleRemove = async (productId: string) => {
     if (!user) return;
@@ -153,9 +163,47 @@ export default function Wishlist() {
 
   if (loading || fetching) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-500 font-medium">Loading your wishlist...</p>
+      <div className="bg-gray-50 min-h-screen py-12 select-none animate-pulse">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="flex items-center gap-4 pb-6 border-b border-gray-200">
+            <div className="w-14 h-14 bg-gray-200 rounded-2xl shrink-0" />
+            <div className="space-y-2">
+              <div className="h-7 bg-gray-200 rounded w-64" />
+              <div className="h-4 bg-gray-200 rounded w-40" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white rounded-3xl p-4 border border-gray-100 space-y-3">
+                <div className="w-full aspect-square bg-gray-100 rounded-2xl" />
+                <div className="h-3 bg-gray-100 rounded w-1/3" />
+                <div className="h-4 bg-gray-100 rounded w-3/4" />
+                <div className="h-4 bg-gray-100 rounded w-1/2 pt-1" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError && products.length === 0) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6 bg-gray-50">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-gray-100 shadow-xl text-center flex flex-col items-center">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+            <Heart className="w-7 h-7" />
+          </div>
+          <h3 className="text-xl font-black text-gray-900 mb-2">Failed to load wishlist</h3>
+          <p className="text-sm text-gray-500 mb-6">Could not fetch your wishlist products. Please try again.</p>
+          <button
+            onClick={() => setRetryTrigger(k => k + 1)}
+            className="w-full py-3 px-4 font-black text-white bg-primary rounded-2xl hover:bg-primary-hover transition-all text-sm"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }

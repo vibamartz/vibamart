@@ -41,6 +41,8 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const { addItem, items } = useCartStore();
   const { user, orderedProductIds } = useAuthStore();
   const { categories } = useCategoryStore();
@@ -101,6 +103,7 @@ export default function ProductDetail() {
     setLoading(true);
     setProduct(null);
     setNotFound(false);
+    setFetchError(false);
 
     const fetchProduct = async () => {
       try {
@@ -204,14 +207,14 @@ export default function ProductDetail() {
         }
       } catch (err) {
         console.error("Error fetching product details:", err);
-        setNotFound(true);
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [targetSlugOrId, navigate]);
+  }, [targetSlugOrId, navigate, retryTrigger]);
 
   // Check waitlist
   useEffect(() => {
@@ -242,11 +245,83 @@ export default function ProductDetail() {
     trackRecent();
   }, [product]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white select-none animate-pulse">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+          {/* Breadcrumb Skeleton */}
+          <div className="h-4 bg-gray-100 rounded w-48" />
+
+          {/* Main Grid Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            {/* Left Column: Gallery */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="aspect-square w-full bg-gray-100 rounded-3xl border border-gray-100" />
+              <div className="flex gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="w-16 h-16 bg-gray-100 rounded-xl" />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Info & Actions */}
+            <div className="lg:col-span-6 space-y-6">
+              <div className="space-y-3">
+                <div className="h-3.5 bg-gray-100 rounded w-24" />
+                <div className="h-7 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-100 rounded w-1/3" />
+              </div>
+
+              {/* Price Box */}
+              <div className="p-4 bg-gray-50 rounded-2xl space-y-2 border border-gray-100">
+                <div className="h-8 bg-gray-200 rounded w-40" />
+                <div className="h-3 bg-gray-100 rounded w-32" />
+              </div>
+
+              {/* Variants Box */}
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-100 rounded w-20" />
+                <div className="flex gap-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-10 w-24 bg-gray-100 rounded-xl" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Delivery Skeleton */}
+              <div className="h-28 bg-gray-50 rounded-2xl border border-gray-100" />
+
+              {/* Buttons */}
+              <div className="flex gap-4">
+                <div className="h-14 flex-1 bg-gray-100 rounded-2xl" />
+                <div className="h-14 flex-1 bg-gray-200 rounded-2xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError && !product) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-gray-100 shadow-xl text-center flex flex-col items-center">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+            <RefreshCcw className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-black text-gray-900 mb-2">Failed to load product</h3>
+          <p className="text-sm text-gray-500 mb-6">Could not load product details due to a network error. Please try again.</p>
+          <button
+            onClick={() => setRetryTrigger(k => k + 1)}
+            className="w-full py-3 px-4 font-black text-white bg-emerald-600 rounded-2xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 text-sm"
+          >
+            <RefreshCcw className="w-4 h-4" /> Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (notFound || !product) return <Navigate to="/product-not-found" replace />;
 
