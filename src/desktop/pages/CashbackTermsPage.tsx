@@ -19,7 +19,7 @@ export default function CashbackTermsPage() {
   return (
     <div className="min-h-screen bg-gray-50/50 py-4 sm:py-8 px-3 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-        
+
         {/* Header Banner */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}

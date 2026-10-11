@@ -25,6 +25,7 @@ import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../../shared/constants';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
 import NewCategoriesManagementView from '../components/CategoriesManagementView';
+import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
 import NewBannersManagementView from '../components/BannersManagementView';
@@ -2570,11 +2571,10 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                           <button
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-                              product.isVisible !== false
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${product.isVisible !== false
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                            }`}
+                              }`}
                           >
                             {product.isVisible !== false ? (
                               <>
@@ -5981,7 +5981,7 @@ function CategoriesManagementView() {
                 <button onClick={() => toggleCat(cat.id)} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-900">
                   <ChevronRight className={`w-5 h-5 transition-transform ${expandedCats.includes(cat.id) ? 'rotate-90' : ''}`} />
                 </button>
-                <img src={cat.image} alt={cat.name} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shadow-sm" />
+                <CategoryLogo name={cat.name} icon={cat.icon} size="md" />
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                     {cat.name}
