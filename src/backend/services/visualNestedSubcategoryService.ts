@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, query, orderBy, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { VisualNestedSubcategory, Category, SubCategory } from '../../shared/types';
 import { CATEGORIES } from '../../shared/constants';
@@ -49,6 +49,7 @@ export async function createVisualNestedSubcategory(
     isActive: data.isActive !== false,
     isVisible: data.isActive !== false,
     parentTargetId: data.parentTargetId || data.nestedSubCategoryId || data.subCategoryId,
+    productIds: Array.isArray(data.productIds) ? data.productIds : [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -81,6 +82,7 @@ export async function updateVisualNestedSubcategory(
     ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
     ...(finalImage ? { image: finalImage } : {}),
     ...(typeof updates.isActive === 'boolean' ? { isVisible: updates.isActive } : {}),
+    ...(updates.productIds !== undefined ? { productIds: updates.productIds } : {}),
     updatedAt: new Date().toISOString()
   };
 
@@ -128,3 +130,121 @@ export async function reorderVisualNestedSubcategoriesInDb(
   });
   await batch.commit();
 }
+
+/**
+ * Assign an existing product to a Visual Nested Subcategory
+ */
+export async function assignProductToVisualNestedSubcategory(
+  visualId: string,
+  productId: string
+): Promise<void> {
+  const visualRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, visualId);
+  await updateDoc(visualRef, {
+    productIds: arrayUnion(productId),
+    updatedAt: new Date().toISOString()
+  });
+
+  try {
+    const prodRef = doc(db, 'products', productId);
+    await updateDoc(prodRef, {
+      visualNestedSubcategoryIds: arrayUnion(visualId),
+      visualNestedSubcategoryId: visualId,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn(`Could not sync visual subcategory on product ${productId}:`, err);
+  }
+}
+
+/**
+ * Remove an assigned product from a Visual Nested Subcategory
+ */
+export async function removeProductFromVisualNestedSubcategory(
+  visualId: string,
+  productId: string
+): Promise<void> {
+  const visualRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, visualId);
+  await updateDoc(visualRef, {
+    productIds: arrayRemove(productId),
+    updatedAt: new Date().toISOString()
+  });
+
+  try {
+    const prodRef = doc(db, 'products', productId);
+    await updateDoc(prodRef, {
+      visualNestedSubcategoryIds: arrayRemove(visualId),
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn(`Could not remove visual subcategory link on product ${productId}:`, err);
+  }
+}
+
+/**
+ * Reassign an assigned product from one Visual Nested Subcategory to another
+ */
+export async function reassignProductVisualNestedSubcategory(
+  fromVisualId: string,
+  toVisualId: string,
+  productId: string
+): Promise<void> {
+  // Remove from previous
+  const fromRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, fromVisualId);
+  await updateDoc(fromRef, {
+    productIds: arrayRemove(productId),
+    updatedAt: new Date().toISOString()
+  });
+
+  // Add to target
+  const toRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, toVisualId);
+  await updateDoc(toRef, {
+    productIds: arrayUnion(productId),
+    updatedAt: new Date().toISOString()
+  });
+
+  try {
+    const prodRef = doc(db, 'products', productId);
+    await updateDoc(prodRef, {
+      visualNestedSubcategoryIds: arrayRemove(fromVisualId),
+      updatedAt: new Date().toISOString()
+    });
+    await updateDoc(prodRef, {
+      visualNestedSubcategoryIds: arrayUnion(toVisualId),
+      visualNestedSubcategoryId: toVisualId,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn(`Could not reassign visual subcategory on product ${productId}:`, err);
+  }
+}
+
+/**
+ * Assign multiple products in batch to a Visual Nested Subcategory
+ */
+export async function assignMultipleProductsToVisualNestedSubcategory(
+  visualId: string,
+  productIds: string[]
+): Promise<void> {
+  if (!productIds || productIds.length === 0) return;
+
+  const visualRef = doc(db, VISUAL_NESTED_SUBCATEGORIES_COLLECTION, visualId);
+  await updateDoc(visualRef, {
+    productIds: arrayUnion(...productIds),
+    updatedAt: new Date().toISOString()
+  });
+
+  // Update products
+  for (const pid of productIds) {
+    try {
+      const prodRef = doc(db, 'products', pid);
+      await updateDoc(prodRef, {
+        visualNestedSubcategoryIds: arrayUnion(visualId),
+        visualNestedSubcategoryId: visualId,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.warn(`Could not sync visual subcategory on product ${pid}:`, err);
+    }
+  }
+}
+

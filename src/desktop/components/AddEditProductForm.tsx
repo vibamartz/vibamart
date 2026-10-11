@@ -8,7 +8,7 @@ import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
 import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText, Bookmark, Tag, Filter, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useCategoryStore, useSettingsStore } from '../../backend/store';
+import { useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 import { VariantImageInput, VariantMultiImageInput } from './VariantImageInput';
 import ProductLocationManager from './ProductLocationManager';
@@ -123,9 +123,26 @@ const DEFAULT_SPEC_PRESETS: SpecificationPreset[] = [
   }
 ];
 
-export default function AddEditProductForm({ product, onClose, onDelete }: { product: Product | null, onClose: () => void, onDelete?: (id: string, name: string) => Promise<boolean> }) {
+export default function AddEditProductForm({
+  product,
+  onClose,
+  onDelete,
+  initialCategoryId,
+  initialSubCategoryId,
+  initialNestedSubCategoryId,
+  initialVisualNestedSubcategoryId
+}: {
+  product: Product | null;
+  onClose: () => void;
+  onDelete?: (id: string, name: string) => Promise<boolean>;
+  initialCategoryId?: string;
+  initialSubCategoryId?: string;
+  initialNestedSubCategoryId?: string;
+  initialVisualNestedSubcategoryId?: string;
+}) {
   const { categories } = useCategoryStore();
   const { settings } = useSettingsStore();
+  const { items: visualNestedSubcategoryItems } = useVisualNestedSubcategoryStore();
   const [formData, setFormData] = useState<Partial<Product>>(() => {
     const defaults = {
       name: '',
@@ -137,9 +154,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       discountPercentage: 0,
       gst: 0,
       enableGst: true,
-      categoryId: '',
-      subCategoryId: '',
-      nestedSubCategoryId: '',
+      categoryId: initialCategoryId || '',
+      subCategoryId: initialSubCategoryId || '',
+      nestedSubCategoryId: initialNestedSubCategoryId || '',
+      visualNestedSubcategoryId: initialVisualNestedSubcategoryId || '',
+      visualNestedSubcategoryIds: initialVisualNestedSubcategoryId ? [initialVisualNestedSubcategoryId] : [],
       vendorId: 'admin',
       images: [],
       primaryImage: '',
@@ -217,9 +236,11 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
         specificationsByVariant: initialVariantSpecs,
         sizeSpecifications: product.sizeSpecifications || product.specificationsBySize || initialVariantSpecs,
         specificationsBySize: product.specificationsBySize || product.sizeSpecifications || initialVariantSpecs,
-        categoryId: product.categoryId || '',
-        subCategoryId: product.subCategoryId || '',
-        nestedSubCategoryId: product.nestedSubCategoryId || '',
+        categoryId: product.categoryId || initialCategoryId || '',
+        subCategoryId: product.subCategoryId || initialSubCategoryId || '',
+        nestedSubCategoryId: product.nestedSubCategoryId || initialNestedSubCategoryId || '',
+        visualNestedSubcategoryId: product.visualNestedSubcategoryId || product.visualNestedSubcategoryIds?.[0] || initialVisualNestedSubcategoryId || '',
+        visualNestedSubcategoryIds: product.visualNestedSubcategoryIds || (product.visualNestedSubcategoryId ? [product.visualNestedSubcategoryId] : (initialVisualNestedSubcategoryId ? [initialVisualNestedSubcategoryId] : [])),
         isCodAllowed: product.isCodAllowed !== false,
         isStockVisible: product.isStockVisible !== false,
         isFreeDelivery: product.isFreeDelivery !== false,
@@ -682,6 +703,25 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
       const productData = cleanForFirestore(rawData);
 
       await setDoc(doc(db, 'products', pid), productData, { merge: true });
+
+      // Sync Visual Nested Subcategory assignment with store and database
+      const currentVisualId = formData.visualNestedSubcategoryId || '';
+      const previousVisualId = product?.visualNestedSubcategoryId || '';
+      if (currentVisualId) {
+        try {
+          await useVisualNestedSubcategoryStore.getState().assignProduct(currentVisualId, pid);
+        } catch (e) {
+          console.warn('Failed to sync visual subcategory on save:', e);
+        }
+      }
+      if (previousVisualId && previousVisualId !== currentVisualId) {
+        try {
+          await useVisualNestedSubcategoryStore.getState().removeProduct(previousVisualId, pid);
+        } catch (e) {
+          console.warn('Failed to remove previous visual subcategory link:', e);
+        }
+      }
+
       await logAdminAction(
         product ? AdminAction.PRODUCT_UPDATE : AdminAction.PRODUCT_CREATE,
         `${product ? 'Refined' : 'Deployed'} product: ${formData.name}`,
@@ -1491,6 +1531,53 @@ export default function AddEditProductForm({ product, onClose, onDelete }: { pro
                   </select>
                 </div>
               )}
+
+              {/* Visual Nested Subcategory Showcase Placement */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-emerald-800 ml-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    Visual Nested Subcategory (Showcase Placement)
+                  </label>
+                  {formData.visualNestedSubcategoryId && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, visualNestedSubcategoryId: '', visualNestedSubcategoryIds: [] }))}
+                      className="text-[10px] font-bold text-gray-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={formData.visualNestedSubcategoryId || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(p => ({
+                      ...p,
+                      visualNestedSubcategoryId: val,
+                      visualNestedSubcategoryIds: val ? [val] : []
+                    }));
+                  }}
+                  className="w-full bg-emerald-50/40 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-emerald-500/20 transition-all font-black text-sm text-gray-900"
+                >
+                  <option value="">None (Standard Catalog Product)</option>
+                  {visualNestedSubcategoryItems.map(visual => {
+                    const visualLabel = visual.name || visual.offerText || visual.id;
+                    const pathHint = visual.categoryName && visual.subCategoryName
+                      ? `${visual.categoryName} › ${visual.subCategoryName}`
+                      : (visual.categoryName || '');
+                    return (
+                      <option key={visual.id} value={visual.id}>
+                        {visualLabel} {visual.offerText ? `• ${visual.offerText}` : ''} {pathHint ? `(${pathHint})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-[11px] text-gray-400 font-medium px-2">
+                  Assign to any Visual Nested Subcategory to display this product directly on its dedicated showcase page.
+                </p>
+              </div>
             </div>
           </div>
 

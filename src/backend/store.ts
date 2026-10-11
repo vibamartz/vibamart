@@ -13,7 +13,11 @@ import {
   updateVisualNestedSubcategory,
   deleteVisualNestedSubcategory,
   deleteAllVisualNestedSubcategories,
-  reorderVisualNestedSubcategoriesInDb
+  reorderVisualNestedSubcategoriesInDb,
+  assignProductToVisualNestedSubcategory,
+  removeProductFromVisualNestedSubcategory,
+  reassignProductVisualNestedSubcategory,
+  assignMultipleProductsToVisualNestedSubcategory
 } from "./services/visualNestedSubcategoryService";
 
 
@@ -411,6 +415,10 @@ interface VisualNestedSubcategoryState {
   deleteAllItems: () => Promise<void>;
   toggleActive: (id: string, isActive: boolean) => Promise<void>;
   reorderItems: (ordered: VisualNestedSubcategory[]) => Promise<void>;
+  assignProduct: (visualId: string, productId: string) => Promise<void>;
+  removeProduct: (visualId: string, productId: string) => Promise<void>;
+  reassignProduct: (fromVisualId: string, toVisualId: string, productId: string) => Promise<void>;
+  assignMultipleProducts: (visualId: string, productIds: string[]) => Promise<void>;
   getByCategoryAndSubCategory: (categoryId?: string, subCategoryId?: string, nestedSubCategoryId?: string, parentTargetId?: string) => VisualNestedSubcategory[];
 }
 
@@ -472,6 +480,60 @@ export const useVisualNestedSubcategoryStore = create<VisualNestedSubcategorySta
   reorderItems: async (ordered) => {
     set({ items: ordered });
     await reorderVisualNestedSubcategoriesInDb(ordered);
+  },
+
+  assignProduct: async (visualId, productId) => {
+    await assignProductToVisualNestedSubcategory(visualId, productId);
+    set(state => ({
+      items: state.items.map(item => {
+        if (item.id === visualId) {
+          const current = item.productIds || [];
+          return { ...item, productIds: Array.from(new Set([...current, productId])) };
+        }
+        return item;
+      })
+    }));
+  },
+
+  removeProduct: async (visualId, productId) => {
+    await removeProductFromVisualNestedSubcategory(visualId, productId);
+    set(state => ({
+      items: state.items.map(item => {
+        if (item.id === visualId) {
+          return { ...item, productIds: (item.productIds || []).filter(id => id !== productId) };
+        }
+        return item;
+      })
+    }));
+  },
+
+  reassignProduct: async (fromVisualId, toVisualId, productId) => {
+    await reassignProductVisualNestedSubcategory(fromVisualId, toVisualId, productId);
+    set(state => ({
+      items: state.items.map(item => {
+        if (item.id === fromVisualId) {
+          return { ...item, productIds: (item.productIds || []).filter(id => id !== productId) };
+        }
+        if (item.id === toVisualId) {
+          const current = item.productIds || [];
+          return { ...item, productIds: Array.from(new Set([...current, productId])) };
+        }
+        return item;
+      })
+    }));
+  },
+
+  assignMultipleProducts: async (visualId, productIds) => {
+    await assignMultipleProductsToVisualNestedSubcategory(visualId, productIds);
+    set(state => ({
+      items: state.items.map(item => {
+        if (item.id === visualId) {
+          const current = item.productIds || [];
+          return { ...item, productIds: Array.from(new Set([...current, ...productIds])) };
+        }
+        return item;
+      })
+    }));
   },
 
   getByCategoryAndSubCategory: (categoryId, subCategoryId, nestedSubCategoryId, parentTargetId) => {

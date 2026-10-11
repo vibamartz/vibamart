@@ -265,19 +265,42 @@ export default function ProductList() {
   // Helper for dynamic faceted search counts
   const getFilterCount = (filterType: string, value: any) => {
     return allProducts.filter(p => {
+      // Visual Nested Subcategory filter
+      const hasVisualExplicit = Boolean(
+        matchedVisualNestedSubcategory && (
+          (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
+          allProducts.some(item =>
+            item.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id) ||
+            item.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id
+          )
+        )
+      );
+
+      if (hasVisualExplicit && matchedVisualNestedSubcategory) {
+        const assignedIds = new Set(matchedVisualNestedSubcategory.productIds || []);
+        const isAssigned = assignedIds.has(p.id) ||
+          Boolean(p.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id)) ||
+          p.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id;
+        if (!isAssigned) return false;
+      }
+
       // Category filter
-      const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
-      if (effectiveCats.length > 0) {
-        if (effectiveCats.includes('all-deals')) {
-          if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
-        } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
-          return false;
+      if (!hasVisualExplicit) {
+        const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
+        if (effectiveCats.length > 0) {
+          if (effectiveCats.includes('all-deals')) {
+            if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
+          } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
+            return false;
+          }
         }
       }
 
       // SubCategory filter
-      const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
-      if (effectiveSubs.length > 0 && p.subCategoryId && !effectiveSubs.includes(p.subCategoryId)) return false;
+      if (!hasVisualExplicit) {
+        const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
+        if (effectiveSubs.length > 0 && p.subCategoryId && !effectiveSubs.includes(p.subCategoryId)) return false;
+      }
 
       // Brand filter
       const effectiveBrands = filterType !== 'brand' && selectedBrands.length > 0 ? selectedBrands : (filterType !== 'brand' && baseBrand ? [baseBrand] : []);
@@ -416,8 +439,27 @@ export default function ProductList() {
         if (!assignedIds.has(p.id)) return false;
       }
 
-      // Category filter (Skip category filter if viewing explicit banner)
-      if (!matchedBanner) {
+      // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
+      const hasVisualExplicit = Boolean(
+        matchedVisualNestedSubcategory && (
+          (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
+          allProducts.some(item =>
+            item.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id) ||
+            item.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id
+          )
+        )
+      );
+
+      if (hasVisualExplicit && matchedVisualNestedSubcategory) {
+        const assignedIds = new Set(matchedVisualNestedSubcategory.productIds || []);
+        const isAssigned = assignedIds.has(p.id) ||
+          Boolean(p.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id)) ||
+          p.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id;
+        if (!isAssigned) return false;
+      }
+
+      // Category filter (Skip category filter if viewing explicit banner or explicit visual subcategory)
+      if (!matchedBanner && !hasVisualExplicit) {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
@@ -428,13 +470,15 @@ export default function ProductList() {
         }
       }
 
-      // SubCategory filter
-      const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
-      if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
+      // SubCategory filter (Skip if explicit visual subcategory assignment)
+      if (!hasVisualExplicit) {
+        const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
+        if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
 
-      // Nested SubCategory filter
-      const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
-      if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
+        // Nested SubCategory filter
+        const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
+        if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
+      }
 
       // Brand filter
       const effectiveBrands = selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []);

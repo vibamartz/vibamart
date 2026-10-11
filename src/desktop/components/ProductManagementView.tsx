@@ -5,15 +5,17 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, ProductVariant } from '../../shared/types';
 import toast from 'react-hot-toast';
-import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash, Eye, EyeOff } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
+import { useVisualNestedSubcategoryStore } from '../../backend/store';
 
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   onAddProduct?: () => void,
   onEditProduct?: (p: Product) => void,
   onDeleteProduct?: (id: string, name: string) => Promise<boolean>
 }) {
+  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
@@ -361,7 +363,17 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           <img src={product.images[0]} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100" alt="" />
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>
-                            <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
+                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                              <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
+                              {visualNestedItems
+                                .filter(v => (v.productIds || []).includes(product.id) || product.visualNestedSubcategoryIds?.includes(v.id) || product.visualNestedSubcategoryId === v.id)
+                                .map(v => (
+                                  <span key={v.id} className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                    {v.name || v.offerText || 'Visual Showcase'}
+                                  </span>
+                                ))}
+                            </div>
                           </div>
                         </div>
                       </td>

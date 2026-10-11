@@ -316,8 +316,27 @@ export default function MobileProductListScreen() {
         if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
       }
 
-      // Skip category hierarchy filtering if opening explicit banner
-      if (!matchedBanner) {
+      // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
+      const hasVisualExplicit = Boolean(
+        currentVisualNestedSubcategoryObj && (
+          (currentVisualNestedSubcategoryObj.productIds && currentVisualNestedSubcategoryObj.productIds.length > 0) ||
+          products.some(item =>
+            item.visualNestedSubcategoryIds?.includes(currentVisualNestedSubcategoryObj.id) ||
+            item.visualNestedSubcategoryId === currentVisualNestedSubcategoryObj.id
+          )
+        )
+      );
+
+      if (hasVisualExplicit && currentVisualNestedSubcategoryObj) {
+        const assignedIds = new Set(currentVisualNestedSubcategoryObj.productIds || []);
+        const isAssigned = assignedIds.has(product.id) ||
+          Boolean(product.visualNestedSubcategoryIds?.includes(currentVisualNestedSubcategoryObj.id)) ||
+          product.visualNestedSubcategoryId === currentVisualNestedSubcategoryObj.id;
+        if (!isAssigned) return false;
+      }
+
+      // Skip category hierarchy filtering if opening explicit banner or explicit visual subcategory
+      if (!matchedBanner && !hasVisualExplicit) {
         const effectiveNested = selectedNestedSubCategory || baseNestedId;
         const effectiveSub = selectedSubCategory || baseSubId;
         const effectiveCat = selectedCategory || baseCatId;

@@ -1,18 +1,23 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Sparkles, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter,
   GripVertical, Image as ImageIcon, Upload, X, Save, Check, RefreshCw,
   Layers, ChevronDown, ChevronRight, Tag, ArrowUpDown, Smartphone, Monitor, Link2,
-  Shapes, Frame, Type, Sliders, Palette, CheckCircle2, GitBranch
+  Shapes, Frame, Type, Sliders, Palette, CheckCircle2, GitBranch,
+  Package, ShoppingBag, ArrowRightLeft, CheckSquare, Square, CornerDownRight, ExternalLink, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { VisualNestedSubcategory, Category, SubCategory } from '../../shared/types';
+import { VisualNestedSubcategory, Category, SubCategory, Product } from '../../shared/types';
 import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
+import { formatProductCode } from '../../shared/utilities/productCode';
 import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
 import { FRAME_SHAPES, getFrameConfig, VisualFrameDefs } from '../../shared/components/visualFrames';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '../../backend/firebase/firebase';
+import AddEditProductForm from './AddEditProductForm';
 
 interface FlatParentOption {
   key: string;
@@ -33,8 +38,38 @@ interface FlatParentOption {
 }
 
 export default function VisualNestedSubcategoriesAdminView() {
-  const { items, loading, addItem, updateItem, deleteItem, deleteAllItems, toggleActive, reorderItems } = useVisualNestedSubcategoryStore();
+  const {
+    items,
+    loading,
+    addItem,
+    updateItem,
+    deleteItem,
+    deleteAllItems,
+    toggleActive,
+    reorderItems,
+    assignProduct,
+    removeProduct,
+    reassignProduct,
+    assignMultipleProducts
+  } = useVisualNestedSubcategoryStore();
   const { categories } = useCategoryStore();
+
+  // Real-time catalog products
+  const [allCatalogProducts, setAllCatalogProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Manage Products Modal state
+  const [managingProductsItem, setManagingProductsItem] = useState<VisualNestedSubcategory | null>(null);
+  const [productActiveTab, setProductActiveTab] = useState<'assigned' | 'assign_existing'>('assigned');
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productSubCategoryFilter, setProductSubCategoryFilter] = useState('all');
+  const [selectedProductIdsToAssign, setSelectedProductIdsToAssign] = useState<string[]>([]);
+  const [isAddingNewProductModalOpen, setIsAddingNewProductModalOpen] = useState(false);
+  const [editingProductForVisual, setEditingProductForVisual] = useState<Product | null>(null);
+  const [reassigningProduct, setReassigningProduct] = useState<Product | null>(null);
+  const [targetReassignVisualId, setTargetReassignVisualId] = useState<string>('');
+  const [formProductSearchQuery, setFormProductSearchQuery] = useState('');
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,8 +113,33 @@ export default function VisualNestedSubcategoriesAdminView() {
     offerTextColor: '#ffffff',
     offerFontSize: '11px',
     offerFontWeight: '900',
-    seoTitle: ''
+    seoTitle: '',
+    productIds: []
   });
+
+  // Fetch real-time products
+  useEffect(() => {
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setAllCatalogProducts(data);
+      setLoadingProducts(false);
+    }, (error) => {
+      console.error('Failed to load products in Visual Admin View:', error);
+      setLoadingProducts(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Synchronize managingProductsItem with updated store items
+  useEffect(() => {
+    if (managingProductsItem) {
+      const fresh = items.find(i => i.id === managingProductsItem.id);
+      if (fresh) {
+        setManagingProductsItem(fresh);
+      }
+    }
+  }, [items]);
 
   // Drag and Drop refs
   const dragItem = useRef<number | null>(null);
@@ -286,8 +346,10 @@ export default function VisualNestedSubcategoriesAdminView() {
       offerTextColor: '#ffffff',
       offerFontSize: '11px',
       offerFontWeight: '900',
-      seoTitle: ''
+      seoTitle: '',
+      productIds: []
     });
+    setFormProductSearchQuery('');
     setIsModalOpen(true);
   };
 
@@ -305,7 +367,9 @@ export default function VisualNestedSubcategoriesAdminView() {
       offerTextColor: item.offerTextColor || '#ffffff',
       offerFontSize: item.offerFontSize || '11px',
       offerFontWeight: item.offerFontWeight || '900',
+      productIds: item.productIds || []
     });
+    setFormProductSearchQuery('');
     setIsModalOpen(true);
   };
 
@@ -495,7 +559,8 @@ export default function VisualNestedSubcategoriesAdminView() {
         offerTextColor: formData.offerTextColor || '#ffffff',
         offerFontSize: formData.offerFontSize || '11px',
         offerFontWeight: formData.offerFontWeight || '900',
-        seoTitle: formData.seoTitle?.trim() || ''
+        seoTitle: formData.seoTitle?.trim() || '',
+        productIds: Array.isArray(formData.productIds) ? formData.productIds : []
       };
 
       if (editingId) {
@@ -511,6 +576,127 @@ export default function VisualNestedSubcategoriesAdminView() {
       toast.error(err?.message ? `Failed to save: ${err.message}` : 'Failed to save');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Products assigned to the active managingProductsItem
+  const assignedProducts = useMemo(() => {
+    if (!managingProductsItem) return [];
+    const directIds = new Set(managingProductsItem.productIds || []);
+    return allCatalogProducts.filter(p =>
+      directIds.has(p.id) ||
+      p.visualNestedSubcategoryIds?.includes(managingProductsItem.id) ||
+      p.visualNestedSubcategoryId === managingProductsItem.id
+    );
+  }, [managingProductsItem, allCatalogProducts]);
+
+  // Catalog products available for assigning in Manage Products modal
+  const availableToAssignProducts = useMemo(() => {
+    if (!managingProductsItem) return [];
+    return allCatalogProducts.filter(p => {
+      // Category filter
+      if (productCategoryFilter !== 'all' && p.categoryId !== productCategoryFilter) {
+        return false;
+      }
+      // Subcategory filter
+      if (productSubCategoryFilter !== 'all' && p.subCategoryId !== productSubCategoryFilter) {
+        return false;
+      }
+      // Search query
+      if (productSearchQuery.trim()) {
+        const q = productSearchQuery.toLowerCase().trim();
+        const matchName = p.name?.toLowerCase().includes(q);
+        const matchSku = p.sku?.toLowerCase().includes(q);
+        const matchBrand = p.brand?.toLowerCase().includes(q);
+        const matchCode = p.productCode?.toLowerCase().includes(q);
+        const matchTag = p.tags?.some(t => t.toLowerCase().includes(q));
+        if (!matchName && !matchSku && !matchBrand && !matchCode && !matchTag) return false;
+      }
+      return true;
+    });
+  }, [managingProductsItem, allCatalogProducts, productCategoryFilter, productSubCategoryFilter, productSearchQuery]);
+
+  // Subcategories available for catalog product filtering in Manage Products modal
+  const productFilterAvailableSubCategories = useMemo(() => {
+    if (productCategoryFilter === 'all') return [];
+    const cat = categories.find(c => c.id === productCategoryFilter);
+    return cat?.subcategories || [];
+  }, [productCategoryFilter, categories]);
+
+  // Handle assigning a single product
+  const handleAssignSingleProduct = async (product: Product) => {
+    if (!managingProductsItem) return;
+    const toastId = toast.loading(`Assigning "${product.name}"...`);
+    try {
+      await assignProduct(managingProductsItem.id, product.id);
+      toast.success(`Assigned "${product.name}" to ${managingProductsItem.name || 'this showcase'}`, { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to assign product', { id: toastId });
+    }
+  };
+
+  // Handle batch assigning selected products
+  const handleAssignSelectedProducts = async () => {
+    if (!managingProductsItem || selectedProductIdsToAssign.length === 0) return;
+    const toastId = toast.loading(`Assigning ${selectedProductIdsToAssign.length} products...`);
+    try {
+      await assignMultipleProducts(managingProductsItem.id, selectedProductIdsToAssign);
+      toast.success(`Assigned ${selectedProductIdsToAssign.length} products to ${managingProductsItem.name || 'this showcase'}!`, { id: toastId });
+      setSelectedProductIdsToAssign([]);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to assign products', { id: toastId });
+    }
+  };
+
+  // Handle removing a product from this subcategory
+  const handleRemoveProduct = async (product: Product) => {
+    if (!managingProductsItem) return;
+    const toastId = toast.loading(`Removing "${product.name}"...`);
+    try {
+      await removeProduct(managingProductsItem.id, product.id);
+      toast.success(`Removed "${product.name}" from ${managingProductsItem.name || 'this showcase'}. (Product remains in store catalog)`, { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to remove product', { id: toastId });
+    }
+  };
+
+  // Handle reassigning product to another visual subcategory
+  const handleConfirmReassign = async () => {
+    if (!managingProductsItem || !reassigningProduct || !targetReassignVisualId) return;
+    const targetItem = items.find(i => i.id === targetReassignVisualId);
+    const toastId = toast.loading(`Reassigning "${reassigningProduct.name}"...`);
+    try {
+      await reassignProduct(managingProductsItem.id, targetReassignVisualId, reassigningProduct.id);
+      toast.success(`Reassigned to "${targetItem?.name || targetItem?.offerText || 'new showcase'}"!`, { id: toastId });
+      setReassigningProduct(null);
+      setTargetReassignVisualId('');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to reassign product', { id: toastId });
+    }
+  };
+
+  // Toggle multi-select product checkbox
+  const handleToggleSelectProduct = (productId: string) => {
+    setSelectedProductIdsToAssign(prev =>
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
+    );
+  };
+
+  // Select all unassigned visible products
+  const handleSelectAllVisibleUnassigned = () => {
+    const unassignedVisibleIds = availableToAssignProducts
+      .filter(p => !assignedProducts.some(ap => ap.id === p.id))
+      .map(p => p.id);
+    
+    const allSelected = unassignedVisibleIds.every(id => selectedProductIdsToAssign.includes(id));
+    if (allSelected) {
+      setSelectedProductIdsToAssign(prev => prev.filter(id => !unassignedVisibleIds.includes(id)));
+    } else {
+      setSelectedProductIdsToAssign(prev => Array.from(new Set([...prev, ...unassignedVisibleIds])));
     }
   };
 
@@ -582,6 +768,33 @@ export default function VisualNestedSubcategoriesAdminView() {
     offerFontSize: formData.offerFontSize || '11px',
     offerFontWeight: formData.offerFontWeight || '900'
   }), [formData, editingId]);
+
+  // Full-page Product Form for adding or editing products directly for a Visual Nested Subcategory
+  if (isAddingNewProductModalOpen && managingProductsItem) {
+    return (
+      <AddEditProductForm
+        product={null}
+        initialCategoryId={managingProductsItem.categoryId}
+        initialSubCategoryId={managingProductsItem.subCategoryId}
+        initialNestedSubCategoryId={managingProductsItem.nestedSubCategoryId}
+        initialVisualNestedSubcategoryId={managingProductsItem.id}
+        onClose={() => setIsAddingNewProductModalOpen(false)}
+      />
+    );
+  }
+
+  if (editingProductForVisual) {
+    return (
+      <AddEditProductForm
+        product={editingProductForVisual}
+        initialCategoryId={managingProductsItem?.categoryId}
+        initialSubCategoryId={managingProductsItem?.subCategoryId}
+        initialNestedSubCategoryId={managingProductsItem?.nestedSubCategoryId}
+        initialVisualNestedSubcategoryId={managingProductsItem?.id}
+        onClose={() => setEditingProductForVisual(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -737,8 +950,9 @@ export default function VisualNestedSubcategoriesAdminView() {
           <div className="col-span-1 text-center">Order</div>
           <div className="col-span-1 text-center">Shape Preview</div>
           <div className="col-span-3">Name & Offer Strip</div>
-          <div className="col-span-3">Parent Hierarchy & Target</div>
-          <div className="col-span-2">Frame / Ratio</div>
+          <div className="col-span-2">Parent Hierarchy & Target</div>
+          <div className="col-span-2 text-center">Assigned Products</div>
+          <div className="col-span-1">Frame</div>
           <div className="col-span-2 text-right pr-4">Actions</div>
         </div>
 
@@ -832,7 +1046,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                   </div>
 
                   {/* Parent Hierarchy & Target Badge */}
-                  <div className="col-span-3 min-w-0 space-y-1">
+                  <div className="col-span-2 min-w-0 space-y-1">
                     <div className="text-xs font-bold text-gray-800 truncate" title={breadcrumb}>
                       {breadcrumb}
                     </div>
@@ -840,7 +1054,7 @@ export default function VisualNestedSubcategoriesAdminView() {
                       {isNestedTarget ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                           <GitBranch className="w-3 h-3" />
-                          Nested Subcategory Target
+                          Nested Target
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -851,11 +1065,30 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </div>
                   </div>
 
+                  {/* Assigned Products Column */}
+                  <div className="col-span-2 flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setManagingProductsItem(item);
+                        setProductActiveTab('assigned');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition-all cursor-pointer shadow-xs active:scale-95 group/prod"
+                      title="Manage Products for this Subcategory"
+                    >
+                      <Package className="w-3.5 h-3.5 text-emerald-600 group-hover/prod:scale-110 transition-transform" />
+                      <span>
+                        {(allCatalogProducts.filter(p => (item.productIds || []).includes(p.id) || p.visualNestedSubcategoryIds?.includes(item.id) || p.visualNestedSubcategoryId === item.id)).length} Products
+                      </span>
+                    </button>
+                  </div>
+
                   {/* Frame / Ratio Badge */}
-                  <div className="col-span-2 min-w-0">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold truncate">
+                  <div className="col-span-1 min-w-0">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-[11px] font-bold truncate max-w-full" title={frameConfig.name}>
                       <Frame className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{frameConfig.name}</span>
+                      <span className="truncate">{frameConfig.name.split(' ')[0]}</span>
                     </span>
                   </div>
 
@@ -871,6 +1104,17 @@ export default function VisualNestedSubcategoriesAdminView() {
                       title={item.isActive ? 'Active (Visible on store)' : 'Inactive (Hidden)'}
                     >
                       {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setManagingProductsItem(item);
+                        setProductActiveTab('assigned');
+                      }}
+                      className="p-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer"
+                      title="Manage Products"
+                    >
+                      <Package className="w-4 h-4" />
                     </button>
 
                     <button
@@ -1446,6 +1690,137 @@ export default function VisualNestedSubcategoriesAdminView() {
                     </button>
                   </div>
 
+                  {/* Assigned Products Section */}
+                  <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-200/70 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 text-emerald-700" />
+                        <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">
+                          Assigned Showcase Products
+                        </span>
+                      </div>
+                      <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
+                        {(formData.productIds?.length || 0)} products
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-emerald-800">
+                      Link products directly to this showcase. They will appear on this Visual Nested Subcategory page for customers while preserving their original inventory, pricing, and category settings.
+                    </p>
+
+                    {/* Quick Search to Add Product to this form */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search & quick-assign product by name or SKU..."
+                        value={formProductSearchQuery}
+                        onChange={(e) => setFormProductSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-4 py-2 bg-white border border-emerald-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      {formProductSearchQuery.trim() && (
+                        <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-30 divide-y divide-gray-100">
+                          {allCatalogProducts
+                            .filter(p => {
+                              const q = formProductSearchQuery.toLowerCase();
+                              return (
+                                p.name?.toLowerCase().includes(q) ||
+                                p.sku?.toLowerCase().includes(q) ||
+                                p.productCode?.toLowerCase().includes(q)
+                              );
+                            })
+                            .slice(0, 8)
+                            .map(prod => {
+                              const isAlready = formData.productIds?.includes(prod.id);
+                              return (
+                                <div
+                                  key={prod.id}
+                                  onClick={() => {
+                                    if (!isAlready) {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        productIds: [...(prev.productIds || []), prod.id]
+                                      }));
+                                    }
+                                    setFormProductSearchQuery('');
+                                  }}
+                                  className={`flex items-center justify-between p-2.5 text-xs hover:bg-emerald-50 cursor-pointer ${
+                                    isAlready ? 'opacity-60 bg-gray-50 pointer-events-none' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    {prod.image ? (
+                                      <img src={prod.image} alt="" className="w-6 h-6 object-cover rounded-md" />
+                                    ) : (
+                                      <Package className="w-4 h-4 text-gray-400" />
+                                    )}
+                                    <span className="font-bold text-gray-800 truncate">{prod.name}</span>
+                                    <span className="text-[10px] text-gray-500">₹{prod.salePrice || prod.price}</span>
+                                  </div>
+                                  <span className={`text-[10px] font-bold ${isAlready ? 'text-gray-400' : 'text-emerald-700'}`}>
+                                    {isAlready ? 'Already Added' : '+ Add'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Display chips of currently assigned products */}
+                    {(formData.productIds && formData.productIds.length > 0) ? (
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-1">
+                        {formData.productIds.map(prodId => {
+                          const prodObj = allCatalogProducts.find(p => p.id === prodId);
+                          return (
+                            <span
+                              key={prodId}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-emerald-200 rounded-lg text-[11px] font-semibold text-gray-800 shadow-2xs"
+                            >
+                              <span className="truncate max-w-[140px]">{prodObj?.name || `ID: ${prodId.slice(0, 6)}...`}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    productIds: prev.productIds?.filter(id => id !== prodId) || []
+                                  }));
+                                }}
+                                className="text-gray-400 hover:text-red-600 rounded-full cursor-pointer"
+                                title="Remove product from this showcase"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] italic text-emerald-800/70">
+                        No products explicitly assigned yet. Products matching this subcategory hierarchy will show by default, or assign specific showcase products above.
+                      </p>
+                    )}
+
+                    {editingId && (
+                      <div className="pt-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = items.find(i => i.id === editingId);
+                            if (current) {
+                              setIsModalOpen(false);
+                              setManagingProductsItem(current);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+                        >
+                          <Sliders className="w-3 h-3" />
+                          <span>Open Full Product Management Suite for this Showcase</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   <button type="submit" className="hidden" />
                 </form>
 
@@ -1525,6 +1900,534 @@ export default function VisualNestedSubcategoriesAdminView() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Manage Products Modal for Visual Nested Subcategory */}
+      <AnimatePresence>
+        {managingProductsItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-5 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50/50 via-white to-gray-50 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200 shrink-0">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-black text-gray-900">
+                        Manage Showcase Products
+                      </h2>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
+                        {managingProductsItem.name || managingProductsItem.offerText || 'Visual Subcategory'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                      <span>Hierarchy:</span>
+                      <span className="font-semibold text-gray-700">
+                        {managingProductsItem.categoryName} › {managingProductsItem.subCategoryName}
+                        {managingProductsItem.nestedSubCategoryName ? ` › ${managingProductsItem.nestedSubCategoryName}` : ''}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewProductModalOpen(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-200 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add New Product</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManagingProductsItem(null);
+                      setSelectedProductIdsToAssign([]);
+                      setProductSearchQuery('');
+                    }}
+                    className="p-2.5 rounded-2xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-gray-200 px-6 pt-2 bg-gray-50/60 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setProductActiveTab('assigned')}
+                  className={`pb-3 px-4 text-xs font-black border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+                    productActiveTab === 'assigned'
+                      ? 'border-emerald-600 text-emerald-800'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Assigned Products</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-black">
+                    {assignedProducts.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProductActiveTab('assign_existing')}
+                  className={`pb-3 px-4 text-xs font-black border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+                    productActiveTab === 'assign_existing'
+                      ? 'border-emerald-600 text-emerald-800'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Browse & Assign Catalog Products</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-200 text-gray-700 font-bold">
+                    {availableToAssignProducts.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Tab Content Area */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                {productActiveTab === 'assigned' ? (
+                  /* Tab 1: Assigned Products List */
+                  <div>
+                    {assignedProducts.length === 0 ? (
+                      <div className="text-center py-16 px-4">
+                        <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                          <Package className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-sm font-black text-gray-900 mb-1">
+                          No Products Directly Assigned Yet
+                        </h3>
+                        <p className="text-xs text-gray-500 max-w-md mx-auto mb-6">
+                          Assign existing products from the store catalog, or create new products directly to populate this Visual Nested Subcategory showcase.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setProductActiveTab('assign_existing')}
+                            className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md shadow-emerald-200 transition-all cursor-pointer"
+                          >
+                            Browse & Assign Existing Products
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingNewProductModalOpen(true)}
+                            className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-black transition-all cursor-pointer"
+                          >
+                            + Add New Product
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs text-gray-500 pb-2">
+                          <span>Showing <strong>{assignedProducts.length}</strong> assigned products for this showcase</span>
+                          <span className="text-[11px] text-emerald-700 font-bold">
+                            Inventory & pricing stay synchronized with catalog
+                          </span>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-2xs">
+                          {assignedProducts.map(product => {
+                            const isLowStock = product.stock !== undefined && product.stock <= 5;
+                            const isOutOfStock = product.stock === 0;
+
+                            return (
+                              <div
+                                key={product.id}
+                                className="p-3.5 sm:p-4 bg-white hover:bg-gray-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                              >
+                                {/* Product info */}
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-12 h-12 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 shrink-0">
+                                    {product.image ? (
+                                      <img
+                                        src={product.image}
+                                        alt={product.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                        <Package className="w-6 h-6" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="text-xs sm:text-sm font-black text-gray-900 truncate">
+                                        {product.name}
+                                      </h4>
+                                      {product.sku && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
+                                          {product.sku}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                                        <Layers className="w-3 h-3 text-gray-400" />
+                                        <span>{product.categoryName} › {product.subCategoryName}</span>
+                                      </span>
+
+                                      <span className="text-[11px] font-black text-emerald-700">
+                                        ₹{product.salePrice || product.price}
+                                        {product.salePrice && product.salePrice < product.price && (
+                                          <span className="text-gray-400 line-through text-[10px] ml-1 font-normal">
+                                            ₹{product.price}
+                                          </span>
+                                        )}
+                                      </span>
+
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                        isOutOfStock
+                                          ? 'bg-red-100 text-red-700'
+                                          : isLowStock
+                                          ? 'bg-amber-100 text-amber-800'
+                                          : 'bg-emerald-50 text-emerald-700'
+                                      }`}>
+                                        {isOutOfStock ? 'Out of Stock' : `${product.stock ?? 0} in stock`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingProductForVisual(product)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition-all cursor-pointer"
+                                    title="Edit full product details"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReassigningProduct(product);
+                                      setTargetReassignVisualId('');
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all cursor-pointer"
+                                    title="Reassign to another visual nested subcategory"
+                                  >
+                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                    <span>Reassign</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveProduct(product)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all cursor-pointer"
+                                    title="Remove from this showcase"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Remove</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Tab 2: Browse & Assign Catalog Products */
+                  <div className="space-y-4">
+                    {/* Filters & Search Header */}
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200/80 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        <div className="sm:col-span-6 relative">
+                          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Search catalog products by name, SKU, brand, tags..."
+                            value={productSearchQuery}
+                            onChange={(e) => setProductSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <select
+                            value={productCategoryFilter}
+                            onChange={(e) => {
+                              setProductCategoryFilter(e.target.value);
+                              setProductSubCategoryFilter('all');
+                            }}
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            <option value="all">All Categories</option>
+                            {categories.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="sm:col-span-3">
+                          <select
+                            value={productSubCategoryFilter}
+                            onChange={(e) => setProductSubCategoryFilter(e.target.value)}
+                            disabled={productCategoryFilter === 'all'}
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+                          >
+                            <option value="all">All Subcategories</option>
+                            {productFilterAvailableSubCategories.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Bulk selection controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-200/60">
+                        <button
+                          type="button"
+                          onClick={handleSelectAllVisibleUnassigned}
+                          className="flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-gray-900 cursor-pointer"
+                        >
+                          <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          <span>Toggle Select All Visible Unassigned</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {selectedProductIdsToAssign.length} selected
+                          </span>
+                          <button
+                            type="button"
+                            disabled={selectedProductIdsToAssign.length === 0}
+                            onClick={handleAssignSelectedProducts}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-black shadow-sm transition-all cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>Assign Selected ({selectedProductIdsToAssign.length})</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Available Catalog Products List */}
+                    {availableToAssignProducts.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500 text-xs">
+                        No catalog products match your search or filter criteria.
+                      </div>
+                    ) : (
+                      <div className="border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-2xs">
+                        {availableToAssignProducts.map(product => {
+                          const isAssignedToThis = (managingProductsItem.productIds || []).includes(product.id) ||
+                            product.visualNestedSubcategoryIds?.includes(managingProductsItem.id) ||
+                            product.visualNestedSubcategoryId === managingProductsItem.id;
+
+                          const isSelected = selectedProductIdsToAssign.includes(product.id);
+
+                          return (
+                            <div
+                              key={product.id}
+                              className={`p-3.5 bg-white hover:bg-gray-50/60 transition-colors flex items-center justify-between gap-3 ${
+                                isAssignedToThis ? 'bg-emerald-50/20' : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  disabled={isAssignedToThis}
+                                  checked={isSelected || isAssignedToThis}
+                                  onChange={() => handleToggleSelectProduct(product.id)}
+                                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 disabled:opacity-50 cursor-pointer"
+                                />
+
+                                <div className="w-10 h-10 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 shrink-0">
+                                  {product.image ? (
+                                    <img
+                                      src={product.image}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                      <Package className="w-5 h-5" />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-900 truncate">
+                                      {product.name}
+                                    </span>
+                                    {product.sku && (
+                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
+                                        {product.sku}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
+                                    <span>{product.categoryName} › {product.subCategoryName}</span>
+                                    <span>•</span>
+                                    <span className="font-bold text-emerald-700">₹{product.salePrice || product.price}</span>
+                                    <span>•</span>
+                                    <span>{product.stock ?? 0} in stock</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                {isAssignedToThis ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Assigned</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveProduct(product)}
+                                      className="p-1 text-gray-400 hover:text-red-600 rounded cursor-pointer"
+                                      title="Remove from showcase"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAssignSingleProduct(product)}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-emerald-600 hover:text-white text-gray-700 text-xs font-black transition-all cursor-pointer"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Assign</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                <span className="text-[11px] text-gray-500">
+                  Total store catalog products: <strong>{allCatalogProducts.length}</strong>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManagingProductsItem(null);
+                    setSelectedProductIdsToAssign([]);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reassign Product Modal */}
+      <AnimatePresence>
+        {reassigningProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2 text-indigo-700">
+                  <ArrowRightLeft className="w-5 h-5" />
+                  <h3 className="text-base font-black text-gray-900">Reassign Showcase Product</h3>
+                </div>
+                <button
+                  onClick={() => { setReassigningProduct(null); setTargetReassignVisualId(''); }}
+                  className="p-1 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="py-4 space-y-4">
+                <div className="p-3 bg-gray-50 rounded-2xl flex items-center gap-3">
+                  <img
+                    src={reassigningProduct.image || 'https://via.placeholder.com/80'}
+                    alt={reassigningProduct.name}
+                    className="w-12 h-12 object-cover rounded-xl border border-gray-200 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-900 truncate">{reassigningProduct.name}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Current Showcase: <span className="font-semibold text-emerald-700">{managingProductsItem?.name || managingProductsItem?.offerText || 'Current'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                    Select Target Visual Nested Subcategory
+                  </label>
+                  <select
+                    value={targetReassignVisualId}
+                    onChange={(e) => setTargetReassignVisualId(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">-- Choose destination visual subcategory --</option>
+                    {items
+                      .filter(i => i.id !== managingProductsItem?.id)
+                      .map(i => (
+                        <option key={i.id} value={i.id}>
+                          {i.name || i.offerText || 'Unnamed'} ({i.categoryName} › {i.subCategoryName}{i.nestedSubCategoryName ? ` › ${i.nestedSubCategoryName}` : ''})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => { setReassigningProduct(null); setTargetReassignVisualId(''); }}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!targetReassignVisualId}
+                  onClick={handleConfirmReassign}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Confirm Reassignment</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

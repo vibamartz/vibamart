@@ -72,6 +72,8 @@ export interface Product {
   categories?: string[];
   subCategoryId?: string;
   nestedSubCategoryId?: string;
+  visualNestedSubcategoryId?: string; // Assigned Visual Nested Subcategory ID
+  visualNestedSubcategoryIds?: string[]; // Multiple Visual Nested Subcategory IDs assigned to this product
   vendorId: string;
   images: string[]; // Up to 10 images
   primaryImage?: string;
@@ -328,6 +330,7 @@ export interface VisualNestedSubcategory {
   badgeText?: string; // e.g. "Trending", "Hot", "New", "Top Pick"
   seoTitle?: string;
   seoDescription?: string;
+  productIds?: string[]; // List of explicitly assigned product IDs in this Visual Nested Subcategory
   createdAt?: string;
   updatedAt?: string;
 }
