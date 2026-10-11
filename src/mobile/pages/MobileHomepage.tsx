@@ -322,26 +322,15 @@ export default function MobileHomepage() {
       return;
     }
 
-    if (banner.link && (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.'))) {
-      const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    if (Array.isArray(banner.productIds) && banner.productIds.length > 0) {
-      if (banner.link && (banner.link.startsWith('/offers/') || banner.link.startsWith('/banner/') || banner.link.startsWith('/banners/')) && banner.link !== '/offers') {
-        navigate(banner.link);
-      } else {
-        const slug = banner.slug || getBannerSlug(banner) || banner.id;
-        navigate(`/offers/${slug}`);
-      }
-      return;
-    }
-
     if (banner.link) {
-      navigate(banner.link);
+      if (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.')) {
+        const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(banner.link);
+      }
     } else {
-      const slug = banner.slug || getBannerSlug(banner) || banner.id;
+      const slug = banner.slug || getBannerSlug(banner);
       navigate(`/offers/${slug}`);
     }
   };

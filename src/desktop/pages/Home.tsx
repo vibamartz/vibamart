@@ -16,7 +16,7 @@ import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/f
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
-import { getCategorySlug, getSubcategorySlug, getBannerSlug } from '../../shared/utilities/slug';
+import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 
@@ -315,25 +315,15 @@ export default function Home() {
               <div
                 key={banner.id || i}
                 onClick={() => {
-                  if (banner.link && (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.'))) {
-                    const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                    return;
-                  }
-                  if (Array.isArray(banner.productIds) && banner.productIds.length > 0) {
-                    if (banner.link && (banner.link.startsWith('/offers/') || banner.link.startsWith('/banner/') || banner.link.startsWith('/banners/')) && banner.link !== '/offers') {
-                      navigate(banner.link);
-                    } else {
-                      const slug = banner.slug || getBannerSlug(banner) || banner.id;
-                      navigate(`/offers/${slug}`);
-                    }
-                    return;
-                  }
                   if (banner.link) {
-                    navigate(banner.link);
+                    if (/^https?:\/\//i.test(banner.link) || banner.link.startsWith('www.')) {
+                      const url = banner.link.startsWith('www.') ? `https://${banner.link}` : banner.link;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } else {
+                      navigate(banner.link);
+                    }
                   } else {
-                    const slug = banner.slug || getBannerSlug(banner) || banner.id;
-                    navigate(`/offers/${slug}`);
+                    navigate('/products');
                   }
                 }}
                 className={`relative h-[160px] sm:h-[190px] md:h-[220px] lg:h-[240px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm group border border-gray-100 bg-white ${
@@ -363,11 +353,6 @@ export default function Home() {
                         <div className="bg-white text-gray-900 touch-target min-h-[32px] px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-black uppercase tracking-widest text-[8px] sm:text-[9px] hover:bg-primary hover:text-white transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5">
                           Explore Now <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
-                        {Array.isArray(banner.productIds) && banner.productIds.length > 0 && (
-                          <div className="bg-emerald-600/90 text-white min-h-[32px] px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl font-black uppercase tracking-wider text-[8px] sm:text-[9px] flex items-center gap-1 shadow-md">
-                            <Layers className="w-3 h-3 text-emerald-200" /> {banner.productIds.length} Products
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

@@ -41,12 +41,9 @@ export default function BannersManagementView() {
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'products'), (snap) => {
+    getDocs(collection(db, 'products')).then(snap => {
       setDbProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-    }, (err) => {
-      console.error("Error loading products for banner validation:", err);
-    });
-    return () => unsub();
+    }).catch(err => console.error("Error loading products for banner validation:", err));
   }, []);
 
   // Modal State
@@ -344,20 +341,17 @@ export default function BannersManagementView() {
 
     setIsSaving(true);
     try {
-      const bannerSlug = (formData.slug || createSlug(formData.title || '') || (editingBanner ? editingBanner.id : `offer-${Date.now().toString(36)}`)).trim();
-      
-      // Deduplicate product IDs inside the same banner
-      const uniqueProductIds = Array.from(new Set(formData.productIds || []));
+      const bannerSlug = (formData.slug || createSlug(formData.title || '') || 'special-offer').trim();
+      const finalLink = (formData.link || '').trim() || `/offers/${bannerSlug}`;
 
-      // If products are assigned and link is empty or default, ensure it targets this banner's offer page
-      let finalLink = (formData.link || '').trim();
-      if (!finalLink || (uniqueProductIds.length > 0 && (finalLink === '/offers' || finalLink === '/products'))) {
-        finalLink = `/offers/${bannerSlug}`;
-      }
+      // Upload banner image to Storage if base64/blob to get short clean permanent URL
       const cleanBannerImageUrl = await uploadImageFileToStorage(formData.image, {
         folder: 'banners',
         entityName: formData.title || bannerSlug
       });
+
+      // Deduplicate product IDs inside the same banner
+      const uniqueProductIds = Array.from(new Set(formData.productIds || []));
 
       const payload: Record<string, any> = {
         title: formData.title || '',
@@ -541,14 +535,6 @@ export default function BannersManagementView() {
                         Category: {banner.categoryId === 'for-you' || !banner.categoryId
                           ? 'For You'
                           : categories.find(c => c.id === banner.categoryId || c.slug === banner.categoryId)?.name || banner.categoryId}
-                      </span>
-                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1 w-fit border ${
-                        banner.productIds && banner.productIds.length > 0
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-gray-50 text-gray-500 border-gray-200'
-                      }`}>
-                        <Sparkles className="w-3 h-3 text-emerald-500" />
-                        {banner.productIds?.length || 0} Products Assigned
                       </span>
                       {banner.link && (
                         <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg w-fit">
@@ -811,93 +797,57 @@ export default function BannersManagementView() {
                         />
                       </div>
 
-                      {/* Product Selector list: matches search or shows store inventory */}
-                      {(() => {
-                        const q = productSearch.toLowerCase().trim();
-                        const displayedProducts = q
-                          ? dbProducts.filter(p => {
-                              if (!p) return false;
-                              const name = (p.name || '').toLowerCase();
-                              const sku = (p.sku || '').toLowerCase();
-                              const code = (p.productCode || '').toLowerCase();
-                              const brand = (p.brand || '').toLowerCase();
-                              return name.includes(q) || sku.includes(q) || code.includes(q) || brand.includes(q);
-                            }).slice(0, 10)
-                          : dbProducts
-                              .filter(p => formData.categoryId && formData.categoryId !== 'for-you' ? (p.categoryId === formData.categoryId) : true)
-                              .slice(0, 8);
-
-                        return (
-                          <div className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
-                            <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-500">
-                              <span>{q ? `Matching Search Results (${displayedProducts.length})` : 'Available Store Products (Click Assign):'}</span>
-                              <span className="text-[10px] text-gray-400">Total in Store: {dbProducts.length}</span>
-                            </div>
-                            <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
-                              {displayedProducts.length > 0 ? (
-                                displayedProducts.map(prod => {
-                                  const isAssigned = formData.productIds?.includes(prod.id);
-                                  return (
-                                    <div key={prod.id} className="p-2.5 flex items-center justify-between hover:bg-gray-50 text-xs">
-                                      <div className="flex items-center gap-2.5 min-w-0">
-                                        <img src={prod.images?.[0] || 'https://via.placeholder.com/40'} alt={prod.name} className="w-8 h-8 object-cover rounded-lg shrink-0 border border-gray-100" />
-                                        <div className="min-w-0">
-                                          <p className="font-bold text-gray-900 truncate">{prod.name}</p>
-                                          <p className="text-[10px] text-gray-400">SKU: {prod.sku || 'N/A'} • ₹{prod.discountPrice || prod.price}</p>
-                                        </div>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (isAssigned) {
-                                            setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => id !== prod.id) }));
-                                          } else {
-                                            const autoSlug = (formData.slug || createSlug(formData.title || '') || 'special-offer').trim();
-                                            setFormData(prev => {
-                                              const newIds = Array.from(new Set([...(prev.productIds || []), prod.id]));
-                                              return {
-                                                ...prev,
-                                                productIds: newIds,
-                                                link: (!prev.link || prev.link === '/offers' || prev.link === '/products') ? `/offers/${autoSlug}` : prev.link
-                                              };
-                                            });
-                                          }
-                                        }}
-                                        className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-colors shrink-0 cursor-pointer ${
-                                          isAssigned ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                        }`}
-                                      >
-                                        {isAssigned ? 'Remove' : 'Assign'}
-                                      </button>
+                      {/* Search Results dropdown/list */}
+                      {productSearch.trim() && (
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
+                          {dbProducts
+                            .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase())))
+                            .slice(0, 8)
+                            .map(prod => {
+                              const isAssigned = formData.productIds?.includes(prod.id);
+                              return (
+                                <div key={prod.id} className="p-2.5 flex items-center justify-between hover:bg-gray-50 text-xs">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <img src={prod.images?.[0] || 'https://via.placeholder.com/40'} alt={prod.name} className="w-8 h-8 object-cover rounded-lg shrink-0" />
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-gray-900 truncate">{prod.name}</p>
+                                      <p className="text-[10px] text-gray-400">SKU: {prod.sku || 'N/A'} • ₹{prod.discountPrice || prod.price}</p>
                                     </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="p-4 text-center text-xs text-gray-400 italic">
-                                  No products found matching "{productSearch}".
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isAssigned) {
+                                        setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => id !== prod.id) }));
+                                      } else {
+                                        setFormData(prev => ({ ...prev, productIds: Array.from(new Set([...(prev.productIds || []), prod.id])) }));
+                                      }
+                                    }}
+                                    className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-colors shrink-0 ${
+                                      isAssigned ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    }`}
+                                  >
+                                    {isAssigned ? 'Remove' : 'Assign'}
+                                  </button>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
+                              );
+                            })}
+                        </div>
+                      )}
 
                       {/* Assigned Products Chips List */}
                       <div className="flex flex-wrap gap-2 pt-1">
                         {(formData.productIds || []).map(pId => {
-                          const prod = dbProducts.find(p => String(p.id).trim() === String(pId).trim());
+                          const prod = dbProducts.find(p => p.id === pId);
+                          if (!prod) return null;
                           return (
                             <span key={pId} className="inline-flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-900 text-xs font-semibold px-2.5 py-1 rounded-xl shadow-xs">
-                              {prod?.images?.[0] ? (
-                                <img src={prod.images[0]} alt="" className="w-4 h-4 rounded-md object-cover" />
-                              ) : (
-                                <ShoppingBag className="w-3.5 h-3.5 text-indigo-500" />
-                              )}
-                              <span className="max-w-[140px] truncate">{prod?.name || `Product #${pId}`}</span>
+                              <img src={prod.images?.[0]} alt="" className="w-4 h-4 rounded-md object-cover" />
+                              <span className="max-w-[140px] truncate">{prod.name}</span>
                               <button
                                 type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => String(id).trim() !== String(pId).trim()) }))}
-                                className="text-gray-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                onClick={() => setFormData(prev => ({ ...prev, productIds: prev.productIds?.filter(id => id !== pId) }))}
+                                className="text-gray-400 hover:text-rose-600 transition-colors"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -905,7 +855,7 @@ export default function BannersManagementView() {
                           );
                         })}
                         {(!formData.productIds || formData.productIds.length === 0) && (
-                          <p className="text-xs text-gray-400 italic">No products assigned yet. Click "Assign" on any product above or search to add products to this banner.</p>
+                          <p className="text-xs text-gray-400 italic">No products assigned yet. Search above to add products to this banner.</p>
                         )}
                       </div>
                     </div>
@@ -968,23 +918,6 @@ export default function BannersManagementView() {
                       <div className="space-y-1.5">
                         <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Quick Destination Presets:</span>
                         <div className="flex flex-wrap gap-1.5">
-                          {formData.productIds && formData.productIds.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentSlug = (formData.slug || createSlug(formData.title || '') || 'special-offer').trim();
-                                setFormData(prev => ({ ...prev, link: `/offers/${currentSlug}` }));
-                              }}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
-                                formData.link?.startsWith('/offers/') && formData.link !== '/offers'
-                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                              }`}
-                            >
-                              <Sparkles className="w-3 h-3" />
-                              🎯 Banner Offer Page ({formData.productIds.length} Products)
-                            </button>
-                          )}
                           {[
                             { name: '⚡ Deal ₹259', path: '/deal259', color: 'hover:bg-amber-100 hover:text-amber-800 hover:border-amber-300' },
                             { name: '🎁 Rewards Hub', path: '/rewards', color: 'hover:bg-purple-100 hover:text-purple-800 hover:border-purple-300' },
