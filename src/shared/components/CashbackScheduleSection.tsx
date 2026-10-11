@@ -450,21 +450,58 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
     return (
       <>
         <style>{`
-          @keyframes floatPurpleOrbMobile {
+          @keyframes fastMoveEntireBgOrb1Mobile {
             0% {
-              transform: translate(0px, 0px) scale(1);
+              left: -15%;
+              top: -20%;
+              transform: scale(1);
             }
             25% {
-              transform: translate(40px, -10px) scale(1.08);
+              left: 40%;
+              top: 45%;
+              transform: scale(1.15);
             }
             50% {
-              transform: translate(80px, 8px) scale(0.96);
+              left: 80%;
+              top: -15%;
+              transform: scale(0.92);
             }
             75% {
-              transform: translate(35px, 14px) scale(1.04);
+              left: 35%;
+              top: 50%;
+              transform: scale(1.12);
             }
             100% {
-              transform: translate(0px, 0px) scale(1);
+              left: -15%;
+              top: -20%;
+              transform: scale(1);
+            }
+          }
+          @keyframes fastMoveEntireBgOrb2Mobile {
+            0% {
+              left: 80%;
+              top: 45%;
+              transform: scale(0.92);
+            }
+            25% {
+              left: 35%;
+              top: -20%;
+              transform: scale(1.15);
+            }
+            50% {
+              left: -15%;
+              top: 40%;
+              transform: scale(0.9);
+            }
+            75% {
+              left: 40%;
+              top: -10%;
+              transform: scale(1.12);
+            }
+            100% {
+              left: 80%;
+              top: 45%;
+              transform: scale(0.92);
             }
           }
           @keyframes float3DNote1 {
@@ -553,21 +590,29 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #1e40af 100%);
             position: relative;
           }
-          .cashback-purple-orb {
+          .cashback-purple-orb-1 {
             position: absolute;
-            top: 50%;
-            left: 20%;
-            width: 140px;
-            height: 140px;
-            margin-top: -70px;
-            margin-left: -70px;
+            width: 150px;
+            height: 150px;
             border-radius: 9999px;
             background: radial-gradient(circle, rgba(168, 85, 247, 0.85) 0%, rgba(147, 51, 234, 0.6) 45%, rgba(126, 34, 206, 0.2) 75%, transparent 100%);
             filter: blur(35px);
             pointer-events: none;
             z-index: 0;
-            animation: floatPurpleOrbMobile 10s ease-in-out infinite;
-            will-change: transform;
+            animation: fastMoveEntireBgOrb1Mobile 3.6s ease-in-out infinite;
+            will-change: left, top, transform;
+          }
+          .cashback-purple-orb-2 {
+            position: absolute;
+            width: 130px;
+            height: 130px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, rgba(192, 132, 252, 0.85) 0%, rgba(168, 85, 247, 0.6) 45%, rgba(147, 51, 234, 0.2) 75%, transparent 100%);
+            filter: blur(30px);
+            pointer-events: none;
+            z-index: 0;
+            animation: fastMoveEntireBgOrb2Mobile 4.2s ease-in-out infinite;
+            will-change: left, top, transform;
           }
           .animate-float-note-1 {
             animation: float3DNote1 5.5s ease-in-out infinite;
@@ -614,7 +659,8 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
             .animate-float-coin-4,
             .animate-twinkle,
             .animate-twinkle-delay,
-            .cashback-purple-orb {
+            .cashback-purple-orb-1,
+            .cashback-purple-orb-2 {
               animation: none !important;
             }
           }
@@ -622,8 +668,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
         <section className="w-full max-w-7xl mx-auto px-0 py-0">
           <div className="cashback-blue-bg relative rounded-2xl py-1.5 px-2.5 text-white shadow-lg border border-white/25 overflow-hidden">
-            {/* Softly blurred floating purple circular element */}
-            <div className="cashback-purple-orb" />
+            {/* 2 Softly blurred fast floating purple circular elements */}
+            <div className="cashback-purple-orb-1" />
+            <div className="cashback-purple-orb-2" />
 
             {/* Subtle Ambient Contrast Overlay */}
             <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
@@ -751,21 +798,58 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
   return (
     <>
       <style>{`
-        @keyframes floatPurpleOrbDesktop {
+        @keyframes fastMoveEntireBgOrb1Desktop {
           0% {
-            transform: translate(0px, 0px) scale(1);
+            left: -5%;
+            top: -15%;
+            transform: scale(1);
           }
           25% {
-            transform: translate(160px, -18px) scale(1.08);
+            left: 45%;
+            top: 40%;
+            transform: scale(1.18);
           }
           50% {
-            transform: translate(320px, 12px) scale(0.96);
+            left: 85%;
+            top: -10%;
+            transform: scale(0.95);
           }
           75% {
-            transform: translate(140px, 24px) scale(1.05);
+            left: 40%;
+            top: 50%;
+            transform: scale(1.12);
           }
           100% {
-            transform: translate(0px, 0px) scale(1);
+            left: -5%;
+            top: -15%;
+            transform: scale(1);
+          }
+        }
+        @keyframes fastMoveEntireBgOrb2Desktop {
+          0% {
+            left: 85%;
+            top: 45%;
+            transform: scale(0.95);
+          }
+          25% {
+            left: 40%;
+            top: -15%;
+            transform: scale(1.15);
+          }
+          50% {
+            left: -5%;
+            top: 40%;
+            transform: scale(0.92);
+          }
+          75% {
+            left: 45%;
+            top: -10%;
+            transform: scale(1.18);
+          }
+          100% {
+            left: 85%;
+            top: 45%;
+            transform: scale(0.95);
           }
         }
         @keyframes float3DNote1 {
@@ -854,21 +938,29 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #1e40af 100%);
           position: relative;
         }
-        .cashback-purple-orb {
+        .cashback-purple-orb-1 {
           position: absolute;
-          top: 50%;
-          left: 20%;
-          width: 300px;
-          height: 300px;
-          margin-top: -150px;
-          margin-left: -150px;
+          width: 320px;
+          height: 320px;
           border-radius: 9999px;
           background: radial-gradient(circle, rgba(168, 85, 247, 0.85) 0%, rgba(147, 51, 234, 0.6) 45%, rgba(126, 34, 206, 0.2) 75%, transparent 100%);
           filter: blur(55px);
           pointer-events: none;
           z-index: 0;
-          animation: floatPurpleOrbDesktop 12s ease-in-out infinite;
-          will-change: transform;
+          animation: fastMoveEntireBgOrb1Desktop 3.8s ease-in-out infinite;
+          will-change: left, top, transform;
+        }
+        .cashback-purple-orb-2 {
+          position: absolute;
+          width: 280px;
+          height: 280px;
+          border-radius: 9999px;
+          background: radial-gradient(circle, rgba(192, 132, 252, 0.85) 0%, rgba(168, 85, 247, 0.6) 45%, rgba(147, 51, 234, 0.2) 75%, transparent 100%);
+          filter: blur(50px);
+          pointer-events: none;
+          z-index: 0;
+          animation: fastMoveEntireBgOrb2Desktop 4.5s ease-in-out infinite;
+          will-change: left, top, transform;
         }
         .animate-float-note-1 {
           animation: float3DNote1 6.5s ease-in-out infinite;
@@ -915,7 +1007,8 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
           .animate-float-coin-4,
           .animate-twinkle,
           .animate-twinkle-delay,
-          .cashback-purple-orb {
+          .cashback-purple-orb-1,
+          .cashback-purple-orb-2 {
             animation: none !important;
           }
         }
@@ -923,8 +1016,9 @@ export default function CashbackScheduleSection({ isMobile = false }: CashbackSc
 
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1">
         <div className="cashback-blue-bg relative rounded-2xl sm:rounded-[32px] py-2.5 px-3 sm:py-3.5 sm:px-6 text-white shadow-xl border border-white/25 overflow-hidden">
-          {/* Softly blurred floating purple circular element */}
-          <div className="cashback-purple-orb" />
+          {/* 2 Softly blurred fast floating purple circular elements */}
+          <div className="cashback-purple-orb-1" />
+          <div className="cashback-purple-orb-2" />
 
           {/* Subtle Ambient Contrast Overlay */}
           <div className="absolute inset-0 bg-black/20 pointer-events-none z-0" />
