@@ -47,7 +47,9 @@ export default function MobileCategoriesScreen() {
 
     const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
     const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
-      const docs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Banner)).filter(b => b.active !== false);
+      const docs = snapshot.docs
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Banner))
+        .filter(b => b.active !== false && Boolean(b.image && typeof b.image === 'string' && b.image.trim()));
       setBanners(docs);
     });
 

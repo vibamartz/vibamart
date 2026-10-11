@@ -263,7 +263,9 @@ export default function MobileProductListScreen() {
 
     const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
     const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+      const docs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
+        .filter(b => Boolean(b.image && typeof b.image === 'string' && b.image.trim()));
       setBanners(docs);
     });
 

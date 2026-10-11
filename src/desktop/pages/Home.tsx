@@ -167,6 +167,7 @@ export default function Home() {
         .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
         .filter(b => {
           if (b.active === false) return false;
+          if (!b.image || typeof b.image !== 'string' || !b.image.trim()) return false;
           const p = b.platform || 'all';
           if (p !== 'all' && p !== 'desktop') return false;
           const start = b.startDate ? new Date(b.startDate).getTime() : 0;
@@ -304,14 +305,14 @@ export default function Home() {
       )}
 
       {/* 2. Category Banners Hero Section */}
-      <section className={`relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden ${activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 ? '-mt-2 sm:-mt-4' : ''}`}>
-        <div
-          ref={bannerScrollRef}
-          onScroll={handleBannerScroll}
-          className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 lg:gap-6 px-0.5 py-0.5 min-w-0 w-full"
-        >
-          {activeBanners.length > 0 ? (
-            activeBanners.map((banner, i) => (
+      {settings.enableBanner && activeBanners.length > 0 && (
+        <section className={`relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden ${activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 ? '-mt-2 sm:-mt-4' : ''}`}>
+          <div
+            ref={bannerScrollRef}
+            onScroll={handleBannerScroll}
+            className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth hide-scrollbar gap-4 lg:gap-6 px-0.5 py-0.5 min-w-0 w-full"
+          >
+            {activeBanners.map((banner, i) => (
               <div
                 key={banner.id || i}
                 onClick={() => {
@@ -358,57 +359,40 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            ))
-          ) : (
-            <div
-              onClick={() => navigate('/products')}
-              className="relative h-[160px] sm:h-[190px] md:h-[220px] lg:h-[240px] rounded-3xl sm:rounded-[32px] overflow-hidden shadow-sm border border-gray-100 w-full bg-primary flex items-center px-6 sm:px-10 md:px-14 cursor-pointer group active:scale-[0.99] transition-all duration-150 shrink-0"
-            >
-              <div className="max-w-xl text-white space-y-3 sm:space-y-4">
-                <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tight leading-none">
-                  UP TO <span className="text-secondary">80%</span> OFF ON ELECTRONICS
-                </h1>
-                <p className="text-xs sm:text-sm text-white/80 max-w-md">
-                  Elevate your lifestyle with the latest tech and fashion.
-                </p>
-                <div className="inline-block bg-white text-primary touch-target px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold shadow-lg hover:bg-secondary hover:text-black transition-all text-xs sm:text-sm">
-                  Shop Now
-                </div>
+            ))}
+          </div>
+
+          {activeBanners.length > 2 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prevSlide(); }}
+                className="absolute left-6 sm:left-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
+              >
+                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+                className="absolute right-6 sm:right-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
+              >
+                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+
+              {/* Pagination Indicators directly below banner */}
+              <div className="flex justify-center items-center gap-2 pt-3">
+                {Array.from({ length: Math.ceil(activeBanners.length / 2) }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => scrollToBannerSlide(i * 2)}
+                    className={`h-2 rounded-full transition-all ${
+                      Math.floor(currentSlide / 2) === i ? 'w-8 bg-primary' : 'w-2 bg-gray-300'
+                    }`}
+                  />
+                ))}
               </div>
-            </div>
+            </>
           )}
-        </div>
-
-        {activeBanners.length > 2 && (
-          <>
-            <button
-              onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-              className="absolute left-6 sm:left-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
-            >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-              className="absolute right-6 sm:right-10 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-white/90 backdrop-blur-md rounded-full text-gray-800 hover:bg-white hover:text-gray-900 transition-all shadow-md border border-gray-200 z-10 hidden sm:block"
-            >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-
-            {/* Pagination Indicators directly below banner */}
-            <div className="flex justify-center items-center gap-2 pt-3">
-              {Array.from({ length: Math.ceil(activeBanners.length / 2) }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => scrollToBannerSlide(i * 2)}
-                  className={`h-2 rounded-full transition-all ${
-                    Math.floor(currentSlide / 2) === i ? 'w-8 bg-primary' : 'w-2 bg-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* 2.1. Monthly First-3-Orders Cashback Schedule Section (Directly BELOW Home Banner) */}
       <CashbackScheduleSection />

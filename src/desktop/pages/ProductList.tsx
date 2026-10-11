@@ -340,7 +340,9 @@ export default function ProductList() {
 
     const bq = query(collection(db, 'banners'), orderBy('order', 'asc'));
     const unsubscribeBanners = onSnapshot(bq, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Banner));
+      const data = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
+        .filter(b => Boolean(b.image && typeof b.image === 'string' && b.image.trim()));
       setAllBanners(data);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'banners', false);

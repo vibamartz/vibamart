@@ -199,6 +199,7 @@ export default function MobileHomepage() {
         .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
         .filter(b => {
           if (b.active === false) return false;
+          if (!b.image || typeof b.image !== 'string' || !b.image.trim()) return false;
           const p = b.platform || 'all';
           if (p !== 'all' && p !== 'mobile') return false;
           const start = b.startDate ? new Date(b.startDate).getTime() : 0;
