@@ -13,7 +13,6 @@ import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
-import { searchHandler, suggestionsHandler, synonymsHandler, searchAnalyticsHandler } from "./api/_handlers/search";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 
@@ -147,12 +146,6 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", name: "ViBa Mart API" });
   });
-
-  // ViBa Mart Intelligent Search Engine APIs
-  app.get(["/api/search", "/search"], searchHandler);
-  app.get(["/api/search/suggestions", "/search/suggestions"], suggestionsHandler);
-  app.all(["/api/search/synonyms", "/search/synonyms"], synonymsHandler);
-  app.get(["/api/search/analytics", "/search/analytics"], searchAnalyticsHandler);
 
   // Razorpay order creation
   app.post("/api/payment/create-order", async (req, res) => {

@@ -3,9 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
   Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown, ChevronLeft, ChevronRight,
-  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Tag
+  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
 } from 'lucide-react';
-import { AutocompleteItem, AutocompleteResponse } from '../../backend/search/types';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
@@ -234,60 +233,19 @@ export default function Navbar() {
   };
 
   const [isListening, setIsListening] = useState(false);
-  const [liveSuggestions, setLiveSuggestions] = useState<AutocompleteItem[]>([]);
-  const [spellingCorrection, setSpellingCorrection] = useState<string | undefined>();
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
 
   useEffect(() => {
-    const qStr = searchQuery.trim();
-    setSelectedIndex(-1);
-    if (qStr.length < 2) {
-      setLiveSuggestions([]);
-      setSpellingCorrection(undefined);
-      return;
+    if (searchQuery.length > 0) {
+      const filtered = CATEGORIES.filter(cat =>
+        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cat.id.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 3);
+      setSuggestedCategories(filtered);
+    } else {
+      setSuggestedCategories([]);
     }
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(qStr)}`, {
-          signal: controller.signal
-        });
-        if (res.ok) {
-          const data: AutocompleteResponse = await res.json();
-          setLiveSuggestions(data.suggestions || []);
-          setSpellingCorrection(data.spellingCorrection);
-        } else {
-          throw new Error('Suggestions endpoint failed');
-        }
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        // Fallback to client categories
-        const catItems: AutocompleteItem[] = CATEGORIES
-          .filter(c => (c.isVisible ?? true) && c.name.toLowerCase().includes(qStr.toLowerCase()))
-          .slice(0, 3)
-          .map(c => ({
-            id: c.id,
-            type: 'category',
-            title: c.name,
-            subtitle: 'Category',
-            targetUrl: `/categories/${getCategorySlug(c)}`
-          }));
-        setLiveSuggestions(catItems);
-      }
-    }, 180);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [searchQuery, CATEGORIES]);
+  }, [searchQuery]);
 
   const startVoiceSearch = async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -378,32 +336,8 @@ export default function Navbar() {
                     }`}
                     value={searchQuery}
                     onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 250)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowDown') {
-                        if (liveSuggestions.length > 0) {
-                          e.preventDefault();
-                          setSelectedIndex(prev => (prev < liveSuggestions.length - 1 ? prev + 1 : 0));
-                        }
-                      } else if (e.key === 'ArrowUp') {
-                        if (liveSuggestions.length > 0) {
-                          e.preventDefault();
-                          setSelectedIndex(prev => (prev > 0 ? prev - 1 : liveSuggestions.length - 1));
-                        }
-                      } else if (e.key === 'Escape') {
-                        setIsSearchFocused(false);
-                        searchInputRef.current?.blur();
-                      } else if (e.key === 'Enter') {
-                        if (selectedIndex >= 0 && liveSuggestions[selectedIndex]) {
-                          e.preventDefault();
-                          const item = liveSuggestions[selectedIndex];
-                          navigate(item.targetUrl);
-                          setIsSearchFocused(false);
-                          searchInputRef.current?.blur();
-                        }
-                      }
-                    }}
                   />
 
                   {/* Right Action Buttons (Clear, Mic, Camera, Submit) */}
@@ -468,264 +402,128 @@ export default function Navbar() {
                       exit={{ opacity: 0, y: 10 }}
                       className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
                     >
-                      {searchQuery.trim().length >= 2 ? (
-                        <div className="flex flex-col gap-4">
-                          {/* Did You Mean Spelling Suggestion */}
-                          {spellingCorrection && (
-                            <button
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                setSearchQuery(spellingCorrection);
-                                navigate(`/products?q=${encodeURIComponent(spellingCorrection)}`);
-                                setIsSearchFocused(false);
-                              }}
-                              className="flex items-center gap-2 p-2.5 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-xl text-left transition-colors group cursor-pointer"
-                            >
-                              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                              <span className="text-xs text-amber-900">
-                                Did you mean <strong className="font-bold underline decoration-amber-400 group-hover:text-amber-950">{spellingCorrection}</strong>?
-                              </span>
-                            </button>
-                          )}
-
-                          {/* Product Hits */}
-                          {liveSuggestions.filter(s => s.type === 'product').length > 0 ? (
-                            <div>
-                              <div className="flex items-center justify-between mb-2 px-1">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Matching Products</span>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                {liveSuggestions.filter(s => s.type === 'product').map((item) => {
-                                  const isSelected = selectedIndex === liveSuggestions.indexOf(item);
-                                  return (
-                                    <div
-                                      key={item.id}
-                                      onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        navigate(item.targetUrl);
-                                        setIsSearchFocused(false);
-                                      }}
-                                      className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
-                                        isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        {item.image ? (
-                                          <img
-                                            src={item.image}
-                                            alt={item.title}
-                                            className="w-10 h-10 rounded-lg object-cover border border-gray-100 shrink-0"
-                                          />
-                                        ) : (
-                                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                                            <Search className="w-4 h-4 text-gray-400" />
-                                          </div>
-                                        )}
-                                        <div className="min-w-0">
-                                          <p className="text-xs font-bold text-gray-800 truncate">{item.title}</p>
-                                          <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-xs font-extrabold text-emerald-600">
-                                              ₹{(item.discountPrice || item.price || 0).toLocaleString()}
-                                            </span>
-                                            {item.discountPrice && item.price && item.price > item.discountPrice && (
-                                              <span className="text-[10px] text-gray-400 line-through">
-                                                ₹{item.price.toLocaleString()}
-                                              </span>
-                                            )}
-                                            {item.productCode && (
-                                              <span className="text-[9px] font-mono text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
-                                                {item.productCode}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <ArrowRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                      <div className="flex flex-col gap-5">
+                        {/* Category Suggestions */}
+                        {suggestedCategories.length > 0 && searchQuery.length > 0 && (
+                          <div className="bg-gray-50/50 rounded-2xl p-3">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                              <Sparkles className="w-4 h-4 text-amber-500" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Categories</span>
                             </div>
-                          ) : (
-                            <div className="text-center py-2 text-xs text-gray-400">
-                              Press Enter to view all search results
-                            </div>
-                          )}
-
-                          {/* Categories & Brands */}
-                          {(liveSuggestions.some(s => s.type === 'category') || liveSuggestions.some(s => s.type === 'brand')) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                              {liveSuggestions.filter(s => s.type === 'category').length > 0 && (
-                                <div>
-                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 px-1">Categories</span>
-                                  <div className="flex flex-col gap-1">
-                                    {liveSuggestions.filter(s => s.type === 'category').map(item => {
-                                      const isSelected = selectedIndex === liveSuggestions.indexOf(item);
-                                      return (
-                                        <button
-                                          key={item.id}
-                                          type="button"
-                                          onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            navigate(item.targetUrl);
-                                            setIsSearchFocused(false);
-                                          }}
-                                          className={`flex items-center gap-2 p-2 rounded-xl text-left text-xs font-semibold text-gray-700 transition-colors w-full cursor-pointer ${
-                                            isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                          }`}
-                                        >
-                                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                          <span className="truncate">{item.title}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-
-                              {liveSuggestions.filter(s => s.type === 'brand').length > 0 && (
-                                <div>
-                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 px-1">Brands</span>
-                                  <div className="flex flex-col gap-1">
-                                    {liveSuggestions.filter(s => s.type === 'brand').map(item => {
-                                      const isSelected = selectedIndex === liveSuggestions.indexOf(item);
-                                      return (
-                                        <button
-                                          key={item.id}
-                                          type="button"
-                                          onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            navigate(item.targetUrl);
-                                            setIsSearchFocused(false);
-                                          }}
-                                          className={`flex items-center gap-2 p-2 rounded-xl text-left text-xs font-semibold text-gray-700 transition-colors w-full cursor-pointer ${
-                                            isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                          }`}
-                                        >
-                                          <Tag className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                          <span className="truncate">{item.title}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* See all results link */}
-                          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                            <button
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                handleSearch(e);
-                              }}
-                              className="text-xs font-bold text-primary hover:text-primary-hover flex items-center gap-1.5 transition-colors cursor-pointer"
-                            >
-                              <span>View all results for &quot;{searchQuery}&quot;</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="text-[10px] text-gray-400">Press Enter ↵</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-5">
-                          {recentSearches.length > 0 && (
-                            <div>
-                              <div className="flex items-center justify-between mb-3 px-2">
-                                <div className="flex items-center gap-2">
-                                  <History className="w-4 h-4 text-primary" />
-                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Searches</span>
-                                </div>
-                                <button
-                                  onClick={clearRecentHistory}
-                                  className="text-[9px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest cursor-pointer"
-                                >
-                                  Clear All
-                                </button>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                {recentSearches.map((s, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => {
-                                      setSearchQuery(s);
-                                      const updated = addRecentSearch(s, 10);
-                                      setRecentSearches(updated);
-                                      navigate(`/products?q=${encodeURIComponent(s)}`);
-                                      setIsSearchFocused(false);
-                                    }}
-                                    className="flex items-center justify-between group/item p-3 hover:bg-gray-50 rounded-xl transition-all cursor-pointer"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <History className="w-3.5 h-3.5 text-gray-300 group-hover/item:text-primary" />
-                                      <span className="text-sm font-medium text-gray-600 group-hover/item:text-gray-900">{s}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => removeRecentSearch(e, s)}
-                                        className="p-1 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors opacity-0 group-hover/item:opacity-100"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                      <ArrowRight className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover/item:opacity-100 transition-all -translate-x-2 group-hover/item:translate-x-0" />
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <div className="flex items-center gap-2 mb-3 px-2">
-                              <TrendingUp className="w-4 h-4 text-blue-500" />
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trending Now</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2 px-1">
-                              {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
-                                <button
-                                  key={trend}
-                                  onClick={() => {
-                                    setSearchQuery(trend);
-                                    const updated = addRecentSearch(trend, 10);
-                                    setRecentSearches(updated);
-                                    navigate(`/products?q=${encodeURIComponent(trend)}`);
-                                    setIsSearchFocused(false);
-                                  }}
-                                  className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95 cursor-pointer"
-                                >
-                                  {trend}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="border-t border-gray-100 pt-4">
-                            <div className="flex items-center gap-2 mb-4 px-2">
-                              <History className="w-4 h-4 text-gray-400" />
-                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Categories</span>
-                            </div>
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                              {CATEGORIES.filter(c => c.isVisible ?? true).slice(0, 4).map(cat => (
+                            <div className="grid grid-cols-1 gap-1">
+                              {suggestedCategories.map(cat => (
                                 <Link
                                   key={cat.id}
                                   to={`/categories/${getCategorySlug(cat)}`}
                                   onClick={() => setIsSearchFocused(false)}
-                                  className="flex flex-col items-center gap-2 p-3 hover:bg-emerald-50/50 rounded-2xl transition-all group border border-gray-50"
+                                  className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
                                 >
-                                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform">
-                                    <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
+                                      {getCategoryIcon(cat.icon || '')}
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
                                   </div>
-                                  <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-emerald-700">{cat.name}</span>
+                                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
                                 </Link>
                               ))}
                             </div>
                           </div>
+                        )}
+
+                        {recentSearches.length > 0 && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3 px-2">
+                              <div className="flex items-center gap-2">
+                                <History className="w-4 h-4 text-primary" />
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent Searches</span>
+                              </div>
+                              <button
+                                onClick={clearRecentHistory}
+                                className="text-[9px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest"
+                              >
+                                Clear All
+                              </button>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              {recentSearches.map((s, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    setSearchQuery(s);
+                                    const updated = addRecentSearch(s, 10);
+                                    setRecentSearches(updated);
+                                    navigate(`/products?q=${encodeURIComponent(s)}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="flex items-center justify-between group/item p-3 hover:bg-gray-50 rounded-xl transition-all"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <History className="w-3.5 h-3.5 text-gray-300 group-hover/item:text-primary" />
+                                    <span className="text-sm font-medium text-gray-600 group-hover/item:text-gray-900">{s}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => removeRecentSearch(e, s)}
+                                      className="p-1 hover:bg-red-50 hover:text-red-500 rounded-md transition-colors opacity-0 group-hover/item:opacity-100"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                    <ArrowRight className="w-3 h-3 text-gray-300 opacity-0 group-hover/item:opacity-100 transition-all -translate-x-2 group-hover/item:translate-x-0" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-3 px-2">
+                            <TrendingUp className="w-4 h-4 text-blue-500" />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trending Now</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 px-1">
+                            {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
+                              <button
+                                key={trend}
+                                onClick={() => {
+                                  setSearchQuery(trend);
+                                  const updated = addRecentSearch(trend, 10);
+                                  setRecentSearches(updated);
+                                  navigate(`/products?q=${encodeURIComponent(trend)}`);
+                                  setIsSearchFocused(false);
+                                }}
+                                className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95"
+                              >
+                                {trend}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      )}
+
+                        <div className="border-t border-gray-100 pt-4">
+                          <div className="flex items-center gap-2 mb-4 px-2">
+                            <History className="w-4 h-4 text-gray-400" />
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Categories</span>
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            {CATEGORIES.filter(c => c.isVisible ?? true).slice(0, 4).map(cat => (
+                              <Link
+                                key={cat.id}
+                                to={`/categories/${getCategorySlug(cat)}`}
+                                onClick={() => setIsSearchFocused(false)}
+                                className="flex flex-col items-center gap-2 p-3 hover:bg-emerald-50/50 rounded-2xl transition-all group border border-gray-50"
+                              >
+                                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform">
+                                  <CategoryLogo name={cat.name} icon={cat.icon} size="sm" />
+                                </div>
+                                <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest text-center group-hover:text-emerald-700">{cat.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

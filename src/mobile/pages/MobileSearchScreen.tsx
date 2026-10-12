@@ -8,8 +8,6 @@ import { useSettingsStore, useCategoryStore } from '../../backend/store';
 import { collection, query, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
-import { AutocompleteItem, AutocompleteResponse } from '../../backend/search/types';
-import { ViBaSearchEngine } from '../../backend/search/searchEngine';
 import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
@@ -30,9 +28,7 @@ export default function MobileSearchScreen() {
   const [isListening, setIsListening] = useState(false);
   const [showMicPermissionModal, setShowMicPermissionModal] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [liveSuggestions, setLiveSuggestions] = useState<AutocompleteItem[]>([]);
-  const [spellingCorrection, setSpellingCorrection] = useState<string | undefined>();
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [liveSuggestions, setLiveSuggestions] = useState<Product[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,68 +53,37 @@ export default function MobileSearchScreen() {
     };
   }, []);
 
-  // Fetch live suggestions on typing with debouncing and resilient fallback
+  // Fetch live product suggestions on typing
   useEffect(() => {
-    const qStr = searchQuery.trim();
+    const qStr = searchQuery.trim().toLowerCase();
     if (qStr.length < 2) {
       setLiveSuggestions([]);
-      setSpellingCorrection(undefined);
       return;
     }
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const timer = setTimeout(async () => {
+    const fetchSuggestions = async () => {
       try {
-        const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(qStr)}`, {
-          signal: controller.signal
-        });
-        if (res.ok) {
-          const data: AutocompleteResponse = await res.json();
-          setLiveSuggestions(data.suggestions || []);
-          setSpellingCorrection(data.spellingCorrection);
-          return;
-        }
-        throw new Error('API suggestions response error');
-      } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        // Fallback: search client products with ViBaSearchEngine
-        try {
-          const snap = await getDocs(collection(db, 'products'));
-          const rewardIds = await getRewardProductIds();
-          const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-          const searchRes = ViBaSearchEngine.executeSearch(docs, {
-            query: qStr,
-            limit: 6,
-            rewardProductIds: Array.from(rewardIds)
-          });
-          const items: AutocompleteItem[] = searchRes.hits.slice(0, 6).map(h => ({
-            id: h.product.id,
-            type: 'product',
-            title: h.product.name,
-            subtitle: h.product.brand,
-            image: h.product.primaryImage || h.product.images?.[0] || '',
-            price: h.product.price,
-            discountPrice: h.product.discountPrice,
-            slug: getProductSlug(h.product),
-            targetUrl: `/products/${getProductSlug(h.product)}`
-          }));
-          setLiveSuggestions(items);
-          setSpellingCorrection(searchRes.didYouMean);
-        } catch (fallbackErr) {
-          console.warn('Fallback suggestions failed:', fallbackErr);
-        }
-      }
-    }, 180);
+        const snap = await getDocs(query(collection(db, 'products'), limit(40)));
+        const rewardIds = await getRewardProductIds();
+        const docs = filterOutRewardProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
+        const cleanQ = cleanProductCode(qStr);
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
+        const filtered = docs.filter(p => 
+          p.name.toLowerCase().includes(qStr) || 
+          p.brand?.toLowerCase().includes(qStr) ||
+          p.id.toLowerCase().includes(qStr) ||
+          (p.productCode && p.productCode.toLowerCase().includes(qStr)) ||
+          (cleanQ && p.productCode && cleanProductCode(p.productCode).includes(cleanQ)) ||
+          p.tags?.some(t => t.toLowerCase().includes(qStr))
+        ).slice(0, 6);
+        setLiveSuggestions(filtered);
+      } catch (err) {
+        console.error('Failed to fetch suggestions:', err);
+      }
     };
+
+    const timer = setTimeout(fetchSuggestions, 200);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {
@@ -226,81 +191,30 @@ export default function MobileSearchScreen() {
         </form>
       </div>
 
-      {/* Did You Mean Spelling Suggestion */}
-      {spellingCorrection && (
-        <button
-          type="button"
-          onClick={() => {
-            setSearchQuery(spellingCorrection);
-            handleSearchSubmit(undefined, spellingCorrection);
-          }}
-          className="w-full bg-amber-50 border border-amber-200/80 rounded-2xl p-3 flex items-center gap-2 text-left shadow-sm cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-          <span className="text-xs text-amber-900">
-            Did you mean <strong className="font-bold underline decoration-amber-400">{spellingCorrection}</strong>?
-          </span>
-        </button>
-      )}
-
       {/* Live Matching Suggestions */}
       {liveSuggestions.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-md border border-yellow-100 space-y-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-            Matching Suggestions
+            Matching Products
           </span>
           <div className="divide-y divide-gray-100">
             {liveSuggestions.map((item) => (
               <div
                 key={item.id}
-                onClick={() => navigate(item.targetUrl)}
-                className="py-2.5 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
+                onClick={() => navigate(`/products/${getProductSlug(item)}`)}
+                className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  {item.type === 'product' ? (
-                    item.image ? (
-                      <img 
-                        src={item.image} 
-                        alt={item.title} 
-                        className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0" 
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                        <Search className="w-4 h-4 text-gray-400" />
-                      </div>
-                    )
-                  ) : item.type === 'category' ? (
-                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 text-emerald-600">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 text-blue-600">
-                      <Tag className="w-4 h-4" />
-                    </div>
-                  )}
+                  <img 
+                    src={item.images?.[0] || 'https://via.placeholder.com/60'} 
+                    alt={item.name} 
+                    className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
+                  />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{item.title}</p>
-                    {item.type === 'product' && (item.price || item.discountPrice) ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-emerald-700 font-extrabold">
-                          ₹{(item.discountPrice || item.price || 0).toLocaleString()}
-                        </span>
-                        {item.discountPrice && item.price && item.price > item.discountPrice && (
-                          <span className="text-[9px] text-gray-400 line-through">
-                            ₹{item.price.toLocaleString()}
-                          </span>
-                        )}
-                        {item.productCode && (
-                          <span className="text-[9px] font-mono text-gray-400 bg-gray-100 px-1 py-0.5 rounded">
-                            {item.productCode}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 font-medium capitalize">
-                        {item.subtitle || item.type}
-                      </span>
-                    )}
+                    <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
+                    <span className="text-[10px] text-emerald-700 font-extrabold">
+                      ₹{(item.discountPrice || item.price).toLocaleString()}
+                    </span>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />

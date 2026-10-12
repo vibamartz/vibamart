@@ -5,21 +5,7 @@ import { getStorage } from "firebase/storage";
 import { getMessaging, isSupported, Messaging } from "firebase/messaging";
 
 // @ts-ignore
-let parsedConfig: any = {};
-try {
-  parsedConfig = typeof process.env.FIREBASE_CONFIG === 'string'
-    ? JSON.parse(process.env.FIREBASE_CONFIG)
-    : (process.env.FIREBASE_CONFIG || {});
-} catch (e) {
-  parsedConfig = {};
-}
-if (!parsedConfig.projectId) {
-  parsedConfig.projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart';
-}
-if (!parsedConfig.apiKey) {
-  parsedConfig.apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyDemoFallbackKeyForVibaMart';
-}
-const firebaseConfig = parsedConfig;
+const firebaseConfig = process.env.FIREBASE_CONFIG || {};
 
 const app = initializeApp(firebaseConfig);
 
