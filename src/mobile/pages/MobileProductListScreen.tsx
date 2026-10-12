@@ -345,26 +345,20 @@ export default function MobileProductListScreen() {
         if (effectiveNested) {
           const targetNested = (currentNestedSubCategoryObj?.id || effectiveNested).toLowerCase();
           const pNested = (product.nestedSubCategoryId || '').toLowerCase();
-          const matchesNested = pNested === targetNested ||
-            Boolean(product.nestedSubCategoryIds?.some(n => n.toLowerCase() === targetNested));
-          if (!matchesNested) return false;
+          if (pNested !== targetNested) return false;
         }
         // 2. SubCategory Filter
         else if (effectiveSub) {
           const targetSub = (currentSubCategoryObj?.id || effectiveSub).toLowerCase();
           const pSub = (product.subCategoryId || '').toLowerCase();
-          const matchesSub = pSub === targetSub ||
-            Boolean(product.subCategoryIds?.some(s => s.toLowerCase() === targetSub));
-          if (!matchesSub) return false;
+          if (pSub !== targetSub) return false;
         }
         // 3. Category Filter
         else if (effectiveCat && effectiveCat !== 'all-deals') {
           const catId = (product.categoryId || '').toLowerCase();
           const target = (currentCategoryObj?.id || effectiveCat).toLowerCase();
           const targetSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj).toLowerCase() : target;
-          const matchesCat = catId === target || catId === targetSlug ||
-            Boolean(product.categories?.some(c => c.toLowerCase() === target || c.toLowerCase() === targetSlug));
-          if (!matchesCat) return false;
+          if (catId !== target && catId !== targetSlug) return false;
         }
       }
 

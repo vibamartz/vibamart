@@ -108,22 +108,19 @@ export default function Home() {
 
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
-        return p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId));
+        return p.nestedSubCategoryId === selectedNestedSubCatId;
       }
 
       // 2. Subcategory Filter
       if (selectedSubCatId) {
-        return p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId));
+        return p.subCategoryId === selectedSubCatId;
       }
 
       // 3. Category Filter
       const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
       const targetSlug = activeCategorySlug.toLowerCase();
       const catId = (p.categoryId || '').toLowerCase();
-      return catId === targetId || catId === targetSlug ||
-        Boolean(p.categories?.some(c => c.toLowerCase() === targetId || c.toLowerCase() === targetSlug));
+      return catId === targetId || catId === targetSlug;
     });
   }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
 

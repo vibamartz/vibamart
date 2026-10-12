@@ -114,17 +114,14 @@ export default function MobileCategoriesScreen() {
 
       // 1. Nested Subcategory Selected -> Show ONLY assigned products
       if (selectedNestedSubCatId) {
-        return p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId));
+        return p.nestedSubCategoryId === selectedNestedSubCatId;
       }
 
       // 2. Subcategory Selected -> Show products assigned to Subcategory
       if (selectedSubCatId) {
         return (
           p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId)) ||
-          ((p.categoryId === selectedCategory.id || Boolean(p.categories?.includes(selectedCategory.id))) &&
-           (p.subCategoryId === selectedSubCatId || Boolean(p.subCategoryIds?.includes(selectedSubCatId))))
+          (p.categoryId === selectedCategory.id && p.subCategoryId === selectedSubCatId)
         );
       }
 
@@ -133,7 +130,7 @@ export default function MobileCategoriesScreen() {
         return true;
       }
 
-      return p.categoryId === selectedCategory.id || Boolean(p.categories?.includes(selectedCategory.id));
+      return p.categoryId === selectedCategory.id;
     });
   }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId]);
 
