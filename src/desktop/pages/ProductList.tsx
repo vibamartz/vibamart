@@ -17,6 +17,7 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import { ViBaSearchEngine } from '../../backend/search/searchEngine';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -262,9 +263,26 @@ export default function ProductList() {
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(baseBrand ? [baseBrand] : []);
 
+  const categoryNamesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    CATEGORIES.forEach(c => {
+      if (c && c.id && c.name) map[c.id] = c.name;
+      c?.subcategories?.forEach(s => {
+        if (s && s.id && s.name) map[s.id] = s.name;
+        s?.subcategories?.forEach(n => {
+          if (n && n.id && n.name) map[n.id] = n.name;
+        });
+      });
+    });
+    return map;
+  }, [CATEGORIES]);
+
   // Helper for dynamic faceted search counts
   const getFilterCount = (filterType: string, value: any) => {
     return allProducts.filter(p => {
+      // 0. Strict Storefront Eligibility
+      if (!ViBaSearchEngine.isProductEligible(p)) return false;
+
       // Visual Nested Subcategory filter
       const hasVisualExplicit = Boolean(
         matchedVisualNestedSubcategory && (
@@ -324,12 +342,12 @@ export default function ProductList() {
       // Search query filter
       const queryStr = searchParams.get('q');
       if (queryStr) {
-        const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
-        if (terms.length > 0) {
-          const searchableText = [p.name, p.brand, p.description, p.fullDescription, ...(p.tags || [])].filter(Boolean).join(' ').toLowerCase();
-          const isMatch = terms.every(term => searchableText.includes(term));
-          if (!isMatch) return false;
-        }
+        const evalResult = ViBaSearchEngine.scoreProduct(p, queryStr, {
+          enableFuzzy: true,
+          enableSynonyms: true,
+          categoryNamesMap
+        });
+        if (!evalResult.matches) return false;
       }
 
       // Check the specific value for the current filterType
@@ -432,7 +450,13 @@ export default function ProductList() {
   }, [selectedCategories, CATEGORIES]);
 
   const filteredProducts = useMemo(() => {
+    const queryStr = searchParams.get('q');
+    const scoreMap = new Map<string, number>();
+
     let result = allProducts.filter(p => {
+      // 0. Strict Storefront Eligibility (Exclude inactive, draft, hidden, reward, deal259-only)
+      if (!ViBaSearchEngine.isProductEligible(p)) return false;
+
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
       if (matchedBanner) {
         const assignedIds = new Set(matchedBanner.productIds || []);
@@ -502,46 +526,46 @@ export default function ProductList() {
       // Availability filter
       if (onlyInStock && p.stock <= 0) return false;
 
-      // Search query filter (from URL)
-      const queryStr = searchParams.get('q');
+      // Search query filter (from URL) powered by ViBaSearchEngine
       if (queryStr) {
-        const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
-        if (terms.length > 0) {
-          const catObj = CATEGORIES.find(c => c.id === p.categoryId);
-          const catName = catObj?.name || '';
-          const subCatObj = catObj?.subcategories?.find(s => s.id === p.subCategoryId);
-          const subCatName = subCatObj?.name || '';
-          const nestedSubCatName = subCatObj?.subcategories?.find(n => n.id === p.nestedSubCategoryId)?.name || '';
-
-          const searchableText = [
-            p.name,
-            p.brand,
-            p.id,
-            p.productCode,
-            p.productCode ? cleanProductCode(p.productCode) : '',
-            p.description,
-            p.fullDescription,
-            catName,
-            subCatName,
-            nestedSubCatName,
-            ...(p.tags || [])
-          ].filter(Boolean).join(' ').toLowerCase();
-
-          const isMatch = terms.every(term => searchableText.includes(term) || (cleanProductCode(term).length > 0 && searchableText.includes(cleanProductCode(term))));
-          if (!isMatch) return false;
-        }
+        const evalResult = ViBaSearchEngine.scoreProduct(p, queryStr, {
+          enableFuzzy: true,
+          enableSynonyms: true,
+          categoryNamesMap
+        });
+        if (!evalResult.matches) return false;
+        scoreMap.set(p.id, evalResult.score);
       }
 
       return true;
     });
 
     // Sorting
-    if (sortBy === 'price-asc') result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
-    if (sortBy === 'price-desc') result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
-    if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (sortBy === 'price-asc') {
+      result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
+    } else if (sortBy === 'price-desc') {
+      result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
+    } else if (sortBy === 'rating') {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sortBy === 'newest') {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else {
+      // Relevance / Popularity default: sort by search score descending if query present
+      if (queryStr) {
+        result.sort((a, b) => {
+          const scoreA = scoreMap.get(a.id) || 0;
+          const scoreB = scoreMap.get(b.id) || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      } else {
+        result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      }
+    }
 
     return result;
-  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
+  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES, categoryNamesMap]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);

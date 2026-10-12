@@ -14,6 +14,7 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { ViBaSearchEngine } from '../../backend/search/searchEngine';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -290,10 +291,27 @@ export default function MobileProductListScreen() {
     return Array.from(brands);
   }, [products]);
 
-  // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
+  const categoryNamesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach(c => {
+      if (c && c.id && c.name) map[c.id] = c.name;
+      c?.subcategories?.forEach(s => {
+        if (s && s.id && s.name) map[s.id] = s.name;
+        s?.subcategories?.forEach(n => {
+          if (n && n.id && n.name) map[n.id] = n.name;
+        });
+      });
+    });
+    return map;
+  }, [categories]);
+
+  // Filter and Sort products according to 3-tier hierarchy and ViBaSearchEngine
   const filteredProducts = useMemo(() => {
+    const scoreMap = new Map<string, number>();
+
     return products.filter(product => {
-      if (product.status === 'inactive') return false;
+      // 0. Strict Storefront Eligibility
+      if (!ViBaSearchEngine.isProductEligible(product)) return false;
 
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
       if (matchedBanner) {
@@ -301,19 +319,15 @@ export default function MobileProductListScreen() {
         if (!assignedIds.has(product.id)) return false;
       }
 
-      // Query Search
+      // Query Search powered by ViBaSearchEngine
       if (querySearch) {
-        const q = querySearch.toLowerCase();
-        const cleanQ = cleanProductCode(q);
-        const matchesName = product.name.toLowerCase().includes(q);
-        const matchesBrand = product.brand?.toLowerCase().includes(q);
-        const matchesId = product.id.toLowerCase().includes(q);
-        const matchesCode = product.productCode && (
-          product.productCode.toLowerCase().includes(q) ||
-          (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
-        );
-        const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
+        const evalResult = ViBaSearchEngine.scoreProduct(product, querySearch, {
+          enableFuzzy: true,
+          enableSynonyms: true,
+          categoryNamesMap
+        });
+        if (!evalResult.matches) return false;
+        scoreMap.set(product.id, evalResult.score);
       }
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
@@ -391,9 +405,18 @@ export default function MobileProductListScreen() {
       if (sortBy === 'low-high') return priceA - priceB;
       if (sortBy === 'high-low') return priceB - priceA;
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      
+      // Relevance sorting if search query active
+      if (querySearch) {
+        const scoreA = scoreMap.get(a.id) || 0;
+        const scoreB = scoreMap.get(b.id) || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        if ((b.rating || 0) !== (a.rating || 0)) return (b.rating || 0) - (a.rating || 0);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
       return 0;
     });
-  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy, categoryNamesMap]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
     (selectedSubCategory !== baseSubId ? 1 : 0) +

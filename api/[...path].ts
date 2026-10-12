@@ -14,6 +14,7 @@ import trackNotificationHandler from "./_handlers/notifications/track";
 import segmentsHandler from "./_handlers/segments/index";
 import createPaymentOrderHandler from "./_handlers/payment/create-order";
 import verifyPaymentHandler from "./_handlers/payment/verify";
+import { searchHandler, suggestionsHandler, synonymsHandler, searchAnalyticsHandler } from "./_handlers/search";
 import { initializeFirebaseAdmin } from "./_utils";
 import { cicdRouter } from "../src/backend/cicd/routes";
 
@@ -41,6 +42,12 @@ app.use("/v1/cicd", cicdRouter);
 app.get(["/api/health", "/health"], (req, res) => {
   res.json({ status: "ok", name: "ViBa Mart API" });
 });
+
+// ViBa Mart Intelligent Search Engine APIs
+app.get(["/api/search", "/search"], searchHandler);
+app.get(["/api/search/suggestions", "/search/suggestions"], suggestionsHandler);
+app.all(["/api/search/synonyms", "/search/synonyms"], synonymsHandler);
+app.get(["/api/search/analytics", "/search/analytics"], searchAnalyticsHandler);
 
 // Email OTP
 app.post(["/api/auth/send-email-otp", "/auth/send-email-otp"], sendEmailOtpHandler);

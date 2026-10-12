@@ -262,6 +262,11 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    match /search_synonyms/{synId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // --- Notification & Customer Engagement Rules ---
     match /user_notifications/{notifId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all' || isAdmin());
