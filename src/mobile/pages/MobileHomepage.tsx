@@ -416,19 +416,22 @@ export default function MobileHomepage() {
 
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
-        return p.nestedSubCategoryId === selectedNestedSubCatId;
+        return p.nestedSubCategoryId === selectedNestedSubCatId ||
+          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId));
       }
 
       // 2. Subcategory Filter
       if (selectedSubCatId) {
-        return p.subCategoryId === selectedSubCatId;
+        return p.subCategoryId === selectedSubCatId ||
+          Boolean(p.subCategoryIds?.includes(selectedSubCatId));
       }
 
       // 3. Category Filter
       const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
       const targetSlug = activeCategorySlug.toLowerCase();
       const catId = (p.categoryId || '').toLowerCase();
-      return catId === targetId || catId === targetSlug;
+      return catId === targetId || catId === targetSlug ||
+        Boolean(p.categories?.some(c => c.toLowerCase() === targetId || c.toLowerCase() === targetSlug));
     });
   }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
 

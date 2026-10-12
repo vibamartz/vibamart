@@ -71,7 +71,9 @@ export interface Product {
   categoryId: string;
   categories?: string[];
   subCategoryId?: string;
+  subCategoryIds?: string[];
   nestedSubCategoryId?: string;
+  nestedSubCategoryIds?: string[];
   visualNestedSubcategoryId?: string; // Assigned Visual Nested Subcategory ID
   visualNestedSubcategoryIds?: string[]; // Multiple Visual Nested Subcategory IDs assigned to this product
   vendorId: string;
@@ -688,4 +690,55 @@ export interface CashbackRecord {
 }
 
 export * from './notifications';
+
+export type CategoryHierarchyLevel =
+  | 'category'
+  | 'subcategory'
+  | 'nested_subcategory'
+  | 'visual_nested_subcategory'
+  | 'deep_subcategory';
+
+export interface FlatCategoryNode {
+  key: string;
+  id: string;
+  name: string;
+  level: CategoryHierarchyLevel;
+  levelNumber: number; // 1 = Main, 2 = Sub, 3 = Nested, 4 = Visual/Deep
+  levelLabel: string;
+  pathIds: string[];
+  pathNames: string[];
+  breadcrumb: string;
+  parentTargetId?: string;
+  parentTargetType?: 'category' | 'subcategory' | 'nested_subcategory';
+  image?: string;
+  icon?: string;
+  badgeText?: string;
+  offerText?: string;
+  assignedProductCount: number;
+  raw: Category | SubCategory | VisualNestedSubcategory;
+}
+
+export type MatchConfidence = 'strong' | 'good' | 'fair' | 'low';
+
+export interface IntelligentMatchReason {
+  type: 'exact_name' | 'keyword' | 'synonym' | 'tag' | 'spec' | 'brand' | 'category_path' | 'exemplar_similarity';
+  message: string;
+  weight: number;
+}
+
+export interface IntelligentProductMatch {
+  product: Product;
+  score: number; // 0 to 100
+  confidence: MatchConfidence;
+  reasons: string[];
+  detailedReasons?: IntelligentMatchReason[];
+  isAlreadyAssigned: boolean;
+  currentAssignments: string[];
+}
+
+export interface ProductAssignmentOptions {
+  preserveExisting: boolean; // default: true
+  isPrimary?: boolean;
+  syncVisualNested?: boolean;
+}
 

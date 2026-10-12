@@ -289,9 +289,16 @@ export default function ProductList() {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
-            if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
-          } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
-            return false;
+            if (!p.discountPrice && !effectiveCats.includes(p.categoryId) && !p.categories?.some(c => effectiveCats.includes(c))) return false;
+          } else {
+            const matchesCat = effectiveCats.includes(p.categoryId) ||
+              p.categories?.some(c => effectiveCats.includes(c)) ||
+              (matchedCategory && (
+                p.categoryId === matchedCategory.slug ||
+                createSlug(matchedCategory.name) === p.categoryId ||
+                p.categories?.some(c => c === matchedCategory.slug || createSlug(matchedCategory.name) === c)
+              ));
+            if (!matchesCat) return false;
           }
         }
       }
@@ -299,7 +306,11 @@ export default function ProductList() {
       // SubCategory filter
       if (!hasVisualExplicit) {
         const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
-        if (effectiveSubs.length > 0 && p.subCategoryId && !effectiveSubs.includes(p.subCategoryId)) return false;
+        if (effectiveSubs.length > 0) {
+          const matchSub = (p.subCategoryId && effectiveSubs.includes(p.subCategoryId)) ||
+            p.subCategoryIds?.some(s => effectiveSubs.includes(s));
+          if (!matchSub) return false;
+        }
       }
 
       // Brand filter
@@ -463,9 +474,16 @@ export default function ProductList() {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
-            if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
-          } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
-            return false;
+            if (!p.discountPrice && !effectiveCats.includes(p.categoryId) && !p.categories?.some(c => effectiveCats.includes(c))) return false;
+          } else {
+            const matchesCat = effectiveCats.includes(p.categoryId) ||
+              p.categories?.some(c => effectiveCats.includes(c)) ||
+              (matchedCategory && (
+                p.categoryId === matchedCategory.slug ||
+                createSlug(matchedCategory.name) === p.categoryId ||
+                p.categories?.some(c => c === matchedCategory.slug || createSlug(matchedCategory.name) === c)
+              ));
+            if (!matchesCat) return false;
           }
         }
       }
@@ -473,11 +491,19 @@ export default function ProductList() {
       // SubCategory filter (Skip if explicit visual subcategory assignment)
       if (!hasVisualExplicit) {
         const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
-        if (effectiveSubs.length > 0 && (!p.subCategoryId || !effectiveSubs.includes(p.subCategoryId))) return false;
+        if (effectiveSubs.length > 0) {
+          const matchSub = (p.subCategoryId && effectiveSubs.includes(p.subCategoryId)) ||
+            p.subCategoryIds?.some(s => effectiveSubs.includes(s));
+          if (!matchSub) return false;
+        }
 
         // Nested SubCategory filter
         const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
-        if (effectiveNested.length > 0 && (!p.nestedSubCategoryId || !effectiveNested.includes(p.nestedSubCategoryId))) return false;
+        if (effectiveNested.length > 0) {
+          const matchNested = (p.nestedSubCategoryId && effectiveNested.includes(p.nestedSubCategoryId)) ||
+            p.nestedSubCategoryIds?.some(n => effectiveNested.includes(n));
+          if (!matchNested) return false;
+        }
       }
 
       // Brand filter
