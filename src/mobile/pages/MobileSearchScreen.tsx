@@ -17,6 +17,8 @@ import PermissionPromptModal from '../../shared/components/PermissionPromptModal
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
 import { getRecentSearches, addRecentSearch, clearRecentSearches as clearSearchHistory, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import { fetchSearchSuggestions, fetchSearchResults, logSearchClick } from '../../services/searchApiClient';
+import { SuggestionItem } from '../../backend/search/searchTypes';
 
 export default function MobileSearchScreen() {
   const navigate = useNavigate();
@@ -28,7 +30,7 @@ export default function MobileSearchScreen() {
   const [isListening, setIsListening] = useState(false);
   const [showMicPermissionModal, setShowMicPermissionModal] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-  const [liveSuggestions, setLiveSuggestions] = useState<Product[]>([]);
+  const [liveSuggestions, setLiveSuggestions] = useState<SuggestionItem[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,37 +55,26 @@ export default function MobileSearchScreen() {
     };
   }, []);
 
-  // Fetch live product suggestions on typing
+  // Fetch live product suggestions on typing via high-performance search API
   useEffect(() => {
-    const qStr = searchQuery.trim().toLowerCase();
+    const qStr = searchQuery.trim();
     if (qStr.length < 2) {
       setLiveSuggestions([]);
       return;
     }
 
-    const fetchSuggestions = async () => {
-      try {
-        const snap = await getDocs(query(collection(db, 'products'), limit(40)));
-        const rewardIds = await getRewardProductIds();
-        const docs = filterOutRewardProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
-        const cleanQ = cleanProductCode(qStr);
-
-        const filtered = docs.filter(p => 
-          p.name.toLowerCase().includes(qStr) || 
-          p.brand?.toLowerCase().includes(qStr) ||
-          p.id.toLowerCase().includes(qStr) ||
-          (p.productCode && p.productCode.toLowerCase().includes(qStr)) ||
-          (cleanQ && p.productCode && cleanProductCode(p.productCode).includes(cleanQ)) ||
-          p.tags?.some(t => t.toLowerCase().includes(qStr))
-        ).slice(0, 6);
-        setLiveSuggestions(filtered);
-      } catch (err) {
-        console.error('Failed to fetch suggestions:', err);
+    const abortCtrl = new AbortController();
+    const timer = setTimeout(async () => {
+      const result = await fetchSearchSuggestions(qStr, 8, abortCtrl.signal);
+      if (result) {
+        setLiveSuggestions(result.suggestions || []);
       }
-    };
+    }, 150);
 
-    const timer = setTimeout(fetchSuggestions, 200);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      abortCtrl.abort();
+    };
   }, [searchQuery]);
 
   const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {
@@ -93,23 +84,17 @@ export default function MobileSearchScreen() {
       const updated = addRecentSearch(term, 8);
       setRecentSearches(updated);
 
-      const cleanQ = cleanProductCode(term);
-      try {
-        const snap = await getDocs(collection(db, 'products'));
-        const rewardIds = await getRewardProductIds();
-        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)), rewardIds);
-        const exactMatch = prods.find(p => 
-          (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
-          (p.productCode && p.productCode.toLowerCase() === term.toLowerCase()) ||
-          p.id === term
-        );
+      logSearchClick(term, undefined, 'search', 'mobile');
 
-        if (exactMatch) {
+      try {
+        const fastResult = await fetchSearchResults({ q: term, limit: 1 });
+        if (fastResult && fastResult.exactIdentifierMatch && fastResult.items.length > 0) {
+          const exactMatch = fastResult.items[0];
           navigate(`/products/${getProductSlug(exactMatch)}`);
           return;
         }
       } catch (err) {
-        console.error("Error checking product code on mobile search:", err);
+        console.error("Fast product search check on mobile failed:", err);
       }
 
       navigate(`/products?q=${encodeURIComponent(term)}`);
@@ -201,20 +186,32 @@ export default function MobileSearchScreen() {
             {liveSuggestions.map((item) => (
               <div
                 key={item.id}
-                onClick={() => navigate(`/products/${getProductSlug(item)}`)}
+                onClick={() => {
+                  logSearchClick(searchQuery, item.id, 'suggestion_click', 'mobile');
+                  navigate(item.slug ? `/products/${item.slug}` : `/products?q=${encodeURIComponent(item.name)}`);
+                }}
                 className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <img 
-                    src={item.images?.[0] || 'https://via.placeholder.com/60'} 
-                    alt={item.name} 
-                    className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
-                  />
+                  {item.image ? (
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                      <Search className="w-4 h-4 text-gray-400" />
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
-                    <span className="text-[10px] text-emerald-700 font-extrabold">
-                      ₹{(item.discountPrice || item.price).toLocaleString()}
-                    </span>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      {item.brand && <span className="text-gray-400 font-medium">{item.brand} •</span>}
+                      <span className="text-emerald-700 font-extrabold">
+                        ₹{Number(item.discountPrice || item.price || 0).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />

@@ -12,6 +12,8 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import { fetchSearchResults } from '../../services/searchApiClient';
+import { AiParsedIntent, RecoveryRecommendation } from '../../backend/search/searchTypes';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,6 +34,12 @@ export default function MobileProductListScreen() {
   const { categories } = useCategoryStore();
   const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { addItem, items: cartItems } = useCartStore();
+  const [searchEngineResults, setSearchEngineResults] = useState<Product[] | null>(null);
+  const [didYouMean, setDidYouMean] = useState<string | null>(null);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [isAiRelaxed, setIsAiRelaxed] = useState<boolean>(false);
+  const [recoveryRecommendations, setRecoveryRecommendations] = useState<RecoveryRecommendation[]>([]);
+  const [aiParsedIntent, setAiParsedIntent] = useState<AiParsedIntent | null>(null);
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
 
@@ -281,6 +289,45 @@ export default function MobileProductListScreen() {
     };
   }, [retryKey]);
 
+  // Execute fast server-side intelligent search when query parameter is active
+  useEffect(() => {
+    if (!querySearch) {
+      setSearchEngineResults(null);
+      setDidYouMean(null);
+      setAiExplanation(null);
+      setIsAiRelaxed(false);
+      setRecoveryRecommendations([]);
+      setAiParsedIntent(null);
+      return;
+    }
+
+    const abortCtrl = new AbortController();
+    fetchSearchResults({
+      q: querySearch,
+      sortBy: sortBy as any,
+      minPrice: 0,
+      maxPrice,
+      minRating,
+      minDiscount,
+      inStock: inStockOnly,
+      brand: selectedBrand || undefined,
+      category: selectedCategory || baseCatId || undefined,
+      subCategory: selectedSubCategory || baseSubId || undefined,
+      limit: 100
+    }, abortCtrl.signal).then(res => {
+      if (res && res.items) {
+        setSearchEngineResults(res.items);
+        setDidYouMean(res.didYouMean || null);
+        setAiExplanation(res.aiExplanation || null);
+        setIsAiRelaxed(Boolean(res.isAiRelaxed));
+        setRecoveryRecommendations(res.recoveryRecommendations || []);
+        setAiParsedIntent(res.aiParsedIntent || null);
+      }
+    }).catch(() => {});
+
+    return () => abortCtrl.abort();
+  }, [querySearch, sortBy, maxPrice, minRating, minDiscount, inStockOnly, selectedBrand, selectedCategory, baseCatId, selectedSubCategory, baseSubId]);
+
   // Derive unique brands
   const availableBrands = useMemo(() => {
     const brands = new Set<string>();
@@ -292,6 +339,10 @@ export default function MobileProductListScreen() {
 
   // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
+    if (querySearch && searchEngineResults !== null) {
+      return searchEngineResults;
+    }
+
     return products.filter(product => {
       if (product.status === 'inactive') return false;
 
@@ -400,7 +451,7 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, searchEngineResults, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
     (selectedSubCategory !== baseSubId ? 1 : 0) +
@@ -776,6 +827,48 @@ export default function MobileProductListScreen() {
         />
       )}
 
+      {querySearch && (
+        <div className="space-y-2 px-1 mb-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
+              "{querySearch}"
+              <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchParams({})} />
+            </span>
+            {aiParsedIntent && aiParsedIntent.detectedEntities.map((ent, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              >
+                <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                <span className="capitalize text-emerald-600">{ent.type}:</span> {ent.entity}
+              </span>
+            ))}
+          </div>
+
+          {isAiRelaxed && aiExplanation && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-3 py-2 rounded-xl flex items-center gap-2 shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span className="font-medium text-[11px]">{aiExplanation}</span>
+            </div>
+          )}
+
+          {recoveryRecommendations.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Try:</span>
+              {recoveryRecommendations.map((rec, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSearchParams({ q: rec.query })}
+                  className="text-[11px] bg-gray-50 text-gray-700 border border-gray-200 px-2.5 py-0.5 rounded-full whitespace-nowrap"
+                >
+                  {rec.text}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Active Filter Pills */}
       {activeFilterCount > 0 && (
         <div className="flex items-center justify-end px-1">
@@ -942,10 +1035,31 @@ export default function MobileProductListScreen() {
             <Layers className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold text-gray-800">
-            {matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.'}
+            {querySearch
+              ? `No products found matching "${querySearch}"`
+              : (matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.')}
           </h4>
+          {didYouMean && (
+            <div className="my-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-xs text-amber-900 font-medium">
+              <span>Did you mean:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set('q', didYouMean);
+                  setSearchParams(next);
+                }}
+                className="font-bold underline text-emerald-700"
+              >
+                {didYouMean}
+              </button>
+              <span>?</span>
+            </div>
+          )}
           <p className="text-xs text-gray-500">
-            {matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.'}
+            {querySearch
+              ? 'Try checking for spelling errors or searching for a broader term.'
+              : (matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.')}
           </p>
           <button
             onClick={() => navigate('/products')}

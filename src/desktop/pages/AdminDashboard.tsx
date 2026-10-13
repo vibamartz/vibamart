@@ -42,6 +42,7 @@ import { VariantImageInput, VariantMultiImageInput } from '../components/Variant
 import AdminNotificationsManagementView from '../components/AdminNotificationsManagementView';
 import AdminTermsManagementView from '../components/AdminTermsManagementView';
 import AdminPrivacyManagementView from '../components/AdminPrivacyManagementView';
+import AdminSearchManagementView from '../components/AdminSearchManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
@@ -633,6 +634,7 @@ function AdminDashboardContent() {
 
           <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Search} label="Search Engine" active={activeTab === 'search-engine'} onClick={() => { setActiveTab('search-engine'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
           <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
@@ -1183,8 +1185,9 @@ function AdminDashboardContent() {
           {activeTab === 'announcements' && <AnnouncementsManagementView />}
           {activeTab === 'terms-management' && <AdminTermsManagementView />}
           {activeTab === 'privacy-management' && <AdminPrivacyManagementView />}
+          {activeTab === 'search-engine' && <AdminSearchManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'search-engine' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />

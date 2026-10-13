@@ -21,6 +21,8 @@ import toast from 'react-hot-toast';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { PushService } from '../../backend/services/pushService';
 import { getRecentSearches, addRecentSearch, removeRecentSearch as removeSearchFromHistory, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import { fetchSearchSuggestions, fetchSearchResults, logSearchClick } from '../../services/searchApiClient';
+import { SuggestionItem } from '../../backend/search/searchTypes';
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
@@ -182,20 +184,13 @@ export default function Navbar() {
       const updated = addRecentSearch(queryStr, 10);
       setRecentSearches(updated);
 
-      // Check if search query is an exact 12-digit Product Code or Product ID match
-      const cleanQ = cleanProductCode(queryStr);
+      // Check if search query is an exact 12-digit Product Code or Product ID match via fast search engine
       try {
-        const snap = await getDocs(collection(db, 'products'));
-        const rewardIds = await getRewardProductIds();
-        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)), rewardIds);
-        const exactMatch = prods.find(p =>
-          (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
-          (p.productCode && p.productCode.toLowerCase() === queryStr.toLowerCase()) ||
-          p.id === queryStr
-        );
-
-        if (exactMatch) {
+        const fastResult = await fetchSearchResults({ q: queryStr, limit: 1 });
+        if (fastResult && fastResult.exactIdentifierMatch && fastResult.items.length > 0) {
+          const exactMatch = fastResult.items[0];
           const slug = getProductSlug(exactMatch);
+          logSearchClick(queryStr, exactMatch.id, 'product_click', 'desktop');
           navigate(`/products/${slug}`);
           setIsSearchFocused(false);
           searchInputRef.current?.blur();
@@ -203,7 +198,7 @@ export default function Navbar() {
           return;
         }
       } catch (err) {
-        console.error("Error in product code search lookup:", err);
+        console.error("Fast product search check error:", err);
       }
 
       navigate(`/products?q=${encodeURIComponent(queryStr)}`);
@@ -233,19 +228,57 @@ export default function Navbar() {
   };
 
   const [isListening, setIsListening] = useState(false);
-  const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
+  const [productSuggestions, setProductSuggestions] = useState<SuggestionItem[]>([]);
+  const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
+  const [suggestedCategories, setSuggestedCategories] = useState<{ id: string; name: string; slug?: string }[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1);
 
+  // Live Autocomplete Suggestions with debouncing and stale response protection
   useEffect(() => {
-    if (searchQuery.length > 0) {
-      const filtered = CATEGORIES.filter(cat =>
-        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cat.id.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 3);
-      setSuggestedCategories(filtered);
-    } else {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setProductSuggestions([]);
+      setBrandSuggestions([]);
       setSuggestedCategories([]);
+      setSelectedSuggestionIndex(-1);
+      return;
     }
+
+    const abortCtrl = new AbortController();
+    const timer = setTimeout(async () => {
+      const result = await fetchSearchSuggestions(q, 6, abortCtrl.signal);
+      if (result) {
+        setProductSuggestions(result.suggestions || []);
+        setBrandSuggestions(result.suggestedBrands || []);
+        setSuggestedCategories(result.suggestedCategories || []);
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      abortCtrl.abort();
+    };
   }, [searchQuery]);
+
+  const handleSearchInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => Math.min(prev + 1, productSuggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => Math.max(prev - 1, -1));
+    } else if (e.key === 'Escape') {
+      setIsSearchFocused(false);
+      searchInputRef.current?.blur();
+    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0 && productSuggestions[selectedSuggestionIndex]) {
+      e.preventDefault();
+      const sel = productSuggestions[selectedSuggestionIndex];
+      logSearchClick(searchQuery, sel.id, 'suggestion_click', 'desktop');
+      navigate(sel.slug ? `/products/${sel.slug}` : `/products?q=${encodeURIComponent(sel.name)}`);
+      setIsSearchFocused(false);
+      searchInputRef.current?.blur();
+    }
+  };
 
   const startVoiceSearch = async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -336,8 +369,9 @@ export default function Navbar() {
                     }`}
                     value={searchQuery}
                     onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 250)}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleSearchInputKeyDown}
                   />
 
                   {/* Right Action Buttons (Clear, Mic, Camera, Submit) */}
@@ -400,30 +434,106 @@ export default function Navbar() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
+                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4 max-h-[80vh] overflow-y-auto"
                     >
-                      <div className="flex flex-col gap-5">
+                      <div className="flex flex-col gap-4">
+                        {/* Live Product Suggestions */}
+                        {productSuggestions.length > 0 && searchQuery.length >= 2 && (
+                          <div className="bg-primary/5 rounded-2xl p-3 border border-primary/10">
+                            <div className="flex items-center justify-between mb-2 px-1">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-primary" />
+                                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Matching Products</span>
+                              </div>
+                              <span className="text-[10px] text-gray-400">Press ↑↓ to navigate</span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {productSuggestions.map((prod, idx) => (
+                                <button
+                                  key={prod.id}
+                                  type="button"
+                                  onClick={() => {
+                                    logSearchClick(searchQuery, prod.id, 'suggestion_click', 'desktop');
+                                    navigate(prod.slug ? `/products/${prod.slug}` : `/products?q=${encodeURIComponent(prod.name)}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className={`flex items-center justify-between p-2 rounded-xl transition-all text-left w-full group/p ${
+                                    selectedSuggestionIndex === idx
+                                      ? 'bg-primary text-white shadow-md'
+                                      : 'hover:bg-white bg-white/60 border border-transparent hover:border-gray-100'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {prod.image ? (
+                                      <img
+                                        src={prod.image}
+                                        alt={prod.name}
+                                        className="w-10 h-10 object-cover rounded-lg border border-gray-100 shrink-0 bg-white"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                        <Search className="w-4 h-4 text-gray-400" />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <div className={`text-xs font-bold truncate ${selectedSuggestionIndex === idx ? 'text-white' : 'text-gray-800 group-hover/p:text-primary'}`}>
+                                        {prod.name}
+                                      </div>
+                                      <div className={`text-[10px] truncate ${selectedSuggestionIndex === idx ? 'text-white/80' : 'text-gray-400'}`}>
+                                        {prod.brand && <span className="font-semibold">{prod.brand} • </span>}
+                                        {prod.categoryName || 'Product'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0 ml-2">
+                                    <span className={`text-xs font-black ${selectedSuggestionIndex === idx ? 'text-white' : 'text-primary'}`}>
+                                      ₹{prod.discountPrice || prod.price}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Brand Suggestions */}
+                        {brandSuggestions.length > 0 && searchQuery.length >= 2 && (
+                          <div className="px-1">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Suggested Brands</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {brandSuggestions.map((brand) => (
+                                <button
+                                  key={brand}
+                                  type="button"
+                                  onClick={() => {
+                                    setSearchQuery(brand);
+                                    navigate(`/products?q=${encodeURIComponent(brand)}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="px-3 py-1 bg-gray-100 hover:bg-primary hover:text-white rounded-full text-xs font-medium text-gray-700 transition-colors"
+                                >
+                                  {brand}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Category Suggestions */}
-                        {suggestedCategories.length > 0 && searchQuery.length > 0 && (
+                        {suggestedCategories.length > 0 && searchQuery.length >= 2 && (
                           <div className="bg-gray-50/50 rounded-2xl p-3">
-                            <div className="flex items-center gap-2 mb-3 px-1">
-                              <Sparkles className="w-4 h-4 text-amber-500" />
+                            <div className="flex items-center gap-2 mb-2 px-1">
                               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Categories</span>
                             </div>
                             <div className="grid grid-cols-1 gap-1">
                               {suggestedCategories.map(cat => (
                                 <Link
                                   key={cat.id}
-                                  to={`/categories/${getCategorySlug(cat)}`}
+                                  to={`/categories/${getCategorySlug(cat as any)}`}
                                   onClick={() => setIsSearchFocused(false)}
                                   className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
                                 >
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
-                                      {getCategoryIcon(cat.icon || '')}
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
-                                  </div>
+                                  <span className="text-xs font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
                                   <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
                                 </Link>
                               ))}

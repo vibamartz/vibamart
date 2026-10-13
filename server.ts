@@ -15,6 +15,8 @@ import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
+import { searchRouter } from "./src/backend/search/routes";
+import { SearchService } from "./src/backend/search/searchService";
 
 
 dotenv.config();
@@ -141,6 +143,12 @@ async function startServer() {
   // ViBa CI/CD API Router
   app.use('/api/v1/cicd', cicdRouter);
   app.use('/api/cicd', cicdRouter);
+
+  // ViBa Intelligent Search Engine Router
+  app.use('/api/search', searchRouter);
+  SearchService.getInstance().initialize().catch((err) => {
+    console.warn("[SEARCH ENGINE] Background search initialization deferred:", err);
+  });
 
   // API routes
   app.get("/api/health", (req, res) => {
