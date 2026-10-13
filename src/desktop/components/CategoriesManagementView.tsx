@@ -13,23 +13,15 @@ import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataU
 import { useVisualNestedSubcategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
-import IntelligentProductAssignmentView from './IntelligentProductAssignmentView';
 
 interface CategoriesManagementViewProps {
   onNavigateToVisualNested?: () => void;
-  initialSubTab?: 'categories' | 'visual_nested' | 'intelligent_assignment';
-  initialTargetCategoryKey?: string;
 }
 
-export default function CategoriesManagementView({
-  onNavigateToVisualNested,
-  initialSubTab = 'categories',
-  initialTargetCategoryKey
-}: CategoriesManagementViewProps = {}) {
+export default function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManagementViewProps = {}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested' | 'intelligent_assignment'>(initialSubTab);
-  const [targetAssignmentKey, setTargetAssignmentKey] = useState<string | undefined>(initialTargetCategoryKey);
+  const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
 
   // Expanded State
   const [expandedCats, setExpandedCats] = useState<string[]>([]);
@@ -580,30 +572,10 @@ export default function CategoriesManagementView({
           <Sparkles className="w-4 h-4" />
           <span>Visual Nested Subcategories</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setTargetAssignmentKey(undefined);
-            setActiveSubTab('intelligent_assignment');
-          }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${activeSubTab === 'intelligent_assignment'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
-              : 'text-gray-500 hover:text-gray-800'
-            }`}
-        >
-          <Wand2 className="w-4 h-4" />
-          <span>Intelligent Product Assignment</span>
-        </button>
       </div>
 
       {activeSubTab === 'visual_nested' ? (
         <VisualNestedSubcategoriesAdminView />
-      ) : activeSubTab === 'intelligent_assignment' ? (
-        <IntelligentProductAssignmentView
-          initialTargetKey={targetAssignmentKey}
-          onNavigateBack={() => setActiveSubTab('categories')}
-        />
       ) : (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -612,16 +584,6 @@ export default function CategoriesManagementView({
               <p className="text-sm text-gray-500">Organize and manage your categories and subcategories.</p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setTargetAssignmentKey(undefined);
-                  setActiveSubTab('intelligent_assignment');
-                }}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-purple-200 active:scale-95"
-              >
-                <Wand2 className="w-4 h-4" />
-                Intelligent Product Assignment
-              </button>
               <button
                 onClick={handleRestoreDefaults}
                 disabled={isSaving}
@@ -692,17 +654,6 @@ export default function CategoriesManagementView({
                           >
                             {category.isVisible ?? true ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTargetAssignmentKey(`category:${category.id}`);
-                              setActiveSubTab('intelligent_assignment');
-                            }}
-                            className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
-                            title="Intelligent Product Assignment"
-                          >
-                            <Wand2 className="w-4 h-4" />
-                          </button>
                           <button onClick={() => handleOpenAddModal('subcategory', category.id)} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Add Subcategory">
                             <Plus className="w-4 h-4" />
                           </button>
@@ -742,17 +693,6 @@ export default function CategoriesManagementView({
                                     >
                                       {sub.isVisible ?? true ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                                     </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTargetAssignmentKey(`subcategory:${category.id}:${sub.id}`);
-                                        setActiveSubTab('intelligent_assignment');
-                                      }}
-                                      className="p-1.5 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-                                      title="Intelligent Product Assignment"
-                                    >
-                                      <Wand2 className="w-3.5 h-3.5" />
-                                    </button>
                                     <button onClick={() => handleOpenAddModal('nested', category.id, sub.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Add Nested Subcategory"><Plus className="w-3.5 h-3.5" /></button>
                                     <button onClick={() => handleOpenEditModal('subcategory', sub, category.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Edit Subcategory"><Edit2 className="w-3.5 h-3.5" /></button>
                                     <button onClick={() => handleDelete('subcategory', sub.name, category.id, sub.id)} className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors" title="Delete Subcategory"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -778,17 +718,6 @@ export default function CategoriesManagementView({
                                             title="Add to Visual Nested Subcategories"
                                           >
                                             <Sparkles className="w-3 h-3" />
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setTargetAssignmentKey(`nested_subcategory:${category.id}:${sub.id}:${nested.id}`);
-                                              setActiveSubTab('intelligent_assignment');
-                                            }}
-                                            className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
-                                            title="Intelligent Product Assignment"
-                                          >
-                                            <Wand2 className="w-3 h-3" />
                                           </button>
                                           <button
                                             onClick={() => handleToggleNestedVisibility(category.id, sub.id, nested.id)}
