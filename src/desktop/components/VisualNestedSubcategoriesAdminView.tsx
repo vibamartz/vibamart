@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { VisualNestedSubcategory, Category, SubCategory, Product } from '../../shared/types';
+import { VisualNestedSubcategory, Category, SubCategory, Product, FlatCategoryNode } from '../../shared/types';
 import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import { formatProductCode } from '../../shared/utilities/productCode';
@@ -18,6 +18,7 @@ import { FRAME_SHAPES, getFrameConfig, VisualFrameDefs } from '../../shared/comp
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import AddEditProductForm from './AddEditProductForm';
+import { IntelligentProductMatcher } from '../../shared/utilities/intelligentProductMatcher';
 
 interface FlatParentOption {
   key: string;
@@ -60,7 +61,7 @@ export default function VisualNestedSubcategoriesAdminView() {
 
   // Manage Products Modal state
   const [managingProductsItem, setManagingProductsItem] = useState<VisualNestedSubcategory | null>(null);
-  const [productActiveTab, setProductActiveTab] = useState<'assigned' | 'assign_existing'>('assigned');
+  const [productActiveTab, setProductActiveTab] = useState<'assigned' | 'assign_existing' | 'smart_suggestions'>('assigned');
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [productSubCategoryFilter, setProductSubCategoryFilter] = useState('all');
@@ -1965,6 +1966,19 @@ export default function VisualNestedSubcategoriesAdminView() {
               <div className="flex border-b border-gray-200 px-6 pt-2 bg-gray-50/60 shrink-0">
                 <button
                   type="button"
+                  onClick={() => setProductActiveTab('smart_suggestions')}
+                  className={`pb-3 px-4 text-xs font-black border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+                    productActiveTab === 'smart_suggestions'
+                      ? 'border-purple-600 text-purple-800'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span>Smart Suggestions</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setProductActiveTab('assigned')}
                   className={`pb-3 px-4 text-xs font-black border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
                     productActiveTab === 'assigned'
@@ -1998,7 +2012,124 @@ export default function VisualNestedSubcategoriesAdminView() {
 
               {/* Tab Content Area */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                {productActiveTab === 'assigned' ? (
+                {productActiveTab === 'smart_suggestions' ? (
+                  /* Tab: Smart Suggestions */
+                  (() => {
+                    const visualTargetNode: FlatCategoryNode | null = managingProductsItem ? {
+                      key: `visual:${managingProductsItem.id}`,
+                      id: managingProductsItem.id,
+                      name: managingProductsItem.name || managingProductsItem.offerText || 'Visual Showcase',
+                      level: 'visual_nested_subcategory',
+                      levelNumber: 4,
+                      levelLabel: 'Visual Nested Subcategory',
+                      pathIds: managingProductsItem.parentPathIds || [managingProductsItem.categoryId, managingProductsItem.subCategoryId, managingProductsItem.nestedSubCategoryId, managingProductsItem.id].filter(Boolean) as string[],
+                      pathNames: managingProductsItem.parentPathNames || [managingProductsItem.categoryName, managingProductsItem.subCategoryName, managingProductsItem.nestedSubCategoryName, managingProductsItem.name].filter(Boolean) as string[],
+                      breadcrumb: (managingProductsItem.parentPathNames || [managingProductsItem.categoryName, managingProductsItem.subCategoryName, managingProductsItem.nestedSubCategoryName, managingProductsItem.name].filter(Boolean) as string[]).join(' › '),
+                      parentTargetId: managingProductsItem.parentTargetId,
+                      image: managingProductsItem.image,
+                      offerText: managingProductsItem.offerText,
+                      assignedProductCount: (managingProductsItem.productIds || []).length,
+                      raw: managingProductsItem
+                    } : null;
+
+                    const matches = visualTargetNode
+                      ? IntelligentProductMatcher.matchProductsForCategory(visualTargetNode, allCatalogProducts, {
+                          threshold: 30,
+                          userSearchQuery: productSearchQuery,
+                          exemplarProducts: assignedProducts
+                        })
+                      : [];
+
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100">
+                          <div className="text-xs text-gray-600">
+                            Showing <strong>{matches.length}</strong> intelligent suggestions for this showcase based on semantic relevance, tags, and category terms.
+                          </div>
+                          {selectedProductIdsToAssign.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleAssignSelectedProducts}
+                              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-xs cursor-pointer"
+                            >
+                              Assign Selected ({selectedProductIdsToAssign.length})
+                            </button>
+                          )}
+                        </div>
+
+                        {matches.length === 0 ? (
+                          <div className="text-center py-12 text-gray-500 text-xs">
+                            No intelligent suggestions found for this visual subcategory. Try browsing the catalog tab.
+                          </div>
+                        ) : (
+                          <div className="border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100 shadow-2xs">
+                            {matches.map(m => {
+                              const isAlready = (managingProductsItem.productIds || []).includes(m.product.id) ||
+                                m.product.visualNestedSubcategoryIds?.includes(managingProductsItem.id) ||
+                                m.product.visualNestedSubcategoryId === managingProductsItem.id;
+                              const isSelected = selectedProductIdsToAssign.includes(m.product.id);
+
+                              return (
+                                <div
+                                  key={m.product.id}
+                                  className={`p-3.5 bg-white hover:bg-purple-50/30 transition-colors flex items-center justify-between gap-3 ${
+                                    isAlready ? 'bg-emerald-50/20' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      disabled={isAlready}
+                                      checked={isSelected || isAlready}
+                                      onChange={() => handleToggleSelectProduct(m.product.id)}
+                                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 disabled:opacity-40 cursor-pointer"
+                                    />
+                                    <div className="w-10 h-10 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 shrink-0">
+                                      {(m.product.images?.[0] || m.product.primaryImage) ? (
+                                        <img src={m.product.images?.[0] || m.product.primaryImage} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                          <Package className="w-5 h-5" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-gray-900 truncate">
+                                          {m.product.name}
+                                        </span>
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                                          {m.score}% Match
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                                        {m.reasons[0] || 'Matches subcategory terms'}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    {isAlready ? (
+                                      <span className="text-xs font-bold text-emerald-700">Assigned</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAssignSingleProduct(m.product)}
+                                        className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-xs cursor-pointer"
+                                      >
+                                        Assign
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : productActiveTab === 'assigned' ? (
                   /* Tab 1: Assigned Products List */
                   <div>
                     {assignedProducts.length === 0 ? (
