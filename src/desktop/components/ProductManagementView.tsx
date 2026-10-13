@@ -1,20 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AddEditProductForm from './AddEditProductForm';
+import CategoryAssignmentModal from './CategoryAssignmentModal';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
-import { Product, ProductVariant } from '../../shared/types';
+import { Product, ProductVariant, FlatCategoryNode } from '../../shared/types';
 import toast from 'react-hot-toast';
-import { Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3, X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles } from 'lucide-react';
+import {
+  Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3,
+  X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles, Layers, Filter,
+  CheckSquare, Square, FolderTree
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
-import { useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
+import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
 
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   onAddProduct?: () => void,
   onEditProduct?: (p: Product) => void,
   onDeleteProduct?: (id: string, name: string) => Promise<boolean>
 }) {
+  const { categories } = useCategoryStore();
   const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +31,16 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [editingVariant, setEditingVariant] = useState<{ productId: string, variantId: string, name: string, material: string, price: number, stock: number } | null>(null);
   const [addingVariantTo, setAddingVariantTo] = useState<string | null>(null);
   const [newVariant, setNewVariant] = useState({ name: '', material: '', price: 0, stock: 0 });
+
+  // Category Assignment & Bulk Selection state
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterSubCategory, setFilterSubCategory] = useState('all');
+  const [filterNestedSubCategory, setFilterNestedSubCategory] = useState('all');
+  const [filterVisual, setFilterVisual] = useState('all');
+  const [filterBrand, setFilterBrand] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -283,35 +301,186 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     }
   };
 
-  const filteredProducts = products.filter(p => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const cleanQ = cleanProductCode(q);
-    const nameMatch = p.name.toLowerCase().includes(q);
-    const idMatch = p.id.toLowerCase().includes(q);
-    const codeMatch = p.productCode && (
-      p.productCode.toLowerCase().includes(q) ||
-      (cleanQ.length > 0 && cleanProductCode(p.productCode).includes(cleanQ))
+  // Build unified flat category nodes for assignment checking
+  const allCategoryNodes = useMemo(() => {
+    return buildFlatCategoryHierarchy(categories, visualNestedItems, products);
+  }, [categories, visualNestedItems, products]);
+
+  // Extract unique brands for filter dropdown
+  const uniqueBrands = useMemo(() => {
+    const bSet = new Set<string>();
+    products.forEach(p => {
+      if (p.brand && p.brand.trim()) bSet.add(p.brand.trim());
+    });
+    return Array.from(bSet).sort();
+  }, [products]);
+
+  // Subcategories available based on selected category filter
+  const availableSubCategories = useMemo(() => {
+    if (filterCategory === 'all') {
+      return categories.flatMap(c => c.subcategories || []);
+    }
+    const cat = categories.find(c => c.id === filterCategory);
+    return cat?.subcategories || [];
+  }, [categories, filterCategory]);
+
+  // Nested subcategories available based on selected subcategory filter
+  const availableNestedSubCategories = useMemo(() => {
+    if (filterSubCategory === 'all') {
+      return availableSubCategories.flatMap(s => s.subcategories || []);
+    }
+    const sub = availableSubCategories.find(s => s.id === filterSubCategory);
+    return sub?.subcategories || [];
+  }, [availableSubCategories, filterSubCategory]);
+
+  // Filter products by search query and category/brand/status filters
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      // 1. Text Search (name, id, productCode, SKU, brand, tags)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const cleanQ = cleanProductCode(q);
+        const nameMatch = p.name.toLowerCase().includes(q);
+        const idMatch = p.id.toLowerCase().includes(q);
+        const codeMatch = p.productCode && (
+          p.productCode.toLowerCase().includes(q) ||
+          (cleanQ.length > 0 && cleanProductCode(p.productCode).includes(cleanQ))
+        );
+        const brandMatch = p.brand?.toLowerCase().includes(q);
+        const skuMatch = p.sku?.toLowerCase().includes(q);
+        const tagsMatch = p.tags?.some(t => t.toLowerCase().includes(q));
+        if (!nameMatch && !idMatch && !codeMatch && !brandMatch && !skuMatch && !tagsMatch) {
+          return false;
+        }
+      }
+
+      // 2. Category Filter
+      if (filterCategory !== 'all') {
+        const matchesCat = p.categoryId === filterCategory || Boolean(p.categories?.includes(filterCategory));
+        if (!matchesCat) return false;
+      }
+
+      // 3. SubCategory Filter
+      if (filterSubCategory !== 'all') {
+        const matchesSub = p.subCategoryId === filterSubCategory || Boolean(p.subCategoryIds?.includes(filterSubCategory));
+        if (!matchesSub) return false;
+      }
+
+      // 4. Nested SubCategory Filter
+      if (filterNestedSubCategory !== 'all') {
+        const matchesNested = p.nestedSubCategoryId === filterNestedSubCategory || Boolean(p.nestedSubCategoryIds?.includes(filterNestedSubCategory));
+        if (!matchesNested) return false;
+      }
+
+      // 5. Visual Nested Subcategory Filter
+      if (filterVisual !== 'all') {
+        const visualItem = visualNestedItems.find(v => v.id === filterVisual);
+        const isAssigned = p.visualNestedSubcategoryId === filterVisual ||
+          Boolean(p.visualNestedSubcategoryIds?.includes(filterVisual)) ||
+          Boolean(visualItem?.productIds?.includes(p.id));
+        if (!isAssigned) return false;
+      }
+
+      // 6. Brand Filter
+      if (filterBrand !== 'all') {
+        if (!p.brand || p.brand.trim().toLowerCase() !== filterBrand.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 7. Status Filter
+      if (filterStatus === 'in_stock' && p.stock <= 0) return false;
+      if (filterStatus === 'out_of_stock' && p.stock > 0) return false;
+      if (filterStatus === 'visible' && p.isVisible === false) return false;
+      if (filterStatus === 'hidden' && p.isVisible !== false) return false;
+
+      return true;
+    });
+  }, [
+    products,
+    searchQuery,
+    filterCategory,
+    filterSubCategory,
+    filterNestedSubCategory,
+    filterVisual,
+    filterBrand,
+    filterStatus,
+    visualNestedItems
+  ]);
+
+  const hasActiveFilters = filterCategory !== 'all' || filterSubCategory !== 'all' ||
+    filterNestedSubCategory !== 'all' || filterVisual !== 'all' ||
+    filterBrand !== 'all' || filterStatus !== 'all' || Boolean(searchQuery.trim());
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setFilterCategory('all');
+    setFilterSubCategory('all');
+    setFilterNestedSubCategory('all');
+    setFilterVisual('all');
+    setFilterBrand('all');
+    setFilterStatus('all');
+  };
+
+  // Selection handlers
+  const handleToggleSelectProduct = (productId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedProductIds(prev =>
+      prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
     );
-    const brandMatch = p.brand?.toLowerCase().includes(q);
-    return nameMatch || idMatch || codeMatch || brandMatch;
-  });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(filteredProducts.map(p => p.id));
+    }
+  };
+
+  // Products currently selected for assignment
+  const selectedProductsForModal = useMemo(() => {
+    return products.filter(p => selectedProductIds.includes(p.id));
+  }, [products, selectedProductIds]);
+
+  // Remove individual category assignment from product
+  const handleRemoveCategoryAssignment = async (e: React.MouseEvent, product: Product, node: FlatCategoryNode) => {
+    e.stopPropagation();
+    if (!window.confirm(`Remove "${product.name}" from ${node.breadcrumb}?`)) return;
+
+    const toastId = toast.loading(`Removing from ${node.name}...`);
+    try {
+      await removeProductFromCategoryNode(product, node);
+      toast.success(`Removed from ${node.name}`, { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to remove assignment', { id: toastId });
+    }
+  };
+
+  // Quick single product assignment
+  const handleOpenAssignForProduct = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    setSelectedProductIds([product.id]);
+    setIsAssignmentModalOpen(true);
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
+      {/* Top Header Card */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Inventory & Variants</h2>
-          <p className="text-sm text-gray-500">Manage product stock, 12-digit Product Codes, and variants</p>
+          <p className="text-sm text-gray-500">Manage product stock, 12-digit Product Codes, variants, and category assignments</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {/* Admin Search Bar: Name, ID, or Product Code */}
+          {/* Admin Search Bar: Name, ID, SKU, or Product Code */}
           <div className="relative flex-1 sm:w-72">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Name, ID or Product Code..."
+              placeholder="Search by Name, SKU, ID, Code, Tag..."
               className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             />
             {searchQuery && (
@@ -320,6 +489,18 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
               </button>
             )}
           </div>
+
+          {/* Bulk Assign Button (Shown when items are selected) */}
+          {selectedProductIds.length > 0 && (
+            <button
+              onClick={() => setIsAssignmentModalOpen(true)}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+            >
+              <Layers className="w-4 h-4" />
+              Assign to Categories ({selectedProductIds.length})
+            </button>
+          )}
+
           <button
             onClick={onAddProduct}
             className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
@@ -330,13 +511,179 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
         </div>
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
+            <Filter className="w-4 h-4 text-primary" />
+            <span>Filter Inventory:</span>
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={resetAllFilters}
+              className="text-xs font-bold text-rose-500 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" /> Clear All Filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* Category Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Category</label>
+            <select
+              value={filterCategory}
+              onChange={e => {
+                setFilterCategory(e.target.value);
+                setFilterSubCategory('all');
+                setFilterNestedSubCategory('all');
+              }}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Subcategory Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Subcategory</label>
+            <select
+              value={filterSubCategory}
+              onChange={e => {
+                setFilterSubCategory(e.target.value);
+                setFilterNestedSubCategory('all');
+              }}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Subcategories</option>
+              {availableSubCategories.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Nested Subcategory Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Nested Sub</label>
+            <select
+              value={filterNestedSubCategory}
+              onChange={e => setFilterNestedSubCategory(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Nested</option>
+              {availableNestedSubCategories.map(n => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Visual Showcase Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Visual Showcase</label>
+            <select
+              value={filterVisual}
+              onChange={e => setFilterVisual(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Showcases</option>
+              {visualNestedItems.map(v => (
+                <option key={v.id} value={v.id}>{v.name || v.offerText || `Showcase ${v.id.slice(-4)}`}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Brand Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Brand</label>
+            <select
+              value={filterBrand}
+              onChange={e => setFilterBrand(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Brands</option>
+              {uniqueBrands.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Status</label>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Status</option>
+              <option value="in_stock">In Stock (&gt; 0)</option>
+              <option value="out_of_stock">Out of Stock (0)</option>
+              <option value="visible">Visible</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Sticky Bulk Actions Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="sticky top-4 z-40 bg-gray-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center justify-between gap-4 border border-gray-800 animate-in fade-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-3">
+            <span className="bg-emerald-500 text-gray-950 text-xs font-black px-2.5 py-0.5 rounded-full">
+              {selectedProductIds.length}
+            </span>
+            <span className="text-xs font-bold text-gray-200">
+              product(s) selected from inventory
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedProductIds([])}
+              className="text-xs font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Deselect All
+            </button>
+            <button
+              onClick={() => setIsAssignmentModalOpen(true)}
+              className="flex items-center gap-1.5 bg-emerald-500 text-gray-950 font-black text-xs uppercase tracking-wider px-5 py-2 rounded-xl hover:bg-emerald-400 transition-all cursor-pointer shadow-lg shadow-emerald-500/20"
+            >
+              <Layers className="w-4 h-4" />
+              Assign to Categories
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
               <tr>
-                <th className="px-6 py-4 w-10"></th>
-                <th className="px-6 py-4">Product Info</th>
+                <th className="px-4 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={handleToggleSelectAll}
+                    title={selectedProductIds.length === filteredProducts.length ? 'Deselect All' : 'Select All Filtered'}
+                    className="p-1 rounded text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                  >
+                    {filteredProducts.length > 0 && selectedProductIds.length === filteredProducts.length ? (
+                      <CheckSquare className="w-4 h-4 text-primary" />
+                    ) : selectedProductIds.length > 0 ? (
+                      <div className="w-4 h-4 rounded border-2 border-primary bg-primary/20 flex items-center justify-center">
+                        <div className="w-2 h-0.5 bg-primary rounded-full" />
+                      </div>
+                    ) : (
+                      <Square className="w-4 h-4 text-gray-300" />
+                    )}
+                  </button>
+                </th>
+                <th className="px-3 py-4 w-10"></th>
+                <th className="px-6 py-4">Product Info & Category Assignments</th>
                 <th className="px-6 py-4">Product Code (12-Digit)</th>
                 <th className="px-6 py-4">Total Stock</th>
                 <th className="px-6 py-4">Variants Count</th>
@@ -347,32 +694,103 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
               ) : filteredProducts.length === 0 ? (
-                <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No products found matching your search.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-500">No products found matching your search and filter criteria.</td></tr>
               ) : filteredProducts.map(product => {
                 const isExpanded = expandedProducts.includes(product.id);
+                const isSelected = selectedProductIds.includes(product.id);
+                const assignedCategoryNodes = getProductAssignmentNodes(product, allCategoryNodes, visualNestedItems);
+
                 return (
                   <React.Fragment key={product.id}>
-                    <tr className={`hover:bg-gray-50 transition-colors cursor-pointer ${isExpanded ? 'bg-gray-50/50' : ''}`} onClick={() => toggleExpand(product.id)}>
-                      <td className="px-6 py-4">
+                    <tr
+                      className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-primary/5 hover:bg-primary/10' : (isExpanded ? 'bg-gray-50/50' : '')
+                      }`}
+                      onClick={() => toggleExpand(product.id)}
+                    >
+                      {/* Checkbox */}
+                      <td className="px-4 py-4 text-center" onClick={(e) => handleToggleSelectProduct(product.id, e)}>
+                        <button
+                          type="button"
+                          className="p-1 rounded text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-300" />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* Expand Chevron */}
+                      <td className="px-3 py-4">
                         {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                       </td>
+
+                      {/* Product Info & Category Assignments */}
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img src={product.images[0]} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100" alt="" />
-                          <div>
-                            <p className="text-sm font-bold text-gray-900">{product.name}</p>
-                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                              <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
-                              {visualNestedItems
-                                .filter(v => (v.productIds || []).includes(product.id) || product.visualNestedSubcategoryIds?.includes(v.id) || product.visualNestedSubcategoryId === v.id)
-                                .map(v => (
-                                  <span key={v.id} className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                                    {v.name || v.offerText || 'Visual Showcase'}
-                                  </span>
-                                ))}
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={product.images[0] || 'https://via.placeholder.com/80'}
+                            className="w-12 h-12 rounded-lg object-contain bg-white border border-gray-100 shrink-0 mt-0.5"
+                            alt=""
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                              {product.brand && (
+                                <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                  {product.brand}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}</p>
+
+                            {/* Live Category Assignment Badges */}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                              {assignedCategoryNodes.length === 0 ? (
+                                <span className="text-[10px] text-gray-400 italic">No categories assigned</span>
+                              ) : (
+                                assignedCategoryNodes.map(node => {
+                                  const isVisual = node.level === 'visual_nested_subcategory';
+                                  const isNested = node.level === 'nested_subcategory' || node.level === 'deep_subcategory';
+                                  const isSub = node.level === 'subcategory';
+                                  const badgeClass = isVisual
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : isNested
+                                    ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                    : isSub
+                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                    : 'bg-blue-50 text-blue-800 border-blue-200';
+
+                                  return (
+                                    <span
+                                      key={node.key}
+                                      title={node.breadcrumb}
+                                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeClass} group`}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {isVisual && <Sparkles className="w-2.5 h-2.5 text-emerald-600" />}
+                                      <span className="truncate max-w-[130px]">{node.name}</span>
+                                      <button
+                                        onClick={(e) => handleRemoveCategoryAssignment(e, product, node)}
+                                        title={`Remove from ${node.breadcrumb}`}
+                                        className="text-gray-400 hover:text-red-600 transition-colors ml-0.5"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    </span>
+                                  );
+                                })
+                              )}
+                              <button
+                                onClick={(e) => handleOpenAssignForProduct(e, product)}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
+                              >
+                                <Plus className="w-2.5 h-2.5" /> Assign
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -485,6 +903,13 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                           </span>
                           <button
+                            onClick={(e) => handleOpenAssignForProduct(e, product)}
+                            className="p-1 text-gray-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                            title="Assign to Categories"
+                          >
+                            <Layers className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onEditProduct?.(product);
@@ -512,7 +937,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
                     {isExpanded && (
                       <tr className="bg-gray-50/30">
-                        <td colSpan={8} className="px-8 py-6">
+                        <td colSpan={9} className="px-8 py-6">
                           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                               <h4 className="text-xs font-black uppercase tracking-widest text-gray-500">Variants Table</h4>
@@ -712,6 +1137,23 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           </table>
         </div>
       </div>
+
+      {/* Category Assignment Modal */}
+      <CategoryAssignmentModal
+        isOpen={isAssignmentModalOpen}
+        onClose={() => setIsAssignmentModalOpen(false)}
+        selectedProducts={selectedProductsForModal}
+        allProducts={products}
+        onAssignmentSuccess={() => {
+          setSelectedProductIds([]);
+        }}
+        onAddProductToSelection={(newProd) => {
+          setSelectedProductIds(prev => Array.from(new Set([...prev, newProd.id])));
+        }}
+        onRemoveProductFromSelection={(pid) => {
+          setSelectedProductIds(prev => prev.filter(id => id !== pid));
+        }}
+      />
     </motion.div>
   );
 }

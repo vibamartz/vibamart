@@ -344,21 +344,28 @@ export default function MobileProductListScreen() {
         // 1. Nested SubCategory Filter
         if (effectiveNested) {
           const targetNested = (currentNestedSubCategoryObj?.id || effectiveNested).toLowerCase();
-          const pNested = (product.nestedSubCategoryId || '').toLowerCase();
-          if (pNested !== targetNested) return false;
+          const pNestedList = [product.nestedSubCategoryId, ...(product.nestedSubCategoryIds || [])]
+            .filter(Boolean)
+            .map(n => n.toLowerCase());
+          if (!pNestedList.includes(targetNested)) return false;
         }
         // 2. SubCategory Filter
         else if (effectiveSub) {
           const targetSub = (currentSubCategoryObj?.id || effectiveSub).toLowerCase();
-          const pSub = (product.subCategoryId || '').toLowerCase();
-          if (pSub !== targetSub) return false;
+          const pSubList = [product.subCategoryId, ...(product.subCategoryIds || [])]
+            .filter(Boolean)
+            .map(s => s.toLowerCase());
+          if (!pSubList.includes(targetSub)) return false;
         }
         // 3. Category Filter
         else if (effectiveCat && effectiveCat !== 'all-deals') {
-          const catId = (product.categoryId || '').toLowerCase();
           const target = (currentCategoryObj?.id || effectiveCat).toLowerCase();
           const targetSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj).toLowerCase() : target;
-          if (catId !== target && catId !== targetSlug) return false;
+          const pCatList = [product.categoryId, ...(product.categories || [])]
+            .filter(Boolean)
+            .map(c => c.toLowerCase());
+          const hasMatch = pCatList.some(c => c === target || c === targetSlug);
+          if (!hasMatch) return false;
         }
       }
 
