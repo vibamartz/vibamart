@@ -17,8 +17,6 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
-import { fetchSearchResults } from '../../services/searchApiClient';
-import { AiParsedIntent, RecoveryRecommendation } from '../../backend/search/searchTypes';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -48,14 +46,6 @@ export default function ProductList() {
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
-  const [searchEngineResults, setSearchEngineResults] = useState<Product[] | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [didYouMean, setDidYouMean] = useState<string | null>(null);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [isAiRelaxed, setIsAiRelaxed] = useState<boolean>(false);
-  const [recoveryRecommendations, setRecoveryRecommendations] = useState<RecoveryRecommendation[]>([]);
-  const [aiParsedIntent, setAiParsedIntent] = useState<AiParsedIntent | null>(null);
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
@@ -393,60 +383,6 @@ export default function ProductList() {
     };
   }, [retryKey]);
 
-  // Execute fast server-side intelligent search when query parameter is active
-  useEffect(() => {
-    const qStr = searchParams.get('q');
-    if (!qStr) {
-      setSearchEngineResults(null);
-      setSearchLoading(false);
-      setSearchError(null);
-      setDidYouMean(null);
-      setAiExplanation(null);
-      setIsAiRelaxed(false);
-      setRecoveryRecommendations([]);
-      setAiParsedIntent(null);
-      return;
-    }
-
-    setSearchLoading(true);
-    setSearchError(null);
-
-    const abortCtrl = new AbortController();
-    fetchSearchResults({
-      q: qStr,
-      sortBy: sortBy as any,
-      minPrice: 0,
-      maxPrice: priceRange,
-      minRating,
-      minDiscount,
-      inStock: onlyInStock,
-      brand: selectedBrands.length > 0 ? selectedBrands : undefined,
-      category: searchParams.get('category') || undefined,
-      subCategory: searchParams.get('subCategory') || undefined,
-      limit: 100
-    }, abortCtrl.signal).then(res => {
-      if (res && res.items) {
-        setSearchEngineResults(res.items);
-        setDidYouMean(res.didYouMean || null);
-        setAiExplanation(res.aiExplanation || null);
-        setIsAiRelaxed(Boolean(res.isAiRelaxed));
-        setRecoveryRecommendations(res.recoveryRecommendations || []);
-        setAiParsedIntent(res.aiParsedIntent || null);
-        setSearchError(null);
-      } else {
-        setSearchError("Failed to load search results");
-      }
-      setSearchLoading(false);
-    }).catch(err => {
-      if (err?.name !== 'AbortError') {
-        setSearchError("Failed to connect to search service");
-        setSearchLoading(false);
-      }
-    });
-
-    return () => abortCtrl.abort();
-  }, [searchParams, sortBy, priceRange, minRating, minDiscount, onlyInStock, selectedBrands]);
-
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
     const activeCatId = baseCatId;
@@ -496,13 +432,6 @@ export default function ProductList() {
   }, [selectedCategories, CATEGORIES]);
 
   const filteredProducts = useMemo(() => {
-    if (searchParams.get('q')) {
-      if (searchEngineResults !== null) {
-        return searchEngineResults;
-      }
-      return [];
-    }
-
     let result = allProducts.filter(p => {
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
       if (matchedBanner) {
@@ -601,7 +530,6 @@ export default function ProductList() {
             p.name,
             p.brand,
             p.id,
-            p.sku,
             p.productCode,
             p.productCode ? cleanProductCode(p.productCode) : '',
             p.description,
@@ -625,12 +553,8 @@ export default function ProductList() {
     if (sortBy === 'price-desc') result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    if (result.length > 0) {
-      return result;
-    }
-
     return result;
-  }, [allProducts, searchEngineResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
+  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);
@@ -1075,45 +999,10 @@ export default function ProductList() {
           )}
 
           {searchParams.get('q') && (
-            <div className="space-y-3 mb-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100">
-                  Search results for: "{searchParams.get('q')}"
-                  <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchParams({})} />
-                </p>
-                {aiParsedIntent && aiParsedIntent.detectedEntities.map((ent, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                  >
-                    <Sparkles className="w-3 h-3 text-emerald-600" />
-                    <span className="capitalize text-emerald-600">{ent.type}:</span> {ent.entity}
-                  </span>
-                ))}
-              </div>
-
-              {isAiRelaxed && aiExplanation && (
-                <div className="bg-amber-50/90 border border-amber-200 text-amber-900 text-xs px-4 py-3 rounded-xl flex items-center gap-2.5 shadow-sm">
-                  <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="font-medium">{aiExplanation}</span>
-                </div>
-              )}
-
-              {recoveryRecommendations.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Suggestions:</span>
-                  {recoveryRecommendations.map((rec, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSearchParams({ q: rec.query })}
-                      className="text-xs bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 border border-gray-200 hover:border-emerald-200 px-3 py-1 rounded-full transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      {rec.text}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100 mb-4">
+              Search results for: "{searchParams.get('q')}"
+              <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchParams({})} />
+            </p>
           )}
           <p className="text-gray-500 font-medium">Discover products matching your selection</p>
           {recentSearches.length > 0 && (
@@ -1204,7 +1093,7 @@ export default function ProductList() {
             </div>
 
             {/* Grid / Skeletons / States */}
-            {(loading || (searchParams.get('q') && searchLoading && searchEngineResults === null)) ? (
+            {loading ? (
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
                   {Array(10).fill(0).map((_, i) => (
@@ -1232,21 +1121,7 @@ export default function ProductList() {
                   ))}
                 </div>
               )
-            ) : (searchParams.get('q') && searchError && filteredProducts.length === 0) ? (
-              <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm max-w-md mx-auto my-8">
-                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <RefreshCw className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-bold text-gray-900 mb-1">Search encountered an issue</h3>
-                <p className="text-xs text-gray-500 mb-4">{searchError}</p>
-                <button
-                  onClick={() => setSearchParams(new URLSearchParams(searchParams))}
-                  className="px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            ) : loadError && allProducts.length === 0 && !searchParams.get('q') ? (
+            ) : loadError && allProducts.length === 0 ? (
               <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm max-w-md mx-auto my-8">
                 <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
                   <RefreshCw className="w-6 h-6" />
@@ -1272,35 +1147,14 @@ export default function ProductList() {
                   <Layers className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {searchParams.get('q')
-                    ? `No products found matching "${searchParams.get('q')}"`
-                    : (matchedBanner
-                      ? 'No products assigned to this banner yet.'
-                      : 'No products available in this category yet.')}
+                  {matchedBanner
+                    ? 'No products assigned to this banner yet.'
+                    : 'No products available in this category yet.'}
                 </h3>
-                {didYouMean && (
-                  <div className="my-3 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-xs text-amber-900 font-medium animate-pulse">
-                    <span>Did you mean:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = new URLSearchParams(searchParams);
-                        next.set('q', didYouMean);
-                        setSearchParams(next);
-                      }}
-                      className="font-bold underline text-primary hover:text-primary-hover cursor-pointer"
-                    >
-                      {didYouMean}
-                    </button>
-                    <span>?</span>
-                  </div>
-                )}
                 <p className="text-gray-500 mb-6 text-sm">
-                  {searchParams.get('q')
-                    ? 'Try checking for typos or searching with broader keywords.'
-                    : (matchedBanner
-                      ? 'Check back soon as new products are assigned to this banner offer.'
-                      : 'Check back soon as new products are regularly added to our store.')}
+                  {matchedBanner
+                    ? 'Check back soon as new products are assigned to this banner offer.'
+                    : 'Check back soon as new products are regularly added to our store.'}
                 </p>
                 <button
                   onClick={() => navigate('/products')}

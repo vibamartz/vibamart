@@ -16,7 +16,6 @@ import createPaymentOrderHandler from "./_handlers/payment/create-order";
 import verifyPaymentHandler from "./_handlers/payment/verify";
 import { initializeFirebaseAdmin } from "./_utils";
 import { cicdRouter } from "../src/backend/cicd/routes";
-import { searchRouter } from "../src/backend/search/routes";
 
 initializeFirebaseAdmin();
 
@@ -37,9 +36,6 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/api/v1/cicd", cicdRouter);
 app.use("/api/cicd", cicdRouter);
 app.use("/v1/cicd", cicdRouter);
-
-// ViBa Intelligent Search Engine
-app.use(["/api/search", "/search"], searchRouter);
 
 // Health Check
 app.get(["/api/health", "/health"], (req, res) => {

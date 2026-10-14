@@ -15,24 +15,18 @@ import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
-import { searchRouter } from "./src/backend/search/routes";
-import { SearchService } from "./src/backend/search/searchService";
 
 
 dotenv.config();
 
 try {
   if (!admin.apps.length) {
-    const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-    const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
-    const hasFullCreds = process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey;
-
-    if (hasFullCreds) {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: rawKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n'),
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
       try {
@@ -41,8 +35,7 @@ try {
         console.warn("Firestore settings already initialized or failed:", e);
       }
     } else {
-      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
-      admin.initializeApp({ projectId });
+      admin.initializeApp();
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
       } catch (e) {}
@@ -148,12 +141,6 @@ async function startServer() {
   // ViBa CI/CD API Router
   app.use('/api/v1/cicd', cicdRouter);
   app.use('/api/cicd', cicdRouter);
-
-  // ViBa Intelligent Search Engine Router
-  app.use('/api/search', searchRouter);
-  SearchService.getInstance().initialize().catch((err) => {
-    console.warn("[SEARCH ENGINE] Background search initialization deferred:", err);
-  });
 
   // API routes
   app.get("/api/health", (req, res) => {

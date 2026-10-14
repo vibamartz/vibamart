@@ -9,12 +9,8 @@ let adminInitError: string | null = null;
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-      const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
-      const hasFullCreds = process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey;
-
-      if (hasFullCreds) {
-        let formattedKey = rawKey;
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+        let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
         // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
         // Handle escaped newlines
@@ -33,8 +29,7 @@ export function initializeFirebaseAdmin() {
           console.warn("Firestore settings already initialized or failed:", e);
         }
       } else {
-        const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
-        admin.initializeApp({ projectId });
+        admin.initializeApp();
         try {
           admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
         } catch (e) {}

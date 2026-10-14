@@ -12,8 +12,6 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
-import { fetchSearchResults } from '../../services/searchApiClient';
-import { AiParsedIntent, RecoveryRecommendation } from '../../backend/search/searchTypes';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -34,12 +32,6 @@ export default function MobileProductListScreen() {
   const { categories } = useCategoryStore();
   const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { addItem, items: cartItems } = useCartStore();
-  const [searchEngineResults, setSearchEngineResults] = useState<Product[] | null>(null);
-  const [didYouMean, setDidYouMean] = useState<string | null>(null);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [isAiRelaxed, setIsAiRelaxed] = useState<boolean>(false);
-  const [recoveryRecommendations, setRecoveryRecommendations] = useState<RecoveryRecommendation[]>([]);
-  const [aiParsedIntent, setAiParsedIntent] = useState<AiParsedIntent | null>(null);
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
 
@@ -199,8 +191,6 @@ export default function MobileProductListScreen() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
   // Match banner if accessing a banner route
@@ -291,59 +281,6 @@ export default function MobileProductListScreen() {
     };
   }, [retryKey]);
 
-  // Execute fast server-side intelligent search when query parameter is active
-  useEffect(() => {
-    if (!querySearch) {
-      setSearchEngineResults(null);
-      setSearchLoading(false);
-      setSearchError(null);
-      setDidYouMean(null);
-      setAiExplanation(null);
-      setIsAiRelaxed(false);
-      setRecoveryRecommendations([]);
-      setAiParsedIntent(null);
-      return;
-    }
-
-    setSearchLoading(true);
-    setSearchError(null);
-
-    const abortCtrl = new AbortController();
-    fetchSearchResults({
-      q: querySearch,
-      sortBy: sortBy as any,
-      minPrice: 0,
-      maxPrice,
-      minRating,
-      minDiscount,
-      inStock: inStockOnly,
-      brand: searchParams.get('brand') || (selectedBrand && selectedBrand !== baseBrand ? selectedBrand : undefined),
-      category: searchParams.get('category') || undefined,
-      subCategory: searchParams.get('subCategory') || undefined,
-      limit: 100
-    }, abortCtrl.signal).then(res => {
-      if (res && res.items) {
-        setSearchEngineResults(res.items);
-        setDidYouMean(res.didYouMean || null);
-        setAiExplanation(res.aiExplanation || null);
-        setIsAiRelaxed(Boolean(res.isAiRelaxed));
-        setRecoveryRecommendations(res.recoveryRecommendations || []);
-        setAiParsedIntent(res.aiParsedIntent || null);
-        setSearchError(null);
-      } else {
-        setSearchError("Failed to load search results");
-      }
-      setSearchLoading(false);
-    }).catch(err => {
-      if (err?.name !== 'AbortError') {
-        setSearchError("Failed to connect to search service");
-        setSearchLoading(false);
-      }
-    });
-
-    return () => abortCtrl.abort();
-  }, [querySearch, sortBy, maxPrice, minRating, minDiscount, inStockOnly, selectedBrand]);
-
   // Derive unique brands
   const availableBrands = useMemo(() => {
     const brands = new Set<string>();
@@ -355,14 +292,7 @@ export default function MobileProductListScreen() {
 
   // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
-    if (querySearch) {
-      if (searchEngineResults !== null) {
-        return searchEngineResults;
-      }
-      return [];
-    }
-
-    const localFiltered = products.filter(product => {
+    return products.filter(product => {
       if (product.status === 'inactive') return false;
 
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
@@ -373,22 +303,17 @@ export default function MobileProductListScreen() {
 
       // Query Search
       if (querySearch) {
-        const terms = querySearch.toLowerCase().split(/\s+/).filter(Boolean);
-        const cleanQ = cleanProductCode(querySearch);
-        const searchable = [
-          product.name,
-          product.brand,
-          product.id,
-          product.sku,
-          product.productCode,
-          product.productCode ? cleanProductCode(product.productCode) : '',
-          product.description,
-          product.fullDescription,
-          ...(product.tags || [])
-        ].filter(Boolean).join(' ').toLowerCase();
-
-        const matches = terms.every(t => searchable.includes(t) || (cleanProductCode(t).length > 0 && searchable.includes(cleanProductCode(t))));
-        if (!matches) return false;
+        const q = querySearch.toLowerCase();
+        const cleanQ = cleanProductCode(q);
+        const matchesName = product.name.toLowerCase().includes(q);
+        const matchesBrand = product.brand?.toLowerCase().includes(q);
+        const matchesId = product.id.toLowerCase().includes(q);
+        const matchesCode = product.productCode && (
+          product.productCode.toLowerCase().includes(q) ||
+          (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
+        );
+        const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
+        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
       }
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
@@ -475,13 +400,7 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-
-    if (localFiltered.length > 0) {
-      return localFiltered;
-    }
-
-    return localFiltered;
-  }, [products, searchEngineResults, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
     (selectedSubCategory !== baseSubId ? 1 : 0) +
@@ -857,48 +776,6 @@ export default function MobileProductListScreen() {
         />
       )}
 
-      {querySearch && (
-        <div className="space-y-2 px-1 mb-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-bold">
-              "{querySearch}"
-              <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchParams({})} />
-            </span>
-            {aiParsedIntent && aiParsedIntent.detectedEntities.map((ent, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              >
-                <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                <span className="capitalize text-emerald-600">{ent.type}:</span> {ent.entity}
-              </span>
-            ))}
-          </div>
-
-          {isAiRelaxed && aiExplanation && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-3 py-2 rounded-xl flex items-center gap-2 shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span className="font-medium text-[11px]">{aiExplanation}</span>
-            </div>
-          )}
-
-          {recoveryRecommendations.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Try:</span>
-              {recoveryRecommendations.map((rec, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSearchParams({ q: rec.query })}
-                  className="text-[11px] bg-gray-50 text-gray-700 border border-gray-200 px-2.5 py-0.5 rounded-full whitespace-nowrap"
-                >
-                  {rec.text}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Active Filter Pills */}
       {activeFilterCount > 0 && (
         <div className="flex items-center justify-end px-1">
@@ -912,7 +789,7 @@ export default function MobileProductListScreen() {
       )}
 
       {/* Product List Grid */}
-      {(loading || (querySearch && searchLoading && searchEngineResults === null)) ? (
+      {loading ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-2 gap-3">
             {Array(6).fill(0).map((_, i) => (
@@ -944,21 +821,7 @@ export default function MobileProductListScreen() {
             ))}
           </div>
         )
-      ) : (querySearch && searchError && filteredProducts.length === 0) ? (
-        <div className="bg-white rounded-2xl p-6 text-center border border-yellow-100 space-y-3 my-4">
-          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-            <RefreshCw className="w-5 h-5" />
-          </div>
-          <h4 className="text-xs font-bold text-gray-900">Search encountered an issue</h4>
-          <p className="text-[11px] text-gray-500">{searchError}</p>
-          <button
-            onClick={() => setSearchParams(new URLSearchParams(searchParams))}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : loadError && products.length === 0 && !querySearch ? (
+      ) : loadError && products.length === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center border border-yellow-100 space-y-3 my-4">
           <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
             <RefreshCw className="w-5 h-5" />
@@ -1079,31 +942,10 @@ export default function MobileProductListScreen() {
             <Layers className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold text-gray-800">
-            {querySearch
-              ? `No products found matching "${querySearch}"`
-              : (matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.')}
+            {matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.'}
           </h4>
-          {didYouMean && (
-            <div className="my-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-xs text-amber-900 font-medium">
-              <span>Did you mean:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  next.set('q', didYouMean);
-                  setSearchParams(next);
-                }}
-                className="font-bold underline text-emerald-700"
-              >
-                {didYouMean}
-              </button>
-              <span>?</span>
-            </div>
-          )}
           <p className="text-xs text-gray-500">
-            {querySearch
-              ? 'Try checking for spelling errors or searching for a broader term.'
-              : (matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.')}
+            {matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.'}
           </p>
           <button
             onClick={() => navigate('/products')}
