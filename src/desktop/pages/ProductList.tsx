@@ -6,7 +6,7 @@ import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore, useVisu
 import { Product, Banner } from '../../shared/types';
 import { toast } from 'react-hot-toast';
 import {
-  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight, RefreshCw
+  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight, RefreshCw, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
@@ -48,27 +48,32 @@ export default function ProductList() {
   const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // Fetch results from Search Engine API when query 'q' is present
   useEffect(() => {
     const qStr = searchParams.get('q');
     if (!qStr) {
       setSearchResults(null);
+      setSearchLoading(false);
       return;
     }
 
     let isCurrent = true;
+    setSearchLoading(true);
     searchApiClient.search({
       q: qStr,
       limit: 100
     }).then(res => {
       if (isCurrent) {
         setSearchResults(res.products);
+        setSearchLoading(false);
       }
     }).catch(err => {
       console.warn('[ProductList] Search API error, falling back to local dataset:', err);
       if (isCurrent) {
         setSearchResults(null);
+        setSearchLoading(false);
       }
     });
 
@@ -1124,7 +1129,7 @@ export default function ProductList() {
             </div>
 
             {/* Grid / Skeletons / States */}
-            {loading ? (
+            {(searchParams.get('q') ? (searchLoading || searchResults === null) : loading) ? (
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
                   {Array(10).fill(0).map((_, i) => (
@@ -1175,21 +1180,28 @@ export default function ProductList() {
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-200 max-w-lg mx-auto my-8">
                 <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Layers className="w-8 h-8" />
+                  {searchParams.get('q') ? <Search className="w-8 h-8" /> : <Layers className="w-8 h-8" />}
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {matchedBanner
+                  {searchParams.get('q')
+                    ? `No products found matching "${searchParams.get('q')}"`
+                    : matchedBanner
                     ? 'No products assigned to this banner yet.'
                     : 'No products available in this category yet.'}
                 </h3>
                 <p className="text-gray-500 mb-6 text-sm">
-                  {matchedBanner
+                  {searchParams.get('q')
+                    ? 'Try checking for typos or searching for broader terms like "boAt", "kurta", or "shoes".'
+                    : matchedBanner
                     ? 'Check back soon as new products are assigned to this banner offer.'
                     : 'Check back soon as new products are regularly added to our store.'}
                 </p>
                 <button
-                  onClick={() => navigate('/products')}
-                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+                  onClick={() => {
+                    setSearchParams({});
+                    navigate('/products');
+                  }}
+                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 cursor-pointer"
                 >
                   Browse All Products
                 </button>

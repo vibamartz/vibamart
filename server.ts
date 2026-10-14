@@ -16,6 +16,7 @@ import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 import { searchRouter } from "./src/backend/search/routes";
+import { searchService } from "./src/backend/search/searchService";
 
 
 dotenv.config();
@@ -145,6 +146,7 @@ async function startServer() {
 
   // ViBa Search Engine API Router
   app.use('/api/search', searchRouter);
+  searchService.initialize().catch(err => console.warn('[Server] SearchService init warning:', err));
 
   // API routes
   app.get("/api/health", (req, res) => {

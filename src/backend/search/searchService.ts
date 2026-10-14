@@ -1,9 +1,54 @@
 import admin from 'firebase-admin';
+import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
+import { getFirestore as getClientFirestore, collection as clientCollection, getDocs as getClientDocs, onSnapshot as clientOnSnapshot } from 'firebase/firestore';
 import { ViBaSearchEngine } from './searchEngine';
 import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
 import { Product } from '../../shared/types';
 import { searchCache } from './searchCache';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
+
+function getValidProjectId(): string {
+  const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+  if (!envId || envId === 'your_firebase_project_id' || envId.includes('dummy') || envId.includes('placeholder')) {
+    return 'viba-mart-f46a4';
+  }
+  return envId;
+}
+
+function hasAdminCredentials(): boolean {
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const isPlaceholderProj = !projectId || projectId === 'your_firebase_project_id';
+  return Boolean(!isPlaceholderProj && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey && admin.apps.length > 0);
+}
+
+function getFallbackClientDb() {
+  const projectId = getValidProjectId();
+  const existingApp = getClientApps().find(a => a.name === 'search-backend-fallback');
+  const app = existingApp || initClientApp({ projectId }, 'search-backend-fallback');
+  return getClientFirestore(app);
+}
+
+async function fetchFirestoreCollectionDocs(collectionName: string): Promise<{ id: string; data: any }[]> {
+  if (hasAdminCredentials()) {
+    try {
+      const snap = await admin.firestore().collection(collectionName).get();
+      return snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+    } catch (err) {
+      console.warn(`[SearchService] Admin Firestore read for ${collectionName} failed:`, err);
+    }
+  }
+
+  try {
+    const clientDb = getFallbackClientDb();
+    const snap = await getClientDocs(clientCollection(clientDb, collectionName));
+    return snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+  } catch (err) {
+    console.error(`[SearchService] Fallback Client SDK read for ${collectionName} failed:`, err);
+    return [];
+  }
+}
 
 export class SearchService {
   private engine: ViBaSearchEngine;
@@ -58,12 +103,9 @@ export class SearchService {
    */
   private async loadCategoryMaps(): Promise<void> {
     try {
-      if (!admin.apps.length) return;
-      const db = admin.firestore();
-      const catSnapshot = await db.collection('categories').get();
-
-      catSnapshot.docs.forEach(docSnap => {
-        const cat = docSnap.data();
+      const catDocs = await fetchFirestoreCollectionDocs('categories');
+      catDocs.forEach(docSnap => {
+        const cat = docSnap.data;
         const catId = docSnap.id;
         const catName = cat.name || '';
         this.categoryNameMap[catId] = catName;
@@ -93,19 +135,12 @@ export class SearchService {
    */
   public async indexAllProducts(): Promise<number> {
     try {
-      if (!admin.apps.length) {
-        console.warn('[SearchService] Firebase Admin not initialized, skipping Firestore product indexing.');
-        return 0;
-      }
-
-      const db = admin.firestore();
-
       // Load reward offers to identify exclusive reward items
       try {
-        const rewardSnap = await db.collection('reward_offers').get();
+        const rewardDocs = await fetchFirestoreCollectionDocs('reward_offers');
         const rewardIds = new Set<string>();
-        rewardSnap.docs.forEach(doc => {
-          const data = doc.data();
+        rewardDocs.forEach(doc => {
+          const data = doc.data;
           if (Array.isArray(data.productIds)) {
             data.productIds.forEach((id: string) => {
               if (id) rewardIds.add(id);
@@ -117,10 +152,10 @@ export class SearchService {
         console.warn('[SearchService] Error loading reward product IDs:', err);
       }
 
-      const productsSnap = await db.collection('products').get();
-      const products: Product[] = productsSnap.docs.map(doc => ({
+      const productDocs = await fetchFirestoreCollectionDocs('products');
+      const products: Product[] = productDocs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data
       } as Product));
 
       this.engine.indexProducts(
@@ -148,38 +183,59 @@ export class SearchService {
       this.unsubscribeFirestore = null;
     }
 
-    try {
-      if (!admin.apps.length) return;
-      const db = admin.firestore();
+    const handleSnapshot = (snapshot: any) => {
+      let hasChanges = false;
+      snapshot.docChanges().forEach((change: any) => {
+        const product = { id: change.doc.id, ...change.doc.data() } as Product;
+        const catName = this.categoryNameMap[product.categoryId] || '';
+        const subName = product.subCategoryId ? (this.subCategoryNameMap[product.subCategoryId] || '') : '';
+        const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
 
-      this.unsubscribeFirestore = db.collection('products').onSnapshot(
-        snapshot => {
-          let hasChanges = false;
-          snapshot.docChanges().forEach(change => {
-            const product = { id: change.doc.id, ...change.doc.data() } as Product;
-            const catName = this.categoryNameMap[product.categoryId] || '';
-            const subName = product.subCategoryId ? (this.subCategoryNameMap[product.subCategoryId] || '') : '';
-            const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
+        if (change.type === 'added' || change.type === 'modified') {
+          this.engine.upsertProduct(product, catName, subName, nestedName);
+          hasChanges = true;
+        } else if (change.type === 'removed') {
+          this.engine.removeProduct(product.id);
+          hasChanges = true;
+        }
+      });
 
-            if (change.type === 'added' || change.type === 'modified') {
-              this.engine.upsertProduct(product, catName, subName, nestedName);
-              hasChanges = true;
-            } else if (change.type === 'removed') {
-              this.engine.removeProduct(product.id);
-              hasChanges = true;
-            }
-          });
+      if (hasChanges) {
+        searchCache.invalidate();
+      }
+    };
 
-          if (hasChanges) {
-            searchCache.invalidate();
+    if (hasAdminCredentials()) {
+      try {
+        const db = admin.firestore();
+        this.unsubscribeFirestore = db.collection('products').onSnapshot(
+          snapshot => handleSnapshot(snapshot),
+          error => {
+            console.warn('[SearchService] Admin realtime listener error, falling back to Client SDK:', error);
+            this.attachClientRealtimeListener(handleSnapshot);
           }
-        },
+        );
+        return;
+      } catch (err) {
+        console.warn('[SearchService] Could not attach Admin realtime listener, using fallback:', err);
+      }
+    }
+
+    this.attachClientRealtimeListener(handleSnapshot);
+  }
+
+  private attachClientRealtimeListener(handleSnapshot: (snapshot: any) => void): void {
+    try {
+      const clientDb = getFallbackClientDb();
+      this.unsubscribeFirestore = clientOnSnapshot(
+        clientCollection(clientDb, 'products'),
+        snapshot => handleSnapshot(snapshot),
         error => {
-          console.error('[SearchService] Firestore realtime indexing listener error:', error);
+          console.warn('[SearchService] Client SDK realtime listener error:', error);
         }
       );
     } catch (err) {
-      console.warn('[SearchService] Could not attach Firestore realtime listener:', err);
+      console.warn('[SearchService] Failed to attach Client SDK realtime listener:', err);
     }
   }
 

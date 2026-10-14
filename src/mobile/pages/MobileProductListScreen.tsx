@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { 
-  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles
+  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles, Search
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -36,26 +36,31 @@ export default function MobileProductListScreen() {
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // Fetch from Search Engine API when querySearch is present
   useEffect(() => {
     if (!querySearch) {
       setSearchResults(null);
+      setSearchLoading(false);
       return;
     }
 
     let isCurrent = true;
+    setSearchLoading(true);
     searchApiClient.search({
       q: querySearch,
       limit: 100
     }).then(res => {
       if (isCurrent) {
         setSearchResults(res.products);
+        setSearchLoading(false);
       }
     }).catch(err => {
       console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
       if (isCurrent) {
         setSearchResults(null);
+        setSearchLoading(false);
       }
     });
 
@@ -819,7 +824,7 @@ export default function MobileProductListScreen() {
       )}
 
       {/* Product List Grid */}
-      {loading ? (
+      {(querySearch ? (searchLoading || searchResults === null) : loading) ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-2 gap-3">
             {Array(6).fill(0).map((_, i) => (
@@ -969,17 +974,28 @@ export default function MobileProductListScreen() {
       ) : (
         <div className="bg-white rounded-2xl p-8 text-center border border-yellow-100 space-y-3">
           <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto text-indigo-600">
-            <Layers className="w-6 h-6" />
+            {querySearch ? <Search className="w-6 h-6" /> : <Layers className="w-6 h-6" />}
           </div>
           <h4 className="text-sm font-bold text-gray-800">
-            {matchedBanner ? 'No products assigned to this banner yet.' : 'No products available in this category yet.'}
+            {querySearch
+              ? `No products found matching "${querySearch}"`
+              : matchedBanner
+              ? 'No products assigned to this banner yet.'
+              : 'No products available in this category yet.'}
           </h4>
           <p className="text-xs text-gray-500">
-            {matchedBanner ? 'Check back soon as new products are assigned to this offer.' : 'Check back soon as new inventory is added regularly.'}
+            {querySearch
+              ? 'Try searching with different keywords like "boAt", "kurta", or "shoes".'
+              : matchedBanner
+              ? 'Check back soon as new products are assigned to this offer.'
+              : 'Check back soon as new inventory is added regularly.'}
           </p>
           <button
-            onClick={() => navigate('/products')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm active:scale-95"
+            onClick={() => {
+              setSearchParams({});
+              navigate('/products');
+            }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer"
           >
             Browse All Products
           </button>
