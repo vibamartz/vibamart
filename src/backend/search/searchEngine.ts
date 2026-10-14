@@ -6,6 +6,7 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { ZeroResultRecovery } from './zeroResultRecovery';
 import { searchCurationManager } from './searchCuration';
 import { parseIntentRuleBased } from './semanticSearch';
+import { SpellingCorrectionEngine } from './spellingCorrection';
 
 export interface IndexedProductDoc {
   id: string;
@@ -356,19 +357,12 @@ export class ViBaSearchEngine {
     let matchedDocIds: Set<string> | null = null;
     let scoreMap: Map<string, number> = new Map();
     let exactMatchFound = false;
+    let hasAutoCorrected = false;
+    let correctedQuery: string | undefined = undefined;
 
-    // Natural Language / Semantic Intent Extraction
-    let semanticIntent = undefined;
-    let queryToSearch = rawQuery;
+    const allDocs = Array.from(this.indexedDocs.values());
 
-    if (rawQuery.length > 0) {
-      semanticIntent = parseIntentRuleBased(rawQuery);
-      if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
-        queryToSearch = semanticIntent.cleanKeyword;
-      }
-    }
-
-    // Check for exact SKU or 12-digit Product Code match
+    // Check for exact SKU or 12-digit Product Code match first
     if (rawQuery.length > 0) {
       const isExactCode = cleanDigits.length >= 10;
       const lowerQuery = rawQuery.toLowerCase();
@@ -385,7 +379,31 @@ export class ViBaSearchEngine {
           scoreMap.set(id, 10000); // Top score priority
         }
       }
+    }
 
+    // Automatic Spelling Correction & Typo Tolerance Detection
+    let effectiveQuery = rawQuery;
+    if (rawQuery.length > 0 && !exactMatchFound && !params.noAutoCorrect) {
+      const spellingResult = SpellingCorrectionEngine.correct(rawQuery, allDocs);
+      if (spellingResult.hasCorrection) {
+        effectiveQuery = spellingResult.correctedQuery;
+        hasAutoCorrected = true;
+        correctedQuery = spellingResult.correctedQuery;
+      }
+    }
+
+    // Natural Language / Semantic Intent Extraction on effective query
+    let semanticIntent = undefined;
+    let queryToSearch = effectiveQuery;
+
+    if (effectiveQuery.length > 0) {
+      semanticIntent = parseIntentRuleBased(effectiveQuery);
+      if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
+        queryToSearch = semanticIntent.cleanKeyword;
+      }
+    }
+
+    if (rawQuery.length > 0) {
       // Check curation pinned rules
       const pinnedProductIds = searchCurationManager.getPinnedProductIds(rawQuery);
       pinnedProductIds.forEach((pid, idx) => {
@@ -394,7 +412,7 @@ export class ViBaSearchEngine {
 
       // If not exact unique match or we want full text retrieval
       const synonymTokens = expandQueryWithSynonyms(queryToSearch);
-      const searchTerms = Array.from(new Set([queryToSearch, rawQuery, ...synonymTokens]));
+      const searchTerms = Array.from(new Set([queryToSearch, effectiveQuery, rawQuery, ...synonymTokens]));
 
       // Execute MiniSearch queries
       try {
@@ -592,10 +610,11 @@ export class ViBaSearchEngine {
 
     // Zero-Result Recovery: generate suggestions and alternate query if 0 results
     let recovery: any = undefined;
-    let correctedQuery: string | undefined = undefined;
     if (candidateDocs.length === 0 && rawQuery.length > 0) {
       recovery = ZeroResultRecovery.recover(rawQuery, Array.from(this.indexedDocs.values()));
-      correctedQuery = recovery.suggestedQuery;
+      if (recovery.suggestedQuery && !params.noAutoCorrect) {
+        correctedQuery = recovery.suggestedQuery;
+      }
     }
 
     // Compute Facets dynamically across all filtered candidates
@@ -646,6 +665,8 @@ export class ViBaSearchEngine {
       executionTimeMs,
       query: rawQuery,
       exactMatch: exactMatchFound,
+      hasAutoCorrected,
+      originalQuery: hasAutoCorrected ? rawQuery : undefined,
       correctedQuery,
       semanticIntent,
       recovery
@@ -712,9 +733,40 @@ export class ViBaSearchEngine {
           slug: doc.raw.slug || doc.id
         });
         seenIds.add(doc.id);
-        if (suggestions.length >= limit) break;
       }
     } catch {}
+
+    // 2.5 Fallback: If 0 product suggestions found and query has typos, attempt spelling correction
+    if (suggestions.length === 0 && query.length >= 3) {
+      const spelling = SpellingCorrectionEngine.correct(query, Array.from(this.indexedDocs.values()));
+      if (spelling.hasCorrection) {
+        try {
+          const typoRes = this.miniSearch.search(spelling.correctedQuery, {
+            prefix: true,
+            fuzzy: 0.2,
+            combineWith: 'AND'
+          });
+          for (const res of typoRes) {
+            if (seenIds.has(res.id)) continue;
+            const doc = this.indexedDocs.get(res.id);
+            if (!doc || !doc.isVisible || doc.status === 'inactive') continue;
+
+            suggestions.push({
+              id: doc.id,
+              title: doc.name,
+              type: 'product',
+              subtitle: `Did you mean: ${spelling.correctedQuery}`,
+              imageUrl: doc.raw.primaryImage || doc.raw.images?.[0],
+              price: doc.price,
+              discountPrice: doc.discountPrice,
+              slug: doc.raw.slug || doc.id
+            });
+            seenIds.add(doc.id);
+            if (suggestions.length >= limit) break;
+          }
+        } catch {}
+      }
+    }
 
     // 3. Category & Brand matching suggestions
     const matchedCategories = new Set<string>();

@@ -48,6 +48,12 @@ export default function ProductList() {
   const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searchRecovery, setSearchRecovery] = useState<any | null>(null);
+  const [searchCorrection, setSearchCorrection] = useState<{
+    hasAutoCorrected?: boolean;
+    originalQuery?: string;
+    correctedQuery?: string;
+  } | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCompleted, setSearchCompleted] = useState(false);
 
@@ -56,6 +62,8 @@ export default function ProductList() {
     const qStr = searchParams.get('q');
     if (!qStr) {
       setSearchResults(null);
+      setSearchRecovery(null);
+      setSearchCorrection(null);
       setSearchLoading(false);
       setSearchCompleted(false);
       return;
@@ -75,12 +83,21 @@ export default function ProductList() {
     setSearchLoading(true);
     setSearchCompleted(false);
 
+    const noAutoCorrectParam = searchParams.get('noAutoCorrect') === '1' || searchParams.get('noAutoCorrect') === 'true';
+
     searchApiClient.search({
       q: qStr,
-      limit: 100
+      limit: 100,
+      noAutoCorrect: noAutoCorrectParam
     }).then(res => {
       if (isCurrent) {
         setSearchResults(res.products || []);
+        setSearchRecovery(res.recovery || null);
+        setSearchCorrection(res.hasAutoCorrected ? {
+          hasAutoCorrected: res.hasAutoCorrected,
+          originalQuery: res.originalQuery,
+          correctedQuery: res.correctedQuery
+        } : null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -88,6 +105,8 @@ export default function ProductList() {
       console.warn('[ProductList] Search API error, falling back to local dataset:', err);
       if (isCurrent) {
         setSearchResults([]);
+        setSearchRecovery(null);
+        setSearchCorrection(null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -1050,6 +1069,32 @@ export default function ProductList() {
             />
           )}
 
+          {/* Spelling Auto-Correction Notice */}
+          {searchCorrection?.hasAutoCorrected && searchCorrection?.correctedQuery && searchCorrection?.originalQuery && (
+            <div className="mb-4 p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-xs text-gray-700">
+                  Showing results for <span className="font-black text-gray-950">"{searchCorrection.correctedQuery}"</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Search instead for</span>
+                <button
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('q', searchCorrection.originalQuery!);
+                    next.set('noAutoCorrect', '1');
+                    setSearchParams(next);
+                  }}
+                  className="text-xs font-bold text-primary underline hover:text-primary-hover cursor-pointer"
+                >
+                  "{searchCorrection.originalQuery}"
+                </button>
+              </div>
+            </div>
+          )}
+
           {searchParams.get('q') && (
             <p className="inline-flex items-center gap-2 bg-blue-50 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-blue-100 mb-4">
               Search results for: "{searchParams.get('q')}"
@@ -1194,33 +1239,67 @@ export default function ProductList() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-gray-200 max-w-lg mx-auto my-8">
-                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm max-w-lg mx-auto my-8">
+                <div className="w-16 h-16 bg-red-50 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
                   {searchParams.get('q') ? <Search className="w-8 h-8" /> : <Layers className="w-8 h-8" />}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-black text-gray-900 mb-2">
                   {searchParams.get('q')
                     ? `No products found matching "${searchParams.get('q')}"`
                     : matchedBanner
                     ? 'No products assigned to this banner yet.'
                     : 'No products available in this category yet.'}
                 </h3>
-                <p className="text-gray-500 mb-6 text-sm">
+                <p className="text-gray-500 mb-4 text-xs font-medium">
                   {searchParams.get('q')
-                    ? 'Try checking for typos or searching for broader terms like "boAt", "kurta", or "shoes".'
+                    ? 'Try checking for typos or searching for broader terms like "kurti", "t-shirt", or "shoes".'
                     : matchedBanner
                     ? 'Check back soon as new products are assigned to this banner offer.'
                     : 'Check back soon as new products are regularly added to our store.'}
                 </p>
-                <button
-                  onClick={() => {
-                    setSearchParams({});
-                    navigate('/products');
-                  }}
-                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 cursor-pointer"
-                >
-                  Browse All Products
-                </button>
+
+                {/* Did you mean recovery suggestion */}
+                {searchRecovery?.suggestedQuery && (
+                  <div className="mb-6 p-3 bg-red-50/60 rounded-xl border border-red-100 inline-flex items-center gap-2 text-xs">
+                    <span className="text-gray-600 font-medium">Did you mean:</span>
+                    <button
+                      onClick={() => setSearchParams({ q: searchRecovery.suggestedQuery })}
+                      className="font-black text-primary hover:underline cursor-pointer"
+                    >
+                      "{searchRecovery.suggestedQuery}"
+                    </button>
+                  </div>
+                )}
+
+                {/* Suggested Categories */}
+                {searchRecovery?.suggestedCategories && searchRecovery.suggestedCategories.length > 0 && (
+                  <div className="mb-6">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Explore related categories</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {searchRecovery.suggestedCategories.slice(0, 4).map((c: string) => (
+                        <button
+                          key={c}
+                          onClick={() => setSearchParams({ q: c })}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-full transition-colors cursor-pointer"
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    onClick={() => {
+                      setSearchParams({});
+                      navigate('/products');
+                    }}
+                    className="bg-primary text-white px-8 py-3 rounded-xl font-bold shadow-md shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95 cursor-pointer"
+                  >
+                    Browse All Products
+                  </button>
+                </div>
               </div>
             )}
 

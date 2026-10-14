@@ -1,4 +1,5 @@
 import { IndexedProductDoc } from './searchEngine';
+import { SpellingCorrectionEngine } from './spellingCorrection';
 
 export interface RecoveryRecommendation {
   suggestedQuery?: string;
@@ -69,38 +70,10 @@ export class ZeroResultRecovery {
       }
     }
 
-    // Attempt to correct each token
-    const correctedTokens: string[] = [];
-    let hasCorrection = false;
-
-    for (const token of tokens) {
-      if (wordFreq.has(token)) {
-        correctedTokens.push(token);
-        continue;
-      }
-
-      // Find closest word in catalog vocabulary
-      let bestWord = token;
-      let minDistance = 3; // Max allowable distance
-      let maxFrequency = 0;
-
-      for (const [candidate, freq] of wordFreq.entries()) {
-        if (Math.abs(candidate.length - token.length) > 2) continue;
-        const dist = ZeroResultRecovery.levenshtein(token, candidate);
-        if (dist < minDistance || (dist === minDistance && freq > maxFrequency)) {
-          minDistance = dist;
-          bestWord = candidate;
-          maxFrequency = freq;
-        }
-      }
-
-      if (bestWord !== token) {
-        hasCorrection = true;
-        correctedTokens.push(bestWord);
-      } else {
-        correctedTokens.push(token);
-      }
-    }
+    // Run intelligent spelling correction
+    const spellingResult = SpellingCorrectionEngine.correct(query, allDocs);
+    const hasCorrection = spellingResult.hasCorrection;
+    const correctedQuery = spellingResult.correctedQuery;
 
     // Category suggestions matching query tokens
     const suggestedCats: string[] = [];
@@ -121,7 +94,7 @@ export class ZeroResultRecovery {
     }
 
     return {
-      suggestedQuery: hasCorrection ? correctedTokens.join(' ') : undefined,
+      suggestedQuery: hasCorrection ? correctedQuery : undefined,
       suggestedCategories: suggestedCats.slice(0, 3),
       suggestedBrands: suggestedBrands.slice(0, 3)
     };

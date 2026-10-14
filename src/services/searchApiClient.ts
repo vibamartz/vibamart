@@ -36,6 +36,7 @@ class SearchApiClient {
       if (params.sortBy) queryParams.sortBy = params.sortBy;
       if (params.page !== undefined) queryParams.page = params.page;
       if (params.limit !== undefined) queryParams.limit = params.limit;
+      if (params.noAutoCorrect) queryParams.noAutoCorrect = 'true';
 
       const response = await axios.get('/api/search', {
         params: queryParams,

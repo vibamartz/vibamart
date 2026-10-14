@@ -35,7 +35,8 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     };
   }
 
-  let text = trimmed.toLowerCase();
+  // Normalize numbers with commas like "1,500" or "15,000" into "1500", "15000"
+  let text = trimmed.toLowerCase().replace(/(?<=\d),(?=\d)/g, '');
   const detectedFilters: Record<string, any> = {};
   const semanticTags: string[] = [];
   let isNaturalLanguage = false;
@@ -84,7 +85,12 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     }
   }
 
-  // 2. Discount Intent: "X% off", "above X% discount", "min X% discount"
+  // 2. Discount Intent: "discounted", "on sale", "X% off", "above X% discount", "min X% discount"
+  if (/\b(?:discounted|on\s+sale|with\s+discount)\b/i.test(text)) {
+    detectedFilters.minDiscount = 1;
+    text = text.replace(/\b(?:discounted|on\s+sale|with\s+discount)\b/gi, ' ');
+    isNaturalLanguage = true;
+  }
   const discountMatch = text.match(/\b(?:at\s+least|above|over|min(?:imum)?\s+)?(\d+)\s*%\s*(?:off|discount)?\b/i);
   if (discountMatch) {
     detectedFilters.minDiscount = Number(discountMatch[1]);
@@ -187,7 +193,7 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     detectedFilters.category = 'perfume';
   } else if (/\b(?:jeans|denims?|trousers?|pants?)\b/i.test(text)) {
     detectedFilters.category = 'jeans';
-  } else if (/\b(?:accessories|handbags?|wallets?)\b/i.test(text)) {
+  } else if (/\b(?:accessories|fashion\s+accessories|handbags?|wallets?)\b/i.test(text)) {
     detectedFilters.category = 'accessories';
   }
 
@@ -220,9 +226,9 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   }
 
   // 11. Clean residual keyword
-  // Remove filler conversational words like: "i want", "looking for", "show me", "good", "best", "give me", "buy", "priced"
+  // Remove filler conversational words like: "i want", "looking for", "show me", "good", "best", "give me", "buy", "priced", "branded", "latest"
   const cleaned = text
-    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|good|great|for|priced|costing|rated)\b/gi, ' ')
+    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|in|of|the|a|an|good|great|for|priced|costing|rated|branded|latest|discounted)\b/gi, ' ')
     .replace(/[^\w\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

@@ -20,6 +20,7 @@ export interface SearchParams {
   limit?: number;
   includeDrafts?: boolean;
   useAI?: boolean;
+  noAutoCorrect?: boolean;
 }
 
 export interface SearchFacetValue {
@@ -66,6 +67,8 @@ export interface SearchResult {
   executionTimeMs: number;
   query?: string;
   exactMatch?: boolean;
+  hasAutoCorrected?: boolean;
+  originalQuery?: string;
   correctedQuery?: string;
   semanticIntent?: SemanticIntentData;
   recovery?: {

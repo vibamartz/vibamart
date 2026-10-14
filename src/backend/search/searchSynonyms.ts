@@ -6,7 +6,7 @@
 export const DEFAULT_SYNONYM_GROUPS: string[][] = [
   // Mobiles & Electronics
   ['mobile', 'phone', 'smartphone', 'cellphone', 'handset', 'android', 'iphone'],
-  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio'],
+  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio', 'wireless earbuds'],
   ['laptop', 'notebook', 'macbook', 'computer', 'pc'],
   ['tv', 'television', 'smart tv', 'led', 'display', 'screen'],
   ['charger', 'adapter', 'charging cable', 'power brick'],
@@ -14,9 +14,9 @@ export const DEFAULT_SYNONYM_GROUPS: string[][] = [
   ['powerbank', 'power bank', 'portable charger'],
 
   // Fashion & Apparel
-  ['shoe', 'shoes', 'sneaker', 'sneakers', 'footwear', 'kicks', 'boots', 'sandals', 'slippers'],
+  ['shoe', 'shoes', 'sneaker', 'sneakers', 'sports shoes', 'footwear', 'kicks', 'boots', 'sandals', 'slippers'],
   ['kurti', 'kurtis', 'kurta', 'kurtas', 'ladies kurti'],
-  ['shirt', 'tshirt', 't-shirt', 'tshrt', 'tee', 'top', 'formal shirt', 'casual shirt'],
+  ['shirt', 'tshirt', 't-shirt', 'tee', 'top', 'formal shirt', 'casual shirt'],
   ['trouser', 'trousers', 'pants', 'jeans', 'pant', 'bottoms', 'chinos', 'denim'],
   ['dress', 'frock', 'gown', 'suit'],
   ['jacket', 'coat', 'blazer', 'hoodie', 'sweatshirt'],
@@ -80,6 +80,20 @@ export function getSynonymsForTerm(term: string): string[] {
   const normalized = term.toLowerCase().trim();
   const found = synonymLookup.get(normalized);
   return found ? Array.from(found) : [];
+}
+
+/**
+ * Check if a term exists in configured/built-in synonyms.
+ */
+export function hasSynonym(term: string): boolean {
+  return synonymLookup.has(term.toLowerCase().trim());
+}
+
+/**
+ * Retrieve all registered synonym terms.
+ */
+export function getAllSynonymTerms(): string[] {
+  return Array.from(synonymLookup.keys());
 }
 
 /**

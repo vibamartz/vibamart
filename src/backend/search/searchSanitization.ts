@@ -83,6 +83,7 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
   const inStock = raw.inStock === true || raw.inStock === 'true' || raw.inStock === '1';
   const includeDrafts = raw.includeDrafts === true || raw.includeDrafts === 'true';
   const useAI = raw.useAI === true || raw.useAI === 'true' || raw.ai === 'true' || raw.ai === '1';
+  const noAutoCorrect = raw.noAutoCorrect === true || raw.noAutoCorrect === 'true' || raw.noAutoCorrect === '1';
 
   // Valid sort options whitelist
   const validSorts = ['relevance', 'price-asc', 'price-desc', 'newest', 'rating', 'popularity'];
@@ -114,6 +115,7 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
     inStock,
     includeDrafts,
     useAI,
+    noAutoCorrect,
     sortBy,
     page,
     limit

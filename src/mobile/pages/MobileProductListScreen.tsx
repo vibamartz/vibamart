@@ -36,6 +36,11 @@ export default function MobileProductListScreen() {
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searchCorrection, setSearchCorrection] = useState<{
+    hasAutoCorrected?: boolean;
+    originalQuery?: string;
+    correctedQuery?: string;
+  } | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCompleted, setSearchCompleted] = useState(false);
 
@@ -43,6 +48,7 @@ export default function MobileProductListScreen() {
   useEffect(() => {
     if (!querySearch) {
       setSearchResults(null);
+      setSearchCorrection(null);
       setSearchLoading(false);
       setSearchCompleted(false);
       return;
@@ -62,12 +68,20 @@ export default function MobileProductListScreen() {
     setSearchLoading(true);
     setSearchCompleted(false);
 
+    const noAutoCorrectParam = searchParams.get('noAutoCorrect') === '1' || searchParams.get('noAutoCorrect') === 'true';
+
     searchApiClient.search({
       q: querySearch,
-      limit: 100
+      limit: 100,
+      noAutoCorrect: noAutoCorrectParam
     }).then(res => {
       if (isCurrent) {
         setSearchResults(res.products || []);
+        setSearchCorrection(res.hasAutoCorrected ? {
+          hasAutoCorrected: res.hasAutoCorrected,
+          originalQuery: res.originalQuery,
+          correctedQuery: res.correctedQuery
+        } : null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -75,6 +89,7 @@ export default function MobileProductListScreen() {
       console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
       if (isCurrent) {
         setSearchResults([]);
+        setSearchCorrection(null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -836,6 +851,30 @@ export default function MobileProductListScreen() {
           >
             <RefreshCw className="w-3 h-3" /> Clear All
           </button>
+        </div>
+      )}
+
+      {/* Spelling Auto-Correction Notice */}
+      {searchCorrection?.hasAutoCorrected && searchCorrection?.correctedQuery && searchCorrection?.originalQuery && (
+        <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200/80 space-y-1 shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs text-gray-800">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>Showing results for <strong className="font-black text-gray-950">"{searchCorrection.correctedQuery}"</strong></span>
+          </div>
+          <div className="text-[11px] text-gray-500 pl-5">
+            Search instead for{' '}
+            <button
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.set('q', searchCorrection.originalQuery!);
+                next.set('noAutoCorrect', '1');
+                setSearchParams(next);
+              }}
+              className="font-bold text-primary underline"
+            >
+              "{searchCorrection.originalQuery}"
+            </button>
+          </div>
         </div>
       )}
 

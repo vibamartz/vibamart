@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
   Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown, ChevronLeft, ChevronRight,
-  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent
+  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Loader2
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
@@ -22,7 +22,29 @@ import CustomerNotificationPreferencesModal from '../../shared/components/Custom
 import { PushService } from '../../backend/services/pushService';
 import { getRecentSearches, addRecentSearch, removeRecentSearch as removeSearchFromHistory, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 import { searchApiClient } from '../../services/searchApiClient';
-import { SuggestionItem } from '../..//backend/search/searchTypes';
+import { SuggestionItem } from '../../backend/search/searchTypes';
+
+function highlightMatchingText(text: string, query: string) {
+  if (!query || !query.trim() || !text) return text;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return text;
+  const escaped = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <span key={i} className="text-primary font-black underline decoration-primary/40">
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
@@ -230,27 +252,53 @@ export default function Navbar() {
   const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
   const [productSuggestions, setProductSuggestions] = useState<SuggestionItem[]>([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
+  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
 
   useEffect(() => {
     const qStr = searchQuery.trim();
     setActiveSuggestionIndex(-1);
-    if (qStr.length > 0) {
-      const filtered = CATEGORIES.filter(cat =>
-        cat.name.toLowerCase().includes(qStr.toLowerCase()) ||
-        cat.id.toLowerCase().includes(qStr.toLowerCase())
-      ).slice(0, 3);
-      setSuggestedCategories(filtered);
+    setSuggestError(null);
 
-      searchApiClient.suggest(qStr, 5).then(res => {
-        const prodItems = res.suggestions.filter(s => s.type === 'product');
-        setProductSuggestions(prodItems);
-      }).catch(() => {
-        setProductSuggestions([]);
-      });
-    } else {
+    if (qStr.length === 0) {
       setSuggestedCategories([]);
       setProductSuggestions([]);
+      setIsSuggestLoading(false);
+      return;
     }
+
+    const filtered = CATEGORIES.filter(cat =>
+      cat.name.toLowerCase().includes(qStr.toLowerCase()) ||
+      cat.id.toLowerCase().includes(qStr.toLowerCase())
+    ).slice(0, 3);
+    setSuggestedCategories(filtered);
+
+    setIsSuggestLoading(true);
+    let isCurrent = true;
+
+    const timer = setTimeout(() => {
+      searchApiClient.suggest(qStr, 5)
+        .then(res => {
+          if (isCurrent) {
+            const prodItems = (res.suggestions || []).filter(s => s.type === 'product');
+            setProductSuggestions(prodItems);
+            setIsSuggestLoading(false);
+          }
+        })
+        .catch(err => {
+          if (isCurrent) {
+            console.warn('[Navbar] Suggestions error:', err);
+            setProductSuggestions([]);
+            setSuggestError('Failed to load suggestions');
+            setIsSuggestLoading(false);
+          }
+        });
+    }, 200);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
   }, [searchQuery, CATEGORIES]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -450,6 +498,28 @@ export default function Navbar() {
                       className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
                     >
                       <div className="flex flex-col gap-5">
+                        {/* Autocomplete View States */}
+                        {searchQuery.length > 0 && isSuggestLoading && productSuggestions.length === 0 && suggestedCategories.length === 0 && (
+                          <div className="flex items-center justify-center gap-2.5 py-6 text-gray-400 bg-gray-50/50 rounded-2xl border border-gray-100">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            <span className="text-xs font-semibold text-gray-500">Searching suggestions...</span>
+                          </div>
+                        )}
+
+                        {searchQuery.length > 0 && !isSuggestLoading && suggestError && (
+                          <div className="py-4 px-3 text-center bg-rose-50/50 rounded-2xl border border-rose-100 text-rose-600 text-xs font-medium">
+                            Failed to fetch live suggestions. Press Enter to search full catalog.
+                          </div>
+                        )}
+
+                        {searchQuery.length > 0 && !isSuggestLoading && !suggestError && productSuggestions.length === 0 && suggestedCategories.length === 0 && (
+                          <div className="py-6 px-4 text-center bg-gray-50/50 rounded-2xl border border-gray-100">
+                            <Search className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
+                            <p className="text-xs font-bold text-gray-700">No suggestions for "{searchQuery}"</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">Press Enter to search full product catalog</p>
+                          </div>
+                        )}
+
                         {/* Live Product Suggestions */}
                         {productSuggestions.length > 0 && searchQuery.length > 0 && (
                           <div className="bg-gray-50/50 rounded-2xl p-3">
@@ -484,7 +554,9 @@ export default function Navbar() {
                                         </div>
                                       )}
                                       <div className="truncate min-w-0">
-                                        <p className="text-sm font-bold text-gray-800 group-hover/item:text-primary truncate">{item.title}</p>
+                                        <p className="text-sm font-bold text-gray-800 group-hover/item:text-primary truncate">
+                                          {highlightMatchingText(item.title, searchQuery)}
+                                        </p>
                                         {item.subtitle && <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>}
                                       </div>
                                     </div>
@@ -530,7 +602,9 @@ export default function Navbar() {
                                       <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
                                         {getCategoryIcon(cat.icon || '')}
                                       </div>
-                                      <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
+                                      <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">
+                                        {highlightMatchingText(cat.name, searchQuery)}
+                                      </span>
                                     </div>
                                     <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
                                   </Link>

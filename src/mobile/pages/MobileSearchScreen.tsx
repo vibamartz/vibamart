@@ -63,17 +63,25 @@ export default function MobileSearchScreen() {
       return;
     }
 
+    let isCurrent = true;
     const timer = setTimeout(() => {
       searchApiClient.suggest(qStr, 6)
         .then(res => {
-          setLiveSuggestions(res.suggestions.filter(s => s.type === 'product'));
+          if (isCurrent) {
+            setLiveSuggestions(res.suggestions.filter(s => s.type === 'product'));
+          }
         })
         .catch(err => {
-          console.warn('Failed to fetch mobile suggestions:', err);
+          if (isCurrent) {
+            console.warn('Failed to fetch mobile suggestions:', err);
+          }
         });
-    }, 150);
+    }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
   }, [searchQuery]);
 
   const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {

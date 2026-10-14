@@ -7,6 +7,7 @@ import { recordSearchAnalytics, getInMemoryAnalytics } from '../searchAnalytics'
 import { parseIntentRuleBased, parseQueryIntent, getSemanticSearchStatus } from '../semanticSearch';
 import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitization';
 import { requireSearchAdmin } from '../searchAuth';
+import { SpellingCorrectionEngine, damerauLevenshtein } from '../spellingCorrection';
 
 
 export async function runTests(): Promise<boolean> {
@@ -353,11 +354,10 @@ export async function runTests(): Promise<boolean> {
   // Test 18: Zero-Result Recovery
   const recoveryEngine = new ViBaSearchEngine();
   recoveryEngine.indexProducts(sampleProducts, categoryNames, subCategoryNames);
-  const recoveryResult = recoveryEngine.search({ q: 'headfone' });
+  const recoveryResult = recoveryEngine.search({ q: 'headfone', noAutoCorrect: true });
   assert(
     recoveryResult.recovery !== undefined &&
-    recoveryResult.recovery.suggestedQuery === 'headphones' &&
-    recoveryResult.correctedQuery === 'headphones',
+    recoveryResult.recovery.suggestedQuery === 'headphones',
     'Zero-Result Recovery: generates typo correction suggestion "headphones" for "headfone"'
   );
 
@@ -591,12 +591,144 @@ export async function runTests(): Promise<boolean> {
   const nlQuery15 = parseIntentRuleBased('T-shirt priced at ₹499');
   assert(nlQuery15.detectedFilters.exactPrice === 499, 'NL Intent: "T-shirt priced at ₹499" extracts exactPrice: 499');
 
+  const nlQuery16 = parseIntentRuleBased('shoes between ₹500 and ₹1,500');
+  assert(nlQuery16.detectedFilters.minPrice === 500 && nlQuery16.detectedFilters.maxPrice === 1500 && nlQuery16.detectedFilters.category === 'shoes', 'NL Intent: "shoes between ₹500 and ₹1,500" handles comma normalization (500-1500)');
+
+  const nlQuery17 = parseIntentRuleBased('branded jeans under ₹1,000');
+  assert(nlQuery17.detectedFilters.maxPrice === 1000 && nlQuery17.detectedFilters.category === 'jeans', 'NL Intent: "branded jeans under ₹1,000" extracts maxPrice: 1000 and category: jeans');
+
+  const nlQuery18 = parseIntentRuleBased('discounted headphones');
+  assert(nlQuery18.detectedFilters.minDiscount === 1 && nlQuery18.detectedFilters.category === 'audio', 'NL Intent: "discounted headphones" extracts minDiscount: 1 and category: audio');
+
+  const nlQuery19 = parseIntentRuleBased('cotton kurti in blue');
+  assert(nlQuery19.detectedFilters.color === 'blue' && nlQuery19.detectedFilters.category === 'kurtis' && nlQuery19.semanticTags.includes('cotton'), 'NL Intent: "cotton kurti in blue" extracts color: blue, tag: cotton, category: kurtis');
+
+  const nlQuery20 = parseIntentRuleBased('perfume for women');
+  assert(nlQuery20.detectedFilters.gender === 'women' && nlQuery20.detectedFilters.category === 'perfume', 'NL Intent: "perfume for women" extracts gender: women, category: perfume');
+
+  const nlQuery21 = parseIntentRuleBased('formal shoes for men');
+  assert(nlQuery21.detectedFilters.gender === 'men' && nlQuery21.detectedFilters.category === 'shoes' && nlQuery21.semanticTags.includes('formal'), 'NL Intent: "formal shoes for men" extracts gender: men, tag: formal, category: shoes');
+
+  const nlQuery22 = parseIntentRuleBased('latest fashion accessories');
+  assert(nlQuery22.detectedFilters.sortBy === 'newest' && nlQuery22.detectedFilters.category === 'accessories', 'NL Intent: "latest fashion accessories" extracts sortBy: newest, category: accessories');
+
+  const nlQuery23 = parseIntentRuleBased('From ₹200 to ₹800');
+  assert(nlQuery23.detectedFilters.minPrice === 200 && nlQuery23.detectedFilters.maxPrice === 800, 'NL Intent: "From ₹200 to ₹800" extracts 200 - 800 range');
+
+  const nlQuery24 = parseIntentRuleBased('Maximum ₹1,000');
+  assert(nlQuery24.detectedFilters.maxPrice === 1000, 'NL Intent: "Maximum ₹1,000" extracts maxPrice: 1000');
+
+  const nlQuery25 = parseIntentRuleBased('Less than ₹999');
+  assert(nlQuery25.detectedFilters.maxPrice === 999, 'NL Intent: "Less than ₹999" extracts maxPrice: 999');
+
   // Test 35: Empty Query & Unknown Product Name Recovery
   const emptyRes = engine.search({});
   assert(emptyRes.total > 0 && Array.isArray(emptyRes.products), 'Search: empty query returns catalog without throwing');
 
   const unknownRes = engine.search({ q: 'xyznonexistentquantumfluxdevice999' });
   assert(unknownRes.total === 0 && unknownRes.recovery !== undefined, 'Search: unknown product query triggers zero-result recovery suggestions');
+
+  // ==========================================
+  // PHASE 5: SECTION 15 - AUTOMATIC SPELLING CORRECTION & TYPO TOLERANCE
+  // ==========================================
+
+  // Test 36: Damerau-Levenshtein Transposition & Distance Accuracy
+  const swapDist = damerauLevenshtein('shose', 'shoes');
+  assert(swapDist === 1, `Typo Distance: adjacent transposition ('shose' -> 'shoes') is distance 1 (got: ${swapDist})`);
+  const mobileSwapDist = damerauLevenshtein('moblie', 'mobile');
+  assert(mobileSwapDist === 1, `Typo Distance: transposition ('moblie' -> 'mobile') is distance 1 (got: ${mobileSwapDist})`);
+  const insertDist = damerauLevenshtein('jeens', 'jeans');
+  assert(insertDist === 1, `Typo Distance: vowel typo ('jeens' -> 'jeans') is distance 1 (got: ${insertDist})`);
+
+  // Test 37: Automatic Typo Detection & Correction for User-Specified Example Searches
+  const allIndexedDocs = (engine as any).indexedDocs ? Array.from((engine as any).indexedDocs.values()) : [];
+
+  const typo1 = SpellingCorrectionEngine.correct('kurtie', allIndexedDocs as any);
+  assert(typo1.hasCorrection && (typo1.correctedQuery === 'kurti' || typo1.correctedQuery === 'kurtis'), `Typo Correction: "kurtie" -> "${typo1.correctedQuery}"`);
+
+  const typo2 = SpellingCorrectionEngine.correct('kurty', allIndexedDocs as any);
+  assert(typo2.hasCorrection && (typo2.correctedQuery === 'kurti' || typo2.correctedQuery === 'kurtis'), `Typo Correction: "kurty" -> "${typo2.correctedQuery}"`);
+
+  const typo3 = SpellingCorrectionEngine.correct('tshrt for men', allIndexedDocs as any);
+  assert(typo3.hasCorrection && typo3.correctedQuery.toLowerCase().includes('t-shirt'), `Typo Correction: "tshrt for men" -> "${typo3.correctedQuery}"`);
+
+  const typo4 = SpellingCorrectionEngine.correct('shose', allIndexedDocs as any);
+  assert(typo4.hasCorrection && typo4.correctedQuery === 'shoes', `Typo Correction: "shose" -> "${typo4.correctedQuery}"`);
+
+  const typo5 = SpellingCorrectionEngine.correct('snikers', allIndexedDocs as any);
+  assert(typo5.hasCorrection && typo5.correctedQuery === 'sneakers', `Typo Correction: "snikers" -> "${typo5.correctedQuery}"`);
+
+  const typo6 = SpellingCorrectionEngine.correct('jeens', allIndexedDocs as any);
+  assert(typo6.hasCorrection && typo6.correctedQuery === 'jeans', `Typo Correction: "jeens" -> "${typo6.correctedQuery}"`);
+
+  const typo7 = SpellingCorrectionEngine.correct('womens dres', allIndexedDocs as any);
+  assert(typo7.hasCorrection && typo7.correctedQuery.toLowerCase().includes('dress'), `Typo Correction: "womens dres" -> "${typo7.correctedQuery}"`);
+
+  const typo8 = SpellingCorrectionEngine.correct('blu shirt', allIndexedDocs as any);
+  assert(typo8.hasCorrection && typo8.correctedQuery.toLowerCase().includes('blue shirt'), `Typo Correction: "blu shirt" -> "${typo8.correctedQuery}"`);
+
+  const typo9 = SpellingCorrectionEngine.correct('headfone', allIndexedDocs as any);
+  assert(typo9.hasCorrection && typo9.correctedQuery === 'headphones', `Typo Correction: "headfone" -> "${typo9.correctedQuery}"`);
+
+  const typo10 = SpellingCorrectionEngine.correct('moblie phone', allIndexedDocs as any);
+  assert(typo10.hasCorrection && typo10.correctedQuery.toLowerCase().includes('mobile phone'), `Typo Correction: "moblie phone" -> "${typo10.correctedQuery}"`);
+
+  // Test 38: Combined Spelling Correction with Natural-Language Price & Attribute Filters
+  const combined1 = engine.search({ q: 'kurtie under 400' });
+  assert(combined1.hasAutoCorrected && combined1.correctedQuery?.includes('kurti'), 'Combined Filters: "kurtie under 400" detects typo and corrects to kurti');
+  assert(combined1.semanticIntent?.detectedFilters.maxPrice === 400, 'Combined Filters: "kurtie under 400" extracts maxPrice: 400');
+  assert(combined1.semanticIntent?.detectedFilters.category === 'kurtis', 'Combined Filters: "kurtie under 400" extracts category: kurtis');
+
+  const combined2 = engine.search({ q: 'mens tshrt below 500' });
+  assert(combined2.hasAutoCorrected && combined2.correctedQuery?.includes('t-shirt'), 'Combined Filters: "mens tshrt below 500" corrects tshrt -> t-shirt');
+  assert(combined2.semanticIntent?.detectedFilters.maxPrice === 500, 'Combined Filters: "mens tshrt below 500" extracts maxPrice: 500');
+  assert(combined2.semanticIntent?.detectedFilters.gender === 'men', 'Combined Filters: "mens tshrt below 500" extracts gender: men');
+
+  const combined3 = engine.search({ q: 'shose between 500 and 1000' });
+  assert(combined3.hasAutoCorrected && combined3.correctedQuery?.includes('shoes'), 'Combined Filters: "shose between 500 and 1000" corrects shose -> shoes');
+  assert(combined3.semanticIntent?.detectedFilters.minPrice === 500 && combined3.semanticIntent?.detectedFilters.maxPrice === 1000, 'Combined Filters: "shose between 500 and 1000" extracts price range (500 - 1000)');
+
+  const combined4 = engine.search({ q: 'blak shirt under 700' });
+  assert(combined4.hasAutoCorrected && combined4.correctedQuery?.includes('black'), 'Combined Filters: "blak shirt under 700" corrects blak -> black');
+  assert(combined4.semanticIntent?.detectedFilters.maxPrice === 700, 'Combined Filters: "blak shirt under 700" extracts maxPrice: 700');
+  assert(combined4.semanticIntent?.detectedFilters.color === 'black', 'Combined Filters: "blak shirt under 700" extracts color: black');
+
+  // Test 39: Guardrails - Preserve SKUs, Product Codes, Valid Brands, and Numbers
+  const skuCorrection = SpellingCorrectionEngine.correct('SAM-S24U-256', allIndexedDocs as any);
+  assert(!skuCorrection.hasCorrection && skuCorrection.correctedQuery === 'SAM-S24U-256', 'Guardrails: SKU "SAM-S24U-256" is strictly preserved without mutation');
+
+  const brandCorrection = SpellingCorrectionEngine.correct('Samsung', allIndexedDocs as any);
+  assert(!brandCorrection.hasCorrection && brandCorrection.correctedQuery === 'Samsung', 'Guardrails: valid brand "Samsung" is preserved without mutation');
+
+  const codeCorrection = SpellingCorrectionEngine.correct('8900 0996 1001', allIndexedDocs as any);
+  assert(!codeCorrection.hasCorrection, 'Guardrails: 12-digit product code is preserved without mutation');
+
+  const priceCorrection = SpellingCorrectionEngine.correct('15000', allIndexedDocs as any);
+  assert(!priceCorrection.hasCorrection && priceCorrection.correctedQuery === '15000', 'Guardrails: numeric price "15000" is strictly preserved');
+
+  // Test 40: End-to-End Search Resolution with Typo Correction
+  const e2eHeadphone = engine.search({ q: 'headfone' });
+  assert(e2eHeadphone.hasAutoCorrected === true, 'E2E Search: "headfone" sets hasAutoCorrected: true');
+  assert(e2eHeadphone.originalQuery === 'headfone', 'E2E Search: preserves originalQuery ("headfone")');
+  assert(e2eHeadphone.correctedQuery === 'headphones', 'E2E Search: correctedQuery is "headphones"');
+  assert(e2eHeadphone.products.some(p => p.id === 'prod-005'), 'E2E Search: retrieves Sony Headphones (prod-005) for typo "headfone"');
+
+  const e2eBluShirt = engine.search({ q: 'blu shirt' });
+  assert(e2eBluShirt.hasAutoCorrected === true, 'E2E Search: "blu shirt" sets hasAutoCorrected: true');
+  assert(e2eBluShirt.products.some(p => p.id === 'prod-004'), 'E2E Search: retrieves Blue Formal Shirt (prod-004) for "blu shirt"');
+
+  const e2eSnikers = engine.search({ q: 'snikers' });
+  assert(e2eSnikers.hasAutoCorrected === true, 'E2E Search: "snikers" sets hasAutoCorrected: true');
+  assert(e2eSnikers.products.some(p => p.id === 'prod-003'), 'E2E Search: retrieves Nike Sneakers (prod-003) for "snikers"');
+
+  // Test 41: User Undo / Explicit Override (noAutoCorrect=true)
+  const overrideRes = engine.search({ q: 'headfone', noAutoCorrect: true });
+  assert(overrideRes.hasAutoCorrected === false, 'Undo / Override: noAutoCorrect=true bypasses auto-correction');
+  assert(overrideRes.correctedQuery === undefined, 'Undo / Override: correctedQuery is undefined when noAutoCorrect=true');
+
+  // Test 42: Suggest / Autocomplete Fallback for Typos
+  const typoSuggest = engine.suggest('shos');
+  assert(typoSuggest.suggestions.length > 0 && typoSuggest.suggestions.some(s => s.title.toLowerCase().includes('shoe')), 'Suggestions: typo in prefix ("shos") retrieves corrected suggestions');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);
