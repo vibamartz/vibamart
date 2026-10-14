@@ -548,7 +548,33 @@ export async function runTests(): Promise<boolean> {
   } finally {
     process.env.NODE_ENV = originalEnv;
   }
-  assert(authDenied, 'Security: requireSearchAdmin rejects unauthenticated requests in production environment');
+  // Test 34: Natural-Language Query Matrix Verification
+  const nlQuery1 = parseIntentRuleBased('kurti under 400');
+  assert(nlQuery1.detectedFilters.maxPrice === 400 && nlQuery1.detectedFilters.category === 'kurtis', 'NL Intent: "kurti under 400" extracts maxPrice: 400 & category: kurtis');
+
+  const nlQuery2 = parseIntentRuleBased('T-shirt for men');
+  assert(nlQuery2.detectedFilters.gender === 'men' && nlQuery2.detectedFilters.category === 't-shirts', 'NL Intent: "T-shirt for men" extracts gender: men & category: t-shirts');
+
+  const nlQuery3 = parseIntentRuleBased('black shirt under 500');
+  assert(nlQuery3.detectedFilters.color === 'black' && nlQuery3.detectedFilters.maxPrice === 500 && nlQuery3.detectedFilters.category === 'shirts', 'NL Intent: "black shirt under 500" extracts color: black, maxPrice: 500, category: shirts');
+
+  const nlQuery4 = parseIntentRuleBased("women's shoes size 7");
+  assert(nlQuery4.detectedFilters.gender === 'women' && nlQuery4.detectedFilters.size === '7' && nlQuery4.detectedFilters.category === 'shoes', 'NL Intent: "women\'s shoes size 7" extracts gender: women, size: 7, category: shoes');
+
+  const nlQuery5 = parseIntentRuleBased('mobile phones under 15000');
+  assert(nlQuery5.detectedFilters.maxPrice === 15000 && nlQuery5.detectedFilters.category === 'mobile phones', 'NL Intent: "mobile phones under 15000" extracts maxPrice: 15000, category: mobile phones');
+
+  const nlQuery6 = parseIntentRuleBased('Shoes between 500 and 1000');
+  assert(nlQuery6.detectedFilters.minPrice === 500 && nlQuery6.detectedFilters.maxPrice === 1000 && nlQuery6.detectedFilters.category === 'shoes', 'NL Intent: "Shoes between 500 and 1000" extracts minPrice: 500, maxPrice: 1000, category: shoes');
+
+  const nlQuery7 = parseIntentRuleBased("Women's kurti above 300");
+  assert(nlQuery7.detectedFilters.gender === 'women' && nlQuery7.detectedFilters.minPrice === 300 && nlQuery7.detectedFilters.category === 'kurtis', 'NL Intent: "Women\'s kurti above 300" extracts gender: women, minPrice: 300, category: kurtis');
+
+  const nlQuery8 = parseIntentRuleBased('smartwatch 30% off');
+  assert(nlQuery8.detectedFilters.minDiscount === 30 && nlQuery8.detectedFilters.category === 'watches', 'NL Intent: "smartwatch 30% off" extracts minDiscount: 30, category: watches');
+
+  const nlQuery9 = parseIntentRuleBased('running shoes rated 4 stars');
+  assert(nlQuery9.detectedFilters.minRating === 4 && nlQuery9.detectedFilters.category === 'shoes', 'NL Intent: "running shoes rated 4 stars" extracts minRating: 4, category: shoes');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

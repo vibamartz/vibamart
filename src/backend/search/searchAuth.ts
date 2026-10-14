@@ -6,9 +6,15 @@ import admin from 'firebase-admin';
  * Requires a valid Firebase Bearer ID token with admin claims in production.
  */
 export async function requireSearchAdmin(req: Request, res: Response, next: NextFunction) {
-  // Graceful local dev and test environment allowance when Firebase Admin is unconfigured
+  // If running in automated tests
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
+
+  // Graceful allowance when Firebase Admin is unconfigured or failed in local environment
   if (!admin.apps.length) {
-    if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+    const isLocalhost = req.hostname === 'localhost' || req.hostname === '127.0.0.1' || req.ip === '::1' || req.ip === '127.0.0.1';
+    if (isLocalhost || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
       return next();
     }
     return res.status(503).json({

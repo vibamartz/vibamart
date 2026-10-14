@@ -43,6 +43,39 @@ export interface IndexedProductDoc {
   raw: Product;
 }
 
+/**
+ * Intelligent gender matching helper
+ */
+function checkGenderMatch(doc: IndexedProductDoc, targetGender: string): boolean {
+  const g = targetGender.toLowerCase();
+  const text = (
+    doc.name + ' ' +
+    doc.categoryName + ' ' +
+    (doc.subCategoryName || '') + ' ' +
+    (doc.nestedSubCategoryName || '') + ' ' +
+    doc.tags + ' ' +
+    doc.description + ' ' +
+    doc.specifications
+  ).toLowerCase();
+
+  if (g === 'men') {
+    const isExplicitMen = /\b(?:men|mens|men's|male|gents)\b/i.test(text);
+    const isExplicitWomen = /\b(?:women|womens|women's|female|ladies|kurti|kurtis|saree|lehenga|bra|panties)\b/i.test(text);
+    if (isExplicitMen) return true;
+    if (isExplicitWomen) return false;
+    return true; // Neutral product
+  } else if (g === 'women') {
+    const isExplicitWomen = /\b(?:women|womens|women's|female|ladies|kurti|kurtis|saree|lehenga|bra|panties)\b/i.test(text);
+    const isExplicitMen = /\b(?:men|mens|men's|male|gents)\b/i.test(text);
+    if (isExplicitWomen) return true;
+    if (isExplicitMen) return false;
+    return true; // Neutral product
+  } else if (g === 'kids') {
+    return /\b(?:kids?|child|children|boys?|girls?|baby|toddler)\b/i.test(text);
+  }
+  return true;
+}
+
 export class ViBaSearchEngine {
   private miniSearch: MiniSearch<IndexedProductDoc>;
   private indexedDocs: Map<string, IndexedProductDoc> = new Map();
@@ -329,12 +362,9 @@ export class ViBaSearchEngine {
     let queryToSearch = rawQuery;
 
     if (rawQuery.length > 0) {
-      const isConversational = params.useAI || /\b(?:under|below|above|between|for\s+(?:men|women|kids)|cheap|cheapest|budget|expensive|best|latest|in\s*stock)\b/i.test(rawQuery);
-      if (isConversational) {
-        semanticIntent = parseIntentRuleBased(rawQuery);
-        if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
-          queryToSearch = semanticIntent.cleanKeyword;
-        }
+      semanticIntent = parseIntentRuleBased(rawQuery);
+      if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
+        queryToSearch = semanticIntent.cleanKeyword;
       }
     }
 
@@ -379,10 +409,22 @@ export class ViBaSearchEngine {
           scoreMap.set(res.id, Math.max(current, res.score * 2.0));
         }
 
-        // 2. If no direct AND match was found, search for synonym matches
-        if (primaryResults.length === 0 && searchTerms.length > 1) {
+        // 2. If no direct AND match was found, try OR mode on multi-word query
+        if (primaryResults.length === 0 && queryToSearch.includes(' ')) {
+          const orResults = this.miniSearch.search(queryToSearch, {
+            combineWith: 'OR',
+            prefix: true
+          });
+          for (const res of orResults) {
+            const current = scoreMap.get(res.id) || 0;
+            scoreMap.set(res.id, Math.max(current, res.score * 0.9));
+          }
+        }
+
+        // 3. Fallback to valid synonyms (skipping pure numbers, single chars, or stop words)
+        if (scoreMap.size === 0 && searchTerms.length > 1) {
           for (const syn of searchTerms) {
-            if (syn === queryToSearch) continue;
+            if (syn === queryToSearch || syn.length < 3 || /^\d+$/.test(syn)) continue;
             const synResults = this.miniSearch.search(syn, {
               combineWith: 'AND',
               prefix: true
@@ -469,10 +511,12 @@ export class ViBaSearchEngine {
       if (effectiveMaxPrice !== undefined && doc.effectivePrice > effectiveMaxPrice) continue;
 
       // 5. Rating Filter
-      if (params.minRating !== undefined && doc.rating < params.minRating) continue;
+      const effectiveMinRating = params.minRating !== undefined ? params.minRating : semanticIntent?.detectedFilters.minRating;
+      if (effectiveMinRating !== undefined && doc.rating < effectiveMinRating) continue;
 
       // 6. Discount Filter
-      if (params.minDiscount !== undefined && doc.discountPercentage < params.minDiscount) continue;
+      const effectiveMinDiscount = params.minDiscount !== undefined ? params.minDiscount : semanticIntent?.detectedFilters.minDiscount;
+      if (effectiveMinDiscount !== undefined && doc.discountPercentage < effectiveMinDiscount) continue;
 
       // 7. Stock Filter
       const effectiveInStock = params.inStock ?? semanticIntent?.detectedFilters.inStock;
@@ -486,9 +530,33 @@ export class ViBaSearchEngine {
       }
 
       // 9. Size Filter
-      if (sizeFilters && sizeFilters.length > 0) {
-        const hasSize = doc.sizes.some(s => sizeFilters.includes(s));
+      const effectiveSizes = sizeFilters || (semanticIntent?.detectedFilters.size ? [semanticIntent.detectedFilters.size] : undefined);
+      if (effectiveSizes && effectiveSizes.length > 0) {
+        const hasSize = doc.sizes.some(s => effectiveSizes.some(es => s.toLowerCase() === es.toLowerCase() || s.toLowerCase().includes(es.toLowerCase())));
         if (!hasSize) continue;
+      }
+
+      // 10. Gender Filter
+      const effectiveGender = params.gender || semanticIntent?.detectedFilters.gender;
+      if (effectiveGender) {
+        if (!checkGenderMatch(doc, effectiveGender)) continue;
+      }
+
+      // 11. Category Intent Filter (when explicit category param is not provided)
+      if (semanticIntent?.detectedFilters.category && !params.category) {
+        const cat = semanticIntent.detectedFilters.category.toLowerCase();
+        const docCatText = (doc.categoryName + ' ' + (doc.subCategoryName || '') + ' ' + (doc.nestedSubCategoryName || '') + ' ' + doc.name + ' ' + doc.tags).toLowerCase();
+        if (cat === 'kurtis') {
+          if (!docCatText.includes('kurti') && !docCatText.includes('kurta')) continue;
+        } else if (cat === 't-shirts') {
+          if (!docCatText.includes('t-shirt') && !docCatText.includes('tshirt') && !docCatText.includes('tee')) continue;
+        } else if (cat === 'shirts') {
+          if (!docCatText.includes('shirt')) continue;
+        } else if (cat === 'shoes') {
+          if (!docCatText.includes('shoe') && !docCatText.includes('sneaker') && !docCatText.includes('footwear')) continue;
+        } else if (cat === 'mobile phones') {
+          if (!docCatText.includes('phone') && !docCatText.includes('mobile') && !docCatText.includes('smartphone') && !docCatText.includes('redmi') && !docCatText.includes('apple') && !docCatText.includes('samsung')) continue;
+        }
       }
 
       let score = scoreMap.get(doc.id) || 1.0;

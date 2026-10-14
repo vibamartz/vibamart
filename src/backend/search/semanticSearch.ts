@@ -65,7 +65,32 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     }
   }
 
-  // 2. Sorting Intent
+  // 2. Discount Intent: "X% off", "above X% discount", "min X% discount"
+  const discountMatch = text.match(/\b(?:at\s+least|above|over|min(?:imum)?\s+)?(\d+)\s*%\s*(?:off|discount)?\b/i);
+  if (discountMatch) {
+    detectedFilters.minDiscount = Number(discountMatch[1]);
+    text = text.replace(discountMatch[0], ' ');
+    isNaturalLanguage = true;
+  }
+
+  // 3. Size Extraction: "size 7", "size M", "size XL", "sz 8"
+  const sizeMatch = text.match(/\b(?:size|sz)\s*:?\s*([a-z0-9]+)\b/i);
+  if (sizeMatch) {
+    detectedFilters.size = sizeMatch[1].toLowerCase();
+    text = text.replace(sizeMatch[0], ' ');
+    isNaturalLanguage = true;
+  }
+
+  // 4. Rating Intent: "4 stars and above", "rating above 4"
+  const ratingMatch = text.match(/\b(?:rated|rating)\s*(?:above|over|>=|>)?\s*(\d(?:\.\d)?)\b/i) ||
+                      text.match(/\b(\d)\s*stars?(?:\s*(?:and\s+above|\+))?\b/i);
+  if (ratingMatch) {
+    detectedFilters.minRating = Number(ratingMatch[1]);
+    text = text.replace(ratingMatch[0], ' ');
+    isNaturalLanguage = true;
+  }
+
+  // 5. Sorting Intent
   if (/\b(?:cheapest|cheap|budget|lowest\s+price|affordable)\b/i.test(text)) {
     detectedFilters.sortBy = 'price-asc';
     text = text.replace(/\b(?:cheapest|cheap|budget|lowest\s+price|affordable)\b/gi, ' ');
@@ -84,14 +109,14 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     isNaturalLanguage = true;
   }
 
-  // 3. Stock Intent
+  // 6. Stock Intent
   if (/\b(?:in\s*stock|available\s*now)\b/i.test(text)) {
     detectedFilters.inStock = true;
     text = text.replace(/\b(?:in\s*stock|available\s*now)\b/gi, ' ');
     isNaturalLanguage = true;
   }
 
-  // 4. Color Extraction
+  // 7. Color Extraction
   for (const c of KNOWN_COLORS) {
     const colorRegex = new RegExp(`\\b${c}\\b`, 'i');
     if (colorRegex.test(text)) {
@@ -102,7 +127,7 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     }
   }
 
-  // 5. Gender / Target Audience
+  // 8. Gender / Target Audience
   if (/\b(?:for\s+men|men'?s|mens)\b/i.test(text)) {
     detectedFilters.gender = 'men';
     semanticTags.push('men');
@@ -120,7 +145,28 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     isNaturalLanguage = true;
   }
 
-  // 6. Common Activity / Intent tags
+  // 9. Standard Category Intent Detection
+  if (/\b(?:kurtis?|kurtas?)\b/i.test(text)) {
+    detectedFilters.category = 'kurtis';
+  } else if (/\b(?:t-?shirts?|tees?)\b/i.test(text)) {
+    detectedFilters.category = 't-shirts';
+  } else if (/\b(?:shirts?)\b/i.test(text)) {
+    detectedFilters.category = 'shirts';
+  } else if (/\b(?:shoes?|sneakers?|footwears?)\b/i.test(text)) {
+    detectedFilters.category = 'shoes';
+  } else if (/\b(?:mobile\s*phones?|smartphones?|mobiles?|cellphones?)\b/i.test(text)) {
+    detectedFilters.category = 'mobile phones';
+  } else if (/\b(?:dress(?:es)?|frocks?|gowns?)\b/i.test(text)) {
+    detectedFilters.category = 'dresses';
+  } else if (/\b(?:sarees?|saris?)\b/i.test(text)) {
+    detectedFilters.category = 'sarees';
+  } else if (/\b(?:smart\s*watch(?:es)?|watch(?:es)?)\b/i.test(text)) {
+    detectedFilters.category = 'watches';
+  } else if (/\b(?:headphones?|earbuds?|earphones?|audio)\b/i.test(text)) {
+    detectedFilters.category = 'audio';
+  }
+
+  // 10. Common Activity / Intent tags
   const intentKeywords: Record<string, string> = {
     running: 'running',
     jogging: 'running',
@@ -148,10 +194,10 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     }
   }
 
-  // 7. Clean residual keyword
+  // 11. Clean residual keyword
   // Remove filler conversational words like: "i want", "looking for", "show me", "good", "best", "give me", "buy"
   const cleaned = text
-    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|good|great)\b/gi, ' ')
+    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|good|great|for)\b/gi, ' ')
     .replace(/[^\w\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -178,8 +224,11 @@ Given the customer query: "${query}"
 Extract search intent as clean JSON with these exact fields:
 {
   "cleanKeyword": "core product keyword without price, colors, or conversational noise",
+  "category": "category name or null",
   "maxPrice": number or null,
   "minPrice": number or null,
+  "minDiscount": number or null,
+  "size": "size string or null",
   "color": "color string or null",
   "brand": "brand name or null",
   "gender": "men|women|kids or null",
@@ -211,6 +260,9 @@ Only output the JSON object, nothing else.`;
 
   if (typeof parsed.maxPrice === 'number') detectedFilters.maxPrice = parsed.maxPrice;
   if (typeof parsed.minPrice === 'number') detectedFilters.minPrice = parsed.minPrice;
+  if (typeof parsed.minDiscount === 'number') detectedFilters.minDiscount = parsed.minDiscount;
+  if (parsed.size) detectedFilters.size = String(parsed.size).toLowerCase();
+  if (parsed.category) detectedFilters.category = String(parsed.category).toLowerCase();
   if (parsed.color) detectedFilters.color = String(parsed.color).toLowerCase();
   if (parsed.brand) detectedFilters.brand = String(parsed.brand);
   if (parsed.gender) detectedFilters.gender = String(parsed.gender).toLowerCase();

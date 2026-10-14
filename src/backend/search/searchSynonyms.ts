@@ -96,6 +96,12 @@ export function stemToken(word: string): string {
   return w;
 }
 
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'in', 'on', 'at', 'for', 'to', 'from', 'with', 'by', 'of',
+  'and', 'or', 'size', 'sz', 'under', 'below', 'above', 'over', 'between', 'rs', 'inr',
+  'is', 'are', 'was', 'were', 'it', 'its', 'my', 'your', 'me', 'i', 'you'
+]);
+
 /**
  * Normalize and tokenize query string
  */
@@ -119,18 +125,24 @@ export function normalizeQueryString(rawQuery: string): {
 }
 
 /**
- * Expands a query with high-confidence synonyms
+ * Expands a query with high-confidence synonyms, filtering stop words and pure numbers.
  */
 export function expandQueryWithSynonyms(rawQuery: string): string[] {
   const { tokens } = normalizeQueryString(rawQuery);
-  const terms = new Set<string>(tokens);
+  const terms = new Set<string>();
 
-  for (const token of tokens) {
+  const validTokens = tokens.filter(t => !STOP_WORDS.has(t) && t.length > 1 && !/^\d+$/.test(t));
+
+  for (const token of validTokens) {
+    terms.add(token);
     const synonyms = getSynonymsForTerm(token);
     for (const syn of synonyms.slice(0, 3)) { // Add top 3 synonyms per token
-      terms.add(syn);
+      if (!STOP_WORDS.has(syn) && syn.length > 1 && !/^\d+$/.test(syn)) {
+        terms.add(syn);
+      }
     }
   }
 
   return Array.from(terms);
 }
+

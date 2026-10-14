@@ -56,6 +56,8 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
     size = raw.size.map(s => sanitizeSearchString(String(s))).filter(Boolean);
   }
 
+  const gender = raw.gender !== undefined ? sanitizeSearchString(String(raw.gender)) : undefined;
+
   // Safe numerical validation
   const minPrice = raw.minPrice !== undefined && !isNaN(Number(raw.minPrice))
     ? Math.max(0, Number(raw.minPrice))
@@ -99,6 +101,7 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
     brand,
     color,
     size,
+    gender,
     minPrice,
     maxPrice,
     minRating,

@@ -14,6 +14,7 @@ export interface SearchParams {
   inStock?: boolean;
   color?: string | string[];
   size?: string | string[];
+  gender?: string;
   sortBy?: 'relevance' | 'price-asc' | 'price-desc' | 'newest' | 'rating' | 'popularity';
   page?: number;
   limit?: number;
