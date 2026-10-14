@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { SearchService } from './searchService';
 import { SearchParams } from './searchTypes';
-import { recordSearchAnalytics } from './searchAnalytics';
+import { recordSearchAnalytics, getInMemoryAnalytics } from './searchAnalytics';
 import { searchRateLimiter, suggestionRateLimiter, createSearchRateLimitMiddleware } from './searchRateLimiter';
 import { searchCurationManager } from './searchCuration';
 import admin from 'firebase-admin';
@@ -213,11 +213,22 @@ searchRouter.post('/admin/curation', async (req: Request, res: Response) => {
  */
 searchRouter.get('/admin/analytics', async (req: Request, res: Response) => {
   try {
-    const db = admin.firestore();
-    const snapshot = await db.collection('searchAnalytics')
-      .orderBy('timestamp', 'desc')
-      .limit(200)
-      .get();
+    let events: any[] = [];
+    try {
+      const db = admin.firestore();
+      const snapshot = await db.collection('searchAnalytics')
+        .orderBy('timestamp', 'desc')
+        .limit(200)
+        .get();
+      events = snapshot.docs.map(doc => doc.data());
+    } catch {
+      // Fallback to in-memory events
+      events = getInMemoryAnalytics();
+    }
+
+    if (events.length === 0) {
+      events = getInMemoryAnalytics();
+    }
 
     const zeroResultMap = new Map<string, { query: string; count: number; lastSearched: string; platform?: string }>();
     const topQueriesMap = new Map<string, { query: string; count: number; lastSearched: string }>();
@@ -225,8 +236,7 @@ searchRouter.get('/admin/analytics', async (req: Request, res: Response) => {
     let totalLatency = 0;
     let latencyCount = 0;
 
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
+    events.forEach(data => {
       const q = (data.query || '').trim().toLowerCase();
       if (!q) return;
 
@@ -256,7 +266,7 @@ searchRouter.get('/admin/analytics', async (req: Request, res: Response) => {
         zeroResultQueries,
         topQueries,
         avgLatencyMs,
-        totalEventsAnalyzed: snapshot.size
+        totalEventsAnalyzed: events.length
       }
     });
   } catch (err: any) {

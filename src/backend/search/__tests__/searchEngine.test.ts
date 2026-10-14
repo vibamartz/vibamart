@@ -558,6 +558,37 @@ export function runAllTests(): { passed: number; failed: number; errors: string[
     reqOtherIp.allowed === true
   );
 
+  console.log('\n--- ViBa Mart Intelligent Search Engine Phase 5 Regression Tests ---');
+
+  // Test 34: Leading/Trailing Whitespace & Mixed Case Normalization
+  const res34 = engine.search({ q: '   nIKe   PeGaSus   ' });
+  assert(
+    'Regression: Query with excessive leading/trailing/inner whitespace and mixed casing successfully matches product',
+    res34.total > 0 && res34.items[0].id === 'prod-nike-pegasus'
+  );
+
+  // Test 35: Partial Product Name Match
+  const res35 = engine.search({ q: 'Air Zoom' });
+  assert(
+    'Regression: Partial product name "Air Zoom" matches "Nike Air Zoom Pegasus 40"',
+    res35.total > 0 && res35.items.some(p => p.id === 'prod-nike-pegasus')
+  );
+
+  // Test 36: Genuinely Unmatched Query returns 0 products without throwing
+  const res36 = engine.search({ q: 'zzzxxyyynonexistentquery999' });
+  assert(
+    'Regression: Completely unmatched query returns 0 items safely with didYouMean suggestion handling',
+    res36.total === 0 && res36.items.length === 0
+  );
+
+  // Test 37: Empty Search Query Returns Catalog Products without crashing
+  const res37 = engine.search({});
+  assert(
+    'Regression: Search with empty query string returns all active indexed catalog items',
+    res37.total > 0 && res37.items.length > 0
+  );
+
   console.log(`\nResults: ${passed} Passed, ${failed} Failed.`);
   return { passed, failed, errors };
 }
+

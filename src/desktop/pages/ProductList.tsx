@@ -49,6 +49,8 @@ export default function ProductList() {
   const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
   const [searchEngineResults, setSearchEngineResults] = useState<Product[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [didYouMean, setDidYouMean] = useState<string | null>(null);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [isAiRelaxed, setIsAiRelaxed] = useState<boolean>(false);
@@ -396,6 +398,8 @@ export default function ProductList() {
     const qStr = searchParams.get('q');
     if (!qStr) {
       setSearchEngineResults(null);
+      setSearchLoading(false);
+      setSearchError(null);
       setDidYouMean(null);
       setAiExplanation(null);
       setIsAiRelaxed(false);
@@ -403,6 +407,9 @@ export default function ProductList() {
       setAiParsedIntent(null);
       return;
     }
+
+    setSearchLoading(true);
+    setSearchError(null);
 
     const abortCtrl = new AbortController();
     fetchSearchResults({
@@ -413,9 +420,9 @@ export default function ProductList() {
       minRating,
       minDiscount,
       inStock: onlyInStock,
-      brand: selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : undefined),
-      category: selectedCategories[0] || baseCatId || undefined,
-      subCategory: selectedSubCategories[0] || baseSubId || undefined,
+      brand: selectedBrands.length > 0 ? selectedBrands : undefined,
+      category: searchParams.get('category') || undefined,
+      subCategory: searchParams.get('subCategory') || undefined,
       limit: 100
     }, abortCtrl.signal).then(res => {
       if (res && res.items) {
@@ -425,11 +432,20 @@ export default function ProductList() {
         setIsAiRelaxed(Boolean(res.isAiRelaxed));
         setRecoveryRecommendations(res.recoveryRecommendations || []);
         setAiParsedIntent(res.aiParsedIntent || null);
+        setSearchError(null);
+      } else {
+        setSearchError("Failed to load search results");
       }
-    }).catch(() => {});
+      setSearchLoading(false);
+    }).catch(err => {
+      if (err?.name !== 'AbortError') {
+        setSearchError("Failed to connect to search service");
+        setSearchLoading(false);
+      }
+    });
 
     return () => abortCtrl.abort();
-  }, [searchParams, sortBy, priceRange, minRating, minDiscount, onlyInStock, selectedBrands, baseBrand, selectedCategories, baseCatId, selectedSubCategories, baseSubId]);
+  }, [searchParams, sortBy, priceRange, minRating, minDiscount, onlyInStock, selectedBrands]);
 
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
@@ -480,8 +496,11 @@ export default function ProductList() {
   }, [selectedCategories, CATEGORIES]);
 
   const filteredProducts = useMemo(() => {
-    if (searchParams.get('q') && searchEngineResults !== null) {
-      return searchEngineResults;
+    if (searchParams.get('q')) {
+      if (searchEngineResults !== null) {
+        return searchEngineResults;
+      }
+      return [];
     }
 
     let result = allProducts.filter(p => {
@@ -582,6 +601,7 @@ export default function ProductList() {
             p.name,
             p.brand,
             p.id,
+            p.sku,
             p.productCode,
             p.productCode ? cleanProductCode(p.productCode) : '',
             p.description,
@@ -604,6 +624,10 @@ export default function ProductList() {
     if (sortBy === 'price-asc') result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
     if (sortBy === 'price-desc') result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (result.length > 0) {
+      return result;
+    }
 
     return result;
   }, [allProducts, searchEngineResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
@@ -1180,7 +1204,7 @@ export default function ProductList() {
             </div>
 
             {/* Grid / Skeletons / States */}
-            {loading ? (
+            {(loading || (searchParams.get('q') && searchLoading && searchEngineResults === null)) ? (
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
                   {Array(10).fill(0).map((_, i) => (
@@ -1208,7 +1232,21 @@ export default function ProductList() {
                   ))}
                 </div>
               )
-            ) : loadError && allProducts.length === 0 ? (
+            ) : (searchParams.get('q') && searchError && filteredProducts.length === 0) ? (
+              <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm max-w-md mx-auto my-8">
+                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <RefreshCw className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Search encountered an issue</h3>
+                <p className="text-xs text-gray-500 mb-4">{searchError}</p>
+                <button
+                  onClick={() => setSearchParams(new URLSearchParams(searchParams))}
+                  className="px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : loadError && allProducts.length === 0 && !searchParams.get('q') ? (
               <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-sm max-w-md mx-auto my-8">
                 <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
                   <RefreshCw className="w-6 h-6" />

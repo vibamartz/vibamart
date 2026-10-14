@@ -28,8 +28,17 @@ export function sanitizeSearchQuery(rawQuery: string): string {
     .trim();
 }
 
+const inMemoryAnalytics: SearchAnalyticsEvent[] = [];
+const MAX_IN_MEMORY_EVENTS = 1000;
+
+function hasAdminCredentials(): boolean {
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
+  return Boolean(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey && admin.apps.length > 0);
+}
+
 /**
- * Asynchronously logs privacy-conscious search events to Firestore.
+ * Asynchronously logs privacy-conscious search events to in-memory buffer and Firestore.
  */
 export async function recordSearchAnalytics(event: Omit<SearchAnalyticsEvent, 'timestamp' | 'normalizedQuery'>): Promise<void> {
   const sanitized = sanitizeSearchQuery(event.query);
@@ -42,13 +51,23 @@ export async function recordSearchAnalytics(event: Omit<SearchAnalyticsEvent, 't
     timestamp: new Date().toISOString()
   };
 
-  try {
-    const db = admin.firestore();
-    // Fire and forget asynchronous write
-    db.collection('searchAnalytics').add(payload).catch((err) => {
-      console.warn('[SEARCH ANALYTICS] Failed to write event:', err);
-    });
-  } catch {
-    // Graceful error suppression
+  // 1. Always record into in-memory ring buffer
+  inMemoryAnalytics.unshift(payload);
+  if (inMemoryAnalytics.length > MAX_IN_MEMORY_EVENTS) {
+    inMemoryAnalytics.pop();
   }
+
+  // 2. Persist to Firestore if valid admin credentials exist
+  if (hasAdminCredentials()) {
+    try {
+      const db = admin.firestore();
+      db.collection('searchAnalytics').add(payload).catch(() => {});
+    } catch {
+      // Graceful error suppression
+    }
+  }
+}
+
+export function getInMemoryAnalytics(): SearchAnalyticsEvent[] {
+  return inMemoryAnalytics;
 }

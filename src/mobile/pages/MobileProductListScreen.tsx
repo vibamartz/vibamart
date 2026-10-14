@@ -199,6 +199,8 @@ export default function MobileProductListScreen() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
   // Match banner if accessing a banner route
@@ -293,6 +295,8 @@ export default function MobileProductListScreen() {
   useEffect(() => {
     if (!querySearch) {
       setSearchEngineResults(null);
+      setSearchLoading(false);
+      setSearchError(null);
       setDidYouMean(null);
       setAiExplanation(null);
       setIsAiRelaxed(false);
@@ -300,6 +304,9 @@ export default function MobileProductListScreen() {
       setAiParsedIntent(null);
       return;
     }
+
+    setSearchLoading(true);
+    setSearchError(null);
 
     const abortCtrl = new AbortController();
     fetchSearchResults({
@@ -310,9 +317,9 @@ export default function MobileProductListScreen() {
       minRating,
       minDiscount,
       inStock: inStockOnly,
-      brand: selectedBrand || undefined,
-      category: selectedCategory || baseCatId || undefined,
-      subCategory: selectedSubCategory || baseSubId || undefined,
+      brand: searchParams.get('brand') || (selectedBrand && selectedBrand !== baseBrand ? selectedBrand : undefined),
+      category: searchParams.get('category') || undefined,
+      subCategory: searchParams.get('subCategory') || undefined,
       limit: 100
     }, abortCtrl.signal).then(res => {
       if (res && res.items) {
@@ -322,11 +329,20 @@ export default function MobileProductListScreen() {
         setIsAiRelaxed(Boolean(res.isAiRelaxed));
         setRecoveryRecommendations(res.recoveryRecommendations || []);
         setAiParsedIntent(res.aiParsedIntent || null);
+        setSearchError(null);
+      } else {
+        setSearchError("Failed to load search results");
       }
-    }).catch(() => {});
+      setSearchLoading(false);
+    }).catch(err => {
+      if (err?.name !== 'AbortError') {
+        setSearchError("Failed to connect to search service");
+        setSearchLoading(false);
+      }
+    });
 
     return () => abortCtrl.abort();
-  }, [querySearch, sortBy, maxPrice, minRating, minDiscount, inStockOnly, selectedBrand, selectedCategory, baseCatId, selectedSubCategory, baseSubId]);
+  }, [querySearch, sortBy, maxPrice, minRating, minDiscount, inStockOnly, selectedBrand]);
 
   // Derive unique brands
   const availableBrands = useMemo(() => {
@@ -339,11 +355,14 @@ export default function MobileProductListScreen() {
 
   // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
-    if (querySearch && searchEngineResults !== null) {
-      return searchEngineResults;
+    if (querySearch) {
+      if (searchEngineResults !== null) {
+        return searchEngineResults;
+      }
+      return [];
     }
 
-    return products.filter(product => {
+    const localFiltered = products.filter(product => {
       if (product.status === 'inactive') return false;
 
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
@@ -354,17 +373,22 @@ export default function MobileProductListScreen() {
 
       // Query Search
       if (querySearch) {
-        const q = querySearch.toLowerCase();
-        const cleanQ = cleanProductCode(q);
-        const matchesName = product.name.toLowerCase().includes(q);
-        const matchesBrand = product.brand?.toLowerCase().includes(q);
-        const matchesId = product.id.toLowerCase().includes(q);
-        const matchesCode = product.productCode && (
-          product.productCode.toLowerCase().includes(q) ||
-          (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
-        );
-        const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
+        const terms = querySearch.toLowerCase().split(/\s+/).filter(Boolean);
+        const cleanQ = cleanProductCode(querySearch);
+        const searchable = [
+          product.name,
+          product.brand,
+          product.id,
+          product.sku,
+          product.productCode,
+          product.productCode ? cleanProductCode(product.productCode) : '',
+          product.description,
+          product.fullDescription,
+          ...(product.tags || [])
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        const matches = terms.every(t => searchable.includes(t) || (cleanProductCode(t).length > 0 && searchable.includes(cleanProductCode(t))));
+        if (!matches) return false;
       }
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
@@ -451,6 +475,12 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
+
+    if (localFiltered.length > 0) {
+      return localFiltered;
+    }
+
+    return localFiltered;
   }, [products, searchEngineResults, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
@@ -882,7 +912,7 @@ export default function MobileProductListScreen() {
       )}
 
       {/* Product List Grid */}
-      {loading ? (
+      {(loading || (querySearch && searchLoading && searchEngineResults === null)) ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-2 gap-3">
             {Array(6).fill(0).map((_, i) => (
@@ -914,7 +944,21 @@ export default function MobileProductListScreen() {
             ))}
           </div>
         )
-      ) : loadError && products.length === 0 ? (
+      ) : (querySearch && searchError && filteredProducts.length === 0) ? (
+        <div className="bg-white rounded-2xl p-6 text-center border border-yellow-100 space-y-3 my-4">
+          <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <RefreshCw className="w-5 h-5" />
+          </div>
+          <h4 className="text-xs font-bold text-gray-900">Search encountered an issue</h4>
+          <p className="text-[11px] text-gray-500">{searchError}</p>
+          <button
+            onClick={() => setSearchParams(new URLSearchParams(searchParams))}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm"
+          >
+            Try Again
+          </button>
+        </div>
+      ) : loadError && products.length === 0 && !querySearch ? (
         <div className="bg-white rounded-2xl p-6 text-center border border-yellow-100 space-y-3 my-4">
           <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
             <RefreshCw className="w-5 h-5" />

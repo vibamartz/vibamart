@@ -1,4 +1,6 @@
 import admin from 'firebase-admin';
+import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
+import { getFirestore as getClientFirestore, collection as clientCollection, getDocs as getClientDocs, onSnapshot as clientOnSnapshot } from 'firebase/firestore';
 import { Product, Category } from '../../shared/types';
 import { ViBaSearchEngine } from './searchEngine';
 import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
@@ -6,6 +8,49 @@ import { initializeFirebaseAdmin } from '../../../api/_utils';
 import { SearchLRUCache, createSearchCacheKey } from './searchCache';
 import { searchCurationManager } from './searchCuration';
 import { registerCustomSynonymGroups } from './searchSynonyms';
+
+function getValidProjectId(): string {
+  const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+  if (!envId || envId === 'your_firebase_project_id' || envId.includes('dummy') || envId.includes('placeholder')) {
+    return 'viba-mart-f46a4';
+  }
+  return envId;
+}
+
+function hasAdminCredentials(): boolean {
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+  const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
+  return Boolean(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey && admin.apps.length > 0);
+}
+
+function getFallbackClientDb() {
+  const projectId = getValidProjectId();
+  const existingApp = getClientApps().find(a => a.name === 'search-backend-fallback');
+  const app = existingApp || initClientApp({ projectId }, 'search-backend-fallback');
+  return getClientFirestore(app);
+}
+
+async function fetchFirestoreCollectionDocs(collectionName: string): Promise<{ id: string; data: any }[]> {
+  // 1. Try Firebase Admin Firestore only if valid service account credentials exist
+  if (hasAdminCredentials()) {
+    try {
+      const snap = await admin.firestore().collection(collectionName).get();
+      return snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+    } catch (err) {
+      console.warn(`[SEARCH ENGINE] Admin Firestore read for ${collectionName} failed:`, err);
+    }
+  }
+
+  // 2. Direct read from Firebase Client SDK (Fast & 100% reliable)
+  try {
+    const clientDb = getFallbackClientDb();
+    const snap = await getClientDocs(clientCollection(clientDb, collectionName));
+    return snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+  } catch (err) {
+    console.error(`[SEARCH ENGINE] Fallback Client SDK read for ${collectionName} failed:`, err);
+    return [];
+  }
+}
 
 export class SearchService {
   private static instance: SearchService;
@@ -79,11 +124,10 @@ export class SearchService {
    */
   private async loadCategoriesAndBuildHierarchyMap() {
     try {
-      const db = admin.firestore();
-      const snapshot = await db.collection('categories').get();
+      const rawDocs = await fetchFirestoreCollectionDocs('categories');
       this.categoryNamesMap.clear();
 
-      const categories: Category[] = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Category));
+      const categories: Category[] = rawDocs.map(d => ({ id: d.id, ...d.data } as Category));
       for (const cat of categories) {
         if (!cat) continue;
         if (cat.subcategories) {
@@ -119,9 +163,8 @@ export class SearchService {
    */
   private async syncRewardProducts() {
     try {
-      const db = admin.firestore();
-      const snap = await db.collection('reward_products').get();
-      const ids = snap.docs.map(d => d.id);
+      const rawDocs = await fetchFirestoreCollectionDocs('reward_products');
+      const ids = rawDocs.map(d => d.id);
       this.engine.setRewardProductIds(ids);
     } catch {
       // Ignore if collection not present
@@ -136,10 +179,9 @@ export class SearchService {
     this.isIndexing = true;
 
     try {
-      const db = admin.firestore();
       console.log('[SEARCH ENGINE] Fetching all products from Firestore for indexing...');
-      const snapshot = await db.collection('products').get();
-      const products: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const rawDocs = await fetchFirestoreCollectionDocs('products');
+      const products: Product[] = rawDocs.map(doc => ({ id: doc.id, ...doc.data } as Product));
 
       const productCatMap = new Map<string, { cat?: string; sub?: string; nested?: string }>();
       for (const p of products) {
@@ -152,8 +194,7 @@ export class SearchService {
       }
 
       this.engine.indexProducts(products, productCatMap);
-      this.searchCache.clear();
-      this.suggestionCache.clear();
+      this.clearCache();
       this.lastIndexedAt = new Date().toISOString();
       console.log(`[SEARCH ENGINE] Successfully indexed ${products.length} products.`);
       return products.length;
@@ -175,8 +216,43 @@ export class SearchService {
     }
 
     try {
-      const db = admin.firestore();
-      this.unsubscribeProducts = db.collection('products').onSnapshot((snapshot) => {
+      if (hasAdminCredentials()) {
+        const db = admin.firestore();
+        this.unsubscribeProducts = db.collection('products').onSnapshot((snapshot) => {
+          let hasChanges = false;
+          snapshot.docChanges().forEach((change) => {
+            hasChanges = true;
+            const data = { id: change.doc.id, ...change.doc.data() } as Product;
+            if (change.type === 'added' || change.type === 'modified') {
+              const catInfo = data.nestedSubCategoryId
+                ? this.categoryNamesMap.get(data.nestedSubCategoryId)
+                : (data.subCategoryId ? this.categoryNamesMap.get(data.subCategoryId) : this.categoryNamesMap.get(data.categoryId));
+              this.engine.upsertProduct(data, catInfo);
+            } else if (change.type === 'removed') {
+              this.engine.removeProduct(change.doc.id);
+            }
+          });
+
+          if (hasChanges) {
+            this.clearCache();
+          }
+        }, (err) => {
+          console.warn('[SEARCH ENGINE] Admin real-time listener error, trying client SDK listener:', (err as any)?.message || err);
+          this.setupClientRealtimeListener();
+        });
+        return;
+      }
+    } catch (err) {
+      console.warn('[SEARCH ENGINE] Admin real-time listener failed, falling back to client SDK:', err);
+    }
+
+    this.setupClientRealtimeListener();
+  }
+
+  private setupClientRealtimeListener() {
+    try {
+      const clientDb = getFallbackClientDb();
+      this.unsubscribeProducts = clientOnSnapshot(clientCollection(clientDb, 'products'), (snapshot) => {
         let hasChanges = false;
         snapshot.docChanges().forEach((change) => {
           hasChanges = true;
@@ -192,14 +268,13 @@ export class SearchService {
         });
 
         if (hasChanges) {
-          this.searchCache.clear();
-          this.suggestionCache.clear();
+          this.clearCache();
         }
       }, (err) => {
-        console.error('[SEARCH ENGINE] Real-time listener error:', err);
+        console.warn('[SEARCH ENGINE] Client real-time listener error:', (err as any)?.message || err);
       });
     } catch (err) {
-      console.warn('[SEARCH ENGINE] Failed to attach real-time listener:', err);
+      console.warn('[SEARCH ENGINE] Failed to attach client real-time listener:', err);
     }
   }
 
