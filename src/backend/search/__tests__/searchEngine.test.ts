@@ -5,6 +5,9 @@ import { SearchCache } from '../searchCache';
 import { searchCurationManager } from '../searchCuration';
 import { recordSearchAnalytics, getInMemoryAnalytics } from '../searchAnalytics';
 import { parseIntentRuleBased, parseQueryIntent, getSemanticSearchStatus } from '../semanticSearch';
+import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitization';
+import { requireSearchAdmin } from '../searchAuth';
+
 
 export async function runTests(): Promise<boolean> {
   console.log('====================================================');
@@ -415,10 +418,143 @@ export async function runTests(): Promise<boolean> {
   assert(asyncParsed.isNaturalLanguage === true, 'AI Pipeline: async parseQueryIntent succeeds');
   assert(asyncParsed.detectedFilters.maxPrice === 1000, 'AI Pipeline: async parse correctly extracts maxPrice');
 
+  // ==========================================
+  // PHASE 4: SECURITY, RELIABILITY & CHAOS
+  // ==========================================
+
+  // Test 24: Sanitization & Malicious Script Defense
+  const xssInput = '<script>alert("pwned")</script>samsung phone';
+  const cleanStr = sanitizeSearchString(xssInput);
+  assert(!cleanStr.includes('<script>') && !cleanStr.includes('</script>') && cleanStr.includes('samsung phone'), 'Security: strips malicious HTML/XSS script tags');
+
+  // Test 25: Buffer Flood / Query Bomb Length Truncation
+  const floodQuery = 'a'.repeat(5000);
+  const truncatedQuery = sanitizeSearchString(floodQuery);
+  assert(truncatedQuery.length === 120, `Security: truncates 5000-char buffer flood to exactly 120 chars (actual: ${truncatedQuery.length})`);
+
+  // Test 26: Control Character & Null Byte Sanitization
+  const controlCharsInput = 'sneakers\x00\x08\x1F\x7F running';
+  const sanitizedControl = sanitizeSearchString(controlCharsInput);
+  assert(sanitizedControl === 'sneakers running', `Security: strips null bytes and ASCII control characters (actual: "${sanitizedControl}")`);
+
+  // Test 27: Parameter Clamping & Type Safety
+  const maliciousParams = sanitizeSearchParams({
+    q: '  iphone   15   ',
+    page: '-5',
+    limit: '999999',
+    minPrice: '-500',
+    maxPrice: 'invalid_price',
+    minRating: '25',
+    minDiscount: '150',
+    sortBy: 'malicious_sql_injection; DROP TABLE products;'
+  });
+  assert(maliciousParams.page === 1, 'Sanitization: clamps negative page number to 1');
+  assert(maliciousParams.limit === 100, `Sanitization: clamps excessive limit to 100 max (actual: ${maliciousParams.limit})`);
+  assert(maliciousParams.minPrice === 0, 'Sanitization: clamps negative price to 0');
+  assert(maliciousParams.maxPrice === undefined, 'Sanitization: safely discards non-numeric maxPrice');
+  assert(maliciousParams.minRating === 5, 'Sanitization: clamps minRating exceeding 5 down to 5');
+  assert(maliciousParams.minDiscount === 100, 'Sanitization: clamps minDiscount exceeding 100 down to 100');
+  assert(maliciousParams.sortBy === undefined, 'Sanitization: rejects invalid or malicious sortBy values');
+  assert(maliciousParams.q === 'iphone 15', 'Sanitization: collapses extra whitespace in query');
+
+  // Test 28: Regex Special Characters / ReDoS Safety
+  let regexSafeResult: SearchResult | null = null;
+  try {
+    regexSafeResult = engine.search({ q: 'samsung *+?()[]{}|^$\\.' });
+  } catch (e) {
+    regexSafeResult = null;
+  }
+  assert(regexSafeResult !== null && regexSafeResult.products.length > 0, 'Security: executes queries containing regex metacharacters (*+?()[]{}|^$) without crashing or ReDoS');
+
+  // Test 29: Corrupted Product Ingestion - Missing ID & Undefined Fields
+  const corruptedDocs: any[] = [
+    null,
+    undefined,
+    {},
+    { id: '', name: 'Broken Doc' },
+    {
+      id: 'corrupt-001',
+      name: 'Corrupted Data Product',
+      price: 'not_a_number',
+      discountPrice: -50,
+      rating: 'super_high',
+      numReviews: -10,
+      variants: [null, undefined, { color: 12345, size: false }],
+      specifications: [null, { key: null, value: undefined }],
+      tags: null
+    }
+  ];
+
+  // Indexing should not throw an exception
+  let corruptedIndexSuccess = false;
+  try {
+    const corruptEngine = new ViBaSearchEngine();
+    corruptEngine.indexProducts(corruptedDocs as Product[]);
+    corruptedIndexSuccess = true;
+  } catch (err) {
+    corruptedIndexSuccess = false;
+  }
+  assert(corruptedIndexSuccess, 'Reliability: safely indexes catalog containing nulls, missing IDs, and corrupted data types');
+
+  // Test 30: Corrupted Document Value Normalization
+  const transformedDoc = ViBaSearchEngine.toIndexedDoc(corruptedDocs[4] as Product);
+  assert(transformedDoc.price === 0, 'Reliability: normalizes NaN price to 0');
+  assert(transformedDoc.effectivePrice === 0, 'Reliability: normalizes negative discount price to 0 effectivePrice');
+  assert(transformedDoc.rating === 0, 'Reliability: normalizes non-numeric rating to 0');
+  assert(transformedDoc.numReviews === 0, 'Reliability: normalizes negative numReviews to 0');
+  assert(Array.isArray(transformedDoc.colors), 'Reliability: sanitizes malformed variants array into clean colors');
+
+  // Test 31: Query Execution Against Index with Corrupted Documents
+  const corruptEngine = new ViBaSearchEngine();
+  corruptEngine.indexProducts(corruptedDocs as Product[]);
+  const corruptSearchRes = corruptEngine.search({ q: 'Corrupted Data Product' });
+  assert(corruptSearchRes.total === 1 && corruptSearchRes.products[0].id === 'corrupt-001', 'Reliability: retrieves valid fields from corrupted document without crashing query pipeline');
+
+  // Test 32: Incremental Upsert / Delete with Malformed Data
+  let upsertDeleteSuccess = false;
+  try {
+    corruptEngine.upsertProduct(null as any);
+    corruptEngine.upsertProduct({} as any);
+    corruptEngine.removeProduct('');
+    corruptEngine.removeProduct('non-existent-id');
+    upsertDeleteSuccess = true;
+  } catch (e) {
+    upsertDeleteSuccess = false;
+  }
+  assert(upsertDeleteSuccess, 'Reliability: handles null upsert and missing ID removal without throwing');
+
+  // Test 33: Admin Auth Middleware Simulation
+  let authDenied = false;
+  const mockReq: any = { headers: {} };
+  const mockRes: any = {
+    statusCode: 0,
+    status(code: number) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload: any) {
+      this.payload = payload;
+      return this;
+    }
+  };
+  const mockNext = () => {};
+
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  try {
+    await requireSearchAdmin(mockReq, mockRes, mockNext);
+    // In production without admin.apps or auth token, must return 503 or 401
+    authDenied = mockRes.statusCode === 503 || mockRes.statusCode === 401;
+  } finally {
+    process.env.NODE_ENV = originalEnv;
+  }
+  assert(authDenied, 'Security: requireSearchAdmin rejects unauthenticated requests in production environment');
+
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);
   console.log('----------------------------------------------------\n');
 
   return failed === 0;
 }
+
 

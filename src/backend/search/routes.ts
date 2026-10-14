@@ -4,76 +4,26 @@ import { SearchParams } from './searchTypes';
 import { searchCurationManager } from './searchCuration';
 import { recordSearchAnalytics, getAnalyticsSummary } from './searchAnalytics';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
-import admin from 'firebase-admin';
+import { sanitizeSearchParams, sanitizeSearchString } from './searchSanitization';
+import { searchRateLimiter, adminSearchRateLimiter, reindexRateLimiter } from './searchRateLimit';
+import { requireSearchAdmin } from './searchAuth';
 
 export const searchRouter = Router();
 
 /**
  * GET /api/search
  * Core product search endpoint with multi-term matching, typo tolerance, filters, facets, and pagination.
+ * Hardened with searchRateLimiter and input sanitization.
  */
-searchRouter.get('/', async (req: Request, res: Response) => {
+searchRouter.get('/', searchRateLimiter, async (req: Request, res: Response) => {
   try {
-    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-    const category = typeof req.query.category === 'string' ? req.query.category : undefined;
-    const subCategory = typeof req.query.subCategory === 'string' ? req.query.subCategory : undefined;
-    const nestedSubCategory = typeof req.query.nestedSubCategory === 'string' ? req.query.nestedSubCategory : undefined;
-    const visualSubCategory = typeof req.query.visualSubCategory === 'string' ? req.query.visualSubCategory : undefined;
-
-    let brand: string[] | string | undefined = undefined;
-    if (typeof req.query.brand === 'string') {
-      brand = req.query.brand.includes(',') ? req.query.brand.split(',').map(b => b.trim()) : req.query.brand;
-    } else if (Array.isArray(req.query.brand)) {
-      brand = req.query.brand as string[];
-    }
-
-    const minPrice = req.query.minPrice !== undefined ? Number(req.query.minPrice) : undefined;
-    const maxPrice = req.query.maxPrice !== undefined ? Number(req.query.maxPrice) : undefined;
-    const minRating = req.query.minRating !== undefined ? Number(req.query.minRating) : undefined;
-    const minDiscount = req.query.minDiscount !== undefined ? Number(req.query.minDiscount) : undefined;
-    const inStock = req.query.inStock === 'true' || req.query.inStock === '1';
-
-    let color: string[] | string | undefined = undefined;
-    if (typeof req.query.color === 'string') {
-      color = req.query.color.includes(',') ? req.query.color.split(',').map(c => c.trim()) : req.query.color;
-    }
-
-    let size: string[] | string | undefined = undefined;
-    if (typeof req.query.size === 'string') {
-      size = req.query.size.includes(',') ? req.query.size.split(',').map(s => s.trim()) : req.query.size;
-    }
-
-    const sortBy = (typeof req.query.sortBy === 'string' ? req.query.sortBy : undefined) as any;
-    const page = req.query.page !== undefined ? Number(req.query.page) : 1;
-    const limit = req.query.limit !== undefined ? Number(req.query.limit) : 24;
-    const useAI = req.query.ai === 'true' || req.query.ai === '1';
-
-    const params: SearchParams = {
-      q,
-      category,
-      subCategory,
-      nestedSubCategory,
-      visualSubCategory,
-      brand,
-      minPrice,
-      maxPrice,
-      minRating,
-      minDiscount,
-      inStock,
-      color,
-      size,
-      sortBy,
-      page,
-      limit,
-      useAI
-    };
-
+    const params: SearchParams = sanitizeSearchParams(req.query);
     const results = await searchService.search(params);
 
     // Asynchronously log search analytics if text query
-    if (q && q.trim()) {
+    if (params.q && params.q.trim()) {
       recordSearchAnalytics({
-        query: q.trim(),
+        query: params.q.trim(),
         resultCount: results.total,
         isZeroResult: results.total === 0,
         executionTimeMs: results.executionTimeMs,
@@ -98,11 +48,13 @@ searchRouter.get('/', async (req: Request, res: Response) => {
 /**
  * GET /api/search/suggestions
  * Live autocomplete suggestions for header / mobile search inputs.
+ * Hardened with searchRateLimiter and query sanitization.
  */
-searchRouter.get('/suggestions', async (req: Request, res: Response) => {
+searchRouter.get('/suggestions', searchRateLimiter, async (req: Request, res: Response) => {
   try {
-    const q = typeof req.query.q === 'string' ? req.query.q : '';
-    const limit = req.query.limit !== undefined ? Number(req.query.limit) : 8;
+    const q = sanitizeSearchString(typeof req.query.q === 'string' ? req.query.q : '');
+    const rawLimit = Number(req.query.limit);
+    const limit = (!isNaN(rawLimit) && rawLimit >= 1) ? Math.min(20, Math.floor(rawLimit)) : 8;
 
     const suggestions = await searchService.suggest(q, limit);
     res.json({
@@ -132,8 +84,9 @@ searchRouter.get('/status', (req: Request, res: Response) => {
 /**
  * POST /api/search/reindex
  * Forces catalog re-indexing.
+ * Protected by reindexRateLimiter and requireSearchAdmin authentication.
  */
-searchRouter.post('/reindex', async (req: Request, res: Response) => {
+searchRouter.post('/reindex', reindexRateLimiter, requireSearchAdmin, async (req: Request, res: Response) => {
   try {
     const indexedCount = await searchService.indexAllProducts();
     res.json({
@@ -153,18 +106,26 @@ searchRouter.post('/reindex', async (req: Request, res: Response) => {
  * POST /api/search/analytics
  * Logs telemetry events like suggestion clicks.
  */
-searchRouter.post('/analytics', async (req: Request, res: Response) => {
+searchRouter.post('/analytics', searchRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { query, resultCount = 1, executionTimeMs = 0, type = 'product_click', productId, platform = 'desktop' } = req.body;
-    if (query) {
+    const { query, resultCount = 1, executionTimeMs = 0, type = 'product_click', productId, platform = 'desktop' } = req.body || {};
+    const sanitizedQuery = sanitizeSearchString(String(query || ''));
+
+    const rawType = String(type || 'product_click');
+    const safeType: 'search' | 'product_click' | 'suggestion_click' =
+      rawType === 'search' || rawType === 'suggestion_click' ? rawType : 'product_click';
+    const rawPlatform = String(platform || 'desktop');
+    const safePlatform: 'mobile' | 'desktop' = rawPlatform === 'mobile' ? 'mobile' : 'desktop';
+
+    if (sanitizedQuery) {
       await recordSearchAnalytics({
-        query: String(query).trim(),
-        resultCount: Number(resultCount) || 0,
+        query: sanitizedQuery,
+        resultCount: Math.max(0, Number(resultCount) || 0),
         isZeroResult: Number(resultCount) === 0,
-        executionTimeMs: Number(executionTimeMs) || 0,
-        type: type || 'product_click',
-        productId: productId || undefined,
-        platform: platform || 'desktop'
+        executionTimeMs: Math.max(0, Number(executionTimeMs) || 0),
+        type: safeType,
+        productId: productId ? sanitizeSearchString(String(productId)) : undefined,
+        platform: safePlatform
       });
     }
     res.json({ success: true });
@@ -176,8 +137,9 @@ searchRouter.post('/analytics', async (req: Request, res: Response) => {
 /**
  * GET /api/search/admin/curation
  * Fetches current curation rules (pinned products, brand boosts, custom synonyms).
+ * Protected by adminSearchRateLimiter and requireSearchAdmin authentication.
  */
-searchRouter.get('/admin/curation', async (_req: Request, res: Response) => {
+searchRouter.get('/admin/curation', adminSearchRateLimiter, requireSearchAdmin, async (_req: Request, res: Response) => {
   try {
     const config = await searchCurationManager.loadConfig();
     res.json({
@@ -195,14 +157,15 @@ searchRouter.get('/admin/curation', async (_req: Request, res: Response) => {
 /**
  * POST /api/search/admin/curation
  * Saves new curation rules.
+ * Protected by adminSearchRateLimiter and requireSearchAdmin authentication.
  */
-searchRouter.post('/admin/curation', async (req: Request, res: Response) => {
+searchRouter.post('/admin/curation', adminSearchRateLimiter, requireSearchAdmin, async (req: Request, res: Response) => {
   try {
-    const { pinnedRules, boostedRules, customSynonyms } = req.body;
+    const { pinnedRules, boostedRules, customSynonyms } = req.body || {};
     const updated = await searchCurationManager.saveConfig({
-      pinnedRules,
-      boostedRules,
-      customSynonyms
+      pinnedRules: Array.isArray(pinnedRules) ? pinnedRules : [],
+      boostedRules: Array.isArray(boostedRules) ? boostedRules : [],
+      customSynonyms: Array.isArray(customSynonyms) ? customSynonyms : []
     });
     res.json({
       success: true,
@@ -219,8 +182,9 @@ searchRouter.post('/admin/curation', async (req: Request, res: Response) => {
 /**
  * GET /api/search/admin/analytics
  * Returns search performance metrics, zero-result queries, top searches, and latency telemetry.
+ * Protected by adminSearchRateLimiter and requireSearchAdmin authentication.
  */
-searchRouter.get('/admin/analytics', async (_req: Request, res: Response) => {
+searchRouter.get('/admin/analytics', adminSearchRateLimiter, requireSearchAdmin, async (_req: Request, res: Response) => {
   try {
     const summary = await getAnalyticsSummary();
     const status = searchService.getStatus();
@@ -240,11 +204,13 @@ searchRouter.get('/admin/analytics', async (_req: Request, res: Response) => {
 /**
  * POST /api/search/ai/intent
  * Parses a natural language search query into clean keywords, filters, and semantic tags.
+ * Protected by searchRateLimiter and query sanitization.
  */
-searchRouter.post('/ai/intent', async (req: Request, res: Response) => {
+searchRouter.post('/ai/intent', searchRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { query } = req.body;
-    const intent = await parseQueryIntent(String(query || ''));
+    const { query } = req.body || {};
+    const sanitizedQuery = sanitizeSearchString(String(query || ''));
+    const intent = await parseQueryIntent(sanitizedQuery);
     res.json({
       success: true,
       intent
@@ -267,5 +233,3 @@ searchRouter.get('/ai/status', (_req: Request, res: Response) => {
     status: getSemanticSearchStatus()
   });
 });
-
-

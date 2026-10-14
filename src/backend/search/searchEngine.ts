@@ -111,76 +111,124 @@ export class ViBaSearchEngine {
     nestedSubCategoryName = '',
     isReward = false
   ): IndexedProductDoc {
-    const rawCode = product.productCode || '';
-    const cleanDigits = cleanProductCode(rawCode);
-    const effectivePrice = product.discountPrice !== undefined && product.discountPrice > 0
-      ? product.discountPrice
-      : (product.price || 0);
+    if (!product || !product.id) {
+      return {
+        id: product?.id || 'corrupted_doc',
+        name: String(product?.name || ''),
+        brand: String(product?.brand || ''),
+        productCode: '',
+        cleanProductCode: '',
+        sku: '',
+        categoryName: '',
+        subCategoryName: '',
+        nestedSubCategoryName: '',
+        tags: '',
+        specifications: '',
+        variantAttributes: '',
+        description: '',
+        categoryId: '',
+        effectivePrice: 0,
+        price: 0,
+        discountPercentage: 0,
+        rating: 0,
+        numReviews: 0,
+        stock: 0,
+        inStock: false,
+        colors: [],
+        sizes: [],
+        createdAt: new Date().toISOString(),
+        status: 'inactive',
+        isVisible: false,
+        isReward: false,
+        raw: product || ({} as any)
+      };
+    }
 
-    const discountPercentage = product.discountPercentage !== undefined
-      ? product.discountPercentage
-      : (product.price && product.discountPrice && product.price > product.discountPrice
-          ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+    const rawCode = String(product.productCode || '');
+    const cleanDigits = cleanProductCode(rawCode);
+
+    const price = Math.max(0, Number(product.price) || 0);
+    const discountPrice = product.discountPrice !== undefined && !isNaN(Number(product.discountPrice))
+      ? Math.max(0, Number(product.discountPrice))
+      : undefined;
+
+    const effectivePrice = discountPrice !== undefined && discountPrice > 0
+      ? discountPrice
+      : price;
+
+    const discountPercentage = product.discountPercentage !== undefined && !isNaN(Number(product.discountPercentage))
+      ? Number(product.discountPercentage)
+      : (price > 0 && discountPrice !== undefined && price > discountPrice
+          ? Math.round(((price - discountPrice) / price) * 100)
           : 0);
 
     const colors: string[] = [];
-    if (product.color) colors.push(product.color.toLowerCase().trim());
+    if (typeof product.color === 'string') colors.push(product.color.toLowerCase().trim());
     if (Array.isArray(product.variants)) {
       product.variants.forEach(v => {
-        if (v.color) colors.push(v.color.toLowerCase().trim());
+        if (v && typeof v.color === 'string') colors.push(v.color.toLowerCase().trim());
       });
     }
 
     const sizes: string[] = [];
-    if (product.size) sizes.push(product.size.toLowerCase().trim());
+    if (typeof product.size === 'string') sizes.push(product.size.toLowerCase().trim());
     if (Array.isArray(product.sizes)) {
-      product.sizes.forEach(s => sizes.push(s.toLowerCase().trim()));
+      product.sizes.forEach(s => {
+        if (typeof s === 'string') sizes.push(s.toLowerCase().trim());
+      });
     }
     if (Array.isArray(product.variants)) {
       product.variants.forEach(v => {
-        if (v.size) sizes.push(v.size.toLowerCase().trim());
+        if (v && typeof v.size === 'string') sizes.push(v.size.toLowerCase().trim());
       });
     }
 
     const specStrings: string[] = [];
     if (Array.isArray(product.specifications)) {
       product.specifications.forEach(s => {
-        if (s.key && s.value) specStrings.push(`${s.key} ${s.value}`);
+        if (s && s.key && s.value) specStrings.push(`${s.key} ${s.value}`);
       });
     }
 
     const visualNestedSubcategoryIds: string[] = [];
-    if (product.visualNestedSubcategoryId) visualNestedSubcategoryIds.push(product.visualNestedSubcategoryId);
+    if (product.visualNestedSubcategoryId) visualNestedSubcategoryIds.push(String(product.visualNestedSubcategoryId));
     if (Array.isArray(product.visualNestedSubcategoryIds)) {
-      visualNestedSubcategoryIds.push(...product.visualNestedSubcategoryIds);
+      product.visualNestedSubcategoryIds.forEach(v => {
+        if (v) visualNestedSubcategoryIds.push(String(v));
+      });
     }
 
+    const rating = Math.max(0, Math.min(5, Number(product.rating) || 0));
+    const numReviews = Math.max(0, Number(product.numReviews) || 0);
+    const stock = Number(product.stock) >= 0 ? Number(product.stock) : (product.inStock === false ? 0 : 10);
+    const inStock = product.inStock !== false && stock > 0;
+
     return {
-      id: product.id,
-      name: product.name || '',
-      brand: product.brand || '',
+      id: String(product.id),
+      name: String(product.name || ''),
+      brand: String(product.brand || ''),
       productCode: rawCode,
       cleanProductCode: cleanDigits,
-      sku: product.sku || '',
+      sku: String(product.sku || ''),
       categoryName,
       subCategoryName,
       nestedSubCategoryName,
-      tags: Array.isArray(product.tags) ? product.tags.join(' ') : '',
+      tags: Array.isArray(product.tags) ? product.tags.filter(t => typeof t === 'string').join(' ') : '',
       specifications: specStrings.join(' '),
-      variantAttributes: Array.isArray(product.variantAttributes) ? product.variantAttributes.join(' ') : '',
-      description: (product.description || '') + ' ' + (product.fullDescription || ''),
-      categoryId: product.categoryId || '',
-      subCategoryId: product.subCategoryId,
-      nestedSubCategoryId: product.nestedSubCategoryId,
+      variantAttributes: Array.isArray(product.variantAttributes) ? product.variantAttributes.filter(v => typeof v === 'string').join(' ') : '',
+      description: String(product.description || '') + ' ' + String(product.fullDescription || ''),
+      categoryId: String(product.categoryId || ''),
+      subCategoryId: product.subCategoryId ? String(product.subCategoryId) : undefined,
+      nestedSubCategoryId: product.nestedSubCategoryId ? String(product.nestedSubCategoryId) : undefined,
       visualNestedSubcategoryIds,
       effectivePrice,
-      price: product.price || 0,
-      discountPrice: product.discountPrice,
+      price,
+      discountPrice,
       discountPercentage,
-      rating: product.rating || 0,
-      numReviews: product.numReviews || 0,
-      stock: product.stock !== undefined ? product.stock : (product.inStock === false ? 0 : 10),
-      inStock: product.inStock !== false && (product.stock === undefined || product.stock > 0),
+      rating,
+      numReviews,
+      stock,
+      inStock,
       colors: Array.from(new Set(colors)),
       sizes: Array.from(new Set(sizes)),
       createdAt: product.createdAt || new Date().toISOString(),
