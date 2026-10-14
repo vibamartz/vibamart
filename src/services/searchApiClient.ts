@@ -146,7 +146,24 @@ class SearchApiClient {
     const res = await axios.get('/api/search/admin/analytics');
     return res.data;
   }
+
+  /**
+   * Parse natural language query intent using AI / Semantic engine.
+   */
+  public async parseAIIntent(query: string): Promise<any> {
+    const res = await axios.post('/api/search/ai/intent', { query });
+    return res.data?.intent;
+  }
+
+  /**
+   * Fetch AI search engine configuration and model status.
+   */
+  public async getAIStatus(): Promise<any> {
+    const res = await axios.get('/api/search/ai/status');
+    return res.data?.status;
+  }
 }
 
 export const searchApiClient = new SearchApiClient();
+
 

@@ -5,6 +5,7 @@ import { expandQueryWithSynonyms, stemToken, normalizeQueryString } from './sear
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { ZeroResultRecovery } from './zeroResultRecovery';
 import { searchCurationManager } from './searchCuration';
+import { parseIntentRuleBased } from './semanticSearch';
 
 export interface IndexedProductDoc {
   id: string;
@@ -275,6 +276,20 @@ export class ViBaSearchEngine {
     let scoreMap: Map<string, number> = new Map();
     let exactMatchFound = false;
 
+    // Natural Language / Semantic Intent Extraction
+    let semanticIntent = undefined;
+    let queryToSearch = rawQuery;
+
+    if (rawQuery.length > 0) {
+      const isConversational = params.useAI || /\b(?:under|below|above|between|for\s+(?:men|women|kids)|cheap|cheapest|budget|expensive|best|latest|in\s*stock)\b/i.test(rawQuery);
+      if (isConversational) {
+        semanticIntent = parseIntentRuleBased(rawQuery);
+        if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
+          queryToSearch = semanticIntent.cleanKeyword;
+        }
+      }
+    }
+
     // Check for exact SKU or 12-digit Product Code match
     if (rawQuery.length > 0) {
       const isExactCode = cleanDigits.length >= 10;
@@ -300,13 +315,13 @@ export class ViBaSearchEngine {
       });
 
       // If not exact unique match or we want full text retrieval
-      const synonymTokens = expandQueryWithSynonyms(rawQuery);
-      const searchTerms = Array.from(new Set([rawQuery, ...synonymTokens]));
+      const synonymTokens = expandQueryWithSynonyms(queryToSearch);
+      const searchTerms = Array.from(new Set([queryToSearch, rawQuery, ...synonymTokens]));
 
       // Execute MiniSearch queries
       try {
         // 1. Primary multi-term query (AND mode)
-        const primaryResults = this.miniSearch.search(rawQuery, {
+        const primaryResults = this.miniSearch.search(queryToSearch, {
           combineWith: 'AND',
           prefix: true
         });
@@ -319,7 +334,7 @@ export class ViBaSearchEngine {
         // 2. If no direct AND match was found, search for synonym matches
         if (primaryResults.length === 0 && searchTerms.length > 1) {
           for (const syn of searchTerms) {
-            if (syn === rawQuery) continue;
+            if (syn === queryToSearch) continue;
             const synResults = this.miniSearch.search(syn, {
               combineWith: 'AND',
               prefix: true
@@ -400,8 +415,10 @@ export class ViBaSearchEngine {
       }
 
       // 4. Price Filter
-      if (params.minPrice !== undefined && doc.effectivePrice < params.minPrice) continue;
-      if (params.maxPrice !== undefined && doc.effectivePrice > params.maxPrice) continue;
+      const effectiveMinPrice = params.minPrice !== undefined ? params.minPrice : semanticIntent?.detectedFilters.minPrice;
+      const effectiveMaxPrice = params.maxPrice !== undefined ? params.maxPrice : semanticIntent?.detectedFilters.maxPrice;
+      if (effectiveMinPrice !== undefined && doc.effectivePrice < effectiveMinPrice) continue;
+      if (effectiveMaxPrice !== undefined && doc.effectivePrice > effectiveMaxPrice) continue;
 
       // 5. Rating Filter
       if (params.minRating !== undefined && doc.rating < params.minRating) continue;
@@ -410,11 +427,13 @@ export class ViBaSearchEngine {
       if (params.minDiscount !== undefined && doc.discountPercentage < params.minDiscount) continue;
 
       // 7. Stock Filter
-      if (params.inStock && (!doc.inStock || doc.stock <= 0)) continue;
+      const effectiveInStock = params.inStock ?? semanticIntent?.detectedFilters.inStock;
+      if (effectiveInStock && (!doc.inStock || doc.stock <= 0)) continue;
 
       // 8. Color Filter
-      if (colorFilters && colorFilters.length > 0) {
-        const hasColor = doc.colors.some(c => colorFilters.includes(c));
+      const effectiveColors = colorFilters || (semanticIntent?.detectedFilters.color ? [semanticIntent.detectedFilters.color] : undefined);
+      if (effectiveColors && effectiveColors.length > 0) {
+        const hasColor = doc.colors.some(c => effectiveColors.some(ec => c.includes(ec) || ec.includes(c)));
         if (!hasColor) continue;
       }
 
@@ -429,6 +448,17 @@ export class ViBaSearchEngine {
         const boost = searchCurationManager.getBoostMultiplier(rawQuery, doc.brand, doc.categoryId);
         score *= boost;
       }
+
+      // Semantic Intent Tag Relevance Boost
+      if (semanticIntent && semanticIntent.semanticTags.length > 0) {
+        const docText = (doc.name + ' ' + doc.tags + ' ' + doc.description).toLowerCase();
+        for (const tag of semanticIntent.semanticTags) {
+          if (docText.includes(tag.toLowerCase())) {
+            score *= 1.35;
+          }
+        }
+      }
+
       candidateDocs.push({ doc, score });
     }
 
@@ -444,7 +474,7 @@ export class ViBaSearchEngine {
     const facets = this.computeFacets(candidateDocs.map(c => c.doc));
 
     // Sorting
-    const sortBy = params.sortBy || (rawQuery ? 'relevance' : 'popularity');
+    const sortBy = params.sortBy || semanticIntent?.detectedFilters.sortBy || (rawQuery ? 'relevance' : 'popularity');
 
     candidateDocs.sort((a, b) => {
       // Always keep exact SKU/Code matches on top
@@ -489,6 +519,7 @@ export class ViBaSearchEngine {
       query: rawQuery,
       exactMatch: exactMatchFound,
       correctedQuery,
+      semanticIntent,
       recovery
     };
   }

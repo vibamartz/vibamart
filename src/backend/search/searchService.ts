@@ -3,6 +3,7 @@ import { ViBaSearchEngine } from './searchEngine';
 import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
 import { Product } from '../../shared/types';
 import { searchCache } from './searchCache';
+import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
 
 export class SearchService {
   private engine: ViBaSearchEngine;
@@ -27,7 +28,8 @@ export class SearchService {
       isInitialized: this.isInitialized,
       indexedCount: this.engine.getCount(),
       lastIndexedTimestamp: this.lastIndexedTimestamp,
-      cache: searchCache.getStats()
+      cache: searchCache.getStats(),
+      ai: getSemanticSearchStatus()
     };
   }
 
@@ -196,7 +198,37 @@ export class SearchService {
       return cachedResult;
     }
 
-    const freshResult = this.engine.search(params);
+    const rawQuery = (params.q || '').trim();
+    let searchParams = { ...params };
+
+    // Asynchronously resolve natural language / AI intent if query contains conversational markers
+    if (rawQuery.length > 0 && (params.useAI || /\b(?:under|below|above|between|for\s+(?:men|women|kids)|cheap|cheapest|budget|expensive|best|latest|in\s*stock)\b/i.test(rawQuery))) {
+      try {
+        const intent = await parseQueryIntent(rawQuery, true);
+        if (intent && intent.isNaturalLanguage) {
+          // If caller didn't explicitly set filters, populate with AI extracted filters
+          if (searchParams.maxPrice === undefined && intent.detectedFilters.maxPrice !== undefined) {
+            searchParams.maxPrice = intent.detectedFilters.maxPrice;
+          }
+          if (searchParams.minPrice === undefined && intent.detectedFilters.minPrice !== undefined) {
+            searchParams.minPrice = intent.detectedFilters.minPrice;
+          }
+          if (!searchParams.color && intent.detectedFilters.color) {
+            searchParams.color = intent.detectedFilters.color;
+          }
+          if (!searchParams.sortBy && intent.detectedFilters.sortBy) {
+            searchParams.sortBy = intent.detectedFilters.sortBy;
+          }
+          if (searchParams.inStock === undefined && intent.detectedFilters.inStock !== undefined) {
+            searchParams.inStock = intent.detectedFilters.inStock;
+          }
+        }
+      } catch (err) {
+        // Safe fallback
+      }
+    }
+
+    const freshResult = this.engine.search(searchParams);
     searchCache.set(cacheKey, freshResult);
     return freshResult;
   }

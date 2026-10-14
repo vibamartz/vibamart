@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Search, RefreshCw, Zap, TrendingUp, AlertTriangle,
   Pin, Sparkles, Sliders, Database, Trash2, Plus,
-  CheckCircle, ArrowUpRight, BarChart3, Clock, Layers
+  CheckCircle, ArrowUpRight, BarChart3, Clock, Layers,
+  Bot, Cpu, Send
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { searchApiClient } from '../../services/searchApiClient';
@@ -36,7 +37,7 @@ interface AnalyticsSummary {
 }
 
 export default function AdminSearchManagementView() {
-  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'curation' | 'synonyms'>('analytics');
+  const [activeSubTab, setActiveSubTab] = useState<'analytics' | 'curation' | 'synonyms' | 'ai'>('analytics');
   const [loading, setLoading] = useState(true);
   const [reindexing, setReindexing] = useState(false);
   const [savingCuration, setSavingCuration] = useState(false);
@@ -44,6 +45,12 @@ export default function AdminSearchManagementView() {
   // Status & Telemetry
   const [status, setStatus] = useState<any>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [aiStatus, setAiStatus] = useState<any>(null);
+
+  // AI Intent Playground
+  const [testQuery, setTestQuery] = useState('blue cotton shirts for men under 1500');
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testingIntent, setTestingIntent] = useState(false);
 
   // Curation Config
   const [curation, setCuration] = useState<CurationConfig>({
@@ -66,10 +73,11 @@ export default function AdminSearchManagementView() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statusRes, analyticsRes, curationRes] = await Promise.allSettled([
+      const [statusRes, analyticsRes, curationRes, aiRes] = await Promise.allSettled([
         searchApiClient.getStatus(),
         searchApiClient.getAnalyticsSummary(),
-        searchApiClient.getCurationConfig()
+        searchApiClient.getCurationConfig(),
+        searchApiClient.getAIStatus()
       ]);
 
       if (statusRes.status === 'fulfilled') setStatus(statusRes.value);
@@ -84,6 +92,7 @@ export default function AdminSearchManagementView() {
           customSynonyms: curationRes.value.customSynonyms || []
         });
       }
+      if (aiRes.status === 'fulfilled') setAiStatus(aiRes.value);
     } catch (err: any) {
       toast.error('Failed to load search data: ' + (err.message || 'Error'));
     } finally {
@@ -94,6 +103,20 @@ export default function AdminSearchManagementView() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleTestIntent = async (overrideQuery?: string) => {
+    const q = overrideQuery || testQuery;
+    if (!q.trim()) return;
+    try {
+      setTestingIntent(true);
+      const intent = await searchApiClient.parseAIIntent(q);
+      setTestResult(intent);
+    } catch (err: any) {
+      toast.error('AI Intent test failed: ' + (err.message || 'Error'));
+    } finally {
+      setTestingIntent(false);
+    }
+  };
 
   const handleReindex = async () => {
     try {
@@ -341,6 +364,17 @@ export default function AdminSearchManagementView() {
         >
           <Sparkles className="w-4 h-4" />
           Synonyms Dictionary ({curation.customSynonyms.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('ai')}
+          className={`flex items-center gap-2 py-3 px-5 border-b-2 font-semibold text-xs tracking-wider transition-colors ${
+            activeSubTab === 'ai'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Bot className="w-4 h-4" />
+          AI & Semantic Search
         </button>
       </div>
 
@@ -689,6 +723,172 @@ export default function AdminSearchManagementView() {
           )}
         </div>
       )}
+
+      {/* Sub-Tab 4: AI & Semantic Search */}
+      {activeSubTab === 'ai' && (
+        <div className="space-y-6">
+          {/* AI Capability Card */}
+          <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-white p-6 rounded-2xl border border-blue-100/80 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-3 bg-blue-600 text-white rounded-xl shadow-md">
+                  <Bot className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    AI Semantic Intent & Natural Language Search
+                    <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded-full bg-blue-100 text-blue-700">
+                      Hybrid Architecture
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-600 mt-1 max-w-2xl">
+                    Parses conversational shopping queries into structured price bounds, color, gender, and sorting filters.
+                    Features a <strong>350ms timeout safeguard</strong>: if Gemini API is slow or unconfigured, it instantly degrades to our sub-millisecond rule-based engine with zero user delay.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full ${
+                  aiStatus?.hasApiKey
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${aiStatus?.hasApiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {aiStatus?.hasApiKey ? 'Gemini 2.5 Flash Online' : 'Deterministic Rule Engine Active'}
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  Cached intents: {aiStatus?.cachedIntentsCount ?? 0}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Intent Playground */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-primary" />
+                Natural Language Intent Playground
+              </h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Test how the search engine decomposes natural language into clean keywords, price bounds, attributes, and semantic tags.
+              </p>
+            </div>
+
+            {/* Quick Test Presets */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold text-gray-400">Sample Prompts:</span>
+              {[
+                'blue cotton shirts for men under 1500',
+                'running sports shoes for gym below 3000',
+                'cheapest wireless earbuds in stock',
+                'best rated luxury watches',
+                'cotton tshirts between 500 and 1200'
+              ].map(prompt => (
+                <button
+                  key={prompt}
+                  onClick={() => {
+                    setTestQuery(prompt);
+                    handleTestIntent(prompt);
+                  }}
+                  className="px-3 py-1 bg-gray-50 hover:bg-primary/10 hover:text-primary rounded-lg text-xs font-medium text-gray-600 transition-colors border border-gray-100"
+                >
+                  "{prompt}"
+                </button>
+              ))}
+            </div>
+
+            {/* Playground Input Form */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={testQuery}
+                  onChange={(e) => setTestQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTestIntent()}
+                  placeholder="Enter a conversational query (e.g. blue sports shoes for men under 2500)"
+                  className="w-full text-xs px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-gray-800"
+                />
+              </div>
+              <button
+                onClick={() => handleTestIntent()}
+                disabled={testingIntent || !testQuery.trim()}
+                className="flex items-center justify-center gap-2 px-5 py-3 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50"
+              >
+                <Send className={`w-3.5 h-3.5 ${testingIntent ? 'animate-spin' : ''}`} />
+                {testingIntent ? 'Parsing Intent...' : 'Test Intent Parser'}
+              </button>
+            </div>
+
+            {/* Analysis Result Breakdown */}
+            {testResult && (
+              <div className="p-5 bg-gray-50/70 rounded-xl border border-gray-200/80 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                  <span className="text-xs font-bold text-gray-800">Parsed Intent Output</span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-md uppercase">
+                      Source: {testResult.source}
+                    </span>
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded-md">
+                      Confidence: {Math.round(testResult.confidence * 100)}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Clean Keyword */}
+                  <div className="bg-white p-3.5 rounded-lg border border-gray-200">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Clean Search Keyword
+                    </span>
+                    <span className="text-sm font-bold text-primary">
+                      "{testResult.cleanKeyword || testResult.originalQuery}"
+                    </span>
+                  </div>
+
+                  {/* Extracted Structured Filters */}
+                  <div className="bg-white p-3.5 rounded-lg border border-gray-200">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Extracted Filters
+                    </span>
+                    {Object.keys(testResult.detectedFilters || {}).length === 0 ? (
+                      <span className="text-xs text-gray-400 italic">None (pure keyword)</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(testResult.detectedFilters).map(([k, v]) => (
+                          <span key={k} className="px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-700 rounded">
+                            {k}: <strong>{String(v)}</strong>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Semantic Intent Tags */}
+                  <div className="bg-white p-3.5 rounded-lg border border-gray-200">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Semantic Tags
+                    </span>
+                    {(!testResult.semanticTags || testResult.semanticTags.length === 0) ? (
+                      <span className="text-xs text-gray-400 italic">None</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {testResult.semanticTags.map((tag: string) => (
+                          <span key={tag} className="px-2 py-0.5 text-[11px] font-semibold bg-primary/10 text-primary rounded">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

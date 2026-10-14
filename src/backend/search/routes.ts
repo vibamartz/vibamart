@@ -3,6 +3,7 @@ import { searchService } from './searchService';
 import { SearchParams } from './searchTypes';
 import { searchCurationManager } from './searchCuration';
 import { recordSearchAnalytics, getAnalyticsSummary } from './searchAnalytics';
+import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
 import admin from 'firebase-admin';
 
 export const searchRouter = Router();
@@ -45,6 +46,7 @@ searchRouter.get('/', async (req: Request, res: Response) => {
     const sortBy = (typeof req.query.sortBy === 'string' ? req.query.sortBy : undefined) as any;
     const page = req.query.page !== undefined ? Number(req.query.page) : 1;
     const limit = req.query.limit !== undefined ? Number(req.query.limit) : 24;
+    const useAI = req.query.ai === 'true' || req.query.ai === '1';
 
     const params: SearchParams = {
       q,
@@ -62,7 +64,8 @@ searchRouter.get('/', async (req: Request, res: Response) => {
       size,
       sortBy,
       page,
-      limit
+      limit,
+      useAI
     };
 
     const results = await searchService.search(params);
@@ -233,4 +236,36 @@ searchRouter.get('/admin/analytics', async (_req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * POST /api/search/ai/intent
+ * Parses a natural language search query into clean keywords, filters, and semantic tags.
+ */
+searchRouter.post('/ai/intent', async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body;
+    const intent = await parseQueryIntent(String(query || ''));
+    res.json({
+      success: true,
+      intent
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to parse query intent'
+    });
+  }
+});
+
+/**
+ * GET /api/search/ai/status
+ * Returns current status of AI semantic search engine and API configuration.
+ */
+searchRouter.get('/ai/status', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    status: getSemanticSearchStatus()
+  });
+});
+
 

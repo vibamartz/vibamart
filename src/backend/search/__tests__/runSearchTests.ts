@@ -1,8 +1,16 @@
 import { runTests } from './searchEngine.test';
 
-const success = runTests();
-if (!success) {
-  process.exit(1);
-} else {
-  process.exit(0);
+async function main() {
+  const success = await runTests();
+  if (!success) {
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
 }
+
+main().catch(err => {
+  console.error('Test suite failed:', err);
+  process.exit(1);
+});
+

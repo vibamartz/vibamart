@@ -4,8 +4,9 @@ import { SearchParams, SearchResult } from '../searchTypes';
 import { SearchCache } from '../searchCache';
 import { searchCurationManager } from '../searchCuration';
 import { recordSearchAnalytics, getInMemoryAnalytics } from '../searchAnalytics';
+import { parseIntentRuleBased, parseQueryIntent, getSemanticSearchStatus } from '../semanticSearch';
 
-export function runTests(): boolean {
+export async function runTests(): Promise<boolean> {
   console.log('====================================================');
   console.log('   ViBa Mart Search Engine — Automated Test Suite   ');
   console.log('====================================================\n');
@@ -377,6 +378,42 @@ export function runTests(): boolean {
   const inMemory = getInMemoryAnalytics();
   assert(inMemory.some(e => e.query === 'test query analytics'), 'Analytics: search event captured in rolling buffer');
   assert(inMemory.some(e => e.query === 'missing item test' && e.isZeroResult), 'Analytics: zero-result event captured');
+
+  // ==========================================
+  // PHASE 3 TESTS: AI & Semantic Search
+  // ==========================================
+
+  // Test 20: Natural Language Intent Decomposition
+  const intent1 = parseIntentRuleBased('blue cotton shirt for men under 2000');
+  assert(intent1.isNaturalLanguage, 'AI Intent: recognizes natural language query pattern');
+  assert(intent1.detectedFilters.maxPrice === 2000, 'AI Intent: extracts price ceiling (maxPrice: 2000)');
+  assert(intent1.detectedFilters.color === 'blue', 'AI Intent: extracts color filter ("blue")');
+  assert(intent1.detectedFilters.gender === 'men', 'AI Intent: extracts audience gender ("men")');
+  assert(intent1.semanticTags.includes('cotton'), 'AI Intent: generates semantic tag ("cotton")');
+
+  // Test 21: Pricing Bounds & Sorting Intent
+  const intent2 = parseIntentRuleBased('shoes between 1500 and 6000');
+  assert(intent2.detectedFilters.minPrice === 1500 && intent2.detectedFilters.maxPrice === 6000, 'AI Intent: extracts price range (1500 - 6000)');
+
+  const intent3 = parseIntentRuleBased('cheapest wireless headphones in stock');
+  assert(intent3.detectedFilters.sortBy === 'price-asc', 'AI Intent: extracts sorting intent ("cheapest" -> price-asc)');
+  assert(intent3.detectedFilters.inStock === true, 'AI Intent: extracts stock availability constraint');
+  assert(intent3.semanticTags.includes('wireless'), 'AI Intent: extracts semantic tag ("wireless")');
+
+  // Test 22: Hybrid Search Execution with Conversational Query
+  const hybridResult = engine.search({ q: 'blue shirt under 2000' });
+  assert(hybridResult.products.length === 1 && hybridResult.products[0].id === 'prod-004', 'Hybrid Search: resolves conversational query to matching product (prod-004)');
+  assert(hybridResult.semanticIntent !== undefined, 'Hybrid Search: attaches parsed semanticIntent to SearchResult');
+  assert(hybridResult.semanticIntent?.detectedFilters.maxPrice === 2000, 'Hybrid Search: enforces extracted price ceiling dynamically');
+
+  // Test 23: Semantic Engine Status & Async Intent Pipeline
+  const aiStatus = getSemanticSearchStatus();
+  assert(aiStatus.enabled === true, 'AI Engine: status reports enabled');
+  assert(aiStatus.latencyBudgetMs === 350, 'AI Engine: enforces 350ms latency budget with fallback');
+
+  const asyncParsed = await parseQueryIntent('casual jeans under 1000');
+  assert(asyncParsed.isNaturalLanguage === true, 'AI Pipeline: async parseQueryIntent succeeds');
+  assert(asyncParsed.detectedFilters.maxPrice === 1000, 'AI Pipeline: async parse correctly extracts maxPrice');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

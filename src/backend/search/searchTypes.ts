@@ -18,6 +18,7 @@ export interface SearchParams {
   page?: number;
   limit?: number;
   includeDrafts?: boolean;
+  useAI?: boolean;
 }
 
 export interface SearchFacetValue {
@@ -47,6 +48,13 @@ export interface SearchFacets {
   };
 }
 
+export interface SemanticIntentData {
+  cleanKeyword: string;
+  detectedFilters: Record<string, any>;
+  semanticTags: string[];
+  source: 'gemini' | 'rule_based' | 'cache';
+}
+
 export interface SearchResult {
   products: Product[];
   total: number;
@@ -58,6 +66,7 @@ export interface SearchResult {
   query?: string;
   exactMatch?: boolean;
   correctedQuery?: string;
+  semanticIntent?: SemanticIntentData;
   recovery?: {
     suggestedQuery?: string;
     suggestedCategories?: string[];
