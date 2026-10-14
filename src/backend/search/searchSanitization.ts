@@ -59,13 +59,18 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
   const gender = raw.gender !== undefined ? sanitizeSearchString(String(raw.gender)) : undefined;
 
   // Safe numerical validation
-  const minPrice = raw.minPrice !== undefined && !isNaN(Number(raw.minPrice))
+  let minPrice = raw.minPrice !== undefined && !isNaN(Number(raw.minPrice))
     ? Math.max(0, Number(raw.minPrice))
     : undefined;
 
-  const maxPrice = raw.maxPrice !== undefined && !isNaN(Number(raw.maxPrice))
+  let maxPrice = raw.maxPrice !== undefined && !isNaN(Number(raw.maxPrice))
     ? Math.max(0, Number(raw.maxPrice))
     : undefined;
+
+  // Reject contradictory price range
+  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+    maxPrice = undefined;
+  }
 
   const minRating = raw.minRating !== undefined && !isNaN(Number(raw.minRating))
     ? Math.min(5, Math.max(0, Number(raw.minRating)))

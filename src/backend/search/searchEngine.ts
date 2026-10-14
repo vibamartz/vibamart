@@ -556,6 +556,18 @@ export class ViBaSearchEngine {
           if (!docCatText.includes('shoe') && !docCatText.includes('sneaker') && !docCatText.includes('footwear')) continue;
         } else if (cat === 'mobile phones') {
           if (!docCatText.includes('phone') && !docCatText.includes('mobile') && !docCatText.includes('smartphone') && !docCatText.includes('redmi') && !docCatText.includes('apple') && !docCatText.includes('samsung')) continue;
+        } else if (cat === 'perfume') {
+          if (!docCatText.includes('perfume') && !docCatText.includes('fragrance') && !docCatText.includes('deo') && !docCatText.includes('cologne')) continue;
+        } else if (cat === 'jeans') {
+          if (!docCatText.includes('jean') && !docCatText.includes('denim') && !docCatText.includes('trouser') && !docCatText.includes('pant')) continue;
+        } else if (cat === 'dresses') {
+          if (!docCatText.includes('dress') && !docCatText.includes('frock') && !docCatText.includes('gown')) continue;
+        } else if (cat === 'watches') {
+          if (!docCatText.includes('watch') && !docCatText.includes('timepiece')) continue;
+        } else if (cat === 'audio') {
+          if (!docCatText.includes('earbud') && !docCatText.includes('headphone') && !docCatText.includes('earphone') && !docCatText.includes('audio') && !docCatText.includes('airdope')) continue;
+        } else if (cat === 'accessories') {
+          if (!docCatText.includes('accessor') && !docCatText.includes('bag') && !docCatText.includes('wallet') && !docCatText.includes('belt') && !docCatText.includes('jewel')) continue;
         }
       }
 

@@ -40,27 +40,46 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   const semanticTags: string[] = [];
   let isNaturalLanguage = false;
 
-  // 1. Price Range: "between X and Y" or "X to Y"
-  const rangeMatch = text.match(/\b(?:between\s+)?(?:₹|rs\.?|inr)?\s*(\d+)\s*(?:and|to|-)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
+  // 1. Price Range: "between X and Y", "from X to Y", "X to Y"
+  const rangeMatch = text.match(/\b(?:between|from)\s+(?:₹|rs\.?|inr)?\s*(\d+)\s*(?:and|to|-)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i) ||
+                     text.match(/\b(?:₹|rs\.?|inr)?\s*(\d+)\s*(?:to|-)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
   if (rangeMatch) {
-    detectedFilters.minPrice = Number(rangeMatch[1]);
-    detectedFilters.maxPrice = Number(rangeMatch[2]);
+    const p1 = Number(rangeMatch[1]);
+    const p2 = Number(rangeMatch[2]);
+    if (p1 <= p2) {
+      detectedFilters.minPrice = p1;
+      detectedFilters.maxPrice = p2;
+    } else {
+      // Reject contradictory range
+      detectedFilters.invalidPriceRange = true;
+    }
     text = text.replace(rangeMatch[0], ' ');
     isNaturalLanguage = true;
   } else {
-    // Under / below / less than X
-    const underMatch = text.match(/\b(?:under|below|less\s+than|<)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
+    // Under / below / less than / up to / maximum / max / <= / < X
+    const underMatch = text.match(/\b(?:under|below|less\s+than|up\s*to|upto|maximum|max|<=|<)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
     if (underMatch) {
       detectedFilters.maxPrice = Number(underMatch[1]);
       text = text.replace(underMatch[0], ' ');
       isNaturalLanguage = true;
     }
 
-    // Above / over / more than X
-    const aboveMatch = text.match(/\b(?:above|over|more\s+than|>)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
+    // Above / over / more than / at least / minimum / min / >= / > X
+    const aboveMatch = text.match(/\b(?:above|over|more\s+than|at\s+least|minimum|min|>=|>)\s*(?:₹|rs\.?|inr)?\s*(\d+)\b/i);
     if (aboveMatch) {
       detectedFilters.minPrice = Number(aboveMatch[1]);
       text = text.replace(aboveMatch[0], ' ');
+      isNaturalLanguage = true;
+    }
+
+    // Exact price: "priced at X", "price X", "at ₹X"
+    const exactPriceMatch = text.match(/\b(?:priced\s+at|price\s+(?:is|=)?\s*(?:₹|rs\.?|inr)?|at\s+(?:₹|rs\.?|inr))\s*(\d+)\b/i);
+    if (exactPriceMatch) {
+      const targetPrice = Number(exactPriceMatch[1]);
+      detectedFilters.minPrice = Math.max(0, Math.floor(targetPrice * 0.95));
+      detectedFilters.maxPrice = Math.ceil(targetPrice * 1.05);
+      detectedFilters.exactPrice = targetPrice;
+      text = text.replace(exactPriceMatch[0], ' ');
       isNaturalLanguage = true;
     }
   }
@@ -146,9 +165,9 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   }
 
   // 9. Standard Category Intent Detection
-  if (/\b(?:kurtis?|kurtas?)\b/i.test(text)) {
+  if (/\b(?:kurtis?|kurtas?|ladies\s+kurti)\b/i.test(text)) {
     detectedFilters.category = 'kurtis';
-  } else if (/\b(?:t-?shirts?|tees?)\b/i.test(text)) {
+  } else if (/\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(text)) {
     detectedFilters.category = 't-shirts';
   } else if (/\b(?:shirts?)\b/i.test(text)) {
     detectedFilters.category = 'shirts';
@@ -164,6 +183,12 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     detectedFilters.category = 'watches';
   } else if (/\b(?:headphones?|earbuds?|earphones?|audio)\b/i.test(text)) {
     detectedFilters.category = 'audio';
+  } else if (/\b(?:perfumes?|fragrances?|deodorants?|deos?|colognes?)\b/i.test(text)) {
+    detectedFilters.category = 'perfume';
+  } else if (/\b(?:jeans|denims?|trousers?|pants?)\b/i.test(text)) {
+    detectedFilters.category = 'jeans';
+  } else if (/\b(?:accessories|handbags?|wallets?)\b/i.test(text)) {
+    detectedFilters.category = 'accessories';
   }
 
   // 10. Common Activity / Intent tags
@@ -195,9 +220,9 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   }
 
   // 11. Clean residual keyword
-  // Remove filler conversational words like: "i want", "looking for", "show me", "good", "best", "give me", "buy"
+  // Remove filler conversational words like: "i want", "looking for", "show me", "good", "best", "give me", "buy", "priced"
   const cleaned = text
-    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|good|great|for)\b/gi, ' ')
+    .replace(/\b(?:i\s+want|looking\s+for|show\s+me|find|search\s+for|give\s+me|buy|need|please|with|good|great|for|priced|costing|rated)\b/gi, ' ')
     .replace(/[^\w\s-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

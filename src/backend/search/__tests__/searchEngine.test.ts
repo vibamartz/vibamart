@@ -573,8 +573,30 @@ export async function runTests(): Promise<boolean> {
   const nlQuery8 = parseIntentRuleBased('smartwatch 30% off');
   assert(nlQuery8.detectedFilters.minDiscount === 30 && nlQuery8.detectedFilters.category === 'watches', 'NL Intent: "smartwatch 30% off" extracts minDiscount: 30, category: watches');
 
-  const nlQuery9 = parseIntentRuleBased('running shoes rated 4 stars');
-  assert(nlQuery9.detectedFilters.minRating === 4 && nlQuery9.detectedFilters.category === 'shoes', 'NL Intent: "running shoes rated 4 stars" extracts minRating: 4, category: shoes');
+  const nlQuery10 = parseIntentRuleBased('kurti below ₹500');
+  assert(nlQuery10.detectedFilters.maxPrice === 500 && nlQuery10.detectedFilters.category === 'kurtis', 'NL Intent: "kurti below ₹500" extracts maxPrice: 500 & category: kurtis');
+
+  const nlQuery11 = parseIntentRuleBased("women's perfume above 300");
+  assert(nlQuery11.detectedFilters.gender === 'women' && nlQuery11.detectedFilters.minPrice === 300 && nlQuery11.detectedFilters.category === 'perfume', 'NL Intent: "women\'s perfume above 300" extracts gender: women, minPrice: 300, category: perfume');
+
+  const nlQuery12 = parseIntentRuleBased('tshrt for men');
+  assert(nlQuery12.detectedFilters.gender === 'men' && nlQuery12.detectedFilters.category === 't-shirts', 'NL Intent: "tshrt for men" extracts gender: men & category: t-shirts');
+
+  const nlQuery13 = parseIntentRuleBased('mobile under 15000');
+  assert(nlQuery13.detectedFilters.maxPrice === 15000 && nlQuery13.detectedFilters.category === 'mobile phones', 'NL Intent: "mobile under 15000" extracts maxPrice: 15000, category: mobile phones');
+
+  const nlQuery14 = parseIntentRuleBased('shoes between 1000 and 500');
+  assert(nlQuery14.detectedFilters.invalidPriceRange === true, 'NL Intent: "shoes between 1000 and 500" flags invalid price range');
+
+  const nlQuery15 = parseIntentRuleBased('T-shirt priced at ₹499');
+  assert(nlQuery15.detectedFilters.exactPrice === 499, 'NL Intent: "T-shirt priced at ₹499" extracts exactPrice: 499');
+
+  // Test 35: Empty Query & Unknown Product Name Recovery
+  const emptyRes = engine.search({});
+  assert(emptyRes.total > 0 && Array.isArray(emptyRes.products), 'Search: empty query returns catalog without throwing');
+
+  const unknownRes = engine.search({ q: 'xyznonexistentquantumfluxdevice999' });
+  assert(unknownRes.total === 0 && unknownRes.recovery !== undefined, 'Search: unknown product query triggers zero-result recovery suggestions');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

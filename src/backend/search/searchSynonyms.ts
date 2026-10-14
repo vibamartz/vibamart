@@ -15,9 +15,10 @@ export const DEFAULT_SYNONYM_GROUPS: string[][] = [
 
   // Fashion & Apparel
   ['shoe', 'shoes', 'sneaker', 'sneakers', 'footwear', 'kicks', 'boots', 'sandals', 'slippers'],
-  ['shirt', 'tshirt', 't-shirt', 'tee', 'top', 'formal shirt', 'casual shirt'],
-  ['trouser', 'trousers', 'pants', 'jeans', 'pant', 'bottoms', 'chinos'],
-  ['dress', 'frock', 'gown', 'kurti', 'suit'],
+  ['kurti', 'kurtis', 'kurta', 'kurtas', 'ladies kurti'],
+  ['shirt', 'tshirt', 't-shirt', 'tshrt', 'tee', 'top', 'formal shirt', 'casual shirt'],
+  ['trouser', 'trousers', 'pants', 'jeans', 'pant', 'bottoms', 'chinos', 'denim'],
+  ['dress', 'frock', 'gown', 'suit'],
   ['jacket', 'coat', 'blazer', 'hoodie', 'sweatshirt'],
   ['saree', 'sari'],
 

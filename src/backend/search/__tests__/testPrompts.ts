@@ -4,12 +4,18 @@ const testQueries = [
   'kurta',
   'kurtis',
   'kurti under 400',
+  'kurti below ₹500',
   'T-shirt for men',
   'black shirt under 500',
   "women's shoes size 7",
   'mobile phones under 15000',
   'Shoes between 500 and 1000',
-  "Women's kurti above 300"
+  "Women's kurti above 300",
+  "women's perfume above 300",
+  'tshrt for men',
+  'mobile under 15000',
+  'shoes between 1000 and 500',
+  'T-shirt priced at ₹499'
 ];
 
 async function run() {
