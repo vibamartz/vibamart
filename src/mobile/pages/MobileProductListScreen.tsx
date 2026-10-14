@@ -37,30 +37,46 @@ export default function MobileProductListScreen() {
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchCompleted, setSearchCompleted] = useState(false);
 
   // Fetch from Search Engine API when querySearch is present
   useEffect(() => {
     if (!querySearch) {
       setSearchResults(null);
       setSearchLoading(false);
+      setSearchCompleted(false);
       return;
+    }
+
+    // Reset previous category/brand filters unless explicitly provided in query params
+    if (!searchParams.get('category')) {
+      setSelectedCategory('all');
+      setSelectedSubCategory('');
+      setSelectedNestedSubCategory('');
+    }
+    if (!searchParams.get('brand')) {
+      setSelectedBrand('');
     }
 
     let isCurrent = true;
     setSearchLoading(true);
+    setSearchCompleted(false);
+
     searchApiClient.search({
       q: querySearch,
       limit: 100
     }).then(res => {
       if (isCurrent) {
-        setSearchResults(res.products);
+        setSearchResults(res.products || []);
         setSearchLoading(false);
+        setSearchCompleted(true);
       }
     }).catch(err => {
       console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
       if (isCurrent) {
-        setSearchResults(null);
+        setSearchResults([]);
         setSearchLoading(false);
+        setSearchCompleted(true);
       }
     });
 
@@ -824,7 +840,7 @@ export default function MobileProductListScreen() {
       )}
 
       {/* Product List Grid */}
-      {(querySearch ? (searchLoading || searchResults === null) : loading) ? (
+      {(querySearch ? (!searchCompleted && searchLoading) : loading) ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-2 gap-3">
             {Array(6).fill(0).map((_, i) => (

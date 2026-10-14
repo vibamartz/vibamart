@@ -49,6 +49,7 @@ export default function ProductList() {
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchCompleted, setSearchCompleted] = useState(false);
 
   // Fetch results from Search Engine API when query 'q' is present
   useEffect(() => {
@@ -56,24 +57,39 @@ export default function ProductList() {
     if (!qStr) {
       setSearchResults(null);
       setSearchLoading(false);
+      setSearchCompleted(false);
       return;
+    }
+
+    // Reset lingering category/brand filters from previous route navigation unless explicitly in query params
+    if (!searchParams.get('category')) {
+      setSelectedCategories([]);
+      setSelectedSubCategories([]);
+      setSelectedNestedSubCategories([]);
+    }
+    if (!searchParams.get('brand')) {
+      setSelectedBrands([]);
     }
 
     let isCurrent = true;
     setSearchLoading(true);
+    setSearchCompleted(false);
+
     searchApiClient.search({
       q: qStr,
       limit: 100
     }).then(res => {
       if (isCurrent) {
-        setSearchResults(res.products);
+        setSearchResults(res.products || []);
         setSearchLoading(false);
+        setSearchCompleted(true);
       }
     }).catch(err => {
       console.warn('[ProductList] Search API error, falling back to local dataset:', err);
       if (isCurrent) {
-        setSearchResults(null);
+        setSearchResults([]);
         setSearchLoading(false);
+        setSearchCompleted(true);
       }
     });
 
@@ -1129,7 +1145,7 @@ export default function ProductList() {
             </div>
 
             {/* Grid / Skeletons / States */}
-            {(searchParams.get('q') ? (searchLoading || searchResults === null) : loading) ? (
+            {(searchParams.get('q') ? (!searchCompleted && searchLoading) : loading) ? (
               viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6">
                   {Array(10).fill(0).map((_, i) => (
