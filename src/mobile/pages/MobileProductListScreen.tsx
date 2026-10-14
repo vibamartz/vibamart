@@ -14,6 +14,7 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { searchApiClient } from '../../services/searchApiClient';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,6 +35,34 @@ export default function MobileProductListScreen() {
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
+  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+
+  // Fetch from Search Engine API when querySearch is present
+  useEffect(() => {
+    if (!querySearch) {
+      setSearchResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    searchApiClient.search({
+      q: querySearch,
+      limit: 100
+    }).then(res => {
+      if (isCurrent) {
+        setSearchResults(res.products);
+      }
+    }).catch(err => {
+      console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
+      if (isCurrent) {
+        setSearchResults(null);
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [querySearch]);
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
@@ -292,7 +321,8 @@ export default function MobileProductListScreen() {
 
   // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    const baseSource = searchResults !== null ? searchResults : products;
+    return baseSource.filter(product => {
       if (product.status === 'inactive') return false;
 
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
@@ -301,8 +331,8 @@ export default function MobileProductListScreen() {
         if (!assignedIds.has(product.id)) return false;
       }
 
-      // Query Search
-      if (querySearch) {
+      // Query Search (Executed locally as fallback only when server searchResults is not loaded)
+      if (querySearch && searchResults === null) {
         const q = querySearch.toLowerCase();
         const cleanQ = cleanProductCode(q);
         const matchesName = product.name.toLowerCase().includes(q);
@@ -400,7 +430,7 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-  }, [products, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, searchResults, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
     (selectedSubCategory !== baseSubId ? 1 : 0) +

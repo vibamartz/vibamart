@@ -17,6 +17,7 @@ import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/component
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import { searchApiClient } from '../../services/searchApiClient';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -46,6 +47,35 @@ export default function ProductList() {
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches(5));
+  const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+
+  // Fetch results from Search Engine API when query 'q' is present
+  useEffect(() => {
+    const qStr = searchParams.get('q');
+    if (!qStr) {
+      setSearchResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    searchApiClient.search({
+      q: qStr,
+      limit: 100
+    }).then(res => {
+      if (isCurrent) {
+        setSearchResults(res.products);
+      }
+    }).catch(err => {
+      console.warn('[ProductList] Search API error, falling back to local dataset:', err);
+      if (isCurrent) {
+        setSearchResults(null);
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [searchParams]);
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
@@ -432,7 +462,8 @@ export default function ProductList() {
   }, [selectedCategories, CATEGORIES]);
 
   const filteredProducts = useMemo(() => {
-    let result = allProducts.filter(p => {
+    const baseList = searchResults !== null ? searchResults : allProducts;
+    let result = baseList.filter(p => {
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
       if (matchedBanner) {
         const assignedIds = new Set(matchedBanner.productIds || []);
@@ -515,9 +546,9 @@ export default function ProductList() {
       // Availability filter
       if (onlyInStock && p.stock <= 0) return false;
 
-      // Search query filter (from URL)
+      // Search query filter (from URL) - executed locally as fallback only when server searchResults is not loaded
       const queryStr = searchParams.get('q');
-      if (queryStr) {
+      if (queryStr && searchResults === null) {
         const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
         if (terms.length > 0) {
           const catObj = CATEGORIES.find(c => c.id === p.categoryId);
@@ -554,7 +585,7 @@ export default function ProductList() {
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return result;
-  }, [allProducts, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
+  }, [allProducts, searchResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);

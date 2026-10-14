@@ -21,6 +21,8 @@ import toast from 'react-hot-toast';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';
 import { PushService } from '../../backend/services/pushService';
 import { getRecentSearches, addRecentSearch, removeRecentSearch as removeSearchFromHistory, clearRecentSearches, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import { searchApiClient } from '../../services/searchApiClient';
+import { SuggestionItem } from '../..//backend/search/searchTypes';
 
 export default function Navbar() {
   const { settings } = useSettingsStore();
@@ -182,19 +184,11 @@ export default function Navbar() {
       const updated = addRecentSearch(queryStr, 10);
       setRecentSearches(updated);
 
-      // Check if search query is an exact 12-digit Product Code or Product ID match
-      const cleanQ = cleanProductCode(queryStr);
+      // Check if search query is an exact 12-digit Product Code, SKU, or ID match via Search API
       try {
-        const snap = await getDocs(collection(db, 'products'));
-        const rewardIds = await getRewardProductIds();
-        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)), rewardIds);
-        const exactMatch = prods.find(p =>
-          (p.productCode && cleanProductCode(p.productCode) === cleanQ) ||
-          (p.productCode && p.productCode.toLowerCase() === queryStr.toLowerCase()) ||
-          p.id === queryStr
-        );
-
-        if (exactMatch) {
+        const lookup = await searchApiClient.search({ q: queryStr, limit: 1 });
+        if (lookup.exactMatch && lookup.products.length > 0) {
+          const exactMatch = lookup.products[0];
           const slug = getProductSlug(exactMatch);
           navigate(`/products/${slug}`);
           setIsSearchFocused(false);
@@ -203,7 +197,7 @@ export default function Navbar() {
           return;
         }
       } catch (err) {
-        console.error("Error in product code search lookup:", err);
+        console.warn("Exact lookup check fallback:", err);
       }
 
       navigate(`/products?q=${encodeURIComponent(queryStr)}`);
@@ -234,18 +228,70 @@ export default function Navbar() {
 
   const [isListening, setIsListening] = useState(false);
   const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
+  const [productSuggestions, setProductSuggestions] = useState<SuggestionItem[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
 
   useEffect(() => {
-    if (searchQuery.length > 0) {
+    const qStr = searchQuery.trim();
+    setActiveSuggestionIndex(-1);
+    if (qStr.length > 0) {
       const filtered = CATEGORIES.filter(cat =>
-        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        cat.id.toLowerCase().includes(searchQuery.toLowerCase())
+        cat.name.toLowerCase().includes(qStr.toLowerCase()) ||
+        cat.id.toLowerCase().includes(qStr.toLowerCase())
       ).slice(0, 3);
       setSuggestedCategories(filtered);
+
+      searchApiClient.suggest(qStr, 5).then(res => {
+        const prodItems = res.suggestions.filter(s => s.type === 'product');
+        setProductSuggestions(prodItems);
+      }).catch(() => {
+        setProductSuggestions([]);
+      });
     } else {
       setSuggestedCategories([]);
+      setProductSuggestions([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, CATEGORIES]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const totalItems = productSuggestions.length + suggestedCategories.length;
+    if (!isSearchFocused || totalItems === 0) {
+      if (e.key === 'Escape') {
+        setIsSearchFocused(false);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev + 1 >= totalItems ? 0 : prev + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev - 1 < 0 ? totalItems - 1 : prev - 1));
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsSearchFocused(false);
+      setActiveSuggestionIndex(-1);
+    } else if (e.key === 'Enter') {
+      if (activeSuggestionIndex >= 0) {
+        e.preventDefault();
+        if (activeSuggestionIndex < productSuggestions.length) {
+          const item = productSuggestions[activeSuggestionIndex];
+          setIsSearchFocused(false);
+          setActiveSuggestionIndex(-1);
+          navigate(`/products/${item.slug || item.id}`);
+        } else {
+          const catIndex = activeSuggestionIndex - productSuggestions.length;
+          const cat = suggestedCategories[catIndex];
+          if (cat) {
+            setIsSearchFocused(false);
+            setActiveSuggestionIndex(-1);
+            navigate(`/categories/${getCategorySlug(cat)}`);
+          }
+        }
+      }
+    }
+  };
 
   const startVoiceSearch = async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -338,6 +384,7 @@ export default function Navbar() {
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
                   />
 
                   {/* Right Action Buttons (Clear, Mic, Camera, Submit) */}
@@ -403,6 +450,56 @@ export default function Navbar() {
                       className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-4"
                     >
                       <div className="flex flex-col gap-5">
+                        {/* Live Product Suggestions */}
+                        {productSuggestions.length > 0 && searchQuery.length > 0 && (
+                          <div className="bg-gray-50/50 rounded-2xl p-3">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                              <Search className="w-4 h-4 text-primary" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Matching Products</span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1">
+                              {productSuggestions.map((item, idx) => {
+                                const isSelected = activeSuggestionIndex === idx;
+                                return (
+                                  <Link
+                                    key={item.id}
+                                    to={`/products/${item.slug || item.id}`}
+                                    onClick={() => {
+                                      setIsSearchFocused(false);
+                                      setActiveSuggestionIndex(-1);
+                                    }}
+                                    onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl transition-all group/item shadow-sm border ${
+                                      isSelected
+                                        ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
+                                        : 'hover:bg-white border-transparent hover:border-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      {item.imageUrl ? (
+                                        <img src={item.imageUrl} alt="" className="w-9 h-9 object-cover rounded-lg border border-gray-100 shrink-0" />
+                                      ) : (
+                                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                                          <Search className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                      )}
+                                      <div className="truncate min-w-0">
+                                        <p className="text-sm font-bold text-gray-800 group-hover/item:text-primary truncate">{item.title}</p>
+                                        {item.subtitle && <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>}
+                                      </div>
+                                    </div>
+                                    {item.discountPrice ? (
+                                      <span className="text-xs font-black text-primary shrink-0 ml-2">₹{item.discountPrice}</span>
+                                    ) : item.price ? (
+                                      <span className="text-xs font-black text-gray-700 shrink-0 ml-2">₹{item.price}</span>
+                                    ) : null}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Category Suggestions */}
                         {suggestedCategories.length > 0 && searchQuery.length > 0 && (
                           <div className="bg-gray-50/50 rounded-2xl p-3">
@@ -411,22 +508,34 @@ export default function Navbar() {
                               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Categories</span>
                             </div>
                             <div className="grid grid-cols-1 gap-1">
-                              {suggestedCategories.map(cat => (
-                                <Link
-                                  key={cat.id}
-                                  to={`/categories/${getCategorySlug(cat)}`}
-                                  onClick={() => setIsSearchFocused(false)}
-                                  className="flex items-center justify-between p-2.5 hover:bg-white rounded-xl transition-all group/cat shadow-sm border border-transparent hover:border-gray-100"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
-                                      {getCategoryIcon(cat.icon || '')}
+                              {suggestedCategories.map((cat, cIdx) => {
+                                const itemIndex = productSuggestions.length + cIdx;
+                                const isSelected = activeSuggestionIndex === itemIndex;
+                                return (
+                                  <Link
+                                    key={cat.id}
+                                    to={`/categories/${getCategorySlug(cat)}`}
+                                    onClick={() => {
+                                      setIsSearchFocused(false);
+                                      setActiveSuggestionIndex(-1);
+                                    }}
+                                    onMouseEnter={() => setActiveSuggestionIndex(itemIndex)}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl transition-all group/cat shadow-sm border ${
+                                      isSelected
+                                        ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
+                                        : 'hover:bg-white border-transparent hover:border-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="p-2 bg-white rounded-lg group-hover/cat:bg-primary/5 transition-colors">
+                                        {getCategoryIcon(cat.icon || '')}
+                                      </div>
+                                      <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
                                     </div>
-                                    <span className="text-sm font-bold text-gray-700 group-hover/cat:text-primary">{cat.name}</span>
-                                  </div>
-                                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
-                                </Link>
-                              ))}
+                                    <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover/cat:text-primary transition-all -translate-x-1 group-hover/cat:translate-x-0 opacity-0 group-hover/cat:opacity-100" />
+                                  </Link>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

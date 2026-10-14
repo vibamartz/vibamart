@@ -15,6 +15,7 @@ import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
+import { searchRouter } from "./src/backend/search/routes";
 
 
 dotenv.config();
@@ -141,6 +142,9 @@ async function startServer() {
   // ViBa CI/CD API Router
   app.use('/api/v1/cicd', cicdRouter);
   app.use('/api/cicd', cicdRouter);
+
+  // ViBa Search Engine API Router
+  app.use('/api/search', searchRouter);
 
   // API routes
   app.get("/api/health", (req, res) => {
