@@ -36,6 +36,7 @@ export default function MobileProductListScreen() {
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
+  const [searchRecovery, setSearchRecovery] = useState<any | null>(null);
   const [searchCorrection, setSearchCorrection] = useState<{
     hasAutoCorrected?: boolean;
     originalQuery?: string;
@@ -48,6 +49,7 @@ export default function MobileProductListScreen() {
   useEffect(() => {
     if (!querySearch) {
       setSearchResults(null);
+      setSearchRecovery(null);
       setSearchCorrection(null);
       setSearchLoading(false);
       setSearchCompleted(false);
@@ -77,6 +79,7 @@ export default function MobileProductListScreen() {
     }).then(res => {
       if (isCurrent) {
         setSearchResults(res.products || []);
+        setSearchRecovery(res.recovery || null);
         setSearchCorrection(res.hasAutoCorrected ? {
           hasAutoCorrected: res.hasAutoCorrected,
           originalQuery: res.originalQuery,
@@ -88,7 +91,8 @@ export default function MobileProductListScreen() {
     }).catch(err => {
       console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
       if (isCurrent) {
-        setSearchResults([]);
+        setSearchResults(null);
+        setSearchRecovery(null);
         setSearchCorrection(null);
         setSearchLoading(false);
         setSearchCompleted(true);
@@ -98,7 +102,7 @@ export default function MobileProductListScreen() {
     return () => {
       isCurrent = false;
     };
-  }, [querySearch]);
+  }, [querySearch, searchParams]);
 
   // Extract all path segments after "/categories"
   const pathSegments = useMemo(() => {
@@ -1045,6 +1049,37 @@ export default function MobileProductListScreen() {
               ? 'Check back soon as new products are assigned to this offer.'
               : 'Check back soon as new inventory is added regularly.'}
           </p>
+
+          {/* Did you mean recovery suggestion */}
+          {searchRecovery?.suggestedQuery && (
+            <div className="p-2.5 bg-yellow-50 rounded-xl border border-yellow-200 inline-flex items-center gap-1.5 text-xs">
+              <span className="text-gray-600 font-medium">Did you mean:</span>
+              <button
+                onClick={() => setSearchParams({ q: searchRecovery.suggestedQuery })}
+                className="font-black text-emerald-700 underline cursor-pointer"
+              >
+                "{searchRecovery.suggestedQuery}"
+              </button>
+            </div>
+          )}
+
+          {/* Suggested Categories */}
+          {searchRecovery?.suggestedCategories && searchRecovery.suggestedCategories.length > 0 && (
+            <div className="pt-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Related categories</p>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {searchRecovery.suggestedCategories.slice(0, 3).map((c: string) => (
+                  <button
+                    key={c}
+                    onClick={() => setSearchParams({ q: c })}
+                    className="px-2.5 py-1 bg-gray-100 hover:bg-emerald-50 text-gray-700 text-[11px] font-bold rounded-full transition-colors cursor-pointer"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <button
             onClick={() => {
               setSearchParams({});

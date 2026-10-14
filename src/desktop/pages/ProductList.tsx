@@ -104,7 +104,7 @@ export default function ProductList() {
     }).catch(err => {
       console.warn('[ProductList] Search API error, falling back to local dataset:', err);
       if (isCurrent) {
-        setSearchResults([]);
+        setSearchResults(null);
         setSearchRecovery(null);
         setSearchCorrection(null);
         setSearchLoading(false);

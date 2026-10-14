@@ -80,7 +80,9 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
     ? Math.min(100, Math.max(0, Number(raw.minDiscount)))
     : undefined;
 
-  const inStock = raw.inStock === true || raw.inStock === 'true' || raw.inStock === '1';
+  const inStock = raw.inStock !== undefined
+    ? (raw.inStock === true || raw.inStock === 'true' || raw.inStock === '1')
+    : undefined;
   const includeDrafts = raw.includeDrafts === true || raw.includeDrafts === 'true';
   const useAI = raw.useAI === true || raw.useAI === 'true' || raw.ai === 'true' || raw.ai === '1';
   const noAutoCorrect = raw.noAutoCorrect === true || raw.noAutoCorrect === 'true' || raw.noAutoCorrect === '1';

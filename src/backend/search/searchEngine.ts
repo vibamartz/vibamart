@@ -5,7 +5,7 @@ import { expandQueryWithSynonyms, stemToken, normalizeQueryString } from './sear
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { ZeroResultRecovery } from './zeroResultRecovery';
 import { searchCurationManager } from './searchCuration';
-import { parseIntentRuleBased } from './semanticSearch';
+import { parseIntentRuleBased, KNOWN_COLORS } from './semanticSearch';
 import { SpellingCorrectionEngine } from './spellingCorrection';
 
 export interface IndexedProductDoc {
@@ -196,26 +196,49 @@ export class ViBaSearchEngine {
           ? Math.round(((price - discountPrice) / price) * 100)
           : 0);
 
-    const colors: string[] = [];
-    if (typeof product.color === 'string') colors.push(product.color.toLowerCase().trim());
+    const colorsSet = new Set<string>();
+    if (typeof product.color === 'string' && product.color.trim().length > 0) {
+      const c = product.color.toLowerCase().trim();
+      colorsSet.add(c);
+      for (const kc of KNOWN_COLORS) {
+        if (new RegExp(`\\b${kc}\\b`, 'i').test(c)) colorsSet.add(kc);
+      }
+    }
     if (Array.isArray(product.variants)) {
       product.variants.forEach(v => {
-        if (v && typeof v.color === 'string') colors.push(v.color.toLowerCase().trim());
+        if (v && typeof v.color === 'string' && v.color.trim().length > 0) {
+          const c = v.color.toLowerCase().trim();
+          colorsSet.add(c);
+          for (const kc of KNOWN_COLORS) {
+            if (new RegExp(`\\b${kc}\\b`, 'i').test(c)) colorsSet.add(kc);
+          }
+        }
       });
     }
+    // Also extract known colors from product title and tags
+    const titleAndTags = (String(product.name || '') + ' ' + (Array.isArray(product.tags) ? product.tags.join(' ') : '')).toLowerCase();
+    for (const kc of KNOWN_COLORS) {
+      if (new RegExp(`\\b${kc}\\b`, 'i').test(titleAndTags)) {
+        colorsSet.add(kc);
+      }
+    }
+    const colors = Array.from(colorsSet);
 
-    const sizes: string[] = [];
-    if (typeof product.size === 'string') sizes.push(product.size.toLowerCase().trim());
+    const sizesSet = new Set<string>();
+    if (typeof product.size === 'string' && product.size.trim().length > 0) {
+      sizesSet.add(product.size.toLowerCase().trim());
+    }
     if (Array.isArray(product.sizes)) {
       product.sizes.forEach(s => {
-        if (typeof s === 'string') sizes.push(s.toLowerCase().trim());
+        if (typeof s === 'string' && s.trim().length > 0) sizesSet.add(s.toLowerCase().trim());
       });
     }
     if (Array.isArray(product.variants)) {
       product.variants.forEach(v => {
-        if (v && typeof v.size === 'string') sizes.push(v.size.toLowerCase().trim());
+        if (v && typeof v.size === 'string' && v.size.trim().length > 0) sizesSet.add(v.size.toLowerCase().trim());
       });
     }
+    const sizes = Array.from(sizesSet);
 
     const specStrings: string[] = [];
     if (Array.isArray(product.specifications)) {
@@ -543,15 +566,29 @@ export class ViBaSearchEngine {
       // 8. Color Filter
       const effectiveColors = colorFilters || (semanticIntent?.detectedFilters.color ? [semanticIntent.detectedFilters.color] : undefined);
       if (effectiveColors && effectiveColors.length > 0) {
-        const hasColor = doc.colors.some(c => effectiveColors.some(ec => c.includes(ec) || ec.includes(c)));
-        if (!hasColor) continue;
+        const cleanEffectiveColors = effectiveColors.map(c => c.toLowerCase().trim()).filter(Boolean);
+        if (cleanEffectiveColors.length > 0) {
+          const hasColor = doc.colors.some(c => {
+            if (!c || !c.trim()) return false;
+            const cLower = c.toLowerCase().trim();
+            return cleanEffectiveColors.some(ec => cLower === ec || cLower.includes(ec) || (cLower.length >= 3 && ec.includes(cLower)));
+          });
+          if (!hasColor) continue;
+        }
       }
 
       // 9. Size Filter
       const effectiveSizes = sizeFilters || (semanticIntent?.detectedFilters.size ? [semanticIntent.detectedFilters.size] : undefined);
       if (effectiveSizes && effectiveSizes.length > 0) {
-        const hasSize = doc.sizes.some(s => effectiveSizes.some(es => s.toLowerCase() === es.toLowerCase() || s.toLowerCase().includes(es.toLowerCase())));
-        if (!hasSize) continue;
+        const cleanEffectiveSizes = effectiveSizes.map(s => s.toLowerCase().trim()).filter(Boolean);
+        if (cleanEffectiveSizes.length > 0) {
+          const hasSize = doc.sizes.some(s => {
+            if (!s || !s.trim()) return false;
+            const sLower = s.toLowerCase().trim();
+            return cleanEffectiveSizes.some(es => sLower === es || (sLower.length >= 2 && sLower.includes(es)));
+          });
+          if (!hasSize) continue;
+        }
       }
 
       // 10. Gender Filter
@@ -593,6 +630,14 @@ export class ViBaSearchEngine {
       if (rawQuery.length > 0) {
         const boost = searchCurationManager.getBoostMultiplier(rawQuery, doc.brand, doc.categoryId);
         score *= boost;
+      }
+
+      // Priority boost for true buttoned shirts when searching for shirts
+      if (semanticIntent?.detectedFilters.category === 'shirts') {
+        const isTrueShirt = /\bshirt\b/i.test(doc.name) && !/\bt-?shirt\b/i.test(doc.name);
+        if (isTrueShirt) {
+          score *= 2.5;
+        }
       }
 
       // Semantic Intent Tag Relevance Boost
@@ -712,6 +757,7 @@ export class ViBaSearchEngine {
     // 2. MiniSearch prefix suggestion
     try {
       const searchRes = this.miniSearch.search(query, {
+        fields: ['name', 'brand', 'tags', 'categoryName', 'subCategoryName', 'nestedSubCategoryName', 'cleanProductCode', 'sku'],
         prefix: true,
         fuzzy: query.length >= 5 ? 0.2 : false,
         combineWith: 'AND'
@@ -733,6 +779,7 @@ export class ViBaSearchEngine {
           slug: doc.raw.slug || doc.id
         });
         seenIds.add(doc.id);
+        if (suggestions.length >= limit) break;
       }
     } catch {}
 
@@ -742,6 +789,7 @@ export class ViBaSearchEngine {
       if (spelling.hasCorrection) {
         try {
           const typoRes = this.miniSearch.search(spelling.correctedQuery, {
+            fields: ['name', 'brand', 'tags', 'categoryName', 'subCategoryName', 'nestedSubCategoryName', 'cleanProductCode', 'sku'],
             prefix: true,
             fuzzy: 0.2,
             combineWith: 'AND'

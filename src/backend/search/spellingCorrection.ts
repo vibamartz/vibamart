@@ -223,6 +223,12 @@ export class SpellingCorrectionEngine {
         continue;
       }
 
+      // Guard 2b: Alphanumeric model numbers, hardware codes, or specs (e.g. s24, s24u, 5g, 128gb, 4k, rtx4060, i5, g60)
+      if (/(?:[a-z]+\d+|\d+[a-z]+)/i.test(cleanToken)) {
+        correctedTokens.push(token);
+        continue;
+      }
+
       // Guard 3: Exact 12-digit Product Code or SKU format
       if (/^\d{8,14}$/.test(cleanToken) || /^[A-Z0-9]{3,}-[A-Z0-9]{3,}$/i.test(token)) {
         correctedTokens.push(token);

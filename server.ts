@@ -127,15 +127,15 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Apply rate limiter to all requests to prevent DoS attacks (CodeQL Missing rate limiting)
+  // Apply rate limiter to API requests to prevent DoS attacks without throttling local Vite static assets
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 200, // Limit each IP to 200 requests per 15 minutes
+    max: 1000, // Limit each IP to 1000 API requests per 15 minutes
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests from this IP, please try again later." }
   });
-  app.use(limiter);
+  app.use('/api', limiter);
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));

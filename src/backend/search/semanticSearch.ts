@@ -11,10 +11,10 @@ export interface ParsedSemanticIntent extends SemanticIntentData {
 const intentCache = new Map<string, ParsedSemanticIntent>();
 const MAX_CACHE_SIZE = 300;
 
-const KNOWN_COLORS = [
+export const KNOWN_COLORS = [
   'black', 'white', 'blue', 'red', 'green', 'yellow',
   'pink', 'purple', 'grey', 'gray', 'silver', 'gold',
-  'brown', 'orange', 'navy', 'beige', 'maroon'
+  'brown', 'orange', 'navy', 'beige', 'maroon', 'teal', 'olive'
 ];
 
 /**
