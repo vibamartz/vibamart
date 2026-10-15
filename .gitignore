@@ -7,3 +7,5 @@ coverage/
 .env*
 firebase-applet-config.json
 src/backend/search/__tests__/
+src/backend/search/meiliSearchService.ts
+*meili*
