@@ -50,7 +50,7 @@ searchRouter.get('/', searchRateLimiter, async (req: Request, res: Response) => 
  * Live autocomplete suggestions for header / mobile search inputs.
  * Hardened with searchRateLimiter and query sanitization.
  */
-searchRouter.get('/suggestions', searchRateLimiter, async (req: Request, res: Response) => {
+searchRouter.get(['/suggestions', '/suggest'], searchRateLimiter, async (req: Request, res: Response) => {
   try {
     const q = sanitizeSearchString(typeof req.query.q === 'string' ? req.query.q : '');
     const rawLimit = Number(req.query.limit);
@@ -66,6 +66,27 @@ searchRouter.get('/suggestions', searchRateLimiter, async (req: Request, res: Re
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch suggestions'
+    });
+  }
+});
+
+/**
+ * GET /api/search/popular
+ * Dynamic popular and trending searches generated from actual catalog data and search analytics.
+ */
+searchRouter.get('/popular', searchRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const rawLimit = Number(req.query.limit);
+    const limit = (!isNaN(rawLimit) && rawLimit >= 1) ? Math.min(20, Math.floor(rawLimit)) : 8;
+    const popular = await searchService.getPopular(limit);
+    res.json({
+      success: true,
+      ...popular
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch popular searches'
     });
   }
 });

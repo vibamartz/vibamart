@@ -8,6 +8,7 @@ import { parseIntentRuleBased, parseQueryIntent, getSemanticSearchStatus } from 
 import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitization';
 import { requireSearchAdmin } from '../searchAuth';
 import { SpellingCorrectionEngine, damerauLevenshtein } from '../spellingCorrection';
+import { meiliSearchService } from '../meiliSearchService';
 
 
 export async function runTests(): Promise<boolean> {
@@ -729,6 +730,268 @@ export async function runTests(): Promise<boolean> {
   // Test 42: Suggest / Autocomplete Fallback for Typos
   const typoSuggest = engine.suggest('shos');
   assert(typoSuggest.suggestions.length > 0 && typoSuggest.suggestions.some(s => s.title.toLowerCase().includes('shoe')), 'Suggestions: typo in prefix ("shos") retrieves corrected suggestions');
+
+  // ==========================================
+  // PHASE 6: INTELLIGENT SEARCH ARCHITECTURE FULL TEST SUITE
+  // ==========================================
+
+  // Additional Hardware & Peripherals for Testing Real Catalog Scenarios
+  const hardwareProducts: Product[] = [
+    {
+      id: 'prod-008',
+      name: 'HP Optical USB Wired Mouse (1000 DPI, Black)',
+      brand: 'HP',
+      productCode: '8900 0996 4001',
+      sku: 'HP-MOU-USB-01',
+      categoryId: 'cat-electronics',
+      subCategoryId: 'sub-peripherals',
+      price: 499,
+      discountPrice: 349,
+      discountPercentage: 30,
+      stock: 45,
+      inStock: true,
+      rating: 4.5,
+      numReviews: 320,
+      status: 'active',
+      isVisible: true,
+      tags: ['mouse', 'optical mouse', 'wired mouse', 'usb', 'hp', 'peripherals', 'electronics'],
+      vendorId: 'v-04',
+      images: ['https://example.com/hp-mouse.jpg'],
+      description: 'Reliable HP optical wired mouse with 1000 DPI precision tracking and comfortable ergonomic grip.',
+      createdAt: '2026-01-08T00:00:00.000Z'
+    },
+    {
+      id: 'prod-009',
+      name: 'Dell WM126 Wireless Optical Mouse (Compact, Black)',
+      brand: 'Dell',
+      productCode: '8900 0996 4002',
+      sku: 'DEL-WM126-BLK',
+      categoryId: 'cat-electronics',
+      subCategoryId: 'sub-peripherals',
+      price: 799,
+      discountPrice: 489,
+      discountPercentage: 38,
+      stock: 28,
+      inStock: true,
+      rating: 4.4,
+      numReviews: 215,
+      status: 'active',
+      isVisible: true,
+      tags: ['mouse', 'wireless mouse', 'optical mouse', 'dell', 'peripherals', 'wireless'],
+      vendorId: 'v-04',
+      images: ['https://example.com/dell-mouse.jpg'],
+      description: 'Long battery life Dell wireless optical mouse with plug-and-play USB receiver.',
+      createdAt: '2026-01-09T00:00:00.000Z'
+    },
+    {
+      id: 'prod-010',
+      name: 'Logitech MX Master 3S Wireless Performance Mouse',
+      brand: 'Logitech',
+      productCode: '8900 0996 4003',
+      sku: 'LOG-MXM3S-01',
+      categoryId: 'cat-electronics',
+      subCategoryId: 'sub-peripherals',
+      price: 9995,
+      discountPrice: 8495,
+      discountPercentage: 15,
+      stock: 14,
+      inStock: true,
+      rating: 4.9,
+      numReviews: 680,
+      status: 'active',
+      isVisible: true,
+      tags: ['mouse', 'wireless mouse', 'logitech', 'mx master', 'ergonomic', 'peripherals'],
+      vendorId: 'v-04',
+      images: ['https://example.com/logitech-mouse.jpg'],
+      description: 'Quiet clicks and 8K DPI track-on-glass sensor for elite ergonomics and power productivity.',
+      createdAt: '2026-01-10T00:00:00.000Z'
+    },
+    {
+      id: 'prod-011',
+      name: 'HP Pavilion 15.6" FHD Laptop (Intel Core i5, 16GB RAM, 512GB SSD)',
+      brand: 'HP',
+      productCode: '8900 0996 4004',
+      sku: 'HP-PAV-15-I5',
+      categoryId: 'cat-electronics',
+      subCategoryId: 'sub-laptops',
+      price: 64990,
+      discountPrice: 56990,
+      discountPercentage: 12,
+      stock: 10,
+      inStock: true,
+      rating: 4.6,
+      numReviews: 140,
+      status: 'active',
+      isVisible: true,
+      tags: ['laptop', 'hp', 'pavilion', 'intel', 'notebook', 'electronics'],
+      vendorId: 'v-04',
+      images: ['https://example.com/hp-laptop.jpg'],
+      description: 'Versatile HP Pavilion laptop for multitasking and everyday entertainment.',
+      createdAt: '2026-01-11T00:00:00.000Z'
+    }
+  ];
+
+  // Test 43: Dynamic Incremental Product Indexing & Catalog Synchronization
+  for (const hp of hardwareProducts) {
+    const doc = engine.upsertProduct(hp, 'Electronics', 'Computer Peripherals');
+    assert(doc !== null && doc.id === hp.id, `Dynamic Catalog Sync: upserted ${hp.name}`);
+  }
+  assert(engine.getCount() === 11, `Catalog Indexing: 11 total indexed products (got: ${engine.getCount()})`);
+
+  // Test 44: Query Intelligence - Budget & Keyword Extraction for "mouse under 500"
+  const mouseIntent = parseIntentRuleBased('mouse under 500');
+  assert(mouseIntent.cleanKeyword === 'mouse', `Query Intelligence: "mouse under 500" extracted clean keyword "${mouseIntent.cleanKeyword}"`);
+  assert(mouseIntent.detectedFilters.maxPrice === 500, `Query Intelligence: "mouse under 500" extracted maxPrice: ${mouseIntent.detectedFilters.maxPrice}`);
+  assert(mouseIntent.detectedFilters.category === 'mouse', `Query Intelligence: "mouse under 500" detected category: ${mouseIntent.detectedFilters.category}`);
+  assert(mouseIntent.isNaturalLanguage === true, 'Query Intelligence: marked as natural language');
+
+  // Test 45: Search Retrieval - "mouse under 500" Price Enforcement & Precision
+  const mouseUnder500Results = engine.search({
+    q: mouseIntent.cleanKeyword,
+    maxPrice: mouseIntent.detectedFilters.maxPrice
+  });
+  const hasHpMouse = mouseUnder500Results.products.some(p => p.id === 'prod-008');
+  const hasDellMouse = mouseUnder500Results.products.some(p => p.id === 'prod-009');
+  const hasExpensiveLogitech = mouseUnder500Results.products.some(p => p.id === 'prod-010');
+  const allSub500 = mouseUnder500Results.products.every(p => (p.discountPrice || p.price) <= 500);
+
+  assert(hasHpMouse, 'Search Retrieval: "mouse under 500" returns HP Optical Mouse (₹349)');
+  assert(hasDellMouse, 'Search Retrieval: "mouse under 500" returns Dell WM126 Mouse (₹489)');
+  assert(!hasExpensiveLogitech, 'Search Retrieval: "mouse under 500" strictly excludes Logitech MX Master (₹8495)');
+  assert(allSub500, 'Search Retrieval: all returned products strictly satisfy maxPrice <= 500');
+
+  // Test 46: Brand Searches - Exact and Query Retrieval across Brands
+  const hpSearch = engine.search({ brand: 'HP' });
+  assert(hpSearch.products.length === 2 && hpSearch.products.every(p => p.brand === 'HP'), 'Brand Search: filter brand="HP" returns all HP items');
+
+  const dellSearch = engine.search({ q: 'Dell' });
+  assert(dellSearch.products.length >= 1 && dellSearch.products[0].brand === 'Dell', 'Brand Search: query q="Dell" matches Dell brand products');
+
+  const logitechSearch = engine.search({ q: 'Logitech' });
+  assert(logitechSearch.products.length >= 1 && logitechSearch.products[0].brand === 'Logitech', 'Brand Search: query q="Logitech" matches Logitech brand products');
+
+  const sonySearch = engine.search({ q: 'Sony' });
+  assert(sonySearch.products.some(p => p.brand === 'Sony'), 'Brand Search: query q="Sony" matches Sony');
+
+  const samsungSearch = engine.search({ q: 'Samsung' });
+  assert(samsungSearch.products.some(p => p.brand === 'Samsung'), 'Brand Search: query q="Samsung" matches Samsung');
+
+  const nikeSearch = engine.search({ q: 'Nike' });
+  assert(nikeSearch.products.some(p => p.brand === 'Nike'), 'Brand Search: query q="Nike" matches Nike');
+
+  // Test 47: Category Searches - Category Navigation & Natural Query
+  const catElectronics = engine.search({ category: 'cat-electronics' });
+  assert(catElectronics.products.length >= 4, `Category Search: "cat-electronics" returns all electronics items (got: ${catElectronics.products.length})`);
+
+  const mouseCategoryQuery = engine.search({ q: 'mouse' });
+  assert(mouseCategoryQuery.products.length === 3, `Category Search: q="mouse" returns all 3 mice in catalog (got: ${mouseCategoryQuery.products.length})`);
+
+  const laptopIntent = parseIntentRuleBased('laptops');
+  assert(laptopIntent.detectedFilters.category === 'laptops', 'Category Search: "laptops" detected category laptops');
+
+  // Test 48: Combined Multi-Faceted Filters (Brand + Category + MaxPrice + InStock)
+  const combinedFilterRes = engine.search({
+    brand: 'HP',
+    category: 'cat-electronics',
+    maxPrice: 500,
+    inStock: true
+  });
+  assert(combinedFilterRes.products.length === 1 && combinedFilterRes.products[0].id === 'prod-008', 'Combined Filters: brand="HP" + category="electronics" + maxPrice=500 + inStock=true isolates HP Optical Mouse');
+
+  const electronicsInStockSub600 = engine.search({
+    category: 'cat-electronics',
+    maxPrice: 600,
+    inStock: true
+  });
+  const noOutOfStockSony = !electronicsInStockSub600.products.some(p => p.id === 'prod-005');
+  const noLogitech = !electronicsInStockSub600.products.some(p => p.id === 'prod-010');
+  assert(noOutOfStockSony && noLogitech && electronicsInStockSub600.products.length === 2, 'Combined Filters: electronics + maxPrice 600 + inStock isolates HP and Dell mice');
+
+  // Test 49: Conversational Query Intelligence + Combined Filter
+  const wirelessMouseIntent = parseIntentRuleBased('wireless mouse under 1000');
+  assert(wirelessMouseIntent.detectedFilters.maxPrice === 1000, 'Conversational Query: "wireless mouse under 1000" extracted maxPrice: 1000');
+  assert(wirelessMouseIntent.semanticTags.includes('wireless'), 'Conversational Query: extracted semantic tag "wireless"');
+  
+  const wirelessMouseResults = engine.search({
+    q: wirelessMouseIntent.cleanKeyword,
+    maxPrice: wirelessMouseIntent.detectedFilters.maxPrice
+  });
+  assert(wirelessMouseResults.products.some(p => p.id === 'prod-009'), 'Conversational Query: returns Dell WM126 Wireless Mouse');
+  assert(!wirelessMouseResults.products.some(p => p.id === 'prod-010'), 'Conversational Query: excludes Logitech MX Master (price > 1000)');
+
+  // Test 50: ViBa Ranking Engine - Availability Boost
+  const rankingWeights = searchCurationManager.getRankingWeights();
+  assert(rankingWeights.textRelevanceWeight > 0 && rankingWeights.availabilityWeight > 0, 'ViBa Ranking Engine: weights are configured and active');
+  assert(rankingWeights.qualityWeight > 0 && rankingWeights.popularityWeight > 0, 'ViBa Ranking Engine: quality and popularity weights configured');
+
+  // Test 51: Dynamic Suggestion Engine - Popular Searches without Hard-coding
+  const popularRes = engine.getPopularSearches(6);
+  assert(Array.isArray(popularRes.suggestions) && popularRes.suggestions.length > 0, `Suggestion Engine: generated ${popularRes.suggestions.length} dynamic popular searches`);
+  assert(popularRes.suggestions.every(item => typeof item.title === 'string' && item.title.length > 0), 'Suggestion Engine: all popular searches have valid titles');
+  assert(popularRes.suggestions.some(item => item.type === 'category' || item.type === 'brand' || item.type === 'popular'), 'Suggestion Engine: suggestions have valid catalog types');
+
+  // Test 52: Suggestion Engine - Multi-category Buckets
+  const mouSuggestions = engine.suggest('mou');
+  assert(mouSuggestions.products.length > 0 && mouSuggestions.products.some(p => p.title.toLowerCase().includes('mouse')), 'Suggestion Engine: suggests matching products for "mou"');
+
+  // Test 53: Retrieval Engine - Meilisearch Service Status & Schema Contract
+  const meiliStatus = meiliSearchService.getStatus();
+  assert(meiliStatus.isEnabled === true, 'Retrieval Engine: Meilisearch integration is enabled');
+  assert(typeof meiliStatus.isAvailable === 'boolean', 'Retrieval Engine: Meilisearch availability is tracked');
+  assert(meiliStatus.indexName === 'viba_products', `Retrieval Engine: configured index is "${meiliStatus.indexName}"`);
+
+  // Test 54: Retrieval Engine - Document Schema Conversion for Meilisearch
+  const allDocsForMeili = engine.getAllDocs();
+  assert(allDocsForMeili.length === 11, `Retrieval Engine: getAllDocs() returns 11 documents (got: ${allDocsForMeili.length})`);
+  const hpDoc = allDocsForMeili.find(d => d.id === 'prod-008');
+  assert(hpDoc !== undefined && hpDoc.effectivePrice === 349 && hpDoc.inStock === true, 'Retrieval Engine: document has required Meilisearch attributes (effectivePrice, inStock)');
+
+  // Test 55: Retrieval Engine - Resilient Fallback Handling
+  const syncResult = await meiliSearchService.syncAll(allDocsForMeili);
+  assert(typeof syncResult === 'number', 'Retrieval Engine: syncAll returns numeric count without throwing unhandled error');
+
+  // Test 56: Product Synchronization - Real-time Upsert and Deletion
+  const tempProduct: Product = {
+    id: 'prod-temp-999',
+    name: 'Temporary Test Wireless Bluetooth Earphone',
+    brand: 'TestBrand',
+    productCode: '8900 0996 9999',
+    sku: 'TST-TMP-EAR',
+    categoryId: 'cat-electronics',
+    price: 999,
+    discountPrice: 799,
+    stock: 5,
+    inStock: true,
+    rating: 4.0,
+    numReviews: 10,
+    status: 'active',
+    isVisible: true,
+    tags: ['earphones', 'wireless', 'bluetooth'],
+    vendorId: 'v-01',
+    images: [],
+    description: 'Temporary item for real-time synchronization test',
+    createdAt: '2026-01-12T00:00:00.000Z'
+  };
+
+  const upserted = engine.upsertProduct(tempProduct, 'Electronics');
+  assert(upserted !== null && engine.getCount() === 12, 'Product Sync: dynamically upserted product into search index');
+  
+  const searchTemp = engine.search({ q: 'Temporary Test' });
+  assert(searchTemp.products.some(p => p.id === 'prod-temp-999'), 'Product Sync: newly upserted product is immediately searchable');
+
+  const removed = engine.removeProduct('prod-temp-999');
+  assert(removed === true && engine.getCount() === 11, 'Product Sync: removed temporary product from search index');
+
+  const searchTempAfterRemove = engine.search({ q: 'Temporary Test' });
+  assert(!searchTempAfterRemove.products.some(p => p.id === 'prod-temp-999'), 'Product Sync: removed product no longer appears in search');
+
+  // Test 57: Zero-Result Recovery & Typo Suggestion on Peripherals
+  const typoPeripheral = engine.search({ q: 'logtech mose' });
+  assert(typoPeripheral.hasAutoCorrected || (typoPeripheral.recovery && Boolean(typoPeripheral.recovery.suggestedQuery)) || typoPeripheral.products.length > 0, 'Zero-Result Recovery: handles peripheral typo ("logtech mose")');
+
+  // Test 58: Zero-Result Analytics Telemetry
+  const zeroRes = engine.search({ q: 'zyxquantumcorenonexistent777' });
+  assert(zeroRes.recovery !== undefined && Array.isArray(zeroRes.recovery.suggestedCategories), 'Zero-Result Recovery: returns recovery recommendations');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

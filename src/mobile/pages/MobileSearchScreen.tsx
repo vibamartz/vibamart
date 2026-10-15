@@ -31,12 +31,9 @@ export default function MobileSearchScreen() {
   const [showMicPermissionModal, setShowMicPermissionModal] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveSuggestions, setLiveSuggestions] = useState<SuggestionItem[]>([]);
+  const [trendingSearches, setTrendingSearches] = useState<string[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const trendingSearches = [
-    "5G Mobiles", "Wireless Earbuds", "Running Shoes", "Smart TVs", "Summer Fashion", "Laptops", "Beauty Products"
-  ];
 
   useEffect(() => {
     const loadRecent = () => {
@@ -45,6 +42,16 @@ export default function MobileSearchScreen() {
     loadRecent();
     window.addEventListener('storage', loadRecent);
     window.addEventListener(SEARCH_HISTORY_UPDATED_EVENT, loadRecent);
+
+    // Fetch dynamic trending/popular searches from actual catalog data and search analytics
+    searchApiClient.getPopular(8)
+      .then(res => {
+        const queries = (res.popular || res.suggestions || []).map(s => s.title);
+        if (queries.length > 0) {
+          setTrendingSearches(queries);
+        }
+      })
+      .catch(() => {});
 
     // Auto focus on mount
     setTimeout(() => searchInputRef.current?.focus(), 150);
@@ -55,7 +62,7 @@ export default function MobileSearchScreen() {
     };
   }, []);
 
-  // Fetch live product suggestions on typing via searchApiClient
+  // Fetch live suggestions on typing via searchApiClient
   useEffect(() => {
     const qStr = searchQuery.trim();
     if (qStr.length < 2) {
@@ -65,10 +72,10 @@ export default function MobileSearchScreen() {
 
     let isCurrent = true;
     const timer = setTimeout(() => {
-      searchApiClient.suggest(qStr, 6)
+      searchApiClient.suggest(qStr, 8)
         .then(res => {
           if (isCurrent) {
-            setLiveSuggestions(res.suggestions.filter(s => s.type === 'product'));
+            setLiveSuggestions(res.suggestions || []);
           }
         })
         .catch(err => {
@@ -185,13 +192,23 @@ export default function MobileSearchScreen() {
       {liveSuggestions.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-md border border-yellow-100 space-y-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">
-            Matching Products
+            Matching Suggestions
           </span>
           <div className="divide-y divide-gray-100">
             {liveSuggestions.map((item) => (
               <div
                 key={item.id}
-                onClick={() => navigate(`/products/${item.slug || item.id}`)}
+                onClick={() => {
+                  if (item.type === 'category') {
+                    navigate(`/products?category=${encodeURIComponent(item.title)}`);
+                  } else if (item.type === 'brand') {
+                    navigate(`/products?brand=${encodeURIComponent(item.title)}`);
+                  } else if (item.type === 'query') {
+                    handleSearchSubmit(undefined, item.title);
+                  } else {
+                    navigate(`/products/${item.slug || item.id}`);
+                  }
+                }}
                 className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -201,6 +218,14 @@ export default function MobileSearchScreen() {
                       alt="" 
                       className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
                     />
+                  ) : item.type === 'category' ? (
+                    <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                  ) : item.type === 'brand' ? (
+                    <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+                      <Tag className="w-4 h-4" />
+                    </div>
                   ) : (
                     <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
                       <Search className="w-4 h-4 text-gray-400" />
@@ -208,11 +233,13 @@ export default function MobileSearchScreen() {
                   )}
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-gray-900 truncate">{item.title}</p>
-                    {(item.discountPrice || item.price) && (
+                    {item.subtitle ? (
+                      <p className="text-[10px] text-gray-400 truncate">{item.subtitle}</p>
+                    ) : (item.discountPrice || item.price) ? (
                       <span className="text-[10px] text-emerald-700 font-extrabold">
                         ₹{(item.discountPrice || item.price)!.toLocaleString()}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />

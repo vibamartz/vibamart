@@ -7,6 +7,7 @@ import { ZeroResultRecovery } from './zeroResultRecovery';
 import { searchCurationManager } from './searchCuration';
 import { parseIntentRuleBased, KNOWN_COLORS } from './semanticSearch';
 import { SpellingCorrectionEngine } from './spellingCorrection';
+import { getInMemoryAnalytics } from './searchAnalytics';
 
 export interface IndexedProductDoc {
   id: string;
@@ -335,8 +336,8 @@ export class ViBaSearchEngine {
     catName = '',
     subName = '',
     nestedName = ''
-  ) {
-    if (!product || !product.id) return;
+  ): IndexedProductDoc | null {
+    if (!product || !product.id) return null;
     const isReward = this.rewardProductIds.has(product.id);
     const doc = ViBaSearchEngine.toIndexedDoc(product, catName, subName, nestedName, isReward);
 
@@ -348,18 +349,21 @@ export class ViBaSearchEngine {
 
     this.indexedDocs.set(product.id, doc);
     this.miniSearch.add(doc);
+    return doc;
   }
 
   /**
    * Remove a product from the index upon deletion.
    */
-  public removeProduct(productId: string) {
+  public removeProduct(productId: string): boolean {
     if (this.indexedDocs.has(productId)) {
       this.indexedDocs.delete(productId);
       try {
         this.miniSearch.discard(productId);
       } catch {}
+      return true;
     }
+    return false;
   }
 
   /**
@@ -367,6 +371,13 @@ export class ViBaSearchEngine {
    */
   public getCount(): number {
     return this.indexedDocs.size;
+  }
+
+  /**
+   * Get all currently indexed product documents.
+   */
+  public getAllDocs(): IndexedProductDoc[] {
+    return Array.from(this.indexedDocs.values());
   }
 
   /**
@@ -416,14 +427,14 @@ export class ViBaSearchEngine {
     }
 
     // Natural Language / Semantic Intent Extraction on effective query
-    let semanticIntent = undefined;
+    let semanticIntent = params.semanticIntent;
     let queryToSearch = effectiveQuery;
 
-    if (effectiveQuery.length > 0) {
+    if (!semanticIntent && effectiveQuery.length > 0) {
       semanticIntent = parseIntentRuleBased(effectiveQuery);
-      if (semanticIntent.isNaturalLanguage && semanticIntent.cleanKeyword) {
-        queryToSearch = semanticIntent.cleanKeyword;
-      }
+    }
+    if (semanticIntent?.isNaturalLanguage && semanticIntent.cleanKeyword) {
+      queryToSearch = semanticIntent.cleanKeyword;
     }
 
     if (rawQuery.length > 0) {
@@ -517,8 +528,19 @@ export class ViBaSearchEngine {
 
       // 2. Category Hierarchy Filters
       if (categoryFilter && categoryFilter !== 'all-deals' && categoryFilter !== 'categories') {
-        const catMatch = doc.categoryId.toLowerCase() === categoryFilter ||
-                         doc.categoryName.toLowerCase() === categoryFilter;
+        const cf = categoryFilter.toLowerCase();
+        const cfSingular = cf.replace(/s$/, '');
+        const catMatch = doc.categoryId.toLowerCase() === cf ||
+                         doc.categoryName.toLowerCase() === cf ||
+                         doc.categoryName.toLowerCase().includes(cf) ||
+                         cf.includes(doc.categoryName.toLowerCase()) ||
+                         (doc.subCategoryName && (doc.subCategoryName.toLowerCase() === cf || doc.subCategoryName.toLowerCase().includes(cf))) ||
+                         (doc.nestedSubCategoryName && (
+                           doc.nestedSubCategoryName.toLowerCase() === cf ||
+                           doc.nestedSubCategoryName.toLowerCase().replace(/s$/, '') === cfSingular ||
+                           doc.nestedSubCategoryName.toLowerCase().includes(cf) ||
+                           cf.includes(doc.nestedSubCategoryName.toLowerCase())
+                         ));
         if (!catMatch) continue;
       }
 
@@ -623,6 +645,12 @@ export class ViBaSearchEngine {
           if (!docCatText.includes('earbud') && !docCatText.includes('headphone') && !docCatText.includes('earphone') && !docCatText.includes('audio') && !docCatText.includes('airdope')) continue;
         } else if (cat === 'accessories') {
           if (!docCatText.includes('accessor') && !docCatText.includes('bag') && !docCatText.includes('wallet') && !docCatText.includes('belt') && !docCatText.includes('jewel')) continue;
+        } else if (cat === 'mouse') {
+          if (!docCatText.includes('mouse') && !docCatText.includes('mice')) continue;
+        } else if (cat === 'laptops') {
+          if (!docCatText.includes('laptop') && !docCatText.includes('notebook') && !docCatText.includes('macbook')) continue;
+        } else if (cat === 'keyboards') {
+          if (!docCatText.includes('keyboard')) continue;
         }
       }
 
@@ -630,6 +658,38 @@ export class ViBaSearchEngine {
       if (rawQuery.length > 0) {
         const boost = searchCurationManager.getBoostMultiplier(rawQuery, doc.brand, doc.categoryId);
         score *= boost;
+
+        // Multi-Factor Ranking Engine
+        const weights = searchCurationManager.getRankingWeights();
+        score *= weights.textRelevanceWeight;
+
+        // Title Exactness & Prefix Priority
+        const lowerName = doc.name.toLowerCase();
+        const lowerQ = (queryToSearch || rawQuery).toLowerCase();
+        if (lowerName === lowerQ) {
+          score *= 2.0;
+        } else if (lowerName.startsWith(lowerQ)) {
+          score *= 1.4;
+        }
+
+        // Availability Boost (in-stock prioritized over out-of-stock items)
+        if (doc.inStock && doc.stock > 0) {
+          score *= weights.availabilityWeight;
+        } else {
+          score *= 0.6;
+        }
+
+        // Product Quality Boost (ratings and review density)
+        if (doc.rating > 0) {
+          const qualityFactor = 1 + ((doc.rating / 5) * 0.2);
+          score *= Math.pow(qualityFactor, weights.qualityWeight);
+        }
+
+        // Popularity Boost (customer reviews and engagement)
+        if (doc.numReviews > 0) {
+          const popFactor = 1 + (Math.log10(doc.numReviews + 1) * 0.08);
+          score *= Math.pow(popFactor, weights.popularityWeight);
+        }
       }
 
       // Priority boost for true buttoned shirts when searching for shirts
@@ -719,18 +779,121 @@ export class ViBaSearchEngine {
   }
 
   /**
+   * Generates dynamic popular and trending suggestions from actual catalog data and user search analytics.
+   */
+  public getPopularSearches(limit = 8): SuggestionResult {
+    const startTime = performance.now();
+    const suggestions: SuggestionItem[] = [];
+    const seen = new Set<string>();
+
+    // 1. Dynamic top queries from search analytics
+    try {
+      const recentEvents = getInMemoryAnalytics();
+      const queryFrequency: Record<string, number> = {};
+      recentEvents.forEach(e => {
+        if (e.resultCount > 0 && e.query) {
+          const q = e.query.trim();
+          if (q.length >= 2) {
+            queryFrequency[q] = (queryFrequency[q] || 0) + 1;
+          }
+        }
+      });
+      const topAnalyticQueries = Object.entries(queryFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .map(([q]) => q);
+
+      for (const q of topAnalyticQueries) {
+        const lower = q.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          suggestions.push({
+            id: `pop_${lower}`,
+            title: q,
+            type: 'query',
+            subtitle: 'Trending Search'
+          });
+          if (suggestions.length >= limit) break;
+        }
+      }
+    } catch {}
+
+    // 2. Dynamic top categories and brands from actual catalog data
+    if (suggestions.length < limit) {
+      const catCounts: Record<string, number> = {};
+      const brandCounts: Record<string, number> = {};
+
+      for (const doc of this.indexedDocs.values()) {
+        if (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft') continue;
+        if (doc.categoryName) {
+          catCounts[doc.categoryName] = (catCounts[doc.categoryName] || 0) + 1;
+        }
+        if (doc.brand) {
+          brandCounts[doc.brand] = (brandCounts[doc.brand] || 0) + 1;
+        }
+      }
+
+      const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+      for (const [catName] of topCats) {
+        const lower = catName.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          suggestions.push({
+            id: `cat_${catName}`,
+            title: catName,
+            type: 'category',
+            subtitle: 'Popular Category'
+          });
+          if (suggestions.length >= limit) break;
+        }
+      }
+
+      if (suggestions.length < limit) {
+        const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]);
+        for (const [brand] of topBrands) {
+          const lower = brand.toLowerCase();
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            suggestions.push({
+              id: `brand_${brand}`,
+              title: brand,
+              type: 'brand',
+              subtitle: 'Featured Brand'
+            });
+            if (suggestions.length >= limit) break;
+          }
+        }
+      }
+    }
+
+    const executionTimeMs = Math.round((performance.now() - startTime) * 100) / 100;
+    return {
+      query: '',
+      suggestions: suggestions.slice(0, limit),
+      popular: suggestions.slice(0, limit),
+      products: [],
+      categories: suggestions.filter(s => s.type === 'category'),
+      brands: suggestions.filter(s => s.type === 'brand'),
+      executionTimeMs
+    };
+  }
+
+  /**
    * Fast Autocomplete Suggestions for Header / Mobile Search.
    */
   public suggest(rawQuery: string, limit = 8): SuggestionResult {
     const startTime = performance.now();
     const query = (rawQuery || '').trim();
     if (!query) {
-      return { query, suggestions: [], executionTimeMs: 0 };
+      return this.getPopularSearches(limit);
     }
 
     const { cleanDigits } = normalizeQueryString(query);
     const lowerQuery = query.toLowerCase();
     const suggestions: SuggestionItem[] = [];
+    const productItems: SuggestionItem[] = [];
+    const categoryItems: SuggestionItem[] = [];
+    const brandItems: SuggestionItem[] = [];
+    const popularItems: SuggestionItem[] = [];
     const seenIds = new Set<string>();
 
     // 1. Exact product code check
@@ -738,7 +901,7 @@ export class ViBaSearchEngine {
       for (const doc of this.indexedDocs.values()) {
         if (!doc.isVisible || doc.status === 'inactive') continue;
         if (doc.cleanProductCode.includes(cleanDigits) || (doc.productCode && doc.productCode.includes(query))) {
-          suggestions.push({
+          const item: SuggestionItem = {
             id: doc.id,
             title: doc.name,
             type: 'product',
@@ -747,7 +910,9 @@ export class ViBaSearchEngine {
             price: doc.price,
             discountPrice: doc.discountPrice,
             slug: doc.raw.slug || doc.id
-          });
+          };
+          suggestions.push(item);
+          productItems.push(item);
           seenIds.add(doc.id);
           if (suggestions.length >= limit) break;
         }
@@ -768,7 +933,7 @@ export class ViBaSearchEngine {
         const doc = this.indexedDocs.get(res.id);
         if (!doc || !doc.isVisible || doc.status === 'inactive') continue;
 
-        suggestions.push({
+        const item: SuggestionItem = {
           id: doc.id,
           title: doc.name,
           type: 'product',
@@ -777,7 +942,9 @@ export class ViBaSearchEngine {
           price: doc.price,
           discountPrice: doc.discountPrice,
           slug: doc.raw.slug || doc.id
-        });
+        };
+        suggestions.push(item);
+        productItems.push(item);
         seenIds.add(doc.id);
         if (suggestions.length >= limit) break;
       }
@@ -799,7 +966,7 @@ export class ViBaSearchEngine {
             const doc = this.indexedDocs.get(res.id);
             if (!doc || !doc.isVisible || doc.status === 'inactive') continue;
 
-            suggestions.push({
+            const item: SuggestionItem = {
               id: doc.id,
               title: doc.name,
               type: 'product',
@@ -808,7 +975,9 @@ export class ViBaSearchEngine {
               price: doc.price,
               discountPrice: doc.discountPrice,
               slug: doc.raw.slug || doc.id
-            });
+            };
+            suggestions.push(item);
+            productItems.push(item);
             seenIds.add(doc.id);
             if (suggestions.length >= limit) break;
           }
@@ -830,29 +999,50 @@ export class ViBaSearchEngine {
       }
     }
 
-    for (const cat of Array.from(matchedCategories).slice(0, 2)) {
-      suggestions.push({
+    for (const cat of Array.from(matchedCategories).slice(0, 3)) {
+      const item: SuggestionItem = {
         id: `cat_${cat}`,
         title: cat,
         type: 'category',
         subtitle: 'In Categories'
-      });
+      };
+      if (suggestions.length < limit) suggestions.push(item);
+      categoryItems.push(item);
     }
 
-    for (const br of Array.from(matchedBrands).slice(0, 2)) {
-      suggestions.push({
+    for (const br of Array.from(matchedBrands).slice(0, 3)) {
+      const item: SuggestionItem = {
         id: `brand_${br}`,
         title: br,
         type: 'brand',
         subtitle: 'Brand'
-      });
+      };
+      if (suggestions.length < limit) suggestions.push(item);
+      brandItems.push(item);
     }
+
+    // 4. Popular query prefix matches
+    try {
+      const popular = this.getPopularSearches(6);
+      for (const pop of popular.suggestions) {
+        if (pop.title.toLowerCase().includes(lowerQuery) && !suggestions.some(s => s.title.toLowerCase() === pop.title.toLowerCase())) {
+          popularItems.push(pop);
+          if (suggestions.length < limit) {
+            suggestions.push(pop);
+          }
+        }
+      }
+    } catch {}
 
     const executionTimeMs = Math.round((performance.now() - startTime) * 100) / 100;
 
     return {
       query,
       suggestions: suggestions.slice(0, limit),
+      products: productItems,
+      categories: categoryItems,
+      brands: brandItems,
+      popular: popularItems,
       executionTimeMs
     };
   }

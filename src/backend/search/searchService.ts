@@ -6,6 +6,7 @@ import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
 import { Product } from '../../shared/types';
 import { searchCache } from './searchCache';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
+import { meiliSearchService } from './meiliSearchService';
 
 function getValidProjectId(): string {
   const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
@@ -74,7 +75,8 @@ export class SearchService {
       indexedCount: this.engine.getCount(),
       lastIndexedTimestamp: this.lastIndexedTimestamp,
       cache: searchCache.getStats(),
-      ai: getSemanticSearchStatus()
+      ai: getSemanticSearchStatus(),
+      meilisearch: meiliSearchService.getStatus()
     };
   }
 
@@ -86,6 +88,9 @@ export class SearchService {
     this.isInitializing = true;
 
     try {
+      await meiliSearchService.initialize().catch(err => {
+        console.warn('[SearchService] MeiliSearch initial connect warning:', err.message);
+      });
       await this.loadCategoryMaps();
       await this.indexAllProducts();
       this.attachRealtimeListener();
@@ -165,6 +170,12 @@ export class SearchService {
         this.nestedSubCategoryNameMap
       );
 
+      // Synchronize indexed documents to MeiliSearch
+      const allIndexedDocs = this.engine.getAllDocs();
+      await meiliSearchService.syncAll(allIndexedDocs).catch(err => {
+        console.warn('[SearchService] MeiliSearch batch sync warning:', err.message);
+      });
+
       this.lastIndexedTimestamp = Date.now();
       searchCache.invalidate();
       return products.length;
@@ -192,10 +203,14 @@ export class SearchService {
         const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
 
         if (change.type === 'added' || change.type === 'modified') {
-          this.engine.upsertProduct(product, catName, subName, nestedName);
+          const doc = this.engine.upsertProduct(product, catName, subName, nestedName);
+          if (doc) {
+            meiliSearchService.upsertProduct(doc).catch(() => {});
+          }
           hasChanges = true;
         } else if (change.type === 'removed') {
           this.engine.removeProduct(product.id);
+          meiliSearchService.removeProduct(product.id).catch(() => {});
           hasChanges = true;
         }
       });
@@ -240,7 +255,7 @@ export class SearchService {
   }
 
   /**
-   * Search query execution with lazy bootstrap and LRU query cache.
+   * Search query execution with lazy bootstrap, MeiliSearch retrieval, and resilient fallback.
    */
   public async search(params: SearchParams): Promise<SearchResult> {
     if (!this.isInitialized && !this.isInitializing) {
@@ -256,13 +271,16 @@ export class SearchService {
 
     const rawQuery = (params.q || '').trim();
     let searchParams = { ...params };
+    let semanticIntent: any = undefined;
 
     // Asynchronously resolve natural language / AI intent if query contains conversational markers
     if (rawQuery.length > 0 && (params.useAI || /\b(?:under|below|above|between|for\s+(?:men|women|kids)|cheap|cheapest|budget|expensive|best|latest|in\s*stock)\b/i.test(rawQuery))) {
       try {
         const intent = await parseQueryIntent(rawQuery, true);
         if (intent && intent.isNaturalLanguage) {
-          // If caller didn't explicitly set filters, populate with AI extracted filters
+          semanticIntent = intent;
+          searchParams.semanticIntent = intent;
+          // Populate extracted constraints when not explicitly set by the caller
           if (searchParams.maxPrice === undefined && intent.detectedFilters.maxPrice !== undefined) {
             searchParams.maxPrice = intent.detectedFilters.maxPrice;
           }
@@ -278,13 +296,43 @@ export class SearchService {
           if (searchParams.inStock === undefined && intent.detectedFilters.inStock !== undefined) {
             searchParams.inStock = intent.detectedFilters.inStock;
           }
+          if (!searchParams.gender && intent.detectedFilters.gender) {
+            searchParams.gender = intent.detectedFilters.gender;
+          }
         }
       } catch (err) {
         // Safe fallback
       }
     }
 
+    // 1. Try MeiliSearch Retrieval if connected
+    if (meiliSearchService.isConnected()) {
+      try {
+        const meiliResult = await meiliSearchService.search(searchParams, semanticIntent);
+        if (meiliResult) {
+          meiliResult.query = rawQuery;
+          if (semanticIntent) {
+            meiliResult.semanticIntent = semanticIntent;
+          }
+          if (rawQuery !== searchParams.q) {
+            meiliResult.originalQuery = rawQuery;
+          }
+          searchCache.set(cacheKey, meiliResult);
+          return meiliResult;
+        }
+      } catch (err) {
+        console.warn('[SearchService] MeiliSearch query execution warning:', err);
+      }
+    }
+
+    // 2. Resilient In-Memory Search Engine
     const freshResult = this.engine.search(searchParams);
+    if (semanticIntent) {
+      freshResult.semanticIntent = semanticIntent;
+    }
+    if (rawQuery !== searchParams.q) {
+      freshResult.originalQuery = rawQuery;
+    }
     searchCache.set(cacheKey, freshResult);
     return freshResult;
   }
@@ -297,6 +345,16 @@ export class SearchService {
       await this.initialize();
     }
     return this.engine.suggest(query, limit);
+  }
+
+  /**
+   * Dynamic popular searches generated from actual catalog data and search telemetry.
+   */
+  public async getPopular(limit = 8): Promise<SuggestionResult> {
+    if (!this.isInitialized && !this.isInitializing) {
+      await this.initialize();
+    }
+    return this.engine.getPopularSearches(limit);
   }
 }
 

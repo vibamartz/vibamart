@@ -21,6 +21,7 @@ export interface SearchParams {
   includeDrafts?: boolean;
   useAI?: boolean;
   noAutoCorrect?: boolean;
+  semanticIntent?: SemanticIntentData;
 }
 
 export interface SearchFacetValue {
@@ -55,6 +56,7 @@ export interface SemanticIntentData {
   detectedFilters: Record<string, any>;
   semanticTags: string[];
   source: 'gemini' | 'rule_based' | 'cache';
+  isNaturalLanguage?: boolean;
 }
 
 export interface SearchResult {
@@ -81,7 +83,7 @@ export interface SearchResult {
 export interface SuggestionItem {
   id: string;
   title: string;
-  type: 'product' | 'brand' | 'category' | 'query';
+  type: 'product' | 'brand' | 'category' | 'query' | 'popular';
   subtitle?: string;
   imageUrl?: string;
   price?: number;
@@ -93,5 +95,9 @@ export interface SuggestionItem {
 export interface SuggestionResult {
   query: string;
   suggestions: SuggestionItem[];
+  products?: SuggestionItem[];
+  categories?: SuggestionItem[];
+  brands?: SuggestionItem[];
+  popular?: SuggestionItem[];
   executionTimeMs: number;
 }

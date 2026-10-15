@@ -54,6 +54,7 @@ export default function ProductList() {
     originalQuery?: string;
     correctedQuery?: string;
   } | null>(null);
+  const [searchIntent, setSearchIntent] = useState<any | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCompleted, setSearchCompleted] = useState(false);
 
@@ -64,6 +65,7 @@ export default function ProductList() {
       setSearchResults(null);
       setSearchRecovery(null);
       setSearchCorrection(null);
+      setSearchIntent(null);
       setSearchLoading(false);
       setSearchCompleted(false);
       return;
@@ -98,6 +100,16 @@ export default function ProductList() {
           originalQuery: res.originalQuery,
           correctedQuery: res.correctedQuery
         } : null);
+
+        if (res.semanticIntent?.isNaturalLanguage) {
+          setSearchIntent(res.semanticIntent);
+          if (res.semanticIntent.detectedFilters?.maxPrice) {
+            setPriceRange(res.semanticIntent.detectedFilters.maxPrice);
+          }
+        } else {
+          setSearchIntent(null);
+        }
+
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -107,6 +119,7 @@ export default function ProductList() {
         setSearchResults(null);
         setSearchRecovery(null);
         setSearchCorrection(null);
+        setSearchIntent(null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -1067,6 +1080,50 @@ export default function ProductList() {
               nestedSubCategoryId={matchedNestedSubcategory?.id}
               parentTargetId={matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedSubcategory?.id || matchedCategory.id}
             />
+          )}
+
+          {/* Query Intelligence Intent Badge */}
+          {searchIntent?.isNaturalLanguage && (
+            <div className="mb-4 p-3.5 bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 rounded-2xl border border-blue-200/90 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-blue-600 text-white shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5" /> Intelligent Search
+                </span>
+                <span className="text-xs text-gray-800 font-bold">
+                  Searching for <span className="text-blue-900 font-black">"{searchIntent.cleanKeyword}"</span>
+                </span>
+                {searchIntent.detectedFilters?.maxPrice !== undefined && (
+                  <span className="text-[11px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Max Price: ₹{searchIntent.detectedFilters.maxPrice.toLocaleString()}
+                  </span>
+                )}
+                {searchIntent.detectedFilters?.minPrice !== undefined && (
+                  <span className="text-[11px] font-black bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Min Price: ₹{searchIntent.detectedFilters.minPrice.toLocaleString()}
+                  </span>
+                )}
+                {searchIntent.detectedFilters?.color && (
+                  <span className="text-[11px] font-black bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200 capitalize">
+                    Color: {searchIntent.detectedFilters.color}
+                  </span>
+                )}
+                {searchIntent.detectedFilters?.gender && (
+                  <span className="text-[11px] font-black bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200 capitalize">
+                    For: {searchIntent.detectedFilters.gender}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setSearchIntent(null);
+                  setPriceRange(200000);
+                  setSearchParams({ q: searchIntent.cleanKeyword });
+                }}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+              >
+                Clear Budget & Filters
+              </button>
+            </div>
           )}
 
           {/* Spelling Auto-Correction Notice */}

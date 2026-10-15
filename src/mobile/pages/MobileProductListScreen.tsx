@@ -42,6 +42,7 @@ export default function MobileProductListScreen() {
     originalQuery?: string;
     correctedQuery?: string;
   } | null>(null);
+  const [searchIntent, setSearchIntent] = useState<any | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCompleted, setSearchCompleted] = useState(false);
 
@@ -51,6 +52,7 @@ export default function MobileProductListScreen() {
       setSearchResults(null);
       setSearchRecovery(null);
       setSearchCorrection(null);
+      setSearchIntent(null);
       setSearchLoading(false);
       setSearchCompleted(false);
       return;
@@ -85,6 +87,16 @@ export default function MobileProductListScreen() {
           originalQuery: res.originalQuery,
           correctedQuery: res.correctedQuery
         } : null);
+
+        if (res.semanticIntent?.isNaturalLanguage) {
+          setSearchIntent(res.semanticIntent);
+          if (res.semanticIntent.detectedFilters?.maxPrice) {
+            setMaxPrice(res.semanticIntent.detectedFilters.maxPrice);
+          }
+        } else {
+          setSearchIntent(null);
+        }
+
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -94,6 +106,7 @@ export default function MobileProductListScreen() {
         setSearchResults(null);
         setSearchRecovery(null);
         setSearchCorrection(null);
+        setSearchIntent(null);
         setSearchLoading(false);
         setSearchCompleted(true);
       }
@@ -855,6 +868,47 @@ export default function MobileProductListScreen() {
           >
             <RefreshCw className="w-3 h-3" /> Clear All
           </button>
+        </div>
+      )}
+
+      {/* Query Intelligence Intent Badge */}
+      {searchIntent?.isNaturalLanguage && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/80 rounded-2xl p-3 border border-blue-200/80 space-y-1.5 shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs text-blue-900 font-bold flex-wrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white shadow-xs">
+              <Sparkles className="w-3 h-3" /> Intelligent Search
+            </span>
+            <span>"{searchIntent.cleanKeyword}"</span>
+            {searchIntent.detectedFilters?.maxPrice !== undefined && (
+              <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                Max ₹{searchIntent.detectedFilters.maxPrice.toLocaleString()}
+              </span>
+            )}
+            {searchIntent.detectedFilters?.minPrice !== undefined && (
+              <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                Min ₹{searchIntent.detectedFilters.minPrice.toLocaleString()}
+              </span>
+            )}
+            {searchIntent.detectedFilters?.color && (
+              <span className="text-[10px] font-black bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200 capitalize">
+                {searchIntent.detectedFilters.color}
+              </span>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setSearchIntent(null);
+                setMaxPrice(100000);
+                const next = new URLSearchParams(searchParams);
+                next.set('q', searchIntent.cleanKeyword);
+                setSearchParams(next);
+              }}
+              className="text-[11px] font-bold text-blue-700 underline"
+            >
+              Clear Budget Filter
+            </button>
+          </div>
         </div>
       )}
 

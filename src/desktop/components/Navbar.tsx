@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
   Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown, ChevronLeft, ChevronRight,
-  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Loader2
+  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Loader2, Tag
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
@@ -251,9 +251,22 @@ export default function Navbar() {
   const [isListening, setIsListening] = useState(false);
   const [suggestedCategories, setSuggestedCategories] = useState<typeof CATEGORIES>([]);
   const [productSuggestions, setProductSuggestions] = useState<SuggestionItem[]>([]);
+  const [brandSuggestions, setBrandSuggestions] = useState<SuggestionItem[]>([]);
+  const [popularSuggestions, setPopularSuggestions] = useState<SuggestionItem[]>([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  // Fetch dynamic popular / trending searches when search bar is focused with empty query
+  useEffect(() => {
+    if (isSearchFocused && searchQuery.trim().length === 0) {
+      searchApiClient.getPopular(6)
+        .then(res => {
+          setPopularSuggestions(res.popular || res.suggestions || []);
+        })
+        .catch(() => {});
+    }
+  }, [isSearchFocused, searchQuery]);
 
   useEffect(() => {
     const qStr = searchQuery.trim();
@@ -263,6 +276,7 @@ export default function Navbar() {
     if (qStr.length === 0) {
       setSuggestedCategories([]);
       setProductSuggestions([]);
+      setBrandSuggestions([]);
       setIsSuggestLoading(false);
       return;
     }
@@ -277,11 +291,22 @@ export default function Navbar() {
     let isCurrent = true;
 
     const timer = setTimeout(() => {
-      searchApiClient.suggest(qStr, 5)
+      searchApiClient.suggest(qStr, 8)
         .then(res => {
           if (isCurrent) {
-            const prodItems = (res.suggestions || []).filter(s => s.type === 'product');
-            setProductSuggestions(prodItems);
+            const allItems = res.suggestions || [];
+            setProductSuggestions(res.products || allItems.filter(s => s.type === 'product'));
+            setBrandSuggestions(res.brands || allItems.filter(s => s.type === 'brand'));
+            const catItems = res.categories || allItems.filter(s => s.type === 'category');
+            if (catItems.length > 0) {
+              // Map catalog category items into matching objects if available
+              const matchedCats = catItems.map(c => {
+                const found = CATEGORIES.find(cat => cat.name.toLowerCase() === c.title.toLowerCase());
+                return found || { id: c.id, name: c.title, slug: c.title.toLowerCase().replace(/\s+/g, '-'), icon: '' };
+              });
+              setSuggestedCategories(matchedCats as any);
+            }
+            setPopularSuggestions(res.popular || allItems.filter(s => s.type === 'query'));
             setIsSuggestLoading(false);
           }
         })
@@ -289,6 +314,7 @@ export default function Navbar() {
           if (isCurrent) {
             console.warn('[Navbar] Suggestions error:', err);
             setProductSuggestions([]);
+            setBrandSuggestions([]);
             setSuggestError('Failed to load suggestions');
             setIsSuggestLoading(false);
           }
@@ -614,6 +640,28 @@ export default function Navbar() {
                           </div>
                         )}
 
+                        {/* Brand Suggestions */}
+                        {brandSuggestions.length > 0 && searchQuery.length > 0 && (
+                          <div className="bg-gray-50/50 rounded-2xl p-3">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                              <Tag className="w-4 h-4 text-emerald-500" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Matching Brands</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {brandSuggestions.map((brand) => (
+                                <Link
+                                  key={brand.id}
+                                  to={`/products?brand=${encodeURIComponent(brand.title)}`}
+                                  onClick={() => setIsSearchFocused(false)}
+                                  className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 text-xs font-bold rounded-xl border border-gray-100 shadow-sm transition-all"
+                                >
+                                  {brand.title}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {recentSearches.length > 0 && (
                           <div>
                             <div className="flex items-center justify-between mb-3 px-2">
@@ -661,29 +709,31 @@ export default function Navbar() {
                           </div>
                         )}
 
-                        <div>
-                          <div className="flex items-center gap-2 mb-3 px-2">
-                            <TrendingUp className="w-4 h-4 text-blue-500" />
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trending Now</span>
+                        {popularSuggestions.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3 px-2">
+                              <TrendingUp className="w-4 h-4 text-blue-500" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Popular Searches</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 px-1">
+                              {popularSuggestions.map((trend) => (
+                                <button
+                                  key={trend.id}
+                                  onClick={() => {
+                                    setSearchQuery(trend.title);
+                                    const updated = addRecentSearch(trend.title, 10);
+                                    setRecentSearches(updated);
+                                    navigate(`/products?q=${encodeURIComponent(trend.title)}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95 cursor-pointer"
+                                >
+                                  {trend.title}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 px-1">
-                            {['Samsung Fold', 'Nike Jordan', 'Summer Collection', 'Smart Watches', 'Organic Skincare'].map((trend) => (
-                              <button
-                                key={trend}
-                                onClick={() => {
-                                  setSearchQuery(trend);
-                                  const updated = addRecentSearch(trend, 10);
-                                  setRecentSearches(updated);
-                                  navigate(`/products?q=${encodeURIComponent(trend)}`);
-                                  setIsSearchFocused(false);
-                                }}
-                                className="px-4 py-2 bg-gray-50 hover:bg-blue-50 hover:text-primary rounded-full text-xs font-medium text-gray-600 transition-all border border-gray-100 active:scale-95"
-                              >
-                                {trend}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        )}
 
                         <div className="border-t border-gray-100 pt-4">
                           <div className="flex items-center gap-2 mb-4 px-2">

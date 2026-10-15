@@ -13,17 +13,31 @@ export interface BoostedRule {
   boostFactor: number;
 }
 
+export interface RankingWeightsConfig {
+  textRelevanceWeight?: number;
+  availabilityWeight?: number;
+  qualityWeight?: number;
+  popularityWeight?: number;
+}
+
 export interface CurationConfig {
   pinnedRules: PinnedRule[];
   boostedRules: BoostedRule[];
   customSynonyms: string[][];
+  rankingWeights?: RankingWeightsConfig;
 }
 
 export class SearchCurationManager {
   private config: CurationConfig = {
     pinnedRules: [],
     boostedRules: [],
-    customSynonyms: []
+    customSynonyms: [],
+    rankingWeights: {
+      textRelevanceWeight: 1.0,
+      availabilityWeight: 1.25,
+      qualityWeight: 1.15,
+      popularityWeight: 1.1
+    }
   };
   private isLoaded = false;
 
@@ -45,7 +59,8 @@ export class SearchCurationManager {
           this.config = {
             pinnedRules: Array.isArray(data.pinnedRules) ? data.pinnedRules : [],
             boostedRules: Array.isArray(data.boostedRules) ? data.boostedRules : [],
-            customSynonyms: Array.isArray(data.customSynonyms) ? data.customSynonyms : []
+            customSynonyms: Array.isArray(data.customSynonyms) ? data.customSynonyms : [],
+            rankingWeights: data.rankingWeights || this.config.rankingWeights
           };
           if (this.config.customSynonyms.length > 0) {
             registerCustomSynonyms(this.config.customSynonyms);
@@ -63,7 +78,8 @@ export class SearchCurationManager {
     this.config = {
       pinnedRules: newConfig.pinnedRules || this.config.pinnedRules,
       boostedRules: newConfig.boostedRules || this.config.boostedRules,
-      customSynonyms: newConfig.customSynonyms || this.config.customSynonyms
+      customSynonyms: newConfig.customSynonyms || this.config.customSynonyms,
+      rankingWeights: newConfig.rankingWeights || this.config.rankingWeights
     };
 
     if (this.config.customSynonyms.length > 0) {
@@ -80,6 +96,19 @@ export class SearchCurationManager {
     }
 
     return this.config;
+  }
+
+  /**
+   * Returns active ranking weight factors.
+   */
+  public getRankingWeights(): Required<RankingWeightsConfig> {
+    const rw = this.config.rankingWeights || {};
+    return {
+      textRelevanceWeight: rw.textRelevanceWeight ?? 1.0,
+      availabilityWeight: rw.availabilityWeight ?? 1.25,
+      qualityWeight: rw.qualityWeight ?? 1.15,
+      popularityWeight: rw.popularityWeight ?? 1.1
+    };
   }
 
   /**

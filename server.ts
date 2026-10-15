@@ -40,7 +40,7 @@ try {
       admin.initializeApp();
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 } catch (e) {
@@ -170,8 +170,8 @@ async function startServer() {
     } catch (error: any) {
       console.error("Razorpay Order Creation Error:", error);
       const isConfigError = error.message && (error.message.includes("configured") || error.message.includes("credentials"));
-      res.status(isConfigError ? 400 : 500).json({ 
-        success: false, 
+      res.status(isConfigError ? 400 : 500).json({
+        success: false,
         error: error.description || error.message || "Failed to create Razorpay order",
         code: error.code || "CONFIG_ERROR",
         isDemo: isConfigError
@@ -240,7 +240,7 @@ async function startServer() {
       });
 
       const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-      
+
       // Send Email
       if (process.env.SMTP_HOST && !isPlaceholder) {
         await transporter.sendMail({
@@ -272,7 +272,7 @@ async function startServer() {
 
     try {
       const itemsList = items?.map((item: any) => `<li>${item.name} - Qty: ${item.quantity}</li>`).join('') || '';
-      
+
       const emailHtml = `
         <h2>Hello ${customerName || 'Customer'},</h2>
         <p>We are excited to inform you that your order <strong>#${orderId}</strong> has been successfully delivered on ${deliveryDate || new Date().toLocaleDateString()}.</p>
@@ -287,14 +287,14 @@ async function startServer() {
       `;
 
       const db = admin.firestore();
-      
+
       // Prevent duplicate emails
       const existingLogs = await db.collection("emailLogs")
         .where("orderId", "==", orderId)
         .where("type", "==", "delivery_confirmation")
         .limit(1)
         .get();
-        
+
       if (!existingLogs.empty) {
         return res.json({ success: true, message: "Delivery email was already sent previously." });
       }
@@ -308,7 +308,7 @@ async function startServer() {
           subject: "Your Order Has Been Delivered Successfully",
           html: emailHtml,
         });
-        
+
         // Store email delivery log
         await db.collection("emailLogs").add({
           orderId,
@@ -317,11 +317,11 @@ async function startServer() {
           status: "sent",
           sentAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        
+
         res.json({ success: true, message: "Delivery email sent successfully." });
       } else {
         console.log(`[DEVELOPMENT] Delivery email for ${customerEmail}:\n${emailHtml}`);
-        
+
         // Store email delivery log for development
         await db.collection("emailLogs").add({
           orderId,
@@ -330,7 +330,7 @@ async function startServer() {
           status: "development_log_only",
           sentAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        
+
         res.json({ success: true, message: "Delivery email logged in development." });
       }
     } catch (error: any) {
@@ -361,7 +361,7 @@ async function startServer() {
       const protocol = req.protocol;
       const host = req.get('host');
       const url = `${protocol}://${host}${req.originalUrl}`;
-      
+
       const headers = new Headers();
       for (const [key, value] of Object.entries(req.headers)) {
         if (value) {
@@ -402,7 +402,7 @@ async function startServer() {
   app.post("/api/orders/approve-cancellation", verifyAuth, async (req, res) => {
     const { orderId } = req.body;
     const decodedToken = (req as any).user;
-    
+
     // Simple admin check
     let isAdmin = false;
     if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
@@ -416,21 +416,21 @@ async function startServer() {
         console.error("Error fetching user role", e);
       }
     }
-    
+
     if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
 
     try {
       const db = admin.firestore();
       console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
       const orderRef = db.collection("orders").doc(orderId);
-      
+
       console.log(`[FIRESTORE WRITE] Executing transaction to approve order cancellation. Order ID: ${orderId}`);
       await db.runTransaction(async (transaction) => {
         console.log(`[FIRESTORE READ] (Transaction) Fetching order document from 'orders' collection. Document ID: ${orderId}`);
         const orderDoc = await transaction.get(orderRef);
         if (!orderDoc.exists) throw new Error("Order not found");
         const orderData = orderDoc.data()!;
-        
+
         if (orderData.status !== "cancel_requested") {
           throw new Error("Order is not pending cancellation");
         }
@@ -445,12 +445,12 @@ async function startServer() {
         }
 
         const updatesByProduct = new Map<string, any>();
-        
+
         for (const { item, productRef, productDoc } of productDocs) {
           if (productDoc.exists) {
             const pData = productDoc.data()!;
             const productId = productRef.id;
-            
+
             if (!updatesByProduct.has(productId)) {
               updatesByProduct.set(productId, {
                 ref: productRef,
@@ -458,20 +458,20 @@ async function startServer() {
                 variants: pData.variants ? [...pData.variants] : null
               });
             }
-            
+
             const prodUpdate = updatesByProduct.get(productId);
             prodUpdate.updates.stock += item.quantity;
-            
+
             if (item.variantId && prodUpdate.variants) {
-               const variantIndex = prodUpdate.variants.findIndex((v: any) => v.id === item.variantId);
-               if (variantIndex !== -1) {
-                  prodUpdate.variants[variantIndex].stock = (prodUpdate.variants[variantIndex].stock || 0) + item.quantity;
-                  prodUpdate.updates.variants = prodUpdate.variants;
-               }
+              const variantIndex = prodUpdate.variants.findIndex((v: any) => v.id === item.variantId);
+              if (variantIndex !== -1) {
+                prodUpdate.variants[variantIndex].stock = (prodUpdate.variants[variantIndex].stock || 0) + item.quantity;
+                prodUpdate.updates.variants = prodUpdate.variants;
+              }
             }
           }
         }
-        
+
         for (const prodUpdate of updatesByProduct.values()) {
           console.log(`[FIRESTORE WRITE] (Transaction) Updating product stock in 'products' collection. Product ID: ${prodUpdate.ref.id}`);
           transaction.update(prodUpdate.ref, prodUpdate.updates);
@@ -523,7 +523,7 @@ async function startServer() {
   app.post("/api/orders/reject-cancellation", verifyAuth, async (req, res) => {
     const { orderId } = req.body;
     const decodedToken = (req as any).user;
-    
+
     // Simple admin check
     let isAdmin = false;
     if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
@@ -537,17 +537,17 @@ async function startServer() {
         console.error("Error fetching user role", e);
       }
     }
-    
+
     if (!isAdmin) return res.status(403).json({ success: false, error: "Admin access required" });
 
     try {
       const db = admin.firestore();
       console.log(`[FIRESTORE READ] Fetching order document from 'orders' collection. Document ID: ${orderId}`);
       const orderRef = db.collection("orders").doc(orderId);
-      
+
       const orderDoc = await orderRef.get();
       if (!orderDoc.exists) throw new Error("Order not found");
-      
+
       const orderUpdates = {
         status: "cancel_rejected",
         statusHistory: admin.firestore.FieldValue.arrayUnion({
@@ -641,7 +641,7 @@ async function startServer() {
       const customToken = await admin.auth().createCustomToken(uid, {
         email_verified: true
       });
-      
+
       return res.json({ success: true, customToken });
     } catch (error: any) {
       console.error("Verify Email OTP error:", error);

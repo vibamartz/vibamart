@@ -195,6 +195,12 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     detectedFilters.category = 'jeans';
   } else if (/\b(?:accessories|fashion\s+accessories|handbags?|wallets?)\b/i.test(text)) {
     detectedFilters.category = 'accessories';
+  } else if (/\b(?:mou(?:se|ses)|mice|optical\s+mouse|gaming\s+mouse|wireless\s+mouse)\b/i.test(text)) {
+    detectedFilters.category = 'mouse';
+  } else if (/\b(?:laptops?|notebooks?|macbooks?)\b/i.test(text)) {
+    detectedFilters.category = 'laptops';
+  } else if (/\b(?:keyboards?)\b/i.test(text)) {
+    detectedFilters.category = 'keyboards';
   }
 
   // 10. Common Activity / Intent tags

@@ -182,91 +182,91 @@ export const CATEGORY_VARIANT_TEMPLATES: {
     suggestedValues?: string[];
   }[];
 }[] = [
-  {
-    id: 'tpl_clothing',
-    name: 'Clothing & Apparel (Color + Size)',
-    categoryKeyword: 'fashion',
-    attributes: [
-      { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Navy Blue', 'White', 'Maroon', 'Olive Green'] },
-      { name: 'Size', displayType: 'button', suggestedValues: ['S', 'M', 'L', 'XL', 'XXL'] }
-    ]
-  },
-  {
-    id: 'tpl_footwear',
-    name: 'Shoes & Footwear (Color + Size)',
-    categoryKeyword: 'shoes',
-    attributes: [
-      { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Brown', 'White', 'Navy Blue', 'Grey'] },
-      { name: 'Size', displayType: 'button', suggestedValues: ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'] }
-    ]
-  },
-  {
-    id: 'tpl_smartphones',
-    name: 'Smartphones (Color + RAM + Storage)',
-    categoryKeyword: 'mobile',
-    attributes: [
-      { name: 'Color', displayType: 'image', suggestedValues: ['Midnight Black', 'Starlight Silver', 'Deep Purple', 'Titanium Gray'] },
-      { name: 'RAM', displayType: 'button', suggestedValues: ['6GB', '8GB', '12GB'] },
-      { name: 'Storage', displayType: 'button', suggestedValues: ['128GB', '256GB', '512GB'] }
-    ]
-  },
-  {
-    id: 'tpl_laptops',
-    name: 'Laptops & PCs (Color + RAM + Storage)',
-    categoryKeyword: 'laptop',
-    attributes: [
-      { name: 'Color', displayType: 'button', suggestedValues: ['Space Gray', 'Silver', 'Black'] },
-      { name: 'RAM', displayType: 'button', suggestedValues: ['8GB', '16GB', '32GB'] },
-      { name: 'Storage', displayType: 'button', suggestedValues: ['512GB SSD', '1TB SSD', '2TB SSD'] }
-    ]
-  },
-  {
-    id: 'tpl_smartwatches',
-    name: 'Smartwatches (Color + Model / Size)',
-    categoryKeyword: 'watch',
-    attributes: [
-      { name: 'Color', displayType: 'image', suggestedValues: ['Active Black', 'Rose Gold', 'Silver Frost', 'Midnight Blue'] },
-      { name: 'Model', displayType: 'button', suggestedValues: ['40mm (Bluetooth)', '44mm (Bluetooth)', '44mm (LTE / Cellular)'] }
-    ]
-  },
-  {
-    id: 'tpl_audio',
-    name: 'Earbuds & Audio (Color + Model)',
-    categoryKeyword: 'audio',
-    attributes: [
-      { name: 'Color', displayType: 'image', suggestedValues: ['Phantom Black', 'Cloud White', 'Navy Blue'] },
-      { name: 'Model', displayType: 'button', suggestedValues: ['Standard Edition', 'Pro ANC Edition'] }
-    ]
-  },
-  {
-    id: 'tpl_skincare',
-    name: 'Skincare & Cosmetics (Size + Pack Size)',
-    categoryKeyword: 'beauty',
-    attributes: [
-      { name: 'Size', displayType: 'button', suggestedValues: ['50ml', '100ml', '200ml'] },
-      { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2 (Saver)', 'Pack of 3'] }
-    ]
-  },
-  {
-    id: 'tpl_grocery',
-    name: 'Food & Grocery (Weight + Pack Size)',
-    categoryKeyword: 'grocery',
-    attributes: [
-      { name: 'Weight', displayType: 'button', suggestedValues: ['250g', '500g', '1kg', '5kg'] },
-      { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2', 'Family Pack'] }
-    ]
-  },
-  {
-    id: 'tpl_furniture',
-    name: 'Furniture & Living (Color + Material + Size)',
-    categoryKeyword: 'furniture',
-    attributes: [
-      { name: 'Color', displayType: 'swatch', suggestedValues: ['Walnut Brown', 'Oak Natural', 'Matte Black', 'Cream'] },
-      { name: 'Material', displayType: 'button', suggestedValues: ['Solid Teak Wood', 'Sheesham Wood', 'Engineered Wood'] },
-      { name: 'Size', displayType: 'button', suggestedValues: ['Compact / Standard', 'Large / Queen', 'King Size'] }
-    ]
-  }
-];
+    {
+      id: 'tpl_clothing',
+      name: 'Clothing & Apparel (Color + Size)',
+      categoryKeyword: 'fashion',
+      attributes: [
+        { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Navy Blue', 'White', 'Maroon', 'Olive Green'] },
+        { name: 'Size', displayType: 'button', suggestedValues: ['S', 'M', 'L', 'XL', 'XXL'] }
+      ]
+    },
+    {
+      id: 'tpl_footwear',
+      name: 'Shoes & Footwear (Color + Size)',
+      categoryKeyword: 'shoes',
+      attributes: [
+        { name: 'Color', displayType: 'image', suggestedValues: ['Black', 'Brown', 'White', 'Navy Blue', 'Grey'] },
+        { name: 'Size', displayType: 'button', suggestedValues: ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'] }
+      ]
+    },
+    {
+      id: 'tpl_smartphones',
+      name: 'Smartphones (Color + RAM + Storage)',
+      categoryKeyword: 'mobile',
+      attributes: [
+        { name: 'Color', displayType: 'image', suggestedValues: ['Midnight Black', 'Starlight Silver', 'Deep Purple', 'Titanium Gray'] },
+        { name: 'RAM', displayType: 'button', suggestedValues: ['6GB', '8GB', '12GB'] },
+        { name: 'Storage', displayType: 'button', suggestedValues: ['128GB', '256GB', '512GB'] }
+      ]
+    },
+    {
+      id: 'tpl_laptops',
+      name: 'Laptops & PCs (Color + RAM + Storage)',
+      categoryKeyword: 'laptop',
+      attributes: [
+        { name: 'Color', displayType: 'button', suggestedValues: ['Space Gray', 'Silver', 'Black'] },
+        { name: 'RAM', displayType: 'button', suggestedValues: ['8GB', '16GB', '32GB'] },
+        { name: 'Storage', displayType: 'button', suggestedValues: ['512GB SSD', '1TB SSD', '2TB SSD'] }
+      ]
+    },
+    {
+      id: 'tpl_smartwatches',
+      name: 'Smartwatches (Color + Model / Size)',
+      categoryKeyword: 'watch',
+      attributes: [
+        { name: 'Color', displayType: 'image', suggestedValues: ['Active Black', 'Rose Gold', 'Silver Frost', 'Midnight Blue'] },
+        { name: 'Model', displayType: 'button', suggestedValues: ['40mm (Bluetooth)', '44mm (Bluetooth)', '44mm (LTE / Cellular)'] }
+      ]
+    },
+    {
+      id: 'tpl_audio',
+      name: 'Earbuds & Audio (Color + Model)',
+      categoryKeyword: 'audio',
+      attributes: [
+        { name: 'Color', displayType: 'image', suggestedValues: ['Phantom Black', 'Cloud White', 'Navy Blue'] },
+        { name: 'Model', displayType: 'button', suggestedValues: ['Standard Edition', 'Pro ANC Edition'] }
+      ]
+    },
+    {
+      id: 'tpl_skincare',
+      name: 'Skincare & Cosmetics (Size + Pack Size)',
+      categoryKeyword: 'beauty',
+      attributes: [
+        { name: 'Size', displayType: 'button', suggestedValues: ['50ml', '100ml', '200ml'] },
+        { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2 (Saver)', 'Pack of 3'] }
+      ]
+    },
+    {
+      id: 'tpl_grocery',
+      name: 'Food & Grocery (Weight + Pack Size)',
+      categoryKeyword: 'grocery',
+      attributes: [
+        { name: 'Weight', displayType: 'button', suggestedValues: ['250g', '500g', '1kg', '5kg'] },
+        { name: 'Pack Size', displayType: 'button', suggestedValues: ['Pack of 1', 'Pack of 2', 'Family Pack'] }
+      ]
+    },
+    {
+      id: 'tpl_furniture',
+      name: 'Furniture & Living (Color + Material + Size)',
+      categoryKeyword: 'furniture',
+      attributes: [
+        { name: 'Color', displayType: 'swatch', suggestedValues: ['Walnut Brown', 'Oak Natural', 'Matte Black', 'Cream'] },
+        { name: 'Material', displayType: 'button', suggestedValues: ['Solid Teak Wood', 'Sheesham Wood', 'Engineered Wood'] },
+        { name: 'Size', displayType: 'button', suggestedValues: ['Compact / Standard', 'Large / Queen', 'King Size'] }
+      ]
+    }
+  ];
 
 /**
  * Checks for circular linking between two products in the catalog
@@ -431,8 +431,8 @@ export function generateVariantMatrix(
       if (item.hex) matchedHex = item.hex;
       if (item.image) matchedSwatchImage = item.image;
       const isColorAttr = item.attributeName.toLowerCase().includes('color') ||
-                          item.attributeName.toLowerCase().includes('colour') ||
-                          item.attributeName.toLowerCase().includes('shade');
+        item.attributeName.toLowerCase().includes('colour') ||
+        item.attributeName.toLowerCase().includes('shade');
       if (isColorAttr && item.linkedProductId) {
         matchedLinkedProductId = item.linkedProductId;
         matchedLinkedProductName = item.linkedProductName;

@@ -91,6 +91,25 @@ class SearchApiClient {
   }
 
   /**
+   * Fetch dynamic popular and trending searches from catalog data and search telemetry.
+   */
+  public async getPopular(limit = 8): Promise<SuggestionResult> {
+    try {
+      const response = await axios.get('/api/search/popular', {
+        params: { limit },
+        timeout: 4000
+      });
+      if (response.data && response.data.success) {
+        return response.data as SuggestionResult;
+      }
+      return { query: '', suggestions: [], executionTimeMs: 0 };
+    } catch (err) {
+      console.warn('[SearchApiClient] Popular searches fetch warning:', err);
+      return { query: '', suggestions: [], executionTimeMs: 0 };
+    }
+  }
+
+  /**
    * Log search interaction telemetry.
    */
   public async logAnalytics(data: {

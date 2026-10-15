@@ -10,7 +10,7 @@ import {
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import CameraSearchModal from '../../desktop/components/CameraSearchModal';
-import Logo from '../../components/Logo';
+import Logo from '../../desktop/components/Logo';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
@@ -456,7 +456,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* CONTINUOUS TOP HEADER & CATEGORY AREA (Mobile)                           */}
       {/* ========================================================================= */}
-      <div 
+      <div
         ref={topHeaderRef}
         className="-mx-3.5 xs:-mx-4 sm:-mx-5 -mt-2 sm:-mt-2.5 bg-gradient-to-b from-[#dcfce7] via-[#ecfdf5] via-30% to-[#fef08a] pb-0.5 min-w-0 transition-colors duration-300"
       >
@@ -600,12 +600,11 @@ export default function MobileHomepage() {
         </header>
 
         {/* Sticky Container: Search Bar & Category Section */}
-        <div 
-          className={`sticky top-0 z-30 transition-colors duration-200 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${
-            isSticky 
-              ? 'bg-[#fef9c3]/95 backdrop-blur-md shadow-sm border-b border-yellow-200/50' 
+        <div
+          className={`sticky top-0 z-30 transition-colors duration-200 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${isSticky
+              ? 'bg-[#fef9c3]/95 backdrop-blur-md shadow-sm border-b border-yellow-200/50'
               : 'bg-transparent'
-          }`}
+            }`}
           style={{ top: 0 }}
         >
           {/* 3. SEARCH BAR */}
@@ -741,9 +740,8 @@ export default function MobileHomepage() {
                         navigate(`/category/${catSlug}`);
                       }
                     }}
-                    className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 cursor-pointer border-0 py-1.5 px-0.5 rounded-2xl focus:outline-none overflow-hidden select-none ${
-                      isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
-                    }`}
+                    className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 cursor-pointer border-0 py-1.5 px-0.5 rounded-2xl focus:outline-none overflow-hidden select-none ${isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
+                      }`}
                   >
                     {/* Light green gradient from below slowly fading up to invisible */}
                     {isSelected && (
@@ -763,9 +761,8 @@ export default function MobileHomepage() {
                         isSelected ? 'text-emerald-600' : 'text-gray-700'
                       )}
                     </div>
-                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center truncate w-full px-0.5 relative z-10 ${
-                      isSelected ? 'font-black text-emerald-800' : 'font-semibold text-gray-800'
-                    }`}>
+                    <span className={`text-[10px] sm:text-[11px] tracking-tight leading-tight text-center truncate w-full px-0.5 relative z-10 ${isSelected ? 'font-black text-emerald-800' : 'font-semibold text-gray-800'
+                      }`}>
                       {cat.name}
                     </span>
 

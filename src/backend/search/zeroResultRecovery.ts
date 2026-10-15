@@ -95,8 +95,8 @@ export class ZeroResultRecovery {
 
     return {
       suggestedQuery: hasCorrection ? correctedQuery : undefined,
-      suggestedCategories: suggestedCats.slice(0, 3),
-      suggestedBrands: suggestedBrands.slice(0, 3)
+      suggestedCategories: (suggestedCats.length > 0 ? suggestedCats : Array.from(categories)).slice(0, 4),
+      suggestedBrands: (suggestedBrands.length > 0 ? suggestedBrands : Array.from(brands)).slice(0, 4)
     };
   }
 }
