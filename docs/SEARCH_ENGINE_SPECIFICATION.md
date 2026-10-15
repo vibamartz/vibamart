@@ -267,7 +267,7 @@ Direct natural language parsing playground for merchandisers and conversational 
 
 ## 7. Quality Verification & Benchmark Sign-Off
 
-The complete search engine test suite (`runSearchTests.ts`) executes **71 automated unit, integration, and security checks**:
+The search engine features verified quality, latency benchmarks, and security checks:
 
 - **Core Lexical Search & SKU Boosting:** 100% Pass
 - **Typo Tolerance & Synonym Expansion:** 100% Pass

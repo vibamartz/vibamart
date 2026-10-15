@@ -26,7 +26,6 @@ ViBa Mart is a modern, full-stack eCommerce application built with a focus on sp
 3. Configure your Firebase credentials in `firebase-applet-config.json` or `.env`.
 4. Run `npm run dev` to start the development server.
 5. Use `npm run build` for production builds.
-6. Run `npm run test:search` to execute the automated search engine test suite.
 
 ## API Endpoints
 - `GET /api/health`: Health check for the backend.
