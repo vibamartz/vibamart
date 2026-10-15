@@ -356,6 +356,29 @@ export class SearchService {
     }
     return this.engine.getPopularSearches(limit);
   }
+
+  /**
+   * Upsert product incrementally into in-memory and Meilisearch indexes
+   */
+  public upsertProduct(product: Product): void {
+    const catName = this.categoryNameMap[product.categoryId] || '';
+    const subName = product.subCategoryId ? (this.subCategoryNameMap[product.subCategoryId] || '') : '';
+    const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
+    const doc = this.engine.upsertProduct(product, catName, subName, nestedName);
+    if (doc) {
+      meiliSearchService.upsertProduct(doc).catch(() => {});
+    }
+    searchCache.invalidate();
+  }
+
+  /**
+   * Remove product incrementally from in-memory and Meilisearch indexes
+   */
+  public removeProduct(productId: string): void {
+    this.engine.removeProduct(productId);
+    meiliSearchService.removeProduct(productId).catch(() => {});
+    searchCache.invalidate();
+  }
 }
 
 export const searchService = new SearchService();

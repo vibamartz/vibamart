@@ -18,6 +18,9 @@ export interface RankingWeightsConfig {
   availabilityWeight?: number;
   qualityWeight?: number;
   popularityWeight?: number;
+  fuzzyWeight?: number;
+  ngramWeight?: number;
+  semanticWeight?: number;
 }
 
 export interface CurationConfig {
@@ -36,7 +39,10 @@ export class SearchCurationManager {
       textRelevanceWeight: 1.0,
       availabilityWeight: 1.25,
       qualityWeight: 1.15,
-      popularityWeight: 1.1
+      popularityWeight: 1.1,
+      fuzzyWeight: 1.0,
+      ngramWeight: 0.8,
+      semanticWeight: 0.9
     }
   };
   private isLoaded = false;
@@ -107,7 +113,10 @@ export class SearchCurationManager {
       textRelevanceWeight: rw.textRelevanceWeight ?? 1.0,
       availabilityWeight: rw.availabilityWeight ?? 1.25,
       qualityWeight: rw.qualityWeight ?? 1.15,
-      popularityWeight: rw.popularityWeight ?? 1.1
+      popularityWeight: rw.popularityWeight ?? 1.1,
+      fuzzyWeight: rw.fuzzyWeight ?? 1.0,
+      ngramWeight: rw.ngramWeight ?? 0.8,
+      semanticWeight: rw.semanticWeight ?? 0.9
     };
   }
 

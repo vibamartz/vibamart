@@ -9,6 +9,18 @@ import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitizatio
 import { requireSearchAdmin } from '../searchAuth';
 import { SpellingCorrectionEngine, damerauLevenshtein } from '../spellingCorrection';
 import { meiliSearchService } from '../meiliSearchService';
+import {
+  fuzzyRatio,
+  partialRatio,
+  tokenSortRatio,
+  tokenSetRatio,
+  rapidFuzzScore,
+  generateNGrams,
+  ngramSimilarity,
+  LocalTfIdfIndex,
+  LocalSentenceEmbedding
+} from '../localScoring';
+import { searchService } from '../searchService';
 
 
 export async function runTests(): Promise<boolean> {
@@ -1127,6 +1139,97 @@ export async function runTests(): Promise<boolean> {
   searchLatencies.sort((a, b) => a - b);
   const p95Search = searchLatencies[Math.floor(searchLatencies.length * 0.95)];
   assert(p95Search < 400, `Performance: Search retrieval p95 latency is ${p95Search.toFixed(2)}ms (target < 400ms)`);
+
+  // Test 69: Character N-Grams — Substring and Partial Word Generation & Dice Coefficient
+  const ngrams = generateNGrams('headphones', 3);
+  assert(ngrams.size > 5, 'Character N-Grams: generates 3-grams with boundary padding');
+  const simTypo = ngramSimilarity('headfone', 'headphones');
+  assert(simTypo > 0.40, `Character N-Grams: "headfone" vs "headphones" yields high Dice overlap (${simTypo.toFixed(2)})`);
+  const simInfix = ngramSimilarity('1000xm', 'Sony WH-1000XM5');
+  assert(simInfix > 0.65, `Character N-Grams: detects partial infix "1000xm" in "Sony WH-1000XM5" (${simInfix.toFixed(2)})`);
+
+  // Test 70: RapidFuzz-style Fuzzy Matching (Ratio, Partial Ratio, Token Sort, Token Set)
+  const fRatio = fuzzyRatio('samsung', 'samsong');
+  assert(fRatio >= 0.85, `RapidFuzz: fuzzyRatio detects single-character vowel typo (${fRatio.toFixed(2)})`);
+  const pRatioVal = partialRatio('galaxy', 'Samsung Galaxy S24 Ultra');
+  assert(pRatioVal === 1.0, 'RapidFuzz: partialRatio matches exact substring with 1.0 score');
+  const sortRatioVal = tokenSortRatio('men shoes nike', 'Nike Shoes Men');
+  assert(sortRatioVal === 1.0, 'RapidFuzz: tokenSortRatio achieves 1.0 regardless of word order');
+  const setRatioVal = tokenSetRatio('running shoes nike blue premium', 'Nike Shoes');
+  assert(setRatioVal === 1.0, 'RapidFuzz: tokenSetRatio matches subset of tokens with 1.0 score');
+  const compositeFuzz = rapidFuzzScore('shoes running', 'Nike Air Zoom Pegasus 40 Running Shoes for Men');
+  assert(compositeFuzz >= 0.80, `RapidFuzz: composite rapidFuzzScore achieves high match (${compositeFuzz.toFixed(2)})`);
+
+  // Test 71: Local TF-IDF Vector Indexing and Scoring
+  const localTfIdf = new LocalTfIdfIndex();
+  localTfIdf.addDocument('d1', 'samsung galaxy smartphone flagship titanium camera');
+  localTfIdf.addDocument('d2', 'nike running shoes lightweight foam cushioning');
+  localTfIdf.addDocument('d3', 'sony wireless headphones noise cancelling audio');
+  const tfidfScore1 = localTfIdf.score('d1', ['samsung', 'camera']);
+  const tfidfScore2 = localTfIdf.score('d2', ['samsung', 'camera']);
+  assert(tfidfScore1 > 0 && tfidfScore2 === 0, 'Local TF-IDF: scores salient term "samsung" high on d1 and 0 on d2');
+  localTfIdf.removeDocument('d1');
+  assert(localTfIdf.score('d1', ['samsung']) === 0, 'Local TF-IDF: document removal correctly cleans term frequencies');
+
+  // Test 72: Local Sentence / Semantic Vector Embeddings & Cosine Similarity
+  const v1 = LocalSentenceEmbedding.embed('wireless bluetooth earbuds');
+  const v2 = LocalSentenceEmbedding.embed('boAt Rockerz 450 wireless on-ear headphones');
+  const v3 = LocalSentenceEmbedding.embed('pure silk wedding saree for women');
+  assert(v1.length === 64, 'Local Semantic Embeddings: produces normalized 64-dimensional dense vector');
+  const selfSim = LocalSentenceEmbedding.cosineSimilarity(v1, v1);
+  assert(Math.abs(selfSim - 1.0) < 0.001, 'Local Semantic Embeddings: self-similarity is strictly 1.0');
+  const audioSim = LocalSentenceEmbedding.cosineSimilarity(v1, v2);
+  const crossCatSim = LocalSentenceEmbedding.cosineSimilarity(v1, v3);
+  assert(audioSim > crossCatSim, `Local Semantic Embeddings: related audio queries (${audioSim.toFixed(2)}) score higher than saree (${crossCatSim.toFixed(2)})`);
+
+  // Test 73: Multi-Token Reordered & Non-Exact Title Search (Exact Title NOT Required)
+  const reorderedSearch = engine.search({ q: 'shoes men nike' });
+  assert(reorderedSearch.products.some(p => p.id === 'prod-003'), 'Non-Exact Search: "shoes men nike" retrieves Nike Pegasus without exact title match');
+  const wirelessDellSearch = engine.search({ q: 'wireless dell mouse' });
+  assert(wirelessDellSearch.products.some(p => p.id === 'prod-009'), 'Non-Exact Search: "wireless dell mouse" retrieves Dell Wireless Mouse');
+
+  // Test 74: Partial-Word Infix and Substring Matching across Titles and SKUs
+  const infixSearch = engine.search({ q: '1000xm' });
+  assert(infixSearch.products.some(p => p.id === 'prod-005'), 'Partial-Word Infix: "1000xm" retrieves Sony WH-1000XM5');
+  const skuPartialSearch = engine.search({ q: 's24u' });
+  assert(skuPartialSearch.products.some(p => p.id === 'prod-001'), 'Partial SKU: "s24u" retrieves Samsung Galaxy S24 Ultra');
+
+  // Test 75: Configurable Ranking Weights
+  const currentWeights = searchCurationManager.getRankingWeights();
+  assert(typeof currentWeights.fuzzyWeight === 'number' && currentWeights.fuzzyWeight > 0, 'Ranking Weights: fuzzyWeight is configured');
+  assert(typeof currentWeights.ngramWeight === 'number' && currentWeights.ngramWeight > 0, 'Ranking Weights: ngramWeight is configured');
+  assert(typeof currentWeights.semanticWeight === 'number' && currentWeights.semanticWeight > 0, 'Ranking Weights: semanticWeight is configured');
+
+  // Test 76: Search Service Incremental Index Synchronization
+  await searchService.initialize();
+  const testSyncProd: Product = {
+    id: 'prod-sync-test',
+    name: 'Anker Soundcore Space One Wireless Headphones',
+    brand: 'Anker',
+    productCode: '8900 9999 0001',
+    sku: 'ANK-SPACE1-BLK',
+    categoryId: 'cat-electronics',
+    subCategoryId: 'sub-audio',
+    price: 9999,
+    discountPrice: 7999,
+    stock: 20,
+    inStock: true,
+    rating: 4.7,
+    numReviews: 120,
+    status: 'active',
+    isVisible: true,
+    tags: ['anker', 'soundcore', 'headphones', 'wireless', 'noise cancelling'],
+    vendorId: 'v-test',
+    images: ['https://example.com/anker.jpg'],
+    description: 'Active noise cancelling wireless headphones with 40-hour playtime.',
+    createdAt: new Date().toISOString()
+  };
+  searchService.upsertProduct(testSyncProd);
+  const syncLookup = await searchService.search({ q: 'Soundcore Space One' });
+  assert(syncLookup.products.some(p => p.id === 'prod-sync-test'), 'SearchService Sync: newly upserted product is immediately searchable');
+  searchService.removeProduct('prod-sync-test');
+  const syncAfterRemove = await searchService.search({ q: 'Soundcore Space One' });
+  assert(!syncAfterRemove.products.some(p => p.id === 'prod-sync-test'), 'SearchService Sync: removed product is immediately evicted from index');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

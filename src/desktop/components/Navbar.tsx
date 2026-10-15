@@ -327,8 +327,20 @@ export default function Navbar() {
     };
   }, [searchQuery, CATEGORIES]);
 
+  // Unified list of all currently displayed suggestions for keyboard navigation
+  const navigableSuggestions = useMemo(() => {
+    const list: { type: 'query' | 'product' | 'category' | 'brand'; title: string; link?: string; slug?: string; id: string }[] = [];
+    if (searchQuery.trim().length > 0) {
+      popularSuggestions.forEach(p => list.push({ type: 'query', title: p.title, id: p.id }));
+      productSuggestions.forEach(pr => list.push({ type: 'product', title: pr.title, slug: pr.slug, id: pr.id, link: `/products/${pr.slug || pr.id}` }));
+      suggestedCategories.forEach(c => list.push({ type: 'category', title: c.name, id: c.id, link: `/categories/${getCategorySlug(c)}` }));
+      brandSuggestions.forEach(b => list.push({ type: 'brand', title: b.title, id: b.id, link: `/products?brand=${encodeURIComponent(b.title)}` }));
+    }
+    return list;
+  }, [searchQuery, popularSuggestions, productSuggestions, suggestedCategories, brandSuggestions]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const totalItems = productSuggestions.length + suggestedCategories.length;
+    const totalItems = navigableSuggestions.length;
     if (!isSearchFocused || totalItems === 0) {
       if (e.key === 'Escape') {
         setIsSearchFocused(false);
@@ -347,21 +359,17 @@ export default function Navbar() {
       setIsSearchFocused(false);
       setActiveSuggestionIndex(-1);
     } else if (e.key === 'Enter') {
-      if (activeSuggestionIndex >= 0) {
+      if (activeSuggestionIndex >= 0 && activeSuggestionIndex < totalItems) {
         e.preventDefault();
-        if (activeSuggestionIndex < productSuggestions.length) {
-          const item = productSuggestions[activeSuggestionIndex];
-          setIsSearchFocused(false);
-          setActiveSuggestionIndex(-1);
-          navigate(`/products/${item.slug || item.id}`);
-        } else {
-          const catIndex = activeSuggestionIndex - productSuggestions.length;
-          const cat = suggestedCategories[catIndex];
-          if (cat) {
-            setIsSearchFocused(false);
-            setActiveSuggestionIndex(-1);
-            navigate(`/categories/${getCategorySlug(cat)}`);
-          }
+        const selected = navigableSuggestions[activeSuggestionIndex];
+        setIsSearchFocused(false);
+        setActiveSuggestionIndex(-1);
+        if (selected.type === 'query') {
+          setSearchQuery(selected.title);
+          addRecentSearch(selected.title, 10);
+          navigate(`/products?q=${encodeURIComponent(selected.title)}`);
+        } else if (selected.link) {
+          navigate(selected.link);
         }
       }
     }
@@ -554,25 +562,33 @@ export default function Navbar() {
                               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Searches</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {popularSuggestions.map((queryItem) => (
-                                <button
-                                  key={queryItem.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setSearchQuery(queryItem.title);
-                                    addRecentSearch(queryItem.title, 10);
-                                    navigate(`/products?q=${encodeURIComponent(queryItem.title)}`);
-                                    setIsSearchFocused(false);
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 text-xs font-bold rounded-xl border border-gray-100 shadow-sm transition-all active:scale-95 cursor-pointer"
-                                >
-                                  <Search className="w-3 h-3 text-emerald-600 shrink-0" />
-                                  <span>{queryItem.title}</span>
-                                  {queryItem.title.includes('under') && (
-                                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-black">Budget</span>
-                                  )}
-                                </button>
-                              ))}
+                              {popularSuggestions.map((queryItem, pIdx) => {
+                                const isSelected = activeSuggestionIndex === pIdx;
+                                return (
+                                  <button
+                                    key={queryItem.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSearchQuery(queryItem.title);
+                                      addRecentSearch(queryItem.title, 10);
+                                      navigate(`/products?q=${encodeURIComponent(queryItem.title)}`);
+                                      setIsSearchFocused(false);
+                                    }}
+                                    onMouseEnter={() => setActiveSuggestionIndex(pIdx)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border shadow-sm transition-all active:scale-95 cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300 ring-2 ring-emerald-500/30'
+                                        : 'bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 border-gray-100'
+                                    }`}
+                                  >
+                                    <Search className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>{queryItem.title}</span>
+                                    {queryItem.title.includes('under') && (
+                                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-black">Budget</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -586,7 +602,8 @@ export default function Navbar() {
                             </div>
                             <div className="grid grid-cols-1 gap-1">
                               {productSuggestions.map((item, idx) => {
-                                const isSelected = activeSuggestionIndex === idx;
+                                const globalIdx = popularSuggestions.length + idx;
+                                const isSelected = activeSuggestionIndex === globalIdx;
                                 return (
                                   <Link
                                     key={item.id}
@@ -595,7 +612,7 @@ export default function Navbar() {
                                       setIsSearchFocused(false);
                                       setActiveSuggestionIndex(-1);
                                     }}
-                                    onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                                    onMouseEnter={() => setActiveSuggestionIndex(globalIdx)}
                                     className={`flex items-center justify-between p-2.5 rounded-xl transition-all group/item shadow-sm border ${
                                       isSelected
                                         ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
@@ -638,8 +655,8 @@ export default function Navbar() {
                             </div>
                             <div className="grid grid-cols-1 gap-1">
                               {suggestedCategories.map((cat, cIdx) => {
-                                const itemIndex = productSuggestions.length + cIdx;
-                                const isSelected = activeSuggestionIndex === itemIndex;
+                                const globalIdx = popularSuggestions.length + productSuggestions.length + cIdx;
+                                const isSelected = activeSuggestionIndex === globalIdx;
                                 return (
                                   <Link
                                     key={cat.id}
@@ -648,7 +665,7 @@ export default function Navbar() {
                                       setIsSearchFocused(false);
                                       setActiveSuggestionIndex(-1);
                                     }}
-                                    onMouseEnter={() => setActiveSuggestionIndex(itemIndex)}
+                                    onMouseEnter={() => setActiveSuggestionIndex(globalIdx)}
                                     className={`flex items-center justify-between p-2.5 rounded-xl transition-all group/cat shadow-sm border ${
                                       isSelected
                                         ? 'bg-primary/10 border-primary/30 ring-1 ring-primary/20'
@@ -679,16 +696,25 @@ export default function Navbar() {
                               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Matching Brands</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {brandSuggestions.map((brand) => (
-                                <Link
-                                  key={brand.id}
-                                  to={`/products?brand=${encodeURIComponent(brand.title)}`}
-                                  onClick={() => setIsSearchFocused(false)}
-                                  className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 text-xs font-bold rounded-xl border border-gray-100 shadow-sm transition-all"
-                                >
-                                  {brand.title}
-                                </Link>
-                              ))}
+                              {brandSuggestions.map((brand, bIdx) => {
+                                const globalIdx = popularSuggestions.length + productSuggestions.length + suggestedCategories.length + bIdx;
+                                const isSelected = activeSuggestionIndex === globalIdx;
+                                return (
+                                  <Link
+                                    key={brand.id}
+                                    to={`/products?brand=${encodeURIComponent(brand.title)}`}
+                                    onClick={() => setIsSearchFocused(false)}
+                                    onMouseEnter={() => setActiveSuggestionIndex(globalIdx)}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-xl border shadow-sm transition-all ${
+                                      isSelected
+                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300 ring-2 ring-emerald-500/30'
+                                        : 'bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 border-gray-100'
+                                    }`}
+                                  >
+                                    {brand.title}
+                                  </Link>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

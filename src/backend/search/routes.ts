@@ -7,8 +7,48 @@ import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
 import { sanitizeSearchParams, sanitizeSearchString } from './searchSanitization';
 import { searchRateLimiter, adminSearchRateLimiter, reindexRateLimiter } from './searchRateLimit';
 import { requireSearchAdmin } from './searchAuth';
+import { SpellingCorrectionEngine } from './spellingCorrection';
 
 export const searchRouter = Router();
+
+/**
+ * GET /api/search/health
+ * Search engine health check endpoint.
+ */
+searchRouter.get('/health', (_req: Request, res: Response) => {
+  const status = searchService.getStatus();
+  res.json({
+    success: true,
+    status: 'ok',
+    name: 'ViBa Search Engine',
+    timestamp: new Date().toISOString(),
+    ...status
+  });
+});
+
+/**
+ * ALL /api/search/correction, /api/search/correct
+ * Dedicated endpoint for typo detection, spelling correction, and distance evaluation.
+ */
+searchRouter.all(['/correction', '/correct'], searchRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const rawQ = req.method === 'POST'
+      ? (req.body?.q || req.body?.query)
+      : (req.query.q || req.query.query);
+    const q = sanitizeSearchString(typeof rawQ === 'string' ? rawQ : '');
+    const allDocs = searchService.getEngine().getAllDocs();
+    const correction = SpellingCorrectionEngine.correct(q, allDocs);
+    res.json({
+      success: true,
+      ...correction
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Spelling correction failed'
+    });
+  }
+});
 
 /**
  * GET /api/search

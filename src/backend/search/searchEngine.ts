@@ -8,6 +8,12 @@ import { searchCurationManager } from './searchCuration';
 import { parseIntentRuleBased, KNOWN_COLORS } from './semanticSearch';
 import { SpellingCorrectionEngine } from './spellingCorrection';
 import { getInMemoryAnalytics } from './searchAnalytics';
+import {
+  rapidFuzzScore,
+  ngramSimilarity,
+  LocalTfIdfIndex,
+  LocalSentenceEmbedding
+} from './localScoring';
 
 export interface IndexedProductDoc {
   id: string;
@@ -23,6 +29,8 @@ export interface IndexedProductDoc {
   specifications: string;
   variantAttributes: string;
   description: string;
+  searchableText?: string;
+  embedding?: Float32Array;
   // Metadata for filtering & facets
   categoryId: string;
   subCategoryId?: string;
@@ -82,6 +90,7 @@ export class ViBaSearchEngine {
   private miniSearch: MiniSearch<IndexedProductDoc>;
   private indexedDocs: Map<string, IndexedProductDoc> = new Map();
   private rewardProductIds: Set<string> = new Set();
+  private tfIdfIndex: LocalTfIdfIndex = new LocalTfIdfIndex();
 
   constructor() {
     this.miniSearch = new MiniSearch<IndexedProductDoc>({
@@ -261,6 +270,13 @@ export class ViBaSearchEngine {
     const stock = Number(product.stock) >= 0 ? Number(product.stock) : (product.inStock === false ? 0 : 10);
     const inStock = product.inStock !== false && stock > 0;
 
+    const rawTags = Array.isArray(product.tags) ? product.tags.filter(t => typeof t === 'string').join(' ') : '';
+    const rawVariantAttrs = Array.isArray(product.variantAttributes) ? product.variantAttributes.filter(v => typeof v === 'string').join(' ') : '';
+    const rawDesc = String(product.description || '') + ' ' + String(product.fullDescription || '');
+
+    const searchableText = `${String(product.name || '')} ${String(product.brand || '')} ${categoryName} ${subCategoryName} ${nestedSubCategoryName} ${rawTags} ${specStrings.join(' ')} ${rawVariantAttrs} ${String(product.sku || '')} ${rawDesc}`.trim();
+    const embedding = LocalSentenceEmbedding.embed(searchableText);
+
     return {
       id: String(product.id),
       name: String(product.name || ''),
@@ -271,10 +287,12 @@ export class ViBaSearchEngine {
       categoryName,
       subCategoryName,
       nestedSubCategoryName,
-      tags: Array.isArray(product.tags) ? product.tags.filter(t => typeof t === 'string').join(' ') : '',
+      tags: rawTags,
       specifications: specStrings.join(' '),
-      variantAttributes: Array.isArray(product.variantAttributes) ? product.variantAttributes.filter(v => typeof v === 'string').join(' ') : '',
-      description: String(product.description || '') + ' ' + String(product.fullDescription || ''),
+      variantAttributes: rawVariantAttrs,
+      description: rawDesc,
+      searchableText,
+      embedding,
       categoryId: String(product.categoryId || ''),
       subCategoryId: product.subCategoryId ? String(product.subCategoryId) : undefined,
       nestedSubCategoryId: product.nestedSubCategoryId ? String(product.nestedSubCategoryId) : undefined,
@@ -308,6 +326,7 @@ export class ViBaSearchEngine {
   ) {
     this.miniSearch.removeAll();
     this.indexedDocs.clear();
+    this.tfIdfIndex.clear();
 
     const docsToIndex: IndexedProductDoc[] = [];
 
@@ -320,6 +339,9 @@ export class ViBaSearchEngine {
 
       const doc = ViBaSearchEngine.toIndexedDoc(product, catName, subName, nestedName, isReward);
       this.indexedDocs.set(product.id, doc);
+      if (doc.searchableText) {
+        this.tfIdfIndex.addDocument(doc.id, doc.searchableText);
+      }
       docsToIndex.push(doc);
     }
 
@@ -341,6 +363,10 @@ export class ViBaSearchEngine {
     const isReward = this.rewardProductIds.has(product.id);
     const doc = ViBaSearchEngine.toIndexedDoc(product, catName, subName, nestedName, isReward);
 
+    if (doc.searchableText) {
+      this.tfIdfIndex.addDocument(doc.id, doc.searchableText);
+    }
+
     if (this.indexedDocs.has(product.id)) {
       try {
         this.miniSearch.discard(product.id);
@@ -358,6 +384,7 @@ export class ViBaSearchEngine {
   public removeProduct(productId: string): boolean {
     if (this.indexedDocs.has(productId)) {
       this.indexedDocs.delete(productId);
+      this.tfIdfIndex.removeDocument(productId);
       try {
         this.miniSearch.discard(productId);
       } catch {}
@@ -437,6 +464,8 @@ export class ViBaSearchEngine {
       queryToSearch = semanticIntent.cleanKeyword;
     }
 
+    let queryEmbedding: Float32Array | null = null;
+
     if (rawQuery.length > 0) {
       // Check curation pinned rules
       const pinnedProductIds = searchCurationManager.getPinnedProductIds(rawQuery);
@@ -489,6 +518,40 @@ export class ViBaSearchEngine {
         }
       } catch (err) {
         console.warn('MiniSearch execution warning:', err);
+      }
+
+      // 4. Local AI/ML Multi-Signal Evaluation (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
+      const queryTokens = normalizeQueryString(queryToSearch).tokens;
+      queryEmbedding = LocalSentenceEmbedding.embed(queryToSearch);
+      const rankingWeights = searchCurationManager.getRankingWeights();
+
+      for (const [id, doc] of this.indexedDocs.entries()) {
+        if (scoreMap.has(id)) continue;
+        if (!params.includeDrafts && (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft')) continue;
+
+        // RapidFuzz fuzzy similarity against product title, brand, SKU, tags
+        const titleFuzz = rapidFuzzScore(queryToSearch, doc.name);
+        const brandFuzz = doc.brand ? rapidFuzzScore(queryToSearch, doc.brand) : 0;
+        const skuFuzz = doc.sku ? rapidFuzzScore(queryToSearch, doc.sku) : 0;
+        const maxFuzz = Math.max(titleFuzz, brandFuzz * 0.9, skuFuzz * 0.95);
+
+        // Character N-Grams similarity (Dice coefficient)
+        const ngramSim = ngramSimilarity(queryToSearch, doc.name);
+
+        // TF-IDF score
+        const tfidfScore = this.tfIdfIndex.score(id, queryTokens);
+
+        // Semantic Embedding Cosine Similarity
+        const semanticSim = doc.embedding ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding) : 0;
+
+        // If high fuzzy match, high n-gram overlap, or high TF-IDF, include candidate!
+        if (maxFuzz >= 0.70 || ngramSim >= 0.60 || (tfidfScore >= 1.0 && semanticSim >= 0.65)) {
+          const compositeLocalScore = (maxFuzz * 8.0 * rankingWeights.fuzzyWeight) +
+                                      (ngramSim * 6.0 * rankingWeights.ngramWeight) +
+                                      (tfidfScore * 3.0 * rankingWeights.textRelevanceWeight) +
+                                      (semanticSim * 4.0 * rankingWeights.semanticWeight);
+          scoreMap.set(id, compositeLocalScore);
+        }
       }
 
       matchedDocIds = new Set(scoreMap.keys());
@@ -662,6 +725,20 @@ export class ViBaSearchEngine {
         // Multi-Factor Ranking Engine
         const weights = searchCurationManager.getRankingWeights();
         score *= weights.textRelevanceWeight;
+
+        // Multi-Signal Scoring Integration (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
+        const qTokens = normalizeQueryString(queryToSearch || rawQuery).tokens;
+        const tfidfScore = this.tfIdfIndex.score(doc.id, qTokens);
+        const rfScore = rapidFuzzScore(queryToSearch || rawQuery, doc.name);
+        const ngramScore = ngramSimilarity(queryToSearch || rawQuery, doc.name);
+        const semanticCosine = (doc.embedding && queryEmbedding)
+          ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding)
+          : 0;
+
+        score += (tfidfScore * 1.5 * weights.textRelevanceWeight) +
+                 (rfScore * 3.0 * weights.fuzzyWeight) +
+                 (ngramScore * 2.5 * weights.ngramWeight) +
+                 (semanticCosine * 2.5 * weights.semanticWeight);
 
         // Title Exactness & Prefix Priority
         const lowerName = doc.name.toLowerCase();

@@ -182,6 +182,22 @@ class SearchApiClient {
     const res = await axios.get('/api/search/ai/status');
     return res.data?.status;
   }
+
+  /**
+   * Health check for search engine service.
+   */
+  public async getHealth(): Promise<any> {
+    const res = await axios.get('/api/search/health');
+    return res.data;
+  }
+
+  /**
+   * Fetch spelling correction and typo distance for query.
+   */
+  public async correctSpelling(query: string): Promise<any> {
+    const res = await axios.get('/api/search/correction', { params: { q: query } });
+    return res.data;
+  }
 }
 
 export const searchApiClient = new SearchApiClient();

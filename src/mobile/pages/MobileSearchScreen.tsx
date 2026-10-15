@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Mic, Camera, QrCode, ArrowLeft, X, History, TrendingUp, Sparkles, Tag, ChevronRight 
+  Search, Mic, Camera, QrCode, ArrowLeft, X, History, TrendingUp, Sparkles, Tag, ChevronRight, Loader2 
 } from 'lucide-react';
 import CameraSearchModal from '../../desktop/components/CameraSearchModal';
 import { useSettingsStore, useCategoryStore } from '../../backend/store';
@@ -32,6 +32,9 @@ export default function MobileSearchScreen() {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [liveSuggestions, setLiveSuggestions] = useState<SuggestionItem[]>([]);
   const [trendingSearches, setTrendingSearches] = useState<string[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1);
+  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,25 +65,34 @@ export default function MobileSearchScreen() {
     };
   }, []);
 
-  // Fetch live suggestions on typing via searchApiClient
+  // Fetch live suggestions on typing via searchApiClient with debouncing and loading/error states
   useEffect(() => {
     const qStr = searchQuery.trim();
+    setActiveSuggestionIndex(-1);
+    setSuggestError(null);
+
     if (qStr.length < 2) {
       setLiveSuggestions([]);
+      setIsSuggestLoading(false);
       return;
     }
 
+    setIsSuggestLoading(true);
     let isCurrent = true;
+
     const timer = setTimeout(() => {
       searchApiClient.suggest(qStr, 8)
         .then(res => {
           if (isCurrent) {
             setLiveSuggestions(res.suggestions || []);
+            setIsSuggestLoading(false);
           }
         })
         .catch(err => {
           if (isCurrent) {
             console.warn('Failed to fetch mobile suggestions:', err);
+            setSuggestError('Failed to load live suggestions');
+            setIsSuggestLoading(false);
           }
         });
     }, 200);
@@ -90,6 +102,44 @@ export default function MobileSearchScreen() {
       clearTimeout(timer);
     };
   }, [searchQuery]);
+
+  const selectSuggestion = (item: SuggestionItem) => {
+    if (item.type === 'category') {
+      navigate(`/products?category=${encodeURIComponent(item.title)}`);
+    } else if (item.type === 'brand') {
+      navigate(`/products?brand=${encodeURIComponent(item.title)}`);
+    } else if (item.type === 'query') {
+      handleSearchSubmit(undefined, item.title);
+    } else {
+      navigate(`/products/${item.slug || item.id}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (liveSuggestions.length === 0) {
+      if (e.key === 'Escape') {
+        searchInputRef.current?.blur();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev + 1 >= liveSuggestions.length ? 0 : prev + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev - 1 < 0 ? liveSuggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setActiveSuggestionIndex(-1);
+      searchInputRef.current?.blur();
+    } else if (e.key === 'Enter') {
+      if (activeSuggestionIndex >= 0 && activeSuggestionIndex < liveSuggestions.length) {
+        e.preventDefault();
+        selectSuggestion(liveSuggestions[activeSuggestionIndex]);
+      }
+    }
+  };
 
   const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {
     if (e) e.preventDefault();
@@ -149,6 +199,7 @@ export default function MobileSearchScreen() {
             placeholder="Search products, brands, categories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full bg-white h-[50px] rounded-2xl pl-10 pr-24 text-sm font-semibold text-gray-900 placeholder-gray-400 border border-yellow-200/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600"
           />
           <Search className="w-4 h-4 text-emerald-600 absolute left-3.5 pointer-events-none" />
@@ -188,6 +239,20 @@ export default function MobileSearchScreen() {
         </form>
       </div>
 
+      {/* Suggestion Loading / Error States */}
+      {searchQuery.trim().length >= 2 && isSuggestLoading && liveSuggestions.length === 0 && (
+        <div className="flex items-center justify-center gap-2.5 py-4 bg-gray-50/70 rounded-2xl border border-gray-100 text-xs font-semibold text-gray-500">
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+          <span>Searching catalog suggestions...</span>
+        </div>
+      )}
+
+      {searchQuery.trim().length >= 2 && !isSuggestLoading && suggestError && (
+        <div className="py-3 px-4 text-center bg-rose-50/70 rounded-2xl border border-rose-100 text-rose-600 text-xs font-medium">
+          {suggestError}. Tap search to browse all matching products.
+        </div>
+      )}
+
       {/* Live Matching Suggestions */}
       {liveSuggestions.length > 0 && (
         <div className="bg-white rounded-2xl p-3 shadow-md border border-yellow-100 space-y-2">
@@ -195,56 +260,52 @@ export default function MobileSearchScreen() {
             Matching Suggestions
           </span>
           <div className="divide-y divide-gray-100">
-            {liveSuggestions.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  if (item.type === 'category') {
-                    navigate(`/products?category=${encodeURIComponent(item.title)}`);
-                  } else if (item.type === 'brand') {
-                    navigate(`/products?brand=${encodeURIComponent(item.title)}`);
-                  } else if (item.type === 'query') {
-                    handleSearchSubmit(undefined, item.title);
-                  } else {
-                    navigate(`/products/${item.slug || item.id}`);
-                  }
-                }}
-                className="py-2 px-1 flex items-center justify-between cursor-pointer hover:bg-yellow-50/60 rounded-xl transition-all"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {item.imageUrl ? (
-                    <img 
-                      src={item.imageUrl} 
-                      alt="" 
-                      className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
-                    />
-                  ) : item.type === 'category' ? (
-                    <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
-                      <Sparkles className="w-4 h-4" />
+            {liveSuggestions.map((item, idx) => {
+              const isSelected = activeSuggestionIndex === idx;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => selectSuggestion(item)}
+                  onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                  className={`py-2 px-2 flex items-center justify-between cursor-pointer rounded-xl transition-all ${
+                    isSelected ? 'bg-emerald-50/90 ring-1 ring-emerald-500/30' : 'hover:bg-yellow-50/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt="" 
+                        className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0" 
+                      />
+                    ) : item.type === 'category' ? (
+                      <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                    ) : item.type === 'brand' ? (
+                      <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+                        <Tag className="w-4 h-4" />
+                      </div>
+                    ) : (
+                      <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Search className="w-4 h-4 text-gray-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-950 font-black' : 'text-gray-900'}`}>{item.title}</p>
+                      {item.subtitle ? (
+                        <p className="text-[10px] text-gray-400 truncate">{item.subtitle}</p>
+                      ) : (item.discountPrice || item.price) ? (
+                        <span className="text-[10px] text-emerald-700 font-extrabold">
+                          ₹{(item.discountPrice || item.price)!.toLocaleString()}
+                        </span>
+                      ) : null}
                     </div>
-                  ) : item.type === 'brand' ? (
-                    <div className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
-                      <Tag className="w-4 h-4" />
-                    </div>
-                  ) : (
-                    <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                      <Search className="w-4 h-4 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{item.title}</p>
-                    {item.subtitle ? (
-                      <p className="text-[10px] text-gray-400 truncate">{item.subtitle}</p>
-                    ) : (item.discountPrice || item.price) ? (
-                      <span className="text-[10px] text-emerald-700 font-extrabold">
-                        ₹{(item.discountPrice || item.price)!.toLocaleString()}
-                      </span>
-                    ) : null}
                   </div>
+                  <ChevronRight className={`w-4 h-4 shrink-0 transition-transform ${isSelected ? 'text-emerald-700 translate-x-0.5' : 'text-gray-400'}`} />
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
