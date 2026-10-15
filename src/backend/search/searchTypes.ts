@@ -22,6 +22,63 @@ export interface SearchParams {
   useAI?: boolean;
   noAutoCorrect?: boolean;
   semanticIntent?: SemanticIntentData;
+  sessionId?: string;
+}
+
+export interface SessionContext {
+  sessionId: string;
+  recentQueries: string[];
+  clickedProductIds: string[];
+  categoryWeights: Record<string, number>;
+  brandWeights: Record<string, number>;
+  viewedPrices: number[];
+  averageViewedPrice: number;
+  lastActive: number;
+}
+
+export interface IndexedProductDoc {
+  id: string;
+  name: string;
+  brand: string;
+  productCode: string;
+  cleanProductCode: string;
+  sku: string;
+  categoryName: string;
+  subCategoryName: string;
+  nestedSubCategoryName: string;
+  tags: string;
+  specifications: string;
+  variantAttributes: string;
+  description: string;
+  searchableText?: string;
+  embedding?: Float32Array;
+  // Metadata for filtering & facets
+  categoryId: string;
+  subCategoryId?: string;
+  nestedSubCategoryId?: string;
+  visualNestedSubcategoryIds?: string[];
+  effectivePrice: number;
+  price: number;
+  discountPrice?: number;
+  discountPercentage: number;
+  rating: number;
+  numReviews: number;
+  stock: number;
+  inStock: boolean;
+  colors: string[];
+  sizes: string[];
+  createdAt: string;
+  status: string;
+  isVisible: boolean;
+  isReward: boolean;
+  raw: Product;
+}
+
+export interface SearchLatencyTelemetry {
+  candidateRetrievalMs: number;
+  modelInferenceMs: number;
+  rerankingMs: number;
+  totalExecutionMs: number;
 }
 
 export interface SearchFacetValue {
@@ -67,6 +124,7 @@ export interface SearchResult {
   totalPages: number;
   facets: SearchFacets;
   executionTimeMs: number;
+  telemetry?: SearchLatencyTelemetry;
   query?: string;
   exactMatch?: boolean;
   hasAutoCorrected?: boolean;

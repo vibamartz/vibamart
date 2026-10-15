@@ -1,6 +1,6 @@
 import MiniSearch from 'minisearch';
 import { Product } from '../../shared/types';
-import { SearchParams, SearchResult, SearchFacets, SearchFacetValue, SuggestionResult, SuggestionItem } from './searchTypes';
+import { SearchParams, SearchResult, SearchFacets, SearchFacetValue, SuggestionResult, SuggestionItem, SearchLatencyTelemetry } from './searchTypes';
 import { expandQueryWithSynonyms, stemToken, normalizeQueryString } from './searchSynonyms';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { ZeroResultRecovery } from './zeroResultRecovery';
@@ -14,6 +14,9 @@ import {
   LocalTfIdfIndex,
   LocalSentenceEmbedding
 } from './localScoring';
+import { rankingFramework } from './rankingFramework';
+import { sessionRankingManager } from './sessionRanking';
+import { visualSearchService } from './visualSearch';
 
 export interface IndexedProductDoc {
   id: string;
@@ -348,6 +351,7 @@ export class ViBaSearchEngine {
     if (docsToIndex.length > 0) {
       this.miniSearch.addAll(docsToIndex);
     }
+    visualSearchService.initialize(products);
   }
 
   /**
@@ -375,6 +379,7 @@ export class ViBaSearchEngine {
 
     this.indexedDocs.set(product.id, doc);
     this.miniSearch.add(doc);
+    visualSearchService.upsertProduct(product);
     return doc;
   }
 
@@ -385,6 +390,7 @@ export class ViBaSearchEngine {
     if (this.indexedDocs.has(productId)) {
       this.indexedDocs.delete(productId);
       this.tfIdfIndex.removeDocument(productId);
+      visualSearchService.removeProduct(productId);
       try {
         this.miniSearch.discard(productId);
       } catch {}
@@ -412,6 +418,10 @@ export class ViBaSearchEngine {
    */
   public search(params: SearchParams): SearchResult {
     const startTime = performance.now();
+    let candidateRetrievalMs = 0;
+    let modelInferenceMs = 0;
+    let rerankingMs = 0;
+
     const rawQuery = (params.q || '').trim();
     const { cleanDigits } = normalizeQueryString(rawQuery);
 
@@ -454,6 +464,7 @@ export class ViBaSearchEngine {
     }
 
     // Natural Language / Semantic Intent Extraction on effective query
+    const tModelStart = performance.now();
     let semanticIntent = params.semanticIntent;
     let queryToSearch = effectiveQuery;
 
@@ -465,7 +476,12 @@ export class ViBaSearchEngine {
     }
 
     let queryEmbedding: Float32Array | null = null;
+    if (rawQuery.length > 0) {
+      queryEmbedding = LocalSentenceEmbedding.embed(queryToSearch || rawQuery);
+    }
+    modelInferenceMs += performance.now() - tModelStart;
 
+    const tCandStart = performance.now();
     if (rawQuery.length > 0) {
       // Check curation pinned rules
       const pinnedProductIds = searchCurationManager.getPinnedProductIds(rawQuery);
@@ -556,6 +572,9 @@ export class ViBaSearchEngine {
 
       matchedDocIds = new Set(scoreMap.keys());
     }
+    candidateRetrievalMs = performance.now() - tCandStart;
+
+    const tRerankStart = performance.now();
 
     // Filter candidate documents
     const candidateDocs: { doc: IndexedProductDoc; score: number }[] = [];
@@ -740,6 +759,25 @@ export class ViBaSearchEngine {
                  (ngramScore * 2.5 * weights.ngramWeight) +
                  (semanticCosine * 2.5 * weights.semanticWeight);
 
+        // Evaluate through Extensible Multi-Signal Ranking Framework (24 active signals)
+        const rankingBreakdown = rankingFramework.evaluate({
+          query: rawQuery,
+          cleanQuery: (queryToSearch || rawQuery).toLowerCase().trim(),
+          queryTokens: qTokens,
+          queryEmbedding: queryEmbedding || undefined,
+          semanticIntent,
+          doc,
+          baseScore: score,
+          sessionContext: sessionRankingManager.getSessionContext(params.sessionId)
+        });
+        score = rankingBreakdown.finalScore;
+
+        // Contextual Session-Aware Affinity (strictly bounded to max +15% boost)
+        if (params.sessionId) {
+          const sessionMultiplier = sessionRankingManager.computeSessionMultiplier(doc, params.sessionId);
+          score *= sessionMultiplier;
+        }
+
         // Title Exactness & Prefix Priority
         const lowerName = doc.name.toLowerCase();
         const lowerQ = (queryToSearch || rawQuery).toLowerCase();
@@ -835,7 +873,15 @@ export class ViBaSearchEngine {
     const startIndex = (page - 1) * limit;
     const paginatedDocs = candidateDocs.slice(startIndex, startIndex + limit).map(c => c.doc.raw);
 
+    rerankingMs = performance.now() - tRerankStart;
     const executionTimeMs = Math.round((performance.now() - startTime) * 100) / 100;
+
+    const telemetry: SearchLatencyTelemetry = {
+      candidateRetrievalMs: Math.round(candidateRetrievalMs * 100) / 100,
+      modelInferenceMs: Math.round(modelInferenceMs * 100) / 100,
+      rerankingMs: Math.round(rerankingMs * 100) / 100,
+      totalExecutionMs: executionTimeMs
+    };
 
     return {
       products: paginatedDocs,
@@ -845,6 +891,7 @@ export class ViBaSearchEngine {
       totalPages,
       facets,
       executionTimeMs,
+      telemetry,
       query: rawQuery,
       exactMatch: exactMatchFound,
       hasAutoCorrected,

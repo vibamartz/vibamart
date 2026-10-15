@@ -21,6 +21,10 @@ import {
   LocalSentenceEmbedding
 } from '../localScoring';
 import { searchService } from '../searchService';
+import { rankingFramework } from '../rankingFramework';
+import { sessionRankingManager } from '../sessionRanking';
+import { visualSearchService } from '../visualSearch';
+import { searchBenchmarkSuite } from '../benchmark';
 
 
 export async function runTests(): Promise<boolean> {
@@ -1230,6 +1234,109 @@ export async function runTests(): Promise<boolean> {
   searchService.removeProduct('prod-sync-test');
   const syncAfterRemove = await searchService.search({ q: 'Soundcore Space One' });
   assert(!syncAfterRemove.products.some(p => p.id === 'prod-sync-test'), 'SearchService Sync: removed product is immediately evicted from index');
+
+  // ==========================================
+  // PHASE 6: ADVANCED AI/ML & MULTI-SIGNAL SEARCH CAPABILITIES
+  // ==========================================
+
+  // Test 77: Extensible Ranking Framework — 200+ Signals Architecture & Active Signals
+  const totalSigCount = rankingFramework.getTotalSignalsCount();
+  const activeSigCount = rankingFramework.getActiveSignalsCount();
+  assert(totalSigCount >= 200, `Ranking Framework: registry supports 200+ signals architecture (got: ${totalSigCount})`);
+  assert(activeSigCount === 24, `Ranking Framework: exactly 24 active validated signals implemented (got: ${activeSigCount})`);
+  const activeSignals = rankingFramework.getActiveSignals();
+  assert(activeSignals.every(s => s.min === 0 && s.max === 1), 'Ranking Framework: all active signals normalized to [0, 1]');
+
+  // Test 78: Relevance Guardrail — Business Signals cannot override Query Relevance
+  const dummyDoc = (engine as any).indexedDocs.get('prod-001')!;
+  const guardedBreakdown = rankingFramework.evaluate({
+    query: 'somethingcompletelyunrelated',
+    cleanQuery: 'somethingcompletelyunrelated',
+    queryTokens: ['somethingcompletelyunrelated'],
+    doc: dummyDoc,
+    baseScore: 0.1
+  });
+  assert(guardedBreakdown.relevanceGuardrailApplied === true, 'Relevance Guardrail: applied when query relevance is near zero');
+
+  // Test 79: Session-Aware Ranking — Affinity Tracking, Bounded Influence, and Reset
+  const testSessionId = 'sess-test-999';
+  sessionRankingManager.recordEvent(testSessionId, {
+    type: 'click',
+    categoryId: 'cat-electronics',
+    brand: 'Sony',
+    price: 25000
+  });
+  const sessionCtx = sessionRankingManager.getSessionContext(testSessionId);
+  assert(sessionCtx !== undefined && sessionCtx.brandWeights['sony'] > 0, 'Session Ranking: records brand interaction');
+  assert(sessionCtx !== undefined && sessionCtx.categoryWeights['cat-electronics'] > 0, 'Session Ranking: records category interaction');
+
+  const sonyDoc = (engine as any).indexedDocs.get('prod-005')!;
+  const sessionMultiplier = sessionRankingManager.computeSessionMultiplier(sonyDoc, testSessionId);
+  assert(sessionMultiplier > 1.0 && sessionMultiplier <= 1.15, `Session Ranking: session multiplier strictly bounded within [1.0, 1.15] (got: ${sessionMultiplier.toFixed(3)})`);
+
+  const anonymousMultiplier = sessionRankingManager.computeSessionMultiplier(sonyDoc, undefined);
+  assert(anonymousMultiplier === 1.0, 'Session Ranking: anonymous user receives neutral 1.0 multiplier without penalty');
+
+  const resetOk = sessionRankingManager.resetSession(testSessionId);
+  assert(resetOk === true && sessionRankingManager.getSessionContext(testSessionId) === undefined, 'Session Ranking: resets context cleanly');
+
+  // Test 80: Visual Search — Input Format Validation & Security
+  let rejectedEmpty = false;
+  try {
+    visualSearchService.validateImageInput(Buffer.from([]));
+  } catch {
+    rejectedEmpty = true;
+  }
+  assert(rejectedEmpty, 'Visual Search: strictly rejects empty image payloads');
+
+  let rejectedFormat = false;
+  try {
+    visualSearchService.validateImageInput(Buffer.from('this is not an image file'));
+  } catch {
+    rejectedFormat = true;
+  }
+  assert(rejectedFormat, 'Visual Search: strictly rejects invalid non-image formats');
+
+  // Valid JPEG header test
+  const sampleJpeg = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01]);
+  const validatedJpeg = visualSearchService.validateImageInput(sampleJpeg);
+  assert(validatedJpeg.mimeType === 'image/jpeg', 'Visual Search: correctly validates JPEG magic bytes');
+
+  // Test 81: Visual Search — 128D Dense Visual Vector Extraction & In-Memory Matching
+  const visualVec = visualSearchService.extractVisualVector(sampleJpeg);
+  assert(visualVec.length === 128, 'Visual Search: produces normalized 128-dimensional dense visual feature vector');
+
+  // Initialize visual search with catalog products
+  visualSearchService.initialize(engine.getAllDocs().map(d => d.raw));
+  const visStatus = visualSearchService.getStatus();
+  assert(visStatus.indexedVisualCount > 0, `Visual Search: indexed ${visStatus.indexedVisualCount} catalog images into memory`);
+
+  const visualMatches = visualSearchService.searchByImage(sampleJpeg, {}, 5);
+  assert(visualMatches.success && visualMatches.results.length > 0, 'Visual Search: matches query image against catalog embeddings');
+  assert(visualMatches.results[0].visualSimilarity > 0, `Visual Search: computes valid visual similarity (${visualMatches.results[0].visualSimilarity})`);
+
+  // Test 82: Visual Search with Catalog Filters
+  const filteredVisual = visualSearchService.searchByImage(sampleJpeg, { maxPrice: 1000 }, 10);
+  assert(filteredVisual.success, 'Visual Search: combines visual similarity with price constraints');
+
+  // Test 83: Visual Index Incremental Synchronization
+  visualSearchService.upsertProduct(testSyncProd);
+  assert(visualSearchService.getStatus().indexedVisualCount >= visStatus.indexedVisualCount, 'Visual Search: incrementally updates when product is added');
+  visualSearchService.removeProduct('prod-sync-test');
+
+  // Test 84: Two-Stage Search Latency Telemetry Breakdown
+  const telemSearch = engine.search({ q: 'wireless mouse' });
+  assert(telemSearch.telemetry !== undefined, 'Two-Stage Search: emits latency telemetry breakdown');
+  assert(typeof telemSearch.telemetry?.candidateRetrievalMs === 'number', 'Telemetry: candidateRetrievalMs is tracked');
+  assert(typeof telemSearch.telemetry?.modelInferenceMs === 'number', 'Telemetry: modelInferenceMs is tracked');
+  assert(typeof telemSearch.telemetry?.rerankingMs === 'number', 'Telemetry: rerankingMs is tracked');
+  assert(typeof telemSearch.telemetry?.totalExecutionMs === 'number', 'Telemetry: totalExecutionMs is tracked');
+
+  // Test 85: Benchmark Suite Execution & Sub-60 ms Latency Compliance
+  const benchReport = searchBenchmarkSuite.runBenchmark(engine, 2);
+  assert(benchReport.metrics.totalExecution.p50 < 60, `Performance Target: p50 total latency is ${benchReport.metrics.totalExecution.p50}ms (Target: < 60ms)`);
+  assert(benchReport.metrics.candidateRetrieval.p50 < 20, `Performance Target: candidate retrieval p50 is ${benchReport.metrics.candidateRetrieval.p50}ms`);
+  assert(benchReport.sub60msComplianceRate > 90, `Performance Target: sub-60ms compliance rate is ${benchReport.sub60msComplianceRate}%`);
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);

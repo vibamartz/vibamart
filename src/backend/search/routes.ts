@@ -8,6 +8,10 @@ import { sanitizeSearchParams, sanitizeSearchString } from './searchSanitization
 import { searchRateLimiter, adminSearchRateLimiter, reindexRateLimiter } from './searchRateLimit';
 import { requireSearchAdmin } from './searchAuth';
 import { SpellingCorrectionEngine } from './spellingCorrection';
+import { visualSearchService } from './visualSearch';
+import { rankingFramework } from './rankingFramework';
+import { sessionRankingManager } from './sessionRanking';
+import { searchBenchmarkSuite } from './benchmark';
 
 export const searchRouter = Router();
 
@@ -294,3 +298,119 @@ searchRouter.get('/ai/status', (_req: Request, res: Response) => {
     status: getSemanticSearchStatus()
   });
 });
+
+/**
+ * POST /api/search/visual
+ * Visual product search endpoint matching uploaded images against catalog embeddings.
+ */
+searchRouter.post('/visual', searchRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const rawImage = req.body?.image || req.body?.data || req.body?.file;
+    if (!rawImage) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing image payload. Provide a valid base64 image string.'
+      });
+    }
+
+    const filters = req.body?.filters || {};
+    const limit = Number(req.body?.limit) || 24;
+
+    const visualResult = visualSearchService.searchByImage(rawImage, filters, limit);
+    const engine = searchService.getEngine();
+    const allDocsMap = new Map(engine.getAllDocs().map(d => [d.id, d.raw]));
+
+    const hydratedResults = visualResult.results.map(r => ({
+      ...r,
+      product: allDocsMap.get(r.productId)
+    })).filter(r => Boolean(r.product));
+
+    res.json({
+      success: true,
+      total: visualResult.total,
+      executionTimeMs: visualResult.executionTimeMs,
+      results: hydratedResults,
+      detectedVisualFeatures: visualResult.detectedVisualFeatures
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Visual search failed'
+    });
+  }
+});
+
+/**
+ * GET /api/search/visual/status
+ * Returns visual vector index status.
+ */
+searchRouter.get('/visual/status', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    status: visualSearchService.getStatus()
+  });
+});
+
+/**
+ * POST /api/search/session/event
+ * Records user session interaction for contextual reranking.
+ */
+searchRouter.post('/session/event', searchRateLimiter, (req: Request, res: Response) => {
+  try {
+    const { sessionId, event } = req.body || {};
+    if (sessionId && event) {
+      sessionRankingManager.recordEvent(String(sessionId), event);
+    }
+    res.json({ success: true });
+  } catch {
+    res.json({ success: true });
+  }
+});
+
+/**
+ * POST /api/search/session/reset
+ * Resets user session context.
+ */
+searchRouter.post('/session/reset', searchRateLimiter, (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.body || {};
+    const reset = sessionId ? sessionRankingManager.resetSession(String(sessionId)) : false;
+    res.json({ success: true, reset });
+  } catch {
+    res.json({ success: true, reset: false });
+  }
+});
+
+/**
+ * GET /api/search/ranking/signals
+ * Returns multi-signal ranking framework metadata and active weights.
+ */
+searchRouter.get('/ranking/signals', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    totalSignals: rankingFramework.getTotalSignalsCount(),
+    activeSignalsCount: rankingFramework.getActiveSignalsCount(),
+    activeSignals: rankingFramework.getActiveSignals(),
+    allSignals: rankingFramework.getAllSignals()
+  });
+});
+
+/**
+ * GET /api/search/benchmark
+ * Runs self-hosted search engine performance benchmark reporting p50, p95, and p99 latencies.
+ */
+searchRouter.get('/benchmark', async (_req: Request, res: Response) => {
+  try {
+    const report = searchBenchmarkSuite.runBenchmark(searchService.getEngine());
+    res.json({
+      success: true,
+      report
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Benchmark execution failed'
+    });
+  }
+});
+

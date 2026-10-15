@@ -37,6 +37,7 @@ class SearchApiClient {
       if (params.page !== undefined) queryParams.page = params.page;
       if (params.limit !== undefined) queryParams.limit = params.limit;
       if (params.noAutoCorrect) queryParams.noAutoCorrect = 'true';
+      if (params.sessionId) queryParams.sessionId = params.sessionId;
 
       const response = await axios.get('/api/search', {
         params: queryParams,
@@ -196,6 +197,59 @@ class SearchApiClient {
    */
   public async correctSpelling(query: string): Promise<any> {
     const res = await axios.get('/api/search/correction', { params: { q: query } });
+    return res.data;
+  }
+
+  /**
+   * Execute visual product search matching image data against catalog embeddings.
+   */
+  public async visualSearch(imageData: string, filters: any = {}, limit = 24): Promise<any> {
+    const res = await axios.post('/api/search/visual', {
+      image: imageData,
+      filters,
+      limit
+    }, { timeout: 15000 });
+    return res.data;
+  }
+
+  /**
+   * Fetch visual search index status.
+   */
+  public async getVisualStatus(): Promise<any> {
+    const res = await axios.get('/api/search/visual/status');
+    return res.data;
+  }
+
+  /**
+   * Record session interaction event.
+   */
+  public async recordSessionEvent(sessionId: string, event: any): Promise<void> {
+    try {
+      await axios.post('/api/search/session/event', { sessionId, event });
+    } catch {}
+  }
+
+  /**
+   * Reset session context.
+   */
+  public async resetSession(sessionId: string): Promise<any> {
+    const res = await axios.post('/api/search/session/reset', { sessionId });
+    return res.data;
+  }
+
+  /**
+   * Fetch multi-signal ranking framework metadata.
+   */
+  public async getRankingSignals(): Promise<any> {
+    const res = await axios.get('/api/search/ranking/signals');
+    return res.data;
+  }
+
+  /**
+   * Run latency and performance benchmark.
+   */
+  public async getBenchmark(): Promise<any> {
+    const res = await axios.get('/api/search/benchmark');
     return res.data;
   }
 }

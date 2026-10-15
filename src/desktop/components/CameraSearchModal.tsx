@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Camera, Image as ImageIcon, ScanLine, Loader2, Search, Zap } from 'lucide-react';
+import { X, Camera, Image as ImageIcon, ScanLine, Loader2, Search, Zap, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import Tesseract from 'tesseract.js';
 import * as mobilenet from '@tensorflow-models/mobilenet';
@@ -8,6 +9,8 @@ import * as tf from '@tensorflow/tfjs';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';
+import { searchApiClient } from '../../services/searchApiClient';
+import { Product } from '../../shared/types';
 
 interface Props {
   isOpen: boolean;
@@ -16,11 +19,13 @@ interface Props {
 }
 
 export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'barcode' | 'ai'>('ai');
   const [isScanning, setIsScanning] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [processingState, setProcessingState] = useState<string>('');
   const [scannedResult, setScannedResult] = useState<string>('');
+  const [matchedProducts, setMatchedProducts] = useState<{ product: Product; visualSimilarity: number }[]>([]);
   
   const videoRef = useRef<HTMLDivElement>(null);
   const html5QrCode = useRef<Html5Qrcode | null>(null);
@@ -45,6 +50,7 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
       setPreviewUrl(null);
       setProcessingState('');
       setScannedResult('');
+      setMatchedProducts([]);
     }
   }, [isOpen]);
 
@@ -82,50 +88,67 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
   };
 
   const processImage = async (file: File) => {
-    setPreviewUrl(URL.createObjectURL(file));
-    setProcessingState('Initializing AI Model...');
-    
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    setProcessingState('Matching catalog visual embeddings...');
+    setMatchedProducts([]);
+
     try {
-      // 1. Ensure TF backend is ready
-      await tf.ready();
-      
-      // 2. Load MobileNet
-      const model = await mobilenet.load();
-      
-      // 3. Load image element
-      const img = document.createElement('img');
-      img.src = URL.createObjectURL(file);
-      await new Promise((resolve) => (img.onload = resolve));
-      
-      setProcessingState('Analyzing image...');
-      // 4. Classify Image
-      const predictions = await model.classify(img);
-      const topTags = predictions
-        .filter(p => p.probability > 0.1)
-        .map(p => p.className.split(',')[0].toLowerCase());
-      
-      setProcessingState('Scanning for text (OCR)...');
-      // 5. OCR with Tesseract
-      const { data: { text } } = await Tesseract.recognize(file, 'eng');
-      const cleanText = text.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
-      const extractedWords = cleanText.split(' ').filter(w => w.length > 3).slice(0, 3);
-      
-      // 6. Combine keywords
-      const finalKeywords = [...new Set([...topTags, ...extractedWords])].join(' ');
-      
-      if (!finalKeywords) {
-        toast.error("Couldn't identify the product clearly.");
-        setProcessingState('');
-        return;
+      // 1. Read image as Base64 for local backend visual vector search
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Execute fast self-hosted visual vector search against indexed catalog
+      try {
+        const visualRes = await searchApiClient.visualSearch(base64Data, {}, 6);
+        if (visualRes && visualRes.success && Array.isArray(visualRes.results) && visualRes.results.length > 0) {
+          const validMatches = visualRes.results.filter((r: any) => r.product);
+          setMatchedProducts(validMatches);
+          if (validMatches.length > 0 && validMatches[0].product) {
+            setScannedResult(validMatches[0].product.name);
+          }
+        }
+      } catch (visErr) {
+        console.warn('[CameraSearchModal] Backend visual search fallback:', visErr);
       }
 
-      setScannedResult(finalKeywords);
+      // 3. Fallback or supplementary client-side MobileNet / OCR analysis
+      setProcessingState('Extracting visual features...');
+      try {
+        await tf.ready();
+        const model = await mobilenet.load();
+        const img = document.createElement('img');
+        img.src = objectUrl;
+        await new Promise((resolve) => (img.onload = resolve));
+
+        const predictions = await model.classify(img);
+        const topTags = predictions
+          .filter(p => p.probability > 0.1)
+          .map(p => p.className.split(',')[0].toLowerCase());
+
+        // OCR with Tesseract
+        setProcessingState('Scanning for text (OCR)...');
+        const { data: { text } } = await Tesseract.recognize(file, 'eng');
+        const cleanText = text.replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
+        const extractedWords = cleanText.split(' ').filter(w => w.length > 3).slice(0, 3);
+
+        const finalKeywords = [...new Set([...topTags, ...extractedWords])].join(' ');
+        if (finalKeywords && !scannedResult) {
+          setScannedResult(finalKeywords);
+        }
+      } catch (clientErr) {
+        console.warn('[CameraSearchModal] Client model fallback warning:', clientErr);
+      }
+
       setProcessingState('');
-      toast.success("Image processed successfully!");
-      
-    } catch (err) {
+      toast.success("Image analyzed successfully!");
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to process image.");
+      toast.error(err.message || "Failed to process image.");
       setProcessingState('');
     }
   };
@@ -133,8 +156,8 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size exceeds 10 MB limit');
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size exceeds 5 MB limit');
         return;
       }
       processImage(file);
@@ -266,10 +289,56 @@ export default function CameraSearchModal({ isOpen, onClose, onSearch }: Props) 
                   </div>
                 )}
 
+                {/* Matched Catalog Products via Local Visual Search */}
+                {matchedProducts.length > 0 && !processingState && (
+                  <div className="w-full space-y-3 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-1.5 px-1">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                        Visually Matching Catalog Products ({matchedProducts.length})
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                      {matchedProducts.map(({ product, visualSimilarity }) => {
+                        const img = product.primaryImage || (Array.isArray(product.images) && product.images[0]);
+                        const matchPct = Math.round(visualSimilarity * 100);
+                        return (
+                          <div
+                            key={product.id}
+                            onClick={() => {
+                              onClose();
+                              navigate(`/products/${product.id}`);
+                            }}
+                            className="flex items-center gap-3 p-2.5 rounded-2xl border border-gray-100 hover:border-primary/40 hover:bg-blue-50/30 cursor-pointer transition-all bg-white shadow-sm"
+                          >
+                            {img ? (
+                              <img src={img} alt={product.name} className="w-12 h-12 object-cover rounded-xl shrink-0" />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] font-bold text-primary">₹{product.discountPrice || product.price}</span>
+                                {product.brand && <span className="text-[10px] text-gray-400">· {product.brand}</span>}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 shrink-0">
+                              {matchPct}% Match
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {scannedResult && !processingState && (
                   <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-4">
                     <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Detected Keywords</p>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Detected Query</p>
                       <p className="font-medium text-emerald-900">{scannedResult}</p>
                     </div>
                     <div className="flex gap-3">
