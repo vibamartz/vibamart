@@ -538,11 +538,42 @@ export default function Navbar() {
                           </div>
                         )}
 
-                        {searchQuery.length > 0 && !isSuggestLoading && !suggestError && productSuggestions.length === 0 && suggestedCategories.length === 0 && (
+                        {searchQuery.length > 0 && !isSuggestLoading && !suggestError && productSuggestions.length === 0 && suggestedCategories.length === 0 && brandSuggestions.length === 0 && popularSuggestions.length === 0 && (
                           <div className="py-6 px-4 text-center bg-gray-50/50 rounded-2xl border border-gray-100">
                             <Search className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
                             <p className="text-xs font-bold text-gray-700">No suggestions for "{searchQuery}"</p>
                             <p className="text-[11px] text-gray-400 mt-0.5">Press Enter to search full product catalog</p>
+                          </div>
+                        )}
+
+                        {/* Dynamic Related & Budget Query Suggestions */}
+                        {popularSuggestions.length > 0 && searchQuery.length > 0 && (
+                          <div className="bg-gray-50/50 rounded-2xl p-3">
+                            <div className="flex items-center gap-2 mb-2 px-1">
+                              <Sparkles className="w-4 h-4 text-emerald-600" />
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Suggested Searches</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {popularSuggestions.map((queryItem) => (
+                                <button
+                                  key={queryItem.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSearchQuery(queryItem.title);
+                                    addRecentSearch(queryItem.title, 10);
+                                    navigate(`/products?q=${encodeURIComponent(queryItem.title)}`);
+                                    setIsSearchFocused(false);
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-700 text-xs font-bold rounded-xl border border-gray-100 shadow-sm transition-all active:scale-95 cursor-pointer"
+                                >
+                                  <Search className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span>{queryItem.title}</span>
+                                  {queryItem.title.includes('under') && (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-black">Budget</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
 
@@ -709,7 +740,7 @@ export default function Navbar() {
                           </div>
                         )}
 
-                        {popularSuggestions.length > 0 && (
+                        {popularSuggestions.length > 0 && searchQuery.length === 0 && (
                           <div>
                             <div className="flex items-center gap-2 mb-3 px-2">
                               <TrendingUp className="w-4 h-4 text-blue-500" />

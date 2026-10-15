@@ -116,13 +116,13 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   }
 
   // 5. Sorting Intent
-  if (/\b(?:cheapest|cheap|budget|lowest\s+price|affordable)\b/i.test(text)) {
+  if (/\b(?:cheapest|cheap|budget|lowest\s+price|affordable|sasta|saste|sabse\s+sasta|kam\s+daam|kam\s+budget)\b/i.test(text)) {
     detectedFilters.sortBy = 'price-asc';
-    text = text.replace(/\b(?:cheapest|cheap|budget|lowest\s+price|affordable)\b/gi, ' ');
+    text = text.replace(/\b(?:cheapest|cheap|budget|lowest\s+price|affordable|sasta|saste|sabse\s+sasta|kam\s+daam|kam\s+budget)\b/gi, ' ');
     isNaturalLanguage = true;
-  } else if (/\b(?:expensive|luxury|premium|high-end)\b/i.test(text)) {
+  } else if (/\b(?:expensive|luxury|premium|high-end|mehenga|mehnge|badiya)\b/i.test(text)) {
     detectedFilters.sortBy = 'price-desc';
-    text = text.replace(/\b(?:expensive|luxury|premium|high-end)\b/gi, ' ');
+    text = text.replace(/\b(?:expensive|luxury|premium|high-end|mehenga|mehnge|badiya)\b/gi, ' ');
     isNaturalLanguage = true;
   } else if (/\b(?:best\s+rated|top\s+rated|highest\s+rated|popular)\b/i.test(text)) {
     detectedFilters.sortBy = 'rating';
@@ -153,20 +153,20 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
   }
 
   // 8. Gender / Target Audience
-  if (/\b(?:for\s+men|men'?s|mens)\b/i.test(text)) {
+  if (/\b(?:for\s+men|men'?s|mens|ladko\s+(?:ke\s+liye|ke)?|purush)\b/i.test(text)) {
     detectedFilters.gender = 'men';
     semanticTags.push('men');
-    text = text.replace(/\b(?:for\s+men|men'?s|mens)\b/gi, ' ');
+    text = text.replace(/\b(?:for\s+men|men'?s|mens|ladko\s+(?:ke\s+liye|ke)?|purush)\b/gi, ' ');
     isNaturalLanguage = true;
-  } else if (/\b(?:for\s+women|women'?s|womens|ladies)\b/i.test(text)) {
+  } else if (/\b(?:for\s+women|women'?s|womens|ladies|ladkiyo\s+(?:ke\s+liye|ke)?|mahila|aurat)\b/i.test(text)) {
     detectedFilters.gender = 'women';
     semanticTags.push('women');
-    text = text.replace(/\b(?:for\s+women|women'?s|womens|ladies)\b/gi, ' ');
+    text = text.replace(/\b(?:for\s+women|women'?s|womens|ladies|ladkiyo\s+(?:ke\s+liye|ke)?|mahila|aurat)\b/gi, ' ');
     isNaturalLanguage = true;
-  } else if (/\b(?:for\s+kids?|children|boys?|girls?)\b/i.test(text)) {
+  } else if (/\b(?:for\s+kids?|children|boys?|girls?|bacho\s+(?:ke\s+liye|ke)?|chote\s+bacho\s+(?:ke\s+liye|ke)?)\b/i.test(text)) {
     detectedFilters.gender = 'kids';
     semanticTags.push('kids');
-    text = text.replace(/\b(?:for\s+kids?|children|boys?|girls?)\b/gi, ' ');
+    text = text.replace(/\b(?:for\s+kids?|children|boys?|girls?|bacho\s+(?:ke\s+liye|ke)?|chote\s+bacho\s+(?:ke\s+liye|ke)?)\b/gi, ' ');
     isNaturalLanguage = true;
   }
 
@@ -177,7 +177,7 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     detectedFilters.category = 't-shirts';
   } else if (/\b(?:shirts?)\b/i.test(text)) {
     detectedFilters.category = 'shirts';
-  } else if (/\b(?:shoes?|sneakers?|footwears?)\b/i.test(text)) {
+  } else if (/\b(?:shoes?|sneakers?|footwears?|joota|joote|chappal)\b/i.test(text)) {
     detectedFilters.category = 'shoes';
   } else if (/\b(?:mobile\s*phones?|smartphones?|mobiles?|cellphones?)\b/i.test(text)) {
     detectedFilters.category = 'mobile phones';

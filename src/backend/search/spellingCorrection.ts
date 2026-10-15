@@ -31,6 +31,7 @@ const BASELINE_DOMAIN_TERMS = [
   // Electronics & Gadgets
   'mobile', 'phone', 'smartphone', 'smartphones', 'headphones', 'headphone', 'earbuds',
   'earphones', 'airpods', 'watch', 'watches', 'smartwatch', 'laptop', 'charger',
+  'mouse', 'mice', 'keyboard', 'keyboards', 'gaming',
 
   // Fragrances & Personal Care
   'perfume', 'perfumes', 'fragrance', 'fragrances', 'deodorant', 'deo', 'cologne',
@@ -404,6 +405,26 @@ export class SpellingCorrectionEngine {
       case 'earbud':
       case 'erabuds':
         return 'earbuds';
+
+      case 'wirless':
+      case 'wirles':
+      case 'wirelss':
+      case 'wireles':
+        return 'wireless';
+
+      case 'mose':
+      case 'mous':
+      case 'mouce':
+      case 'moose':
+        return 'mouse';
+
+      case 'keybord':
+      case 'keybaord':
+        return 'keyboard';
+
+      case 'leptop':
+      case 'laptap':
+        return 'laptop';
 
       default:
         return null;

@@ -220,6 +220,7 @@ function MainAppRoutes() {
           <Route path="/home-mobile" element={<MobileHomepage />} />
           <Route path="/category/:categorySlug" element={<Home />} />
           <Route path="/products" element={<ProductList />} />
+          <Route path="/search" element={<ProductList />} />
           <Route path="/products/:slug" element={<ProductDetail />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/categories" element={<ProductList />} />

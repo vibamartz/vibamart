@@ -993,6 +993,141 @@ export async function runTests(): Promise<boolean> {
   const zeroRes = engine.search({ q: 'zyxquantumcorenonexistent777' });
   assert(zeroRes.recovery !== undefined && Array.isArray(zeroRes.recovery.suggestedCategories), 'Zero-Result Recovery: returns recovery recommendations');
 
+  // Test 59: Phase 3 Scenario — Price Range Boundaries: "headphones between 1000 and 2000"
+  const midTierHeadphones: Product = {
+    id: 'prod-012',
+    name: 'boAt Rockerz 450 Bluetooth On-Ear Headphones with Mic',
+    brand: 'boAt',
+    productCode: '8900 0996 3002',
+    sku: 'BOAT-ROC450-BLK',
+    categoryId: 'cat-electronics',
+    subCategoryId: 'sub-audio',
+    price: 3990,
+    discountPrice: 1499,
+    stock: 35,
+    inStock: true,
+    rating: 4.4,
+    numReviews: 520,
+    status: 'active',
+    isVisible: true,
+    tags: ['headphones', 'earphones', 'wireless', 'bluetooth', 'audio', 'boat'],
+    vendorId: 'v-03',
+    images: ['https://example.com/boat450.jpg'],
+    description: 'boAt Rockerz 450 wireless on-ear headphones with 15 hours battery.',
+    createdAt: '2026-01-12T00:00:00.000Z'
+  };
+  engine.upsertProduct(midTierHeadphones, 'Electronics', 'Audio & Headphones');
+
+  const headphoneRangeIntent = parseIntentRuleBased('headphones between 1000 and 2000');
+  assert(headphoneRangeIntent.detectedFilters.minPrice === 1000, 'Price Range: "headphones between 1000 and 2000" extracted minPrice: 1000');
+  assert(headphoneRangeIntent.detectedFilters.maxPrice === 2000, 'Price Range: "headphones between 1000 and 2000" extracted maxPrice: 2000');
+  
+  const headphoneRangeSearch = engine.search({
+    q: headphoneRangeIntent.cleanKeyword,
+    minPrice: headphoneRangeIntent.detectedFilters.minPrice,
+    maxPrice: headphoneRangeIntent.detectedFilters.maxPrice
+  });
+  assert(headphoneRangeSearch.products.some(p => p.id === 'prod-012'), 'Price Range: returns boAt Rockerz 450 (₹1499) within 1000-2000 range');
+  assert(!headphoneRangeSearch.products.some(p => p.id === 'prod-005'), 'Price Range: strictly excludes Sony WH-1000XM5 (₹26990)');
+
+  // Test 60: Phase 3 Scenario — Attribute Search: "wireless mouse under 500"
+  const wirelessMouse500Intent = parseIntentRuleBased('wireless mouse under 500');
+  assert(wirelessMouse500Intent.detectedFilters.maxPrice === 500, 'Attribute Search: "wireless mouse under 500" extracted maxPrice: 500');
+  assert(wirelessMouse500Intent.semanticTags.includes('wireless'), 'Attribute Search: extracted semantic tag "wireless"');
+
+  const wirelessMouse500Search = engine.search({
+    q: 'wireless mouse',
+    maxPrice: 500
+  });
+  assert(wirelessMouse500Search.products.some(p => p.id === 'prod-009'), 'Attribute Search: returns Dell WM126 Wireless Mouse (₹489)');
+  assert(!wirelessMouse500Search.products.some(p => p.id === 'prod-008'), 'Attribute Search: excludes HP Wired Optical Mouse (not wireless)');
+  assert(!wirelessMouse500Search.products.some(p => p.id === 'prod-010'), 'Attribute Search: excludes Logitech MX Master (₹8495 above ₹500)');
+
+  // Test 61: Phase 3 Scenario — Sorting: "mouse under 500", price low to high
+  const sortedMouseSearch = engine.search({
+    q: 'mouse',
+    maxPrice: 500,
+    sortBy: 'price-asc'
+  });
+  assert(sortedMouseSearch.products.length >= 2, 'Sorting: "mouse under 500" returns eligible products');
+  assert(sortedMouseSearch.products[0].id === 'prod-008', 'Sorting: HP Optical Mouse (₹349) is ranked first in price-asc');
+  assert(sortedMouseSearch.products[1].id === 'prod-009', 'Sorting: Dell WM126 Mouse (₹489) is ranked second in price-asc');
+  const isAscending = (sortedMouseSearch.products[0].discountPrice || sortedMouseSearch.products[0].price) <=
+                      (sortedMouseSearch.products[1].discountPrice || sortedMouseSearch.products[1].price);
+  assert(isAscending, 'Sorting: effective prices are in strictly ascending order');
+
+  // Test 62: Phase 3 Scenario — Spelling Correction: "wirless mose"
+  const typoCorrection = SpellingCorrectionEngine.correct('wirless mose', engine.getAllDocs());
+  assert(typoCorrection.hasCorrection === true, 'Spelling Correction: "wirless mose" flags hasCorrection: true');
+  assert(typoCorrection.correctedQuery === 'wireless mouse', `Spelling Correction: "wirless mose" corrects to "wireless mouse" (got: "${typoCorrection.correctedQuery}")`);
+
+  const typoSearch = engine.search({ q: 'wirless mose' });
+  assert(typoSearch.hasAutoCorrected === true, 'Spelling Correction: search automatically sets hasAutoCorrected: true');
+  assert(typoSearch.products.some(p => p.id === 'prod-009'), 'Spelling Correction: search retrieves Dell Wireless Mouse for "wirless mose"');
+
+  // Test 63: Phase 3 Scenario — No Results with Strict Budget: "gaming mouse under 10"
+  const zeroBudgetSearch = engine.search({
+    q: 'gaming mouse',
+    maxPrice: 10
+  });
+  assert(zeroBudgetSearch.products.length === 0, 'No Results: "gaming mouse under 10" returns 0 matching products');
+  assert(zeroBudgetSearch.total === 0, 'No Results: total count is strictly 0 without ignoring budget');
+  assert(zeroBudgetSearch.recovery !== undefined, 'No Results: returns genuine recovery suggestions');
+
+  // Test 64: Phase 3 Scenario — Hindi / Hinglish Query Intelligence
+  const hinglishIntent1 = parseIntentRuleBased('sasta mouse');
+  assert(hinglishIntent1.detectedFilters.sortBy === 'price-asc', 'Hinglish Intent: "sasta mouse" extracts sortBy: price-asc');
+  assert(hinglishIntent1.cleanKeyword === 'mouse', `Hinglish Intent: cleanKeyword is "mouse" (got: "${hinglishIntent1.cleanKeyword}")`);
+
+  const hinglishIntent2 = parseIntentRuleBased('ladko ke joote');
+  assert(hinglishIntent2.detectedFilters.gender === 'men', 'Hinglish Intent: "ladko ke joote" extracts gender: men');
+  assert(hinglishIntent2.detectedFilters.category === 'shoes', 'Hinglish Intent: "ladko ke joote" extracts category: shoes');
+
+  // Test 65: Dynamic Budget-Aware Autocomplete Suggestions for "mou"
+  const mouSuggestionsDynamic = engine.suggest('mou');
+  assert(mouSuggestionsDynamic.suggestions.length > 0, 'Autocomplete: "mou" returns suggestions');
+  const hasBudgetSuggestion = mouSuggestionsDynamic.suggestions.some(s => s.title.toLowerCase().includes('mouse under'));
+  assert(hasBudgetSuggestion, 'Autocomplete: "mou" includes dynamic budget-aware suggestion (e.g. "Mouse under ₹500")');
+
+  // Test 66: Security Guardrails — Malformed queries, boundary limits & drafts
+  const hugeQuery = 'a'.repeat(500);
+  const sanitizedHuge = sanitizeSearchString(hugeQuery);
+  assert(sanitizedHuge.length <= 200, 'Security: query length is sanitized and capped at 200 characters');
+
+  const draftSearch = engine.search({ q: 'Secret Internal Draft Product' });
+  assert(!draftSearch.products.some(p => p.id === 'prod-006'), 'Security: draft products are never exposed to standard customer searches');
+
+  const hiddenSearch = engine.search({ q: 'Hidden Inactive Product' });
+  assert(!hiddenSearch.products.some(p => p.id === 'prod-007'), 'Security: inactive/hidden products are never exposed to customers');
+
+  // Test 67 & 68: Performance Benchmarks — Latency Targets (Phase 4)
+  const suggestLatencies: number[] = [];
+  const testQueries = ['m', 'mo', 'mou', 'mous', 'mouse', 'wir', 'wire', 'wireless', 'head', 'lap', 'sh', 'sho', 'kur'];
+  for (let i = 0; i < 50; i++) {
+    const q = testQueries[i % testQueries.length];
+    const t0 = performance.now();
+    engine.suggest(q, 8);
+    suggestLatencies.push(performance.now() - t0);
+  }
+  suggestLatencies.sort((a, b) => a - b);
+  const p95Suggest = suggestLatencies[Math.floor(suggestLatencies.length * 0.95)];
+  assert(p95Suggest < 200, `Performance: Autocomplete p95 latency is ${p95Suggest.toFixed(2)}ms (target < 200ms)`);
+
+  const searchLatencies: number[] = [];
+  const searchQueries = [
+    'mouse under 500', 'wireless mouse under 500', 'headphones between 1000 and 2000',
+    'wirless mose', 'blue cotton shirt for men', 'sasta mouse', 'shoes', 'kurti under 400'
+  ];
+  for (let i = 0; i < 50; i++) {
+    const sq = searchQueries[i % searchQueries.length];
+    const t0 = performance.now();
+    engine.search({ q: sq });
+    searchLatencies.push(performance.now() - t0);
+  }
+  searchLatencies.sort((a, b) => a - b);
+  const p95Search = searchLatencies[Math.floor(searchLatencies.length * 0.95)];
+  assert(p95Search < 400, `Performance: Search retrieval p95 latency is ${p95Search.toFixed(2)}ms (target < 400ms)`);
+
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);
   console.log('----------------------------------------------------\n');

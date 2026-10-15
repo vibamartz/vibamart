@@ -99,5 +99,6 @@ export interface SuggestionResult {
   categories?: SuggestionItem[];
   brands?: SuggestionItem[];
   popular?: SuggestionItem[];
+  queries?: SuggestionItem[];
   executionTimeMs: number;
 }

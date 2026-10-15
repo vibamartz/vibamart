@@ -1021,30 +1021,188 @@ export class ViBaSearchEngine {
       brandItems.push(item);
     }
 
+    // 3.5 Dynamic phrase and budget-aware suggestions from actual catalog data
+    const queryItems = this.generateDynamicPhraseAndBudgetSuggestions(lowerQuery, 4);
+    for (const qItem of queryItems) {
+      popularItems.push(qItem);
+    }
+
     // 4. Popular query prefix matches
     try {
       const popular = this.getPopularSearches(6);
       for (const pop of popular.suggestions) {
-        if (pop.title.toLowerCase().includes(lowerQuery) && !suggestions.some(s => s.title.toLowerCase() === pop.title.toLowerCase())) {
+        if (pop.title.toLowerCase().includes(lowerQuery) && !popularItems.some(s => s.title.toLowerCase() === pop.title.toLowerCase())) {
           popularItems.push(pop);
-          if (suggestions.length < limit) {
-            suggestions.push(pop);
-          }
         }
       }
     } catch {}
 
     const executionTimeMs = Math.round((performance.now() - startTime) * 100) / 100;
 
+    // Compose balanced suggestions list prioritizing query/budget phrases, products, and categories
+    const balancedSuggestions: SuggestionItem[] = [];
+    const seenSuggestionTitles = new Set<string>();
+
+    const addIfNew = (item: SuggestionItem) => {
+      const t = item.title.toLowerCase().trim();
+      if (item && !seenSuggestionTitles.has(t) && balancedSuggestions.length < limit) {
+        seenSuggestionTitles.add(t);
+        balancedSuggestions.push(item);
+      }
+    };
+
+    // Priority 1: Query & budget suggestions (e.g. Mouse, Mouse under ₹500, Wireless mouse under ₹500)
+    queryItems.forEach(addIfNew);
+    // Priority 2: Top matching products
+    productItems.slice(0, 4).forEach(addIfNew);
+    // Priority 3: Categories & Brands
+    categoryItems.slice(0, 2).forEach(addIfNew);
+    brandItems.slice(0, 2).forEach(addIfNew);
+    // Priority 4: Popular queries
+    popularItems.forEach(addIfNew);
+
     return {
       query,
-      suggestions: suggestions.slice(0, limit),
+      suggestions: balancedSuggestions,
       products: productItems,
       categories: categoryItems,
       brands: brandItems,
       popular: popularItems,
+      queries: queryItems,
       executionTimeMs
     };
+  }
+
+  /**
+   * Generates dynamic phrase and budget-aware suggestions from actual catalog data.
+   * e.g. for "mou" -> "Mouse", "Wireless mouse", "Gaming mouse", "Mouse under ₹500", "Wireless mouse under ₹500"
+   */
+  public generateDynamicPhraseAndBudgetSuggestions(lowerQuery: string, limit = 5): SuggestionItem[] {
+    const results: SuggestionItem[] = [];
+    const seenTitles = new Set<string>();
+
+    if (!lowerQuery || lowerQuery.length < 2) return results;
+
+    // 1. Collect candidate product entities & descriptive phrases matching query
+    const phraseCandidates = new Map<string, { label: string; docs: IndexedProductDoc[] }>();
+
+    for (const doc of this.indexedDocs.values()) {
+      if (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft') continue;
+
+      const title = doc.name;
+      const titleLower = title.toLowerCase();
+
+      // Check category name
+      if (doc.categoryName && doc.categoryName.toLowerCase().includes(lowerQuery)) {
+        const cat = doc.categoryName.trim();
+        const catLower = cat.toLowerCase();
+        if (!phraseCandidates.has(catLower)) {
+          phraseCandidates.set(catLower, { label: cat, docs: [] });
+        }
+        phraseCandidates.get(catLower)!.docs.push(doc);
+      }
+
+      // Check subcategory name
+      if (doc.subCategoryName && doc.subCategoryName.toLowerCase().includes(lowerQuery)) {
+        const sub = doc.subCategoryName.trim();
+        const subLower = sub.toLowerCase();
+        if (!phraseCandidates.has(subLower)) {
+          phraseCandidates.set(subLower, { label: sub, docs: [] });
+        }
+        phraseCandidates.get(subLower)!.docs.push(doc);
+      }
+
+      // Check words in title
+      const words = titleLower.split(/[\s,()\/]+/).filter(w => w.length >= 3);
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        if (w.startsWith(lowerQuery) || (lowerQuery.length >= 3 && w.includes(lowerQuery))) {
+          // Single word entity (e.g. mouse)
+          const singleLabel = w.charAt(0).toUpperCase() + w.slice(1);
+          if (!phraseCandidates.has(w)) {
+            phraseCandidates.set(w, { label: singleLabel, docs: [] });
+          }
+          phraseCandidates.get(w)!.docs.push(doc);
+
+          // Compound 2-word phrase if preceded by adjective/type (e.g. wireless mouse, gaming mouse, optical mouse)
+          if (i > 0) {
+            const prev = words[i - 1];
+            if (['wireless', 'gaming', 'optical', 'bluetooth', 'running', 'cotton', 'smart', 'casual', 'formal'].includes(prev)) {
+              const compound = `${prev} ${w}`;
+              const compoundLabel = `${prev.charAt(0).toUpperCase() + prev.slice(1)} ${w}`;
+              if (!phraseCandidates.has(compound)) {
+                phraseCandidates.set(compound, { label: compoundLabel, docs: [] });
+              }
+              phraseCandidates.get(compound)!.docs.push(doc);
+            }
+          }
+        }
+      }
+
+      // Check tags
+      if (doc.tags) {
+        const tagWords = doc.tags.toLowerCase().split(/[\s,]+/).filter(t => t.length >= 3);
+        for (const t of tagWords) {
+          if (t.startsWith(lowerQuery) || (lowerQuery.length >= 3 && t.includes(lowerQuery))) {
+            const tagLabel = t.charAt(0).toUpperCase() + t.slice(1);
+            if (!phraseCandidates.has(t)) {
+              phraseCandidates.set(t, { label: tagLabel, docs: [] });
+            }
+            phraseCandidates.get(t)!.docs.push(doc);
+          }
+        }
+      }
+    }
+
+    // Standard budget thresholds to evaluate
+    const budgetTiers = [300, 400, 500, 800, 1000, 1500, 2000, 3000, 5000, 10000, 15000, 20000];
+
+    // Sort phrases by number of matching products in catalog descending
+    const sortedPhrases = Array.from(phraseCandidates.entries())
+      .filter(([_, data]) => data.docs.length > 0)
+      .sort((a, b) => b[1].docs.length - a[1].docs.length);
+
+    for (const [phraseKey, { label, docs }] of sortedPhrases) {
+      if (results.length >= limit) break;
+
+      // Add base phrase suggestion (e.g. "Mouse", "Wireless mouse", "Gaming mouse")
+      if (!seenTitles.has(label.toLowerCase())) {
+        seenTitles.add(label.toLowerCase());
+        results.push({
+          id: `query_${phraseKey.replace(/\s+/g, '_')}`,
+          title: label,
+          type: 'query',
+          subtitle: `${docs.length} ${docs.length === 1 ? 'product' : 'products'} available`
+        });
+      }
+
+      // Generate genuine budget-aware suggestions based on actual product prices
+      const prices = docs.map(d => d.effectivePrice).sort((a, b) => a - b);
+      const minPrice = prices[0];
+
+      // Find suitable budget tiers where items actually exist
+      for (const tier of budgetTiers) {
+        if (results.length >= limit) break;
+        if (tier >= minPrice) {
+          const countUnderBudget = prices.filter(p => p <= tier).length;
+          if (countUnderBudget >= 1) {
+            const budgetTitle = `${label} under ₹${tier}`;
+            if (!seenTitles.has(budgetTitle.toLowerCase())) {
+              seenTitles.add(budgetTitle.toLowerCase());
+              results.push({
+                id: `budget_${phraseKey.replace(/\s+/g, '_')}_${tier}`,
+                title: budgetTitle,
+                type: 'query',
+                subtitle: `${countUnderBudget} ${countUnderBudget === 1 ? 'item' : 'items'} under ₹${tier}`
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
