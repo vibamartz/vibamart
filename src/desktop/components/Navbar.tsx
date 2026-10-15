@@ -8,14 +8,12 @@ import {
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
-import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './Logo';
 import CameraSearchModal from './CameraSearchModal';
 import LocationPickerModal from './LocationPickerModal';
 import { getCategorySlug, getProductSlug } from '../../shared/utilities/slug';
-import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
-import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import toast from 'react-hot-toast';
 import CustomerNotificationPreferencesModal from '../../shared/components/CustomerNotificationPreferencesModal';

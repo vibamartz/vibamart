@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
-import axios from "axios";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import cancelHandler from "./api/_handlers/orders/cancel";
@@ -70,59 +69,6 @@ function getRazorpay() {
   }
   return razorpayInstance;
 }
-
-async function createNotification(userId: string, title: string, message: string, orderId?: string) {
-  try {
-    const db = admin.firestore();
-    await db.collection("notifications").add({
-      userId,
-      title,
-      message,
-      read: false,
-      createdAt: new Date().toISOString(),
-      orderId: orderId || null
-    });
-  } catch (err) {
-    console.error("Error creating database notification:", err);
-  }
-}
-
-async function sendEmailNotification(toEmail: string, contactName: string, subject: string, messageText: string) {
-  const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-  if (!process.env.SMTP_HOST || isPlaceholder) {
-    console.log(`[DEVELOPMENT] Email to ${toEmail} (${contactName}):\nSubject: ${subject}\nMessage: ${messageText}`);
-    return;
-  }
-  try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.ethereal.email",
-      port: Number(process.env.SMTP_PORT) || 587,
-      auth: {
-        user: process.env.SMTP_USER || "test",
-        pass: process.env.SMTP_PASS || "test",
-      },
-      connectionTimeout: 2000,
-      greetingTimeout: 2000,
-      socketTimeout: 2000,
-    });
-    const emailHtml = `
-      <h2>Hello ${contactName || 'Customer'},</h2>
-      <p>${messageText}</p>
-      <br/>
-      <p>Best Regards,<br/>The ViBa Mart Team</p>
-    `;
-    await transporter.sendMail({
-      from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
-      to: toEmail,
-      subject,
-      html: emailHtml,
-    });
-    console.log(`Email successfully sent to ${toEmail}`);
-  } catch (err) {
-    console.error("Error sending email notification:", err);
-  }
-}
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -354,44 +300,6 @@ async function startServer() {
       console.error("Token verification error:", error);
       res.status(401).json({ success: false, error: "Unauthorized: Invalid token" });
     }
-  };
-
-  const handleWebRoute = (handler: (req: Request) => Promise<Response>) => {
-    return async (req: express.Request, res: express.Response) => {
-      const protocol = req.protocol;
-      const host = req.get('host');
-      const url = `${protocol}://${host}${req.originalUrl}`;
-
-      const headers = new Headers();
-      for (const [key, value] of Object.entries(req.headers)) {
-        if (value) {
-          if (Array.isArray(value)) {
-            value.forEach(v => headers.append(key, v));
-          } else {
-            headers.set(key, value);
-          }
-        }
-      }
-
-      const webReq = new Request(url, {
-        method: req.method,
-        headers: headers,
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
-      });
-
-      try {
-        const webRes = await handler(webReq);
-        webRes.headers.forEach((value, key) => {
-          res.setHeader(key, value);
-        });
-        res.status(webRes.status);
-        const text = await webRes.text();
-        res.send(text);
-      } catch (err: any) {
-        console.error("Express web route adapter error:", err);
-        res.status(500).json({ success: false, error: err.message || "Internal Server Error" });
-      }
-    };
   };
 
   // Orders: Cancel Order

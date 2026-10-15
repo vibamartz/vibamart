@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Mic, Camera, QrCode, ArrowLeft, X, History, TrendingUp, Sparkles, Tag, ChevronRight, Loader2 
+  Search, Mic, Camera, X, History, TrendingUp, Sparkles, Tag, ChevronRight, Loader2 
 } from 'lucide-react';
 import CameraSearchModal from '../../desktop/components/CameraSearchModal';
 import { useSettingsStore, useCategoryStore } from '../../backend/store';
-import { collection, query, limit, getDocs } from 'firebase/firestore';
-import { db } from '../../backend/firebase/firebase';
-import { Product } from '../../shared/types';
 import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
-import { cleanProductCode } from '../../shared/utilities/productCode';
-import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
-import { motion } from 'motion/react';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { ViBaPermissionManager } from '../../services/ViBaPermissionManager';

@@ -52,7 +52,6 @@ import MobileProfileScreen from './mobile/pages/MobileProfileScreen';
 import MobileWishlistScreen from './mobile/pages/MobileWishlistScreen';
 import MobileOrdersScreen from './mobile/pages/MobileOrdersScreen';
 import MobileOrderDetailsScreen from './mobile/pages/MobileOrderDetailsScreen';
-import MobileRequestScreens from './mobile/pages/MobileRequestScreens';
 import MobileAddressScreen from './mobile/pages/MobileAddressScreen';
 import MobileNotificationsScreen from './mobile/pages/MobileNotificationsScreen';
 import MobileOffersScreen from './mobile/pages/MobileOffersScreen';

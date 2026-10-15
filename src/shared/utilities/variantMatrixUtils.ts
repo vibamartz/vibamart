@@ -548,12 +548,6 @@ export function calculateAttributeAvailability(
     (attr.values || []).forEach(val => {
       const valName = normalizeAttributeVal(val.name);
 
-      // Create a hypothetical selection with this value for this attribute
-      const testSelection: Record<string, string> = {
-        ...currentSelection,
-        [attrName]: valName
-      };
-
       // Filter other attributes that the product has
       const otherAttributes = attributes.filter(a => normalizeAttributeKey(a.name) !== attrName);
 

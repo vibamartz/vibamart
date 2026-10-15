@@ -1,6 +1,6 @@
 import { ViBaSearchEngine } from '../searchEngine';
 import { Product } from '../../../shared/types';
-import { SearchParams, SearchResult } from '../searchTypes';
+import { SearchResult } from '../searchTypes';
 import { SearchCache } from '../searchCache';
 import { searchCurationManager } from '../searchCuration';
 import { recordSearchAnalytics, getInMemoryAnalytics } from '../searchAnalytics';
