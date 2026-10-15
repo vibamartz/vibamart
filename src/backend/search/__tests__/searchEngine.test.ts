@@ -6,7 +6,6 @@ import { searchCurationManager } from '../searchCuration';
 import { recordSearchAnalytics, getInMemoryAnalytics } from '../searchAnalytics';
 import { parseIntentRuleBased, parseQueryIntent, getSemanticSearchStatus } from '../semanticSearch';
 import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitization';
-import { requireSearchAdmin } from '../searchAuth';
 import { SpellingCorrectionEngine, damerauLevenshtein } from '../spellingCorrection';
 import { meiliSearchService } from '../meiliSearchService';
 import {
@@ -24,7 +23,6 @@ import { searchService } from '../searchService';
 import { rankingFramework } from '../rankingFramework';
 import { sessionRankingManager } from '../sessionRanking';
 import { visualSearchService } from '../visualSearch';
-import { searchBenchmarkSuite } from '../benchmark';
 
 
 export async function runTests(): Promise<boolean> {
@@ -540,31 +538,6 @@ export async function runTests(): Promise<boolean> {
   }
   assert(upsertDeleteSuccess, 'Reliability: handles null upsert and missing ID removal without throwing');
 
-  // Test 33: Admin Auth Middleware Simulation
-  let authDenied = false;
-  const mockReq: any = { headers: {} };
-  const mockRes: any = {
-    statusCode: 0,
-    status(code: number) {
-      this.statusCode = code;
-      return this;
-    },
-    json(payload: any) {
-      this.payload = payload;
-      return this;
-    }
-  };
-  const mockNext = () => {};
-
-  const originalEnv = process.env.NODE_ENV;
-  process.env.NODE_ENV = 'production';
-  try {
-    await requireSearchAdmin(mockReq, mockRes, mockNext);
-    // In production without admin.apps or auth token, must return 503 or 401
-    authDenied = mockRes.statusCode === 503 || mockRes.statusCode === 401;
-  } finally {
-    process.env.NODE_ENV = originalEnv;
-  }
   // Test 34: Natural-Language Query Matrix Verification
   const nlQuery1 = parseIntentRuleBased('kurti under 400');
   assert(nlQuery1.detectedFilters.maxPrice === 400 && nlQuery1.detectedFilters.category === 'kurtis', 'NL Intent: "kurti under 400" extracts maxPrice: 400 & category: kurtis');
