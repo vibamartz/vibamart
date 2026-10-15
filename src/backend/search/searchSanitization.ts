@@ -15,7 +15,10 @@ export function sanitizeSearchString(input: string | undefined): string {
     .slice(0, MAX_QUERY_LENGTH)
     // Strip control characters (ASCII 0-31 and 127)
     .replace(/[\x00-\x1F\x7F]/g, '')
-    // Strip script and dangerous tags
+    // Strip script and dangerous blocks entirely along with inner contents
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    // Strip any remaining HTML tags
     .replace(/<[^>]*>/g, '')
     // Replace multiple spaces with a single space
     .replace(/\s+/g, ' ')
