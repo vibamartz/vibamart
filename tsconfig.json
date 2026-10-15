@@ -27,6 +27,8 @@
   "exclude": [
     "functions",
     "dist",
-    "node_modules"
+    "node_modules",
+    "**/__tests__/**",
+    "src/backend/search/__tests__/**"
   ]
 }
