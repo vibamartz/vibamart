@@ -560,8 +560,8 @@ export class ViBaSearchEngine {
         // Semantic Embedding Cosine Similarity
         const semanticSim = doc.embedding ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding) : 0;
 
-        // If high fuzzy match, high n-gram overlap, or high TF-IDF, include candidate!
-        if (maxFuzz >= 0.70 || ngramSim >= 0.60 || (tfidfScore >= 1.0 && semanticSim >= 0.65)) {
+        // If high fuzzy match (>= 0.75), high n-gram overlap, or high TF-IDF, include candidate!
+        if (maxFuzz >= 0.75 || ngramSim >= 0.60 || (tfidfScore >= 1.0 && semanticSim >= 0.65)) {
           const compositeLocalScore = (maxFuzz * 8.0 * rankingWeights.fuzzyWeight) +
                                       (ngramSim * 6.0 * rankingWeights.ngramWeight) +
                                       (tfidfScore * 3.0 * rankingWeights.textRelevanceWeight) +
@@ -644,9 +644,18 @@ export class ViBaSearchEngine {
       }
 
       // 3. Brand Filter
-      if (brandFilters && brandFilters.length > 0) {
-        const docBrand = doc.brand.toLowerCase().trim();
-        if (!brandFilters.includes(docBrand)) continue;
+      const effectiveBrandFilters = brandFilters && brandFilters.length > 0
+        ? brandFilters
+        : (semanticIntent?.detectedFilters.brand ? [semanticIntent.detectedFilters.brand.toLowerCase().trim()] : undefined);
+
+      if (effectiveBrandFilters && effectiveBrandFilters.length > 0) {
+        const docBrand = (doc.brand || '').toLowerCase().trim();
+        const docName = (doc.name || '').toLowerCase();
+        const docTags = (doc.tags || '').toLowerCase();
+        const matchesBrand = effectiveBrandFilters.some(b =>
+          docBrand === b || docBrand.includes(b) || docName.includes(b) || docTags.includes(b)
+        );
+        if (!matchesBrand) continue;
       }
 
       // 4. Price Filter

@@ -78,13 +78,37 @@ export function partialRatio(s1: string, s2: string): number {
   const lenShort = shorter.length;
   if (lenShort <= 2) return shorter === longer ? 1.0 : 0.0;
 
+  const longerTokens = longer.replace(/[^\w\s-]/g, ' ').split(/[\s-]+/).filter(Boolean);
+
+  // If shorter is a single token without spaces, compare against individual tokens of longer
+  if (!shorter.includes(' ')) {
+    let bestTokenScore = 0.0;
+    for (const token of longerTokens) {
+      if (token === shorter || token.includes(shorter)) {
+        return 1.0;
+      }
+      const r = fuzzyRatio(shorter, token);
+      if (r > bestTokenScore) {
+        bestTokenScore = r;
+      }
+    }
+    return bestTokenScore;
+  }
+
+  // Multi-word phrase sliding window respecting token boundaries
   let maxRatio = 0.0;
-  const maxStep = Math.min(longer.length - lenShort + 1, 40); // Cap sliding window for performance
+  const maxStep = Math.min(longer.length - lenShort + 1, 60);
   for (let i = 0; i < maxStep; i++) {
+    const isStartBoundary = (i === 0) || !/[a-zA-Z0-9]/.test(longer[i - 1]);
+    if (!isStartBoundary) continue;
+
     const sub = longer.substring(i, i + lenShort);
+    const isEndBoundary = (i + lenShort === longer.length) || !/[a-zA-Z0-9]/.test(longer[i + lenShort]);
+
     const r = fuzzyRatio(shorter, sub);
-    if (r > maxRatio) {
-      maxRatio = r;
+    const effectiveR = isEndBoundary ? r : r * 0.8;
+    if (effectiveR > maxRatio) {
+      maxRatio = effectiveR;
       if (maxRatio >= 0.95) break;
     }
   }

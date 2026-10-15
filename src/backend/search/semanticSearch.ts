@@ -170,6 +170,29 @@ export function parseIntentRuleBased(query: string): ParsedSemanticIntent {
     isNaturalLanguage = true;
   }
 
+  // 8b. Brand Detection
+  const KNOWN_BRANDS = [
+    'samsung', 'apple', 'nike', 'sony', 'dell', 'hp', 'boat', 'raymond',
+    'xiaomi', 'redmi', 'puma', 'adidas', 'lenovo', 'asus', 'acer',
+    'realme', 'oneplus', 'oppo', 'vivo', 'wow', 'jootiyapa'
+  ];
+  for (const b of KNOWN_BRANDS) {
+    const brandRegex = new RegExp(`\\b${b}\\b`, 'i');
+    if (brandRegex.test(text)) {
+      detectedFilters.brand = b.charAt(0).toUpperCase() + b.slice(1);
+      if (!semanticTags.includes(b)) semanticTags.push(b);
+      break;
+    }
+  }
+
+  // Handle Apple / iPhone specific binding
+  if (/\b(?:iphones?)\b/i.test(text)) {
+    detectedFilters.brand = 'Apple';
+    if (!semanticTags.includes('iphone')) semanticTags.push('iphone');
+    if (!semanticTags.includes('apple')) semanticTags.push('apple');
+    detectedFilters.category = 'mobile phones';
+  }
+
   // 9. Standard Category Intent Detection
   if (/\b(?:kurtis?|kurtas?|ladies\s+kurti)\b/i.test(text)) {
     detectedFilters.category = 'kurtis';

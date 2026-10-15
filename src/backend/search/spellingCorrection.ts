@@ -48,7 +48,10 @@ const BASELINE_DOMAIN_TERMS = [
 
   // Materials & Attributes
   'cotton', 'denim', 'leather', 'silk', 'printed', 'solid', 'formal', 'casual', 'party',
-  'wireless', 'bluetooth', 'running', 'sports', 'budget', 'luxury'
+  'wireless', 'bluetooth', 'running', 'sports', 'budget', 'luxury',
+
+  // Core Brands & Key Device Terms
+  'iphone', 'apple', 'samsung', 'galaxy', 'boat', 'sony', 'nike', 'redmi', 'xiaomi', 'dell', 'hp', 'logitech'
 ];
 
 /**
@@ -102,6 +105,19 @@ function normalizePhoneticVariants(word: string): string {
   w = w.replace(/([a-z])\1+$/g, '$1');
   return w;
 }
+
+const COMPOUND_PHRASE_PATTERNS: { pattern: RegExp; replacement: string }[] = [
+  { pattern: /\b(?:blu|blue)\s+(?:tooth|tuth|tut|toot)\b/gi, replacement: 'bluetooth' },
+  { pattern: /\b(?:hed|head)\s*(?:phones?|fones?)\b/gi, replacement: 'headphones' },
+  { pattern: /\b(?:ear)\s*(?:phones?|fones?)\b/gi, replacement: 'earphones' },
+  { pattern: /\b(?:ear)\s*(?:buds?)\b/gi, replacement: 'earbuds' },
+  { pattern: /\b(?:t|tee)\s*(?:shirts?|shrts?)\b/gi, replacement: 't-shirt' },
+  { pattern: /\b(?:smart)\s*(?:phones?)\b/gi, replacement: 'smartphone' },
+  { pattern: /\b(?:smart)\s*(?:watch(?:es)?)\b/gi, replacement: 'smartwatch' },
+  { pattern: /\b(?:lap)\s*(?:tops?)\b/gi, replacement: 'laptop' },
+  { pattern: /\b(?:air)\s*(?:pods?)\b/gi, replacement: 'airpods' },
+  { pattern: /\b(?:power)\s*(?:banks?)\b/gi, replacement: 'powerbank' }
+];
 
 export class SpellingCorrectionEngine {
   private static cachedVocabulary: Map<string, number> = new Map();
@@ -180,6 +196,7 @@ export class SpellingCorrectionEngine {
     return vocab;
   }
 
+
   /**
    * Correct a search query, identifying misspellings and mapping to best vocabulary candidates.
    */
@@ -196,9 +213,25 @@ export class SpellingCorrectionEngine {
     }
 
     const vocab = this.buildVocabulary(docs);
-    const tokens = raw.split(/\s+/);
-    const correctedTokens: string[] = [];
     const correctedTerms: CorrectedTerm[] = [];
+
+    // Phase 1: Compound phrase normalization (e.g. "blu tooth" -> "bluetooth", "hed phone" -> "headphones")
+    let normalizedRaw = raw;
+    for (const { pattern, replacement } of COMPOUND_PHRASE_PATTERNS) {
+      normalizedRaw = normalizedRaw.replace(pattern, (match) => {
+        if (match.toLowerCase() !== replacement.toLowerCase()) {
+          correctedTerms.push({
+            from: match,
+            to: replacement,
+            distance: damerauLevenshtein(match.toLowerCase().replace(/\s+/g, ''), replacement.toLowerCase())
+          });
+        }
+        return replacement;
+      });
+    }
+
+    const tokens = normalizedRaw.split(/\s+/);
+    const correctedTokens: string[] = [];
 
     // Filter syntax tokens that should NEVER be spell-corrected
     const preservedTokens = new Set([
@@ -390,7 +423,20 @@ export class SpellingCorrectionEngine {
       case 'headfone':
       case 'headfones':
       case 'headfons':
+      case 'hedphone':
+      case 'hedphones':
         return 'headphones';
+
+      case 'blutooth':
+      case 'blutoth':
+      case 'bluetoth':
+      case 'bluttooth':
+        return 'bluetooth';
+
+      case 'iphon':
+      case 'iphne':
+      case 'iphn':
+        return 'iphone';
 
       case 'moblie':
       case 'mobl':
@@ -400,6 +446,7 @@ export class SpellingCorrectionEngine {
 
       case 'samung':
       case 'samsng':
+      case 'samsun':
         return 'samsung';
 
       case 'earbud':

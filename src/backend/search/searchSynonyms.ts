@@ -5,8 +5,9 @@
 // Bidirectional synonym groups
 export const DEFAULT_SYNONYM_GROUPS: string[][] = [
   // Mobiles & Electronics
-  ['mobile', 'phone', 'smartphone', 'cellphone', 'handset', 'android', 'iphone'],
-  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio', 'wireless earbuds'],
+  ['mobile', 'phone', 'smartphone', 'cellphone', 'handset'],
+  ['iphone', 'apple iphone'],
+  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio', 'wireless earbuds', 'earbud', 'earphone', 'headphone'],
   ['laptop', 'notebook', 'macbook', 'computer', 'pc'],
   ['mouse', 'mice', 'optical mouse', 'wireless mouse', 'gaming mouse'],
   ['keyboard', 'keyboards', 'mechanical keyboard'],

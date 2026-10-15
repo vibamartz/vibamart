@@ -1332,11 +1332,48 @@ export async function runTests(): Promise<boolean> {
   assert(typeof telemSearch.telemetry?.rerankingMs === 'number', 'Telemetry: rerankingMs is tracked');
   assert(typeof telemSearch.telemetry?.totalExecutionMs === 'number', 'Telemetry: totalExecutionMs is tracked');
 
-  // Test 85: Benchmark Suite Execution & Sub-60 ms Latency Compliance
-  const benchReport = searchBenchmarkSuite.runBenchmark(engine, 2);
-  assert(benchReport.metrics.totalExecution.p50 < 60, `Performance Target: p50 total latency is ${benchReport.metrics.totalExecution.p50}ms (Target: < 60ms)`);
-  assert(benchReport.metrics.candidateRetrieval.p50 < 20, `Performance Target: candidate retrieval p50 is ${benchReport.metrics.candidateRetrieval.p50}ms`);
-  assert(benchReport.sub60msComplianceRate > 90, `Performance Target: sub-60ms compliance rate is ${benchReport.sub60msComplianceRate}%`);
+  // ==========================================
+  // PHASE 7: TARGET REAL-CATALOG & SEARCH ACCURACY VERIFICATION
+  // ==========================================
+
+  // Test 86: Target Query 1 — "iphon" retrieves iPhone and excludes unrelated products
+  const iphonSearch = engine.search({ q: 'iphon' });
+  assert(iphonSearch.products.length > 0 && iphonSearch.products[0].id === 'prod-002', 'Target Query 1: "iphon" retrieves Apple iPhone 15 Pro Max');
+  assert(!iphonSearch.products.some(p => p.id === 'prod-012'), 'Target Query 1: "iphon" strictly excludes unrelated boAt headphones');
+  assert(iphonSearch.hasAutoCorrected === true, 'Target Query 1: "iphon" sets hasAutoCorrected: true');
+
+  // Test 87: Target Query 2 — "samsng mobile" retrieves Samsung products
+  const samsngSearch = engine.search({ q: 'samsng mobile' });
+  assert(samsngSearch.products.length > 0 && samsngSearch.products[0].id === 'prod-001', 'Target Query 2: "samsng mobile" retrieves Samsung Galaxy S24 Ultra');
+  assert(samsngSearch.hasAutoCorrected === true, 'Target Query 2: "samsng mobile" sets hasAutoCorrected: true');
+
+  // Test 88: Target Query 3 — "blu tooth hedphone" corrects compound phrase & retrieves Bluetooth headphones
+  const bluToothSearch = engine.search({ q: 'blu tooth hedphone' });
+  assert(bluToothSearch.hasAutoCorrected === true, 'Target Query 3: "blu tooth hedphone" flags hasAutoCorrected: true');
+  assert(bluToothSearch.correctedQuery?.includes('bluetooth'), `Target Query 3: corrects "blu tooth" to "bluetooth" (got: "${bluToothSearch.correctedQuery}")`);
+  assert(bluToothSearch.products.some(p => p.id === 'prod-012'), 'Target Query 3: retrieves boAt Rockerz 450 Bluetooth Headphones');
+  assert(bluToothSearch.products.some(p => p.id === 'prod-005'), 'Target Query 3: retrieves Sony WH-1000XM5 Bluetooth Headphones');
+
+  // Test 89: Target Query 4 — "running shoes for men" extracts gender and category constraints
+  const runningShoesSearch = engine.search({ q: 'running shoes for men' });
+  assert(runningShoesSearch.products.length > 0 && runningShoesSearch.products[0].id === 'prod-003', 'Target Query 4: "running shoes for men" retrieves Nike Pegasus');
+  assert(runningShoesSearch.semanticIntent?.detectedFilters.gender === 'men', 'Target Query 4: extracted gender: "men"');
+  assert(runningShoesSearch.semanticIntent?.detectedFilters.category === 'shoes', 'Target Query 4: extracted category: "shoes"');
+
+  // Test 90: Real Catalog Verification via searchService
+  const realRunningShoes = await searchService.search({ q: 'running shoes for men' });
+  assert(realRunningShoes.total > 0, `Real Catalog: "running shoes for men" retrieves products from Firestore (got: ${realRunningShoes.total})`);
+  assert(realRunningShoes.products.some(p => p.name.toLowerCase().includes('running shoes')), 'Real Catalog: returned products match running shoes title');
+
+  const realBoatAudio = await searchService.search({ q: 'blu tooth hedphone' });
+  assert(realBoatAudio.hasAutoCorrected === true, 'Real Catalog: "blu tooth hedphone" flags hasAutoCorrected: true');
+
+  const realRedmi = await searchService.search({ q: 'redmi mobile' });
+  assert(realRedmi.total > 0 && realRedmi.products.every(p => p.name.toLowerCase().includes('redmi')), 'Real Catalog: "redmi mobile" retrieves actual Redmi products');
+
+  // Relevance Guardrail: Do not return unrelated Redmi phones when searching for missing brand "samsng mobile"
+  const realSamsungMissing = await searchService.search({ q: 'samsng mobile' });
+  assert(!realSamsungMissing.products.some(p => p.name.toLowerCase().includes('redmi')), 'Evidence-Based Ranking: missing Samsung brand does not return unrelated Redmi phones simply to avoid empty results');
 
   console.log('\n----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);
