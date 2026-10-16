@@ -403,9 +403,16 @@ function AdminDashboardContent() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const now = Date.now();
       const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
-      const notificationsData = snapshot.docs.map(docSnap => ({
+      const notificationsData: Array<{
+        id: string;
+        read?: boolean;
+        readAt?: string;
+        createdAt?: string;
+        expiresAt?: string;
+        [key: string]: any;
+      }> = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
-        ...docSnap.data()
+        ...(docSnap.data() as Record<string, any>)
       }));
 
       // Reliable DB Cleanup: Automatically and permanently delete read notifications after 24h
