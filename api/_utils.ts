@@ -4,19 +4,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-if (!process.env.GCLOUD_PROJECT) {
-  process.env.GCLOUD_PROJECT = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
-}
-if (!process.env.GOOGLE_CLOUD_PROJECT) {
-  process.env.GOOGLE_CLOUD_PROJECT = process.env.GCLOUD_PROJECT;
-}
-
 let adminInitError: string | null = null;
 
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here' && !process.env.FIREBASE_PRIVATE_KEY.includes('your_private_key')) {
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
         let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
         // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
@@ -36,9 +29,7 @@ export function initializeFirebaseAdmin() {
           console.warn("Firestore settings already initialized or failed:", e);
         }
       } else {
-        admin.initializeApp({
-          projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4'
-        });
+        admin.initializeApp();
         try {
           admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
         } catch (e) {}
@@ -105,8 +96,6 @@ export async function createNotification(userId: string, title: string, message:
       title,
       message,
       read: false,
-      readAt: null,
-      expiresAt: null,
       createdAt: new Date().toISOString(),
       orderId: orderId || null
     });

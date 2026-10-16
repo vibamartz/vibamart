@@ -20,16 +20,9 @@ import { searchService } from "./src/backend/search/searchService";
 
 dotenv.config();
 
-if (!process.env.GCLOUD_PROJECT) {
-  process.env.GCLOUD_PROJECT = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
-}
-if (!process.env.GOOGLE_CLOUD_PROJECT) {
-  process.env.GOOGLE_CLOUD_PROJECT = process.env.GCLOUD_PROJECT;
-}
-
 try {
   if (!admin.apps.length) {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here' && !process.env.FIREBASE_PRIVATE_KEY.includes('your_private_key')) {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
@@ -43,9 +36,7 @@ try {
         console.warn("Firestore settings already initialized or failed:", e);
       }
     } else {
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'viba-mart-f46a4'
-      });
+      admin.initializeApp();
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
       } catch (e) { }
@@ -743,132 +734,6 @@ async function startServer() {
 
   // Send FCM Push Notification API
   app.post(["/api/notifications/send", "/notifications/send"], sendNotificationHandler);
-
-  // --- Admin Notifications Management & 24h Auto-Deletion Backend Routine ---
-
-  // Cleanup read notifications that are older than 24 hours
-  async function cleanupExpiredAdminNotifications() {
-    try {
-      const db = admin.firestore();
-      const now = Date.now();
-      const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-
-      const snap = await db.collection("notifications").where("read", "==", true).get();
-      if (snap.empty) return { deletedCount: 0 };
-
-      let deletedCount = 0;
-      const batch = db.batch();
-
-      snap.docs.forEach((docSnapshot: any) => {
-        const data = docSnapshot.data();
-        const readAtTime = data.readAt
-          ? new Date(data.readAt).getTime()
-          : (data.updatedAt ? new Date(data.updatedAt).getTime() : null);
-
-        if (readAtTime) {
-          if (now - readAtTime >= twentyFourHoursMs) {
-            batch.delete(docSnapshot.ref);
-            deletedCount++;
-          }
-        } else {
-          // If read was true but readAt was missing, initialize readAt now so 24-hr timer starts
-          batch.update(docSnapshot.ref, {
-            readAt: new Date().toISOString(),
-            expiresAt: new Date(now + twentyFourHoursMs).toISOString(),
-          });
-        }
-      });
-
-      if (deletedCount > 0) {
-        await batch.commit();
-        console.log(`[NotificationCleanup Backend] Deleted ${deletedCount} read admin notifications older than 24 hours.`);
-      }
-      return { deletedCount };
-    } catch (err: any) {
-      console.warn("[NotificationCleanup Backend] Error during 24h notification cleanup:", err.message);
-      return { error: err.message };
-    }
-  }
-
-  // Purge all existing admin notifications from the notification system
-  async function purgeAllAdminNotifications() {
-    try {
-      const db = admin.firestore();
-      const snap = await db.collection("notifications").get();
-      if (snap.empty) return { deletedCount: 0 };
-
-      let deletedCount = 0;
-      const chunks = [];
-      for (let i = 0; i < snap.docs.length; i += 400) {
-        chunks.push(snap.docs.slice(i, i + 400));
-      }
-
-      for (const chunk of chunks) {
-        const batch = db.batch();
-        chunk.forEach((d: any) => batch.delete(d.ref));
-        await batch.commit();
-        deletedCount += chunk.length;
-      }
-      console.log(`[NotificationPurge Backend] Successfully deleted all ${deletedCount} existing admin notifications.`);
-      return { deletedCount };
-    } catch (err: any) {
-      console.warn("[NotificationPurge Backend] Error purging admin notifications:", err.message);
-      return { error: err.message };
-    }
-  }
-
-  // Purge all existing admin notifications from database
-  app.post("/api/admin/notifications/purge-all", async (req, res) => {
-    const result = await purgeAllAdminNotifications();
-    res.json({ success: true, ...result });
-  });
-
-  // Run 24h deletion check for seen/read notifications
-  app.post("/api/admin/notifications/cleanup-expired", async (req, res) => {
-    const result = await cleanupExpiredAdminNotifications();
-    res.json({ success: true, ...result });
-  });
-
-  // Reliably mark notifications as read in backend with readAt and expiresAt
-  app.post("/api/admin/notifications/mark-read", async (req, res) => {
-    try {
-      const { notificationId, notificationIds } = req.body;
-      const db = admin.firestore();
-      const now = new Date().toISOString();
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-      if (notificationId) {
-        await db.collection("notifications").doc(notificationId).update({
-          read: true,
-          readAt: now,
-          expiresAt,
-        });
-        return res.json({ success: true, readAt: now, expiresAt });
-      }
-
-      if (Array.isArray(notificationIds) && notificationIds.length > 0) {
-        const batch = db.batch();
-        notificationIds.forEach((id: string) => {
-          batch.update(db.collection("notifications").doc(id), {
-            read: true,
-            readAt: now,
-            expiresAt,
-          });
-        });
-        await batch.commit();
-        return res.json({ success: true, count: notificationIds.length, readAt: now, expiresAt });
-      }
-
-      res.status(400).json({ success: false, error: "Missing notificationId or notificationIds" });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  });
-
-  // Periodic Background Task: Clean up seen/read notifications older than 24h every 10 minutes
-  setInterval(() => {
-    cleanupExpiredAdminNotifications().catch(e => console.warn('[AdminNotifications] Interval cleanup error:', e));
-  }, 10 * 60 * 1000);
 
   // Campaigns API
   app.all(["/api/campaigns/manage", "/api/campaigns/create"], async (req, res) => {
