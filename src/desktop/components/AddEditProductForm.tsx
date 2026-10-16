@@ -1596,6 +1596,116 @@ export default function AddEditProductForm({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Right Column: Pricing, Inventory & Meta */}
+        <div className="space-y-4">
+
+          {/* Economy & Pricing */}
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3.5">
+            <h3 className="text-base font-black text-gray-900 tracking-tight">Economic Model</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Market Retail Price (MRP)</label>
+                <input
+                  type="number"
+                  value={formData.mrp}
+                  onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-base text-gray-800"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Effective Selling Price</label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
+                  className="w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-black text-base text-blue-600"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Discount (%)</label>
+                  <div className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 font-black text-xs text-gray-600">
+                    {formData.discountPercentage}%
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Savings (₹)</label>
+                  <div className="w-full bg-green-50 text-green-700 border border-green-100 rounded-xl px-3 py-1.5 font-black text-xs">
+                    ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
+                  </div>
+                </div>
+                <div className="space-y-2 col-span-full bg-gray-50/80 p-3 rounded-xl border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
+                      <span className="text-[10px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.enableGst !== false}
+                        onChange={e => {
+                          const enabled = e.target.checked;
+                          setFormData(p => ({
+                            ...p,
+                            enableGst: enabled,
+                            gst: enabled ? (p.gst || 18) : 0
+                          }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
+                  {formData.enableGst !== false ? (
+                    <div className="pt-1 flex items-center gap-2.5">
+                      <div className="flex-1">
+                        <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 ml-1">GST Rate (%)</label>
+                        <input
+                          type="number"
+                          value={formData.gst}
+                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
+                          placeholder="18"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:border-primary transition-all font-bold text-xs"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-3">
+                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          GST Active ({formData.gst || 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-0.5">
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-2 py-0.5 rounded-full">
+                        🚫 GST Disabled / Tax Exempt
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Size Chart Section */}
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Upload an image file or enter Size Chart image URL</p>
+              </div>
+            </div>
+            <div>
+              <VariantImageInput
+                value={formData.sizeChart || ''}
+                onChange={val => setFormData(p => ({ ...p, sizeChart: val }))}
+                label="Size Chart Image (Upload File or Enter Link)"
+                imageTypeLabel="Size Chart image"
+              />
+            </div>
+          </div>
 
           {/* Support & Service Details Management */}
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3.5">
@@ -1755,116 +1865,6 @@ export default function AddEditProductForm({
                   />
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Pricing, Inventory & Meta */}
-        <div className="space-y-4">
-
-          {/* Economy & Pricing */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3.5">
-            <h3 className="text-base font-black text-gray-900 tracking-tight">Economic Model</h3>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Market Retail Price (MRP)</label>
-                <input
-                  type="number"
-                  value={formData.mrp}
-                  onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-base text-gray-800"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Effective Selling Price</label>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
-                  className="w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-black text-base text-blue-600"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Discount (%)</label>
-                  <div className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 font-black text-xs text-gray-600">
-                    {formData.discountPercentage}%
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Savings (₹)</label>
-                  <div className="w-full bg-green-50 text-green-700 border border-green-100 rounded-xl px-3 py-1.5 font-black text-xs">
-                    ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
-                  </div>
-                </div>
-                <div className="space-y-2 col-span-full bg-gray-50/80 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
-                      <span className="text-[10px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.enableGst !== false}
-                        onChange={e => {
-                          const enabled = e.target.checked;
-                          setFormData(p => ({
-                            ...p,
-                            enableGst: enabled,
-                            gst: enabled ? (p.gst || 18) : 0
-                          }));
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-                  {formData.enableGst !== false ? (
-                    <div className="pt-1 flex items-center gap-2.5">
-                      <div className="flex-1">
-                        <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 ml-1">GST Rate (%)</label>
-                        <input
-                          type="number"
-                          value={formData.gst}
-                          onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
-                          placeholder="18"
-                          className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:border-primary transition-all font-bold text-xs"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5 pt-3">
-                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          GST Active ({formData.gst || 0}%)
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="pt-0.5">
-                      <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-2 py-0.5 rounded-full">
-                        🚫 GST Disabled / Tax Exempt
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Size Chart Section */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Upload an image file or enter Size Chart image URL</p>
-              </div>
-            </div>
-            <div>
-              <VariantImageInput
-                value={formData.sizeChart || ''}
-                onChange={val => setFormData(p => ({ ...p, sizeChart: val }))}
-                label="Size Chart Image (Upload File or Enter Link)"
-                imageTypeLabel="Size Chart image"
-              />
             </div>
           </div>
 
