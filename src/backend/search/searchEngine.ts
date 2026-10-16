@@ -536,37 +536,39 @@ export class ViBaSearchEngine {
         console.warn('MiniSearch execution warning:', err);
       }
 
-      // 4. Local AI/ML Multi-Signal Evaluation (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
-      const queryTokens = normalizeQueryString(queryToSearch).tokens;
-      queryEmbedding = LocalSentenceEmbedding.embed(queryToSearch);
-      const rankingWeights = searchCurationManager.getRankingWeights();
+      // 4. Local AI/ML Multi-Signal Candidate Expansion (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
+      if (!params.baselineOnly) {
+        const queryTokens = normalizeQueryString(queryToSearch).tokens;
+        queryEmbedding = LocalSentenceEmbedding.embed(queryToSearch);
+        const rankingWeights = searchCurationManager.getRankingWeights();
 
-      for (const [id, doc] of this.indexedDocs.entries()) {
-        if (scoreMap.has(id)) continue;
-        if (!params.includeDrafts && (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft')) continue;
+        for (const [id, doc] of this.indexedDocs.entries()) {
+          if (scoreMap.has(id)) continue;
+          if (!params.includeDrafts && (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft')) continue;
 
-        // RapidFuzz fuzzy similarity against product title, brand, SKU, tags
-        const titleFuzz = rapidFuzzScore(queryToSearch, doc.name);
-        const brandFuzz = doc.brand ? rapidFuzzScore(queryToSearch, doc.brand) : 0;
-        const skuFuzz = doc.sku ? rapidFuzzScore(queryToSearch, doc.sku) : 0;
-        const maxFuzz = Math.max(titleFuzz, brandFuzz * 0.9, skuFuzz * 0.95);
+          // RapidFuzz fuzzy similarity against product title, brand, SKU, tags
+          const titleFuzz = rapidFuzzScore(queryToSearch, doc.name);
+          const brandFuzz = doc.brand ? rapidFuzzScore(queryToSearch, doc.brand) : 0;
+          const skuFuzz = doc.sku ? rapidFuzzScore(queryToSearch, doc.sku) : 0;
+          const maxFuzz = Math.max(titleFuzz, brandFuzz * 0.9, skuFuzz * 0.95);
 
-        // Character N-Grams similarity (Dice coefficient)
-        const ngramSim = ngramSimilarity(queryToSearch, doc.name);
+          // Character N-Grams similarity (Dice coefficient)
+          const ngramSim = ngramSimilarity(queryToSearch, doc.name);
 
-        // TF-IDF score
-        const tfidfScore = this.tfIdfIndex.score(id, queryTokens);
+          // TF-IDF score
+          const tfidfScore = this.tfIdfIndex.score(id, queryTokens);
 
-        // Semantic Embedding Cosine Similarity
-        const semanticSim = doc.embedding ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding) : 0;
+          // Semantic Embedding Cosine Similarity
+          const semanticSim = doc.embedding ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding) : 0;
 
-        // If high fuzzy match (>= 0.75), high n-gram overlap, or high TF-IDF, include candidate!
-        if (maxFuzz >= 0.75 || ngramSim >= 0.60 || (tfidfScore >= 1.0 && semanticSim >= 0.65)) {
-          const compositeLocalScore = (maxFuzz * 8.0 * rankingWeights.fuzzyWeight) +
-                                      (ngramSim * 6.0 * rankingWeights.ngramWeight) +
-                                      (tfidfScore * 3.0 * rankingWeights.textRelevanceWeight) +
-                                      (semanticSim * 4.0 * rankingWeights.semanticWeight);
-          scoreMap.set(id, compositeLocalScore);
+          // If high fuzzy match (>= 0.75), high n-gram overlap, or high TF-IDF, include candidate!
+          if (maxFuzz >= 0.75 || ngramSim >= 0.60 || (tfidfScore >= 1.0 && semanticSim >= 0.65)) {
+            const compositeLocalScore = (maxFuzz * 8.0 * rankingWeights.fuzzyWeight) +
+                                        (ngramSim * 6.0 * rankingWeights.ngramWeight) +
+                                        (tfidfScore * 3.0 * rankingWeights.textRelevanceWeight) +
+                                        (semanticSim * 4.0 * rankingWeights.semanticWeight);
+            scoreMap.set(id, compositeLocalScore);
+          }
         }
       }
 
@@ -749,25 +751,29 @@ export class ViBaSearchEngine {
         const boost = searchCurationManager.getBoostMultiplier(rawQuery, doc.brand, doc.categoryId);
         score *= boost;
 
-        // Multi-Factor Ranking Engine
         const weights = searchCurationManager.getRankingWeights();
-        score *= weights.textRelevanceWeight;
 
-        // Multi-Signal Scoring Integration (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
+        if (!params.baselineOnly) {
+          // Multi-Factor Ranking Engine
+          score *= weights.textRelevanceWeight;
+
+          // Multi-Signal Scoring Integration (RapidFuzz, Character N-Grams, TF-IDF, Semantic Embeddings)
+          const qTokens = normalizeQueryString(queryToSearch || rawQuery).tokens;
+          const tfidfScore = this.tfIdfIndex.score(doc.id, qTokens);
+          const rfScore = rapidFuzzScore(queryToSearch || rawQuery, doc.name);
+          const ngramScore = ngramSimilarity(queryToSearch || rawQuery, doc.name);
+          const semanticCosine = (doc.embedding && queryEmbedding)
+            ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding)
+            : 0;
+
+          score += (tfidfScore * 1.5 * weights.textRelevanceWeight) +
+                   (rfScore * 3.0 * weights.fuzzyWeight) +
+                   (ngramScore * 2.5 * weights.ngramWeight) +
+                   (semanticCosine * 2.5 * weights.semanticWeight);
+        }
+
         const qTokens = normalizeQueryString(queryToSearch || rawQuery).tokens;
-        const tfidfScore = this.tfIdfIndex.score(doc.id, qTokens);
-        const rfScore = rapidFuzzScore(queryToSearch || rawQuery, doc.name);
-        const ngramScore = ngramSimilarity(queryToSearch || rawQuery, doc.name);
-        const semanticCosine = (doc.embedding && queryEmbedding)
-          ? LocalSentenceEmbedding.cosineSimilarity(queryEmbedding, doc.embedding)
-          : 0;
-
-        score += (tfidfScore * 1.5 * weights.textRelevanceWeight) +
-                 (rfScore * 3.0 * weights.fuzzyWeight) +
-                 (ngramScore * 2.5 * weights.ngramWeight) +
-                 (semanticCosine * 2.5 * weights.semanticWeight);
-
-        // Evaluate through Extensible Multi-Signal Ranking Framework (24 active signals)
+        // Evaluate through Extensible Multi-Signal Ranking Framework (24 active signals, 200+ candidate slots)
         const rankingBreakdown = rankingFramework.evaluate({
           query: rawQuery,
           cleanQuery: (queryToSearch || rawQuery).toLowerCase().trim(),
@@ -776,12 +782,13 @@ export class ViBaSearchEngine {
           semanticIntent,
           doc,
           baseScore: score,
-          sessionContext: sessionRankingManager.getSessionContext(params.sessionId)
+          sessionContext: params.baselineOnly ? undefined : sessionRankingManager.getSessionContext(params.sessionId),
+          baselineOnly: params.baselineOnly
         });
         score = rankingBreakdown.finalScore;
 
-        // Contextual Session-Aware Affinity (strictly bounded to max +15% boost)
-        if (params.sessionId) {
+        // Contextual Session-Aware Affinity (strictly bounded to max +15% boost, bypassed in baseline)
+        if (!params.baselineOnly && params.sessionId) {
           const sessionMultiplier = sessionRankingManager.computeSessionMultiplier(doc, params.sessionId);
           score *= sessionMultiplier;
         }
@@ -795,23 +802,25 @@ export class ViBaSearchEngine {
           score *= 1.4;
         }
 
-        // Availability Boost (in-stock prioritized over out-of-stock items)
-        if (doc.inStock && doc.stock > 0) {
-          score *= weights.availabilityWeight;
-        } else {
-          score *= 0.6;
-        }
+        if (!params.baselineOnly) {
+          // Availability Boost (in-stock prioritized over out-of-stock items)
+          if (doc.inStock && doc.stock > 0) {
+            score *= weights.availabilityWeight;
+          } else {
+            score *= 0.6;
+          }
 
-        // Product Quality Boost (ratings and review density)
-        if (doc.rating > 0) {
-          const qualityFactor = 1 + ((doc.rating / 5) * 0.2);
-          score *= Math.pow(qualityFactor, weights.qualityWeight);
-        }
+          // Product Quality Boost (ratings and review density)
+          if (doc.rating > 0) {
+            const qualityFactor = 1 + ((doc.rating / 5) * 0.2);
+            score *= Math.pow(qualityFactor, weights.qualityWeight);
+          }
 
-        // Popularity Boost (customer reviews and engagement)
-        if (doc.numReviews > 0) {
-          const popFactor = 1 + (Math.log10(doc.numReviews + 1) * 0.08);
-          score *= Math.pow(popFactor, weights.popularityWeight);
+          // Popularity Boost (customer reviews and engagement)
+          if (doc.numReviews > 0) {
+            const popFactor = 1 + (Math.log10(doc.numReviews + 1) * 0.08);
+            score *= Math.pow(popFactor, weights.popularityWeight);
+          }
         }
       }
 

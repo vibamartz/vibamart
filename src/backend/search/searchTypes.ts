@@ -23,6 +23,7 @@ export interface SearchParams {
   noAutoCorrect?: boolean;
   semanticIntent?: SemanticIntentData;
   sessionId?: string;
+  baselineOnly?: boolean;
 }
 
 export interface SessionContext {

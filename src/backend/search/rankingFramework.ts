@@ -44,6 +44,7 @@ export interface RankingContext {
   baseScore: number;
   sessionContext?: SessionContext;
   visualSimilarity?: number;
+  baselineOnly?: boolean;
 }
 
 export interface SignalDefinition {
@@ -69,10 +70,30 @@ export interface RankingScoreBreakdown {
 export class RankingFramework {
   private registry: Map<string, SignalDefinition> = new Map();
   private activeSignalIds: string[] = [];
+  private baselineMode = false;
 
   constructor() {
     this.registerActiveSignals();
     this.registerCandidateSignalSlots();
+  }
+
+  /**
+   * Set global baseline mode (disables experimental and business signals).
+   */
+  public setBaselineMode(enabled: boolean): void {
+    this.baselineMode = enabled;
+  }
+
+  public isBaselineMode(): boolean {
+    return this.baselineMode;
+  }
+
+  public revertToBaseline(): void {
+    this.baselineMode = true;
+  }
+
+  public enableAllActiveSignals(): void {
+    this.baselineMode = false;
   }
 
   /**
@@ -529,7 +550,7 @@ export class RankingFramework {
     ];
 
     const currentCount = this.registry.size;
-    const targetTotal = 200;
+    const targetTotal = 220; // 200+ total candidate feature slots accommodated
 
     for (let i = currentCount + 1; i <= targetTotal; i++) {
       const cat = candidateCategories[i % candidateCategories.length];
@@ -538,7 +559,7 @@ export class RankingFramework {
         id,
         name: `Candidate Signal #${i} (${cat})`,
         category: cat,
-        description: `Extensible candidate feature slot #${i} for future model evaluation`,
+        description: `Extensible candidate feature slot #${i} for future model evaluation and learning-to-rank`,
         defaultWeight: 0.0,
         activeWeight: 0.0,
         isActive: false, // Inactive by default until training data / validation justifies activation
@@ -586,14 +607,21 @@ export class RankingFramework {
   }
 
   /**
-   * Core multi-signal ranking score computation with query relevance guardrails.
+   * Core multi-signal ranking score computation with query relevance guardrails
+   * and configurable baseline fallback mode.
    */
   public evaluate(ctx: RankingContext): RankingScoreBreakdown {
+    const isBaseline = this.baselineMode || ctx.baselineOnly === true;
     let relevanceScore = 0;
     let businessScore = 0;
     const activeBreakdown: Record<string, { raw: number; normalized: number; weighted: number }> = {};
 
+    // In baseline mode, only use standard baseline lexical signals
+    const baselineSignalIds = new Set(['sig_exact_title', 'sig_title_prefix', 'sig_title_token_coverage', 'sig_sku_match']);
+
     for (const id of this.activeSignalIds) {
+      if (isBaseline && !baselineSignalIds.has(id)) continue;
+
       const signal = this.registry.get(id);
       if (!signal || !signal.isActive || signal.activeWeight === 0) continue;
 
@@ -626,7 +654,7 @@ export class RankingFramework {
     let relevanceGuardrailApplied = false;
     let finalScore = ctx.baseScore;
 
-    if (ctx.cleanQuery.length > 0) {
+    if (!isBaseline && ctx.cleanQuery.length > 0) {
       if (relevanceScore < 0.5 && ctx.baseScore < 10) {
         // Zero or negligible query match: business signals are damped by 90%
         businessScore *= 0.10;
@@ -634,7 +662,7 @@ export class RankingFramework {
       }
     }
 
-    finalScore += relevanceScore + businessScore;
+    finalScore += relevanceScore + (isBaseline ? 0 : businessScore);
 
     return {
       finalScore,

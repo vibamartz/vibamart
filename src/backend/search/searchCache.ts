@@ -47,6 +47,8 @@ export class SearchCache {
       params.gender || '',
       params.noAutoCorrect ? '1' : '0',
       params.useAI ? '1' : '0',
+      params.baselineOnly ? '1' : '0',
+      params.sessionId || '',
       Array.isArray(params.color) ? params.color.sort().join(',') : (params.color || ''),
       Array.isArray(params.size) ? params.size.sort().join(',') : (params.size || ''),
       params.sortBy || 'relevance',

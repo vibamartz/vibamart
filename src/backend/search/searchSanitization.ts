@@ -89,6 +89,8 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
   const includeDrafts = raw.includeDrafts === true || raw.includeDrafts === 'true';
   const useAI = raw.useAI === true || raw.useAI === 'true' || raw.ai === 'true' || raw.ai === '1';
   const noAutoCorrect = raw.noAutoCorrect === true || raw.noAutoCorrect === 'true' || raw.noAutoCorrect === '1';
+  const baselineOnly = raw.baselineOnly === true || raw.baselineOnly === 'true' || raw.baselineOnly === '1';
+  const sessionId = raw.sessionId !== undefined ? sanitizeSearchString(String(raw.sessionId)) : undefined;
 
   // Valid sort options whitelist
   const validSorts = ['relevance', 'price-asc', 'price-desc', 'newest', 'rating', 'popularity'];
@@ -121,6 +123,8 @@ export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
     includeDrafts,
     useAI,
     noAutoCorrect,
+    baselineOnly: baselineOnly || undefined,
+    sessionId: sessionId || undefined,
     sortBy,
     page,
     limit
