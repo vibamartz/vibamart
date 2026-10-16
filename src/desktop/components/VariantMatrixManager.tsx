@@ -675,30 +675,30 @@ export default function VariantMatrixManager({
   const activeAttributesList = attributes.filter(a => !a.disabled);
 
   return (
-    <div className="bg-white p-6 sm:p-10 rounded-[36px] sm:rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+    <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black">
-              <Layers className="w-4 h-4" />
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-black">
+              <Layers className="w-3.5 h-3.5" />
             </span>
-            <h3 className="text-xl font-black text-gray-900 tracking-tight">
+            <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
               Universal Product Variant Matrix
             </h3>
           </div>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1.5">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
             Configure dynamic attributes (Color, Size, RAM, Storage, etc.) & generate automated Cartesian matrix
           </p>
         </div>
 
         {/* Tab Switcher & Generation Trigger */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex p-1 bg-gray-100 rounded-2xl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex p-0.5 bg-gray-100 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveTab('attributes')}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                 activeTab === 'attributes'
                   ? 'bg-white text-gray-900 shadow-xs'
                   : 'text-gray-500 hover:text-gray-900'
@@ -709,7 +709,7 @@ export default function VariantMatrixManager({
             <button
               type="button"
               onClick={() => setActiveTab('matrix')}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'matrix'
                   ? 'bg-white text-gray-900 shadow-xs'
                   : 'text-gray-500 hover:text-gray-900'
@@ -720,23 +720,23 @@ export default function VariantMatrixManager({
             <button
               type="button"
               onClick={() => setActiveTab('family')}
-              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'family'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              <Palette className="w-3.5 h-3.5 text-emerald-600" />
-              3. Product Family ({familyProductsList.length})
+              <Palette className="w-3 h-3 text-emerald-600" />
+              3. Family ({familyProductsList.length})
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleGenerateMatrix}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-500/20 active:scale-95 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3 h-3" />
             Generate Matrix {totalPossibleCombos > 0 ? `(${totalPossibleCombos})` : ''}
           </button>
         </div>
@@ -744,9 +744,9 @@ export default function VariantMatrixManager({
 
       {/* TAB 1: ATTRIBUTES BUILDER */}
       {activeTab === 'attributes' && (
-        <div className="space-y-8">
+        <div className="space-y-4">
           {/* Category Variant Templates Bar */}
-          <div className="bg-emerald-50/70 p-5 rounded-3xl border border-emerald-200/80 space-y-3">
+          <div className="bg-emerald-50/70 p-3 sm:p-4 rounded-xl border border-emerald-200/80 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Bookmark className="w-4 h-4 text-emerald-700" />
@@ -1078,7 +1078,7 @@ export default function VariantMatrixManager({
             })}
 
             {attributes.length === 0 && (
-              <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[32px]">
+              <div className="py-5 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-xl text-xs">
                 No attributes configured. Click any preset button above or type a custom attribute name to begin.
               </div>
             )}
@@ -1777,7 +1777,7 @@ export default function VariantMatrixManager({
           )}
 
           {variants.length === 0 && (
-            <div className="py-12 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[32px]">
+            <div className="py-5 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-xl text-xs">
               No variants generated. Go to "1. Attributes" tab and click "Generate Matrix", or click "Add Variant" above.
             </div>
           )}
@@ -1786,23 +1786,23 @@ export default function VariantMatrixManager({
 
       {/* TAB 3: PRODUCT FAMILY MATRIX (UNIVERSAL LINKED PRODUCTS) */}
       {activeTab === 'family' && (
-        <div className="space-y-8">
+        <div className="space-y-4">
           {/* Architectural Notice */}
-          <div className="bg-emerald-50/70 p-5 sm:p-6 rounded-3xl border border-emerald-200/80 space-y-2">
+          <div className="bg-emerald-50/70 p-3 sm:p-4 rounded-xl border border-emerald-200/80 space-y-1.5">
             <div className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-emerald-700 shrink-0" />
-              <h4 className="text-sm font-black text-emerald-950 uppercase tracking-wider">
+              <Layers className="w-4 h-4 text-emerald-700 shrink-0" />
+              <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
                 Universal Product Family Matrix
               </h4>
             </div>
-            <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+            <p className="text-[11px] text-emerald-800 font-medium leading-relaxed">
               Connect multiple independent catalog products across <strong>ANY variant attribute</strong> (Color, Storage, Size, RAM, Capacity, Weight, Pack Size, Material, Style, Model, etc.) sharing a common <strong>Family ID</strong>.
               Each linked product maintains its own independent images, SKU, pricing, stock, size availability, ratings, and specifications.
             </p>
           </div>
 
           {/* 1. Family ID & Attribute Configuration */}
-          <div className="bg-gray-50/90 p-6 sm:p-7 rounded-3xl border border-gray-200/80 space-y-5">
+          <div className="bg-gray-50/90 p-4 sm:p-5 rounded-xl border border-gray-200/80 space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <label className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">

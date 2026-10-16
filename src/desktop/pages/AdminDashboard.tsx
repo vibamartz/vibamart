@@ -4463,17 +4463,17 @@ export function ProductImageUploader({
   };
 
   return (
-    <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+    <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Media Assets</h3>
+          <h3 className="text-base font-black text-gray-900 tracking-tight">Product Media Assets</h3>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
             JPG · PNG · WEBP — Max 10 MB each
           </p>
         </div>
         <span
-          className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border ${images.length >= MAX_SLOTS
+          className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${images.length >= MAX_SLOTS
             ? 'bg-red-50 text-red-500 border-red-100'
             : 'bg-gray-50 text-gray-400 border-gray-100'
             }`}
@@ -4489,25 +4489,25 @@ export function ProductImageUploader({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={() => fileInputRef.current?.click()}
-          className={`relative w-full border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 py-14 cursor-pointer transition-all duration-300 group ${isDragging
+          className={`relative w-full border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 py-5 cursor-pointer transition-all duration-300 group ${isDragging
             ? 'border-blue-400 bg-blue-50 scale-[1.01]'
             : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
             }`}
         >
           <div
-            className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${isDragging ? 'bg-blue-100 scale-110' : 'bg-gray-100 group-hover:bg-gray-200'
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${isDragging ? 'bg-blue-100 scale-110' : 'bg-gray-100 group-hover:bg-gray-200'
               }`}
           >
             <Upload
-              className={`w-7 h-7 transition-colors duration-300 ${isDragging ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'
+              className={`w-5 h-5 transition-colors duration-300 ${isDragging ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-600'
                 }`}
             />
           </div>
           <div className="text-center">
-            <p className="text-sm font-black text-gray-700">
+            <p className="text-xs font-black text-gray-700">
               {isDragging ? 'Drop images here' : 'Drag & drop images here'}
             </p>
-            <p className="text-xs text-gray-400 mt-1 font-medium">
+            <p className="text-[11px] text-gray-400 mt-0.5 font-medium">
               or <span className="text-blue-500 font-black">click to browse</span>
             </p>
           </div>
@@ -4522,14 +4522,14 @@ export function ProductImageUploader({
           />
           {/* Animated ring when dragging */}
           {isDragging && (
-            <div className="absolute inset-0 rounded-[32px] border-4 border-blue-400/40 animate-pulse pointer-events-none" />
+            <div className="absolute inset-0 rounded-xl border-2 border-blue-400/40 animate-pulse pointer-events-none" />
           )}
         </div>
       )}
 
       {/* Image Thumbnails Grid */}
       {images.length > 0 && (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
           {images.map((img, idx) => (
             <motion.div
               key={idx}
@@ -4537,7 +4537,7 @@ export function ProductImageUploader({
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.85 }}
-              className="relative aspect-square bg-white rounded-[28px] overflow-hidden group border-2 border-gray-100 hover:border-gray-900 transition-all cursor-pointer"
+              className="relative aspect-square bg-white rounded-xl overflow-hidden group border border-gray-200 hover:border-gray-900 transition-all cursor-pointer"
               onClick={() => setPrimary(idx)}
               title={idx === 0 ? 'Primary image' : 'Click to set as primary'}
             >
@@ -4547,15 +4547,15 @@ export function ProductImageUploader({
                 className="w-full h-full object-contain bg-white transition-transform duration-500 group-hover:scale-105"
               />
               {/* Overlay on hover */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-[26px]" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-xl" />
 
               {/* Primary Badge */}
               {idx === 0 ? (
-                <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest rounded-lg shadow-lg">
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-gray-900 text-white text-[8px] font-black uppercase tracking-widest rounded-md shadow-sm">
                   ★ Primary
                 </span>
               ) : (
-                <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-white/80 backdrop-blur-sm text-gray-600 text-[8px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-white/80 backdrop-blur-sm text-gray-600 text-[8px] font-black uppercase tracking-widest rounded-md opacity-0 group-hover:opacity-100 transition-all">
                   Set Primary
                 </span>
               )}
@@ -4567,13 +4567,13 @@ export function ProductImageUploader({
                   e.stopPropagation();
                   removeImage(idx);
                 }}
-                className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-md rounded-xl text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white shadow-md"
+                className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-lg text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white shadow-xs cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
 
               {/* Position badge */}
-              <span className="absolute top-3 left-3 w-6 h-6 bg-black/40 backdrop-blur-sm text-white text-[9px] font-black rounded-lg flex items-center justify-center">
+              <span className="absolute top-2 left-2 w-5 h-5 bg-black/50 backdrop-blur-sm text-white text-[9px] font-black rounded-md flex items-center justify-center">
                 {idx + 1}
               </span>
             </motion.div>
@@ -4582,9 +4582,9 @@ export function ProductImageUploader({
       )}
 
       {/* URL Fallback */}
-      <div className="border-t border-gray-50 pt-6">
+      <div className="border-t border-gray-100 pt-3">
         {showUrlInput ? (
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 items-center">
             <input
               ref={urlInputRef}
               autoFocus
@@ -4593,20 +4593,20 @@ export function ProductImageUploader({
               onChange={(e) => setUrlValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrl(); } }}
               placeholder="https://example.com/product-image.jpg"
-              className="flex-1 bg-gray-50 border-2 border-gray-200 focus:border-blue-300 rounded-2xl px-5 py-3 text-sm outline-none transition-all font-medium"
+              className="flex-1 bg-gray-50 border border-gray-200 focus:border-blue-400 rounded-xl px-3.5 py-2 text-xs outline-none transition-all font-medium"
             />
             <button
               type="button"
               onClick={handleAddUrl}
               disabled={!urlValue.trim() || images.length >= MAX_SLOTS}
-              className="px-5 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-40 whitespace-nowrap"
+              className="px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-black transition-all disabled:opacity-40 whitespace-nowrap cursor-pointer"
             >
               Add URL
             </button>
             <button
               type="button"
               onClick={() => { setShowUrlInput(false); setUrlValue(''); }}
-              className="p-3 text-gray-400 hover:text-gray-700 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

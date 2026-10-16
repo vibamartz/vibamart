@@ -143,10 +143,10 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
   const activeRulesCount = rules.filter(r => r.enabled !== false).length;
 
   return (
-    <div className="space-y-6 bg-white rounded-3xl p-4 sm:p-7 border border-gray-200/80 shadow-xs w-full max-w-full overflow-hidden">
+    <div className="space-y-4 bg-white rounded-xl p-3.5 sm:p-4 border border-gray-100 shadow-xs w-full max-w-full overflow-hidden">
 
       {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2">
             <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-100">

@@ -888,18 +888,18 @@ export default function AddEditProductForm({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto pb-12 space-y-6"
+      className="max-w-7xl mx-auto pb-6 space-y-4"
     >
-      <div className="flex justify-between items-end border-b border-gray-100 pb-5">
+      <div className="flex justify-between items-end border-b border-gray-100 pb-3">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight italic">
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight italic">
             {product ? 'EDIT_PRODUCT' : 'NEW_PRODUCT'}
           </h2>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
             Product Identification {product?.id ? `(${product.id.slice(0, 8)})` : ''}
           </p>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           {product && (
             <button
               type="button"
@@ -930,23 +930,23 @@ export default function AddEditProductForm({
                   }
                 }
               }}
-              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black uppercase text-[10px] tracking-wider hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+              className="px-3.5 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black uppercase text-[10px] tracking-wider hover:bg-red-500 hover:text-white transition-all cursor-pointer"
             >
               Delete Product
             </button>
           )}
-          <button onClick={onClose} type="button" className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl font-black uppercase text-[10px] tracking-wider hover:border-gray-900 hover:text-gray-900 transition-all cursor-pointer">
+          <button onClick={onClose} type="button" className="px-3.5 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-xl font-black uppercase text-[10px] tracking-wider hover:border-gray-900 hover:text-gray-900 transition-all cursor-pointer">
             Cancel
           </button>
-          <button type="submit" form="product-form" disabled={busy} className="px-5 py-2 bg-gray-900 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg shadow-gray-900/10 hover:bg-gray-800 transition-all cursor-pointer">
+          <button type="submit" form="product-form" disabled={busy} className="px-4 py-1.5 bg-gray-900 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-md shadow-gray-900/10 hover:bg-gray-800 transition-all cursor-pointer">
             Save Product
           </button>
         </div>
       </div>
 
-      <form id="product-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <form id="product-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left Column: Media & Variants */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
 
           {/* Media Section */}
           <ProductImageUploader
@@ -961,68 +961,68 @@ export default function AddEditProductForm({
           />
 
           {/* Product Info Section */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">
             <h3 className="text-base font-black text-gray-900 tracking-tight">Core Configuration</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Entity Name</label>
                 <input
                   value={formData.name}
                   onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="E.g. Lunar Edition X-1"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Brand Signature</label>
                 <input
                   value={formData.brand}
                   onChange={e => setFormData(p => ({ ...p, brand: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="Manufacturer Name"
                 />
               </div>
-              <div className="col-span-2 space-y-1.5">
+              <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Internal Digest (Short Description)</label>
                 <input
                   value={formData.description}
                   onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm"
                   placeholder="Brief architectural summary..."
                 />
               </div>
-              <div className="col-span-2 space-y-1.5">
+              <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Technical Documentation (Full Description)</label>
                 <textarea
                   value={formData.fullDescription}
                   onChange={e => setFormData(p => ({ ...p, fullDescription: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm h-36 resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm h-24 resize-none"
                   placeholder="Exhaustive specifications and features..."
                 />
               </div>
-              <div className="col-span-2 space-y-1.5">
+              <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Serviceable Pincodes (Comma separated, empty for nationwide)</label>
                 <textarea
                   value={formData.serviceablePincodes?.join(', ') || ''}
                   onChange={e => setFormData(p => ({ ...p, serviceablePincodes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm h-24 resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 outline-none focus:bg-white focus:border-primary transition-all font-medium text-xs h-16 resize-none"
                   placeholder="E.g. 560001, 560064, 110001"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-3 bg-emerald-50/60 border border-emerald-100 p-4 rounded-xl space-y-2.5">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <div className="col-span-3 bg-emerald-50/60 border border-emerald-100 p-3 sm:p-3.5 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
-                      <Hash className="w-3.5 h-3.5" />
+                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                      <Hash className="w-3 h-3" />
                     </span>
                     <div>
-                      <label className="text-[11px] font-black uppercase tracking-widest text-emerald-900">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900">
                         Auto-Generated Product Code (12 Digits)
                       </label>
-                      <p className="text-[10px] text-emerald-600 font-semibold">
+                      <p className="text-[9px] text-emerald-600 font-semibold">
                         Format: 8900 0996 XXXX • Permanent unique identifier for product lookup & search
                       </p>
                     </div>
@@ -1037,51 +1037,51 @@ export default function AddEditProductForm({
                         setTimeout(() => setCopiedCode(false), 2000);
                       }
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
+                    className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all shadow-xs cursor-pointer"
                   >
-                    {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedCode ? 'Copied' : 'Copy Code'}
+                    {copiedCode ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copiedCode ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <div className="flex gap-3 items-center">
+                <div className="flex gap-2 items-center">
                   <input
                     value={formData.productCode || ''}
                     onChange={e => {
                       const val = e.target.value;
                       setFormData(p => ({ ...p, productCode: formatProductCode(val) }));
                     }}
-                    className="w-full bg-white border border-emerald-200 rounded-[20px] px-6 py-4 outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-black text-lg tracking-wider text-emerald-950"
+                    className="w-full bg-white border border-emerald-200 rounded-xl px-3.5 py-2 outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-bold text-sm tracking-wider text-emerald-950"
                     placeholder="8900 0996 XXXX"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Node Identifier (SKU)</label>
                 <input
                   value={formData.sku}
                   onChange={e => setFormData(p => ({ ...p, sku: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="SKU-000-X"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Default Color</label>
                 <input
                   maxLength={40}
                   value={formData.color}
                   onChange={e => setFormData(p => ({ ...p, color: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="Default Color"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Default Size</label>
                 <input
                   maxLength={50}
                   value={formData.size}
                   onChange={e => setFormData(p => ({ ...p, size: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="Default Size"
                 />
               </div>
@@ -1120,11 +1120,11 @@ export default function AddEditProductForm({
           />
 
           {/* Specifications Management Section */}
-          <div className="bg-white p-6 sm:p-10 rounded-[36px] sm:rounded-[48px] border border-gray-100 shadow-sm space-y-6 sm:space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Specifications</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Product Specifications</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                   Manage structured technical attributes shown on Product Details
                 </p>
               </div>
@@ -1405,11 +1405,11 @@ export default function AddEditProductForm({
               ))}
 
               {getActiveTabSpecs().length === 0 && (
-                <div className="py-8 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-[28px] space-y-2">
+                <div className="py-4 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-xl space-y-1 text-xs">
                   {activeSpecTargetKey !== 'default' ? (
                     <div>
                       <p>Variant <strong className="text-gray-700">{activeSpecTargetKey}</strong> is currently using Default Specifications.</p>
-                      <p className="text-xs font-normal text-gray-400 mt-1">Click "Copy Default Specs" above or "Add Field" to define custom specifications for this variant.</p>
+                      <p className="text-[11px] font-normal text-gray-400 mt-0.5">Click "Copy Default Specs" above or "Add Field" to define custom specifications for this variant.</p>
                     </div>
                   ) : (
                     <p>No specification fields added. Use Quick Category Attributes above, Reuse Specifications, or click Add Field.</p>
@@ -1420,26 +1420,26 @@ export default function AddEditProductForm({
           </div>
 
           {/* Logistics & Category */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">
             <h3 className="text-base font-black text-gray-900 tracking-tight">Logistics & Placement</h3>
-            <div className="space-y-4">
-              <div className="space-y-1.5">
+            <div className="space-y-3.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Protocol Status</label>
                 <select
                   value={formData.status}
                   onChange={e => setFormData(p => ({ ...p, status: e.target.value as any }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                 >
                   <option value="active">Active Deployment</option>
                   <option value="draft">Draft Protocol</option>
                   <option value="out_of_stock">Emergency Out-of-Stock</option>
                 </select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Inventory Depth</label>
                   {formData.variants && formData.variants.length > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                       Auto-synced from {formData.variants.filter((v: any) => !v.disabled && v.status !== 'disabled').length} active variants ({formData.stock} units)
                     </span>
                   )}
@@ -1448,11 +1448,11 @@ export default function AddEditProductForm({
                   type="number"
                   value={formData.stock}
                   onChange={e => setFormData(p => ({ ...p, stock: Number(e.target.value) }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Cash on Delivery</span>
                     <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable COD</span>
@@ -1464,11 +1464,11 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, isCodAllowed: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
 
-                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+                <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Stock Visibility</span>
                     <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Display stock status</span>
@@ -1480,14 +1480,14 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, isStockVisible: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                   </label>
                 </div>
 
-                <div className="bg-gray-50/80 p-5 rounded-[24px] border border-gray-100 flex items-center justify-between">
+                <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Free Delivery</span>
-                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Enable or disable free shipping</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Free shipping</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
@@ -1496,7 +1496,7 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, isFreeDelivery: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
               </div>
@@ -1506,23 +1506,23 @@ export default function AddEditProductForm({
                 rules={formData.availabilityRules || []}
                 onChange={(rules) => setFormData(p => ({ ...p, availabilityRules: rules }))}
               />
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Primary Collection</label>
                 <select
                   value={formData.categoryId}
                   onChange={e => setFormData(p => ({ ...p, categoryId: e.target.value, subCategoryId: '', nestedSubCategoryId: '' }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                 >
                   <option value="">Select Category</option>
                   {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Sector (Sub-category)</label>
                 <select
                   value={formData.subCategoryId}
                   onChange={e => setFormData(p => ({ ...p, subCategoryId: e.target.value, nestedSubCategoryId: '' }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm disabled:opacity-30"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm disabled:opacity-30"
                   disabled={!selectedCategory?.subcategories || selectedCategory.subcategories.length === 0}
                 >
                   <option value="">Select Sector</option>
@@ -1530,12 +1530,12 @@ export default function AddEditProductForm({
                 </select>
               </div>
               {selectedSubCategory?.subcategories && selectedSubCategory.subcategories.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Nested Sub-category</label>
                   <select
                     value={formData.nestedSubCategoryId}
                     onChange={e => setFormData(p => ({ ...p, nestedSubCategoryId: e.target.value }))}
-                    className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   >
                     <option value="">Select Nested Sub-category</option>
                     {selectedSubCategory.subcategories.map(nested => <option key={nested.id} value={nested.id}>{nested.name}</option>)}
@@ -1544,7 +1544,7 @@ export default function AddEditProductForm({
               )}
 
               {/* Visual Nested Subcategory Showcase Placement */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black uppercase tracking-widest text-emerald-800 ml-1 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -1570,7 +1570,7 @@ export default function AddEditProductForm({
                       visualNestedSubcategoryIds: val ? [val] : []
                     }));
                   }}
-                  className="w-full bg-emerald-50/40 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-emerald-500/20 transition-all font-black text-sm text-gray-900"
+                  className="w-full bg-emerald-50/40 border border-emerald-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-emerald-500/30 transition-all font-bold text-sm text-gray-900"
                 >
                   <option value="">None (Standard Catalog Product)</option>
                   {visualNestedSubcategoryItems.map(visual => {
@@ -1585,7 +1585,7 @@ export default function AddEditProductForm({
                     );
                   })}
                 </select>
-                <p className="text-[11px] text-gray-400 font-medium px-2">
+                <p className="text-[10px] text-gray-400 font-medium px-1">
                   Assign to any Visual Nested Subcategory to display this product directly on its dedicated showcase page.
                 </p>
               </div>
@@ -1593,17 +1593,17 @@ export default function AddEditProductForm({
           </div>
 
           {/* Support & Service Details Management */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3.5">
             <div>
-              <h3 className="text-lg font-black text-gray-900 tracking-tight">Product Services & Support Badges</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
+              <h3 className="text-base font-black text-gray-900 tracking-tight">Product Services & Support Badges</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                 Configure individual service guarantees and badges displayed on the Product Details page
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {/* 1. Customer Support */}
-              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Customer Support</span>
@@ -1616,7 +1616,7 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, enableCustomerSupport: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
                 {formData.enableCustomerSupport !== false && (
@@ -1625,13 +1625,13 @@ export default function AddEditProductForm({
                     value={formData.customerSupportText || ''}
                     onChange={e => setFormData(p => ({ ...p, customerSupportText: e.target.value }))}
                     placeholder="24/7 Customer Support"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                   />
                 )}
               </div>
 
               {/* 2. Return Policy & Period */}
-              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Product Return Policy</span>
@@ -1644,7 +1644,7 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, isReturnable: e.target.checked, enableReturns: e.target.checked, enableReturnPeriod: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
                 {formData.isReturnable !== false ? (
@@ -1657,14 +1657,14 @@ export default function AddEditProductForm({
                         setFormData(p => ({ ...p, returnPeriodDays: days, returnPolicy: `${days}-Day Return` }));
                       }}
                       placeholder="7"
-                      className="w-20 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-center outline-none focus:border-emerald-500"
+                      className="w-16 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-center outline-none focus:border-emerald-500"
                     />
                     <input
                       type="text"
                       value={formData.returnPolicy || ''}
                       onChange={e => setFormData(p => ({ ...p, returnPolicy: e.target.value }))}
                       placeholder="7-Day Return"
-                      className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                      className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                     />
                   </div>
                 ) : (
@@ -1673,13 +1673,13 @@ export default function AddEditProductForm({
                     value={formData.noReturnsText || ''}
                     onChange={e => setFormData(p => ({ ...p, noReturnsText: e.target.value }))}
                     placeholder="Non-Returnable"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-amber-500"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-amber-500"
                   />
                 )}
               </div>
 
               {/* 3. Doorstep Cancellation */}
-              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 flex items-center justify-between">
+              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Doorstep Cancellation</span>
                   <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Allow cancel at delivery</span>
@@ -1691,12 +1691,12 @@ export default function AddEditProductForm({
                     onChange={e => setFormData(p => ({ ...p, enableDoorstepCancellation: e.target.checked }))}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
 
               {/* 4. Warranty */}
-              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Product Warranty</span>
@@ -1709,7 +1709,7 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, enableWarranty: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
                 {formData.enableWarranty !== false && (
@@ -1718,13 +1718,13 @@ export default function AddEditProductForm({
                     value={formData.warrantyPeriod || ''}
                     onChange={e => setFormData(p => ({ ...p, warrantyPeriod: e.target.value }))}
                     placeholder="1 Year Warranty"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                   />
                 )}
               </div>
 
               {/* 5. Brand Support */}
-              <div className="bg-gray-50/80 p-5 rounded-[28px] border border-gray-100 space-y-3">
+              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Brand Support</span>
@@ -1737,7 +1737,7 @@ export default function AddEditProductForm({
                       onChange={e => setFormData(p => ({ ...p, enableBrandSupport: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
                 {formData.enableBrandSupport !== false && (
@@ -1746,7 +1746,7 @@ export default function AddEditProductForm({
                     value={formData.brandSupportText || ''}
                     onChange={e => setFormData(p => ({ ...p, brandSupportText: e.target.value }))}
                     placeholder="7-Day Brand Support"
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                   />
                 )}
               </div>
@@ -1755,48 +1755,48 @@ export default function AddEditProductForm({
         </div>
 
         {/* Right Column: Pricing, Inventory & Meta */}
-        <div className="space-y-6">
+        <div className="space-y-4">
 
           {/* Economy & Pricing */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3.5">
             <h3 className="text-base font-black text-gray-900 tracking-tight">Economic Model</h3>
-            <div className="space-y-4">
-              <div className="space-y-1.5">
+            <div className="space-y-3">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Market Retail Price (MRP)</label>
                 <input
                   type="number"
                   value={formData.mrp}
                   onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-lg text-gray-800"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-base text-gray-800"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Effective Selling Price</label>
                 <input
                   type="number"
                   value={formData.price}
                   onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
-                  className="w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-black text-lg text-blue-600"
+                  className="w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-black text-base text-blue-600"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Discount (%)</label>
-                  <div className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2 font-black text-sm text-gray-600">
+                  <div className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 font-black text-xs text-gray-600">
                     {formData.discountPercentage}%
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Savings (₹)</label>
-                  <div className="w-full bg-green-50 text-green-700 border border-green-100 rounded-xl px-3.5 py-2 font-black text-sm">
+                  <div className="w-full bg-green-50 text-green-700 border border-green-100 rounded-xl px-3 py-1.5 font-black text-xs">
                     ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
                   </div>
                 </div>
-                <div className="space-y-2.5 col-span-full bg-gray-50/80 p-4 rounded-xl border border-gray-100">
+                <div className="space-y-2 col-span-full bg-gray-50/80 p-3 rounded-xl border border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
-                      <span className="text-[11px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
+                      <span className="text-[10px] font-bold text-gray-400">Enable or disable GST tax for this product</span>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -1812,30 +1812,30 @@ export default function AddEditProductForm({
                         }}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                   {formData.enableGst !== false ? (
-                    <div className="pt-2 flex items-center gap-3">
+                    <div className="pt-1 flex items-center gap-2.5">
                       <div className="flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">GST Rate (%)</label>
+                        <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 ml-1">GST Rate (%)</label>
                         <input
                           type="number"
                           value={formData.gst}
                           onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
                           placeholder="18"
-                          className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 outline-none focus:border-primary transition-all font-bold text-xs"
+                          className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:border-primary transition-all font-bold text-xs"
                         />
                       </div>
-                      <div className="flex items-center gap-2 pt-4">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                      <div className="flex items-center gap-1.5 pt-3">
+                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                           GST Active ({formData.gst || 0}%)
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="pt-1">
-                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-2.5 py-1 rounded-full">
+                    <div className="pt-0.5">
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-200/60 px-2 py-0.5 rounded-full">
                         🚫 GST Disabled / Tax Exempt
                       </span>
                     </div>
@@ -1846,11 +1846,11 @@ export default function AddEditProductForm({
           </div>
 
           {/* Size Chart Section */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">Upload an image file or enter Size Chart image URL</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Upload an image file or enter Size Chart image URL</p>
               </div>
             </div>
             <div>
@@ -1864,12 +1864,12 @@ export default function AddEditProductForm({
           </div>
 
           {/* Tags & Search */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-base font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
-                <p className="text-xs font-semibold text-gray-400 mt-0.5">
-                  Search keywords improve product discoverability and partial matching (minimum {Math.max(6, settings.minKeywords || 6)}).
+                <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                  Search keywords improve product discoverability (minimum {Math.max(6, settings.minKeywords || 6)}).
                 </p>
               </div>
               <button
@@ -1893,14 +1893,14 @@ export default function AddEditProductForm({
                     setIsGeneratingKeywords(false);
                   }
                 }}
-                className="flex items-center gap-2 px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-2xl font-black text-xs uppercase tracking-wider transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer shadow-xs"
                 title="Automatically generate at least 6 relevant search keywords using AI/ML"
               >
-                <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isGeneratingKeywords ? 'animate-spin' : ''}`} />
-                <span>{isGeneratingKeywords ? 'Generating AI Keywords...' : 'AI Auto-Keywords'}</span>
+                <Sparkles className={`w-3 h-3 text-indigo-600 ${isGeneratingKeywords ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingKeywords ? 'Generating AI...' : 'AI Auto-Keywords'}</span>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -1918,7 +1918,7 @@ export default function AddEditProductForm({
                       setCurrentTag('');
                     }
                   }}
-                  className="flex-1 bg-gray-50 border-4 border-transparent rounded-2xl px-6 py-4 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm"
+                  className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 outline-none focus:bg-white focus:border-primary transition-all font-medium text-xs"
                   placeholder="Type keyword and press Enter or comma..."
                 />
                 <button
@@ -1932,12 +1932,12 @@ export default function AddEditProductForm({
                     }
                     setCurrentTag('');
                   }}
-                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all cursor-pointer"
+                  className="px-4 py-1.5 bg-primary text-white rounded-xl font-black text-[10px] uppercase tracking-wider hover:bg-primary/90 transition-all cursor-pointer"
                 >
                   Add
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold ml-1">
+              <p className="text-[9px] text-gray-400 font-bold ml-1">
                 Press Enter, comma, or click Add. At least {Math.max(6, settings.minKeywords || 6)} relevant keywords are automatically generated & saved upon saving.
               </p>
             </div>
