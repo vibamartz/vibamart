@@ -677,9 +677,8 @@ export class ViBaSearchEngine {
       if (effectiveInStock && (!doc.inStock || doc.stock <= 0)) continue;
 
       // 8. Color Filter
-      const effectiveColors = colorFilters || (semanticIntent?.detectedFilters.color ? [semanticIntent.detectedFilters.color] : undefined);
-      if (effectiveColors && effectiveColors.length > 0) {
-        const cleanEffectiveColors = effectiveColors.map(c => c.toLowerCase().trim()).filter(Boolean);
+      if (colorFilters && colorFilters.length > 0) {
+        const cleanEffectiveColors = colorFilters.map(c => c.toLowerCase().trim()).filter(Boolean);
         if (cleanEffectiveColors.length > 0) {
           const hasColor = doc.colors.some(c => {
             if (!c || !c.trim()) return false;
@@ -821,6 +820,21 @@ export class ViBaSearchEngine {
         const isTrueShirt = /\bshirt\b/i.test(doc.name) && !/\bt-?shirt\b/i.test(doc.name);
         if (isTrueShirt) {
           score *= 2.5;
+        }
+      }
+
+      // Color intent prioritization (e.g. "red shirt" prioritizes red shirts over unrelated shirts)
+      if (semanticIntent?.detectedFilters.color && (!colorFilters || colorFilters.length === 0)) {
+        const targetColor = semanticIntent.detectedFilters.color.toLowerCase().trim();
+        const hasColor = doc.colors.some(c => {
+          if (!c) return false;
+          const cLower = c.toLowerCase().trim();
+          return cLower === targetColor || cLower.includes(targetColor) || targetColor.includes(cLower);
+        }) || doc.name.toLowerCase().includes(targetColor);
+        if (hasColor) {
+          score *= 4.0; // Strongly prioritize matching color
+        } else {
+          score *= 0.4; // De-prioritize unrelated colors
         }
       }
 

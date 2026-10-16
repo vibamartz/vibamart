@@ -7,18 +7,18 @@ export const DEFAULT_SYNONYM_GROUPS: string[][] = [
   // Mobiles & Electronics
   ['mobile', 'phone', 'smartphone', 'cellphone', 'handset'],
   ['iphone', 'apple iphone'],
-  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio', 'wireless earbuds', 'earbud', 'earphone', 'headphone'],
+  ['earbuds', 'earphones', 'headphones', 'airpods', 'tws', 'headset', 'audio', 'wireless earbuds', 'earbud', 'earphone', 'headphone', 'bluetooth headphones', 'wireless headphones'],
   ['laptop', 'notebook', 'macbook', 'computer', 'pc'],
   ['mouse', 'mice', 'optical mouse', 'wireless mouse', 'gaming mouse'],
   ['keyboard', 'keyboards', 'mechanical keyboard'],
   ['tv', 'television', 'smart tv', 'led', 'display', 'screen'],
-  ['charger', 'adapter', 'charging cable', 'power brick'],
+  ['charger', 'adapter', 'charging cable', 'fast charging cable', 'cable', 'cables', 'fast charger', 'data cable', 'type c cable', 'type-c', 'usb cable', 'power brick'],
   ['watch', 'smartwatch', 'smart watch', 'fitness band', 'timepiece', 'ghadi'],
   ['powerbank', 'power bank', 'portable charger'],
   ['wireless', 'cordless', 'bluetooth', 'bina taar'],
 
   // Fashion & Apparel
-  ['shoe', 'shoes', 'sneaker', 'sneakers', 'sports shoes', 'footwear', 'kicks', 'boots', 'sandals', 'slippers', 'joota', 'joote', 'chappal'],
+  ['shoe', 'shoes', 'sneaker', 'sneakers', 'sports shoes', 'running shoes', 'running shoe', 'footwear', 'kicks', 'boots', 'sandals', 'slippers', 'joota', 'joote', 'chappal'],
   ['kurti', 'kurtis', 'kurta', 'kurtas', 'ladies kurti'],
   ['shirt', 'tshirt', 't-shirt', 'tee', 'top', 'formal shirt', 'casual shirt', 'kapde'],
   ['trouser', 'trousers', 'pants', 'jeans', 'pant', 'bottoms', 'chinos', 'denim'],
@@ -149,6 +149,16 @@ export function normalizeQueryString(rawQuery: string): {
 export function expandQueryWithSynonyms(rawQuery: string): string[] {
   const { tokens } = normalizeQueryString(rawQuery);
   const terms = new Set<string>();
+
+  const cleanLower = (rawQuery || '').toLowerCase().trim();
+  if (cleanLower) {
+    const fullSyns = getSynonymsForTerm(cleanLower);
+    for (const syn of fullSyns) {
+      if (!STOP_WORDS.has(syn) && syn.length > 1 && !/^\d+$/.test(syn)) {
+        terms.add(syn);
+      }
+    }
+  }
 
   const validTokens = tokens.filter(t => !STOP_WORDS.has(t) && t.length > 1 && !/^\d+$/.test(t));
 

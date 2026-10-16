@@ -20,7 +20,7 @@
  */
 
 import { IndexedProductDoc, SemanticIntentData, SessionContext } from './searchTypes';
-import { tokenSortRatio } from './localScoring';
+import { tokenSortRatio, ngramSimilarity, damerauLevenshtein, fuzzyRatio } from './localScoring';
 
 export type SignalCategory =
   | 'lexical'
@@ -218,12 +218,15 @@ export class RankingFramework {
       extract: (ctx) => {
         if (!ctx.cleanQuery || ctx.cleanQuery.length < 3) return 0.0;
         const words = ctx.doc.name.toLowerCase().split(/\s+/);
+        let maxSim = 0.0;
         for (const w of words) {
           if (Math.abs(w.length - ctx.cleanQuery.length) <= 2) {
-            if (w === ctx.cleanQuery) return 1.0;
+            const dist = damerauLevenshtein(ctx.cleanQuery, w);
+            const sim = Math.max(0, 1 - dist / Math.max(ctx.cleanQuery.length, w.length));
+            if (sim > maxSim) maxSim = sim;
           }
         }
-        return 0.0;
+        return maxSim >= 0.65 ? maxSim : 0.0;
       }
     });
 
@@ -240,9 +243,7 @@ export class RankingFramework {
       max: 1,
       extract: (ctx) => {
         if (ctx.cleanQuery.length < 3) return 0.0;
-        const lowerDoc = ctx.doc.name.toLowerCase();
-        if (lowerDoc.includes(ctx.cleanQuery)) return 1.0;
-        return 0.0;
+        return ngramSimilarity(ctx.cleanQuery, ctx.doc.name);
       }
     });
 
