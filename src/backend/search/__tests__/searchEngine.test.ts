@@ -18,7 +18,8 @@
 import { ViBaSearchEngine } from '../searchEngine';
 import { SpellingCorrectionEngine } from '../spellingCorrection';
 import { sanitizeSearchParams, sanitizeSearchString } from '../searchSanitization';
-import { Product } from '../../../shared/types';
+import { Product, Category, VisualNestedSubcategory } from '../../../shared/types';
+import { CategoryHierarchyEngine } from '../categoryHierarchy';
 import { visualSearchService } from '../visualSearch';
 import { sessionRankingManager } from '../sessionRanking';
 import { rankingFramework } from '../rankingFramework';
@@ -760,6 +761,274 @@ async function runTestSuite() {
     `Image search p95 latency (${benchmarkReport.metrics.imageSearchProcessing.p95}ms) meets < 3000ms target`);
   assert(benchmarkReport.sub3sImageComplianceRate === 100,
     'Sub-3s image search compliance rate is 100%');
+
+  // 20. Global Search Across All Categories and Subcategory Levels (Requirement 19)
+  console.log('\n20. Testing Global Search Across All Categories and Subcategory Levels...');
+
+  const hierCategories: Category[] = [
+    {
+      id: 'cat-electronics',
+      slug: 'electronics',
+      name: 'Electronics & Audio',
+      image: 'https://example.com/cat-electronics.jpg',
+      subcategories: [
+        {
+          id: 'sub-audio',
+          slug: 'audio-sound',
+          name: 'Audio & Sound Systems',
+          subcategories: [
+            {
+              id: 'nest-earphones',
+              slug: 'earphones-headphones',
+              name: 'Earphones & Headphones',
+              subcategories: [
+                {
+                  id: 'deep-tws',
+                  slug: 'true-wireless-stereo',
+                  name: 'True Wireless Stereo Earbuds',
+                  subcategories: [
+                    {
+                      id: 'level5-anc-tws',
+                      slug: 'active-noise-cancelling-tws',
+                      name: 'Active Noise Cancelling TWS',
+                      subcategories: []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'cat-sports',
+      slug: 'sports-fitness',
+      name: 'Sports & Fitness Gear',
+      image: 'https://example.com/cat-sports.jpg',
+      subcategories: [
+        {
+          id: 'sub-running',
+          slug: 'running-gear',
+          name: 'Running Gear',
+          subcategories: []
+        }
+      ]
+    }
+  ];
+
+  const hierVisualItems: VisualNestedSubcategory[] = [
+    {
+      id: 'vis-flagship-audio',
+      name: 'Audiophile Flagship Showcase',
+      slug: 'audiophile-flagship-showcase',
+      image: 'https://example.com/flagship.jpg',
+      categoryId: 'cat-electronics',
+      subCategoryId: 'sub-audio',
+      nestedSubCategoryId: 'deep-tws',
+      order: 1,
+      isActive: true,
+      productIds: ['prod-sony-wh1000xm5']
+    }
+  ];
+
+  const hierEngine = new CategoryHierarchyEngine(hierCategories, hierVisualItems);
+  engine.setHierarchy(hierEngine);
+
+  const level5Product: Product = {
+    id: 'prod-level5-earbuds',
+    name: 'AcousticPro Studio Bud X1',
+    brand: 'AcousticPro',
+    categoryId: 'cat-electronics',
+    subCategoryId: 'sub-audio',
+    nestedSubCategoryId: 'level5-anc-tws',
+    price: 15999,
+    discountPrice: 12999,
+    productCode: '890123456901',
+    sku: 'ACO-BUD-X1',
+    rating: 4.7,
+    numReviews: 85,
+    stock: 25,
+    inStock: true,
+    color: 'Silver',
+    vendorId: 'vendor-acoustic',
+    images: ['https://example.com/bud.jpg'],
+    tags: ['earbuds', 'audiophile', 'silver'],
+    description: 'Flagship studio monitor earbuds with ultra-low distortion',
+    specifications: [
+      { key: 'Transducer', value: 'Planar Magnetic Driver' },
+      { key: 'Latency', value: '25ms ultra-low latency' }
+    ],
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    isVisible: true
+  };
+
+  const sportsProduct: Product = {
+    id: 'prod-marathon-shoes',
+    name: 'ProStrikers Carbon Plate Racer',
+    brand: 'ProStrikers',
+    categoryId: 'cat-sports',
+    subCategoryId: 'sub-running',
+    price: 18999,
+    discountPrice: 16999,
+    productCode: '890123456902',
+    sku: 'PRO-CRB-RAC',
+    rating: 4.9,
+    numReviews: 120,
+    stock: 15,
+    inStock: true,
+    color: 'Neon Green',
+    vendorId: 'vendor-pro',
+    images: ['https://example.com/racer.jpg'],
+    tags: ['marathon', 'racing', 'carbon'],
+    description: 'Elite marathon racing shoe with carbon propulsion plate',
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    isVisible: true
+  };
+
+  engine.upsertProduct(level5Product);
+  engine.upsertProduct(sportsProduct);
+
+  // 20a. Global Search Across Catalog
+  const resGlobal1 = engine.search({ q: 'AcousticPro' });
+  assert(resGlobal1.products.length === 1 && resGlobal1.products[0].id === 'prod-level5-earbuds',
+    'Global search finds product regardless of deep hierarchy nesting level');
+
+  const resGlobal2 = engine.search({ q: 'ProStrikers' });
+  assert(resGlobal2.products.length === 1 && resGlobal2.products[0].id === 'prod-marathon-shoes',
+    'Global search finds product across independent root categories');
+
+  // 20b. Search using Category Names across all descendant levels (even if not in product title)
+  const resCatName = engine.search({ q: 'Audio & Sound Systems' });
+  assert(resCatName.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Searching by L2 subcategory name finds Level 5 descendant product');
+
+  const resNestedName = engine.search({ q: 'True Wireless Stereo' });
+  assert(resNestedName.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Searching by L4 deep subcategory name finds L5 child product');
+
+  const resLevel5Name = engine.search({ q: 'Active Noise Cancelling' });
+  assert(resLevel5Name.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Searching by L5 subcategory name finds assigned product without title mention');
+
+  const resVisualName = engine.search({ q: 'Audiophile Flagship Showcase' });
+  assert(resVisualName.products.some(p => p.id === 'prod-sony-wh1000xm5'),
+    'Searching by Visual Nested Subcategory name finds assigned showcase products');
+
+  // 20c. Hierarchical Dynamic Filtering (Parent includes all descendants)
+  const resFilterL1 = engine.search({ category: 'cat-electronics' });
+  assert(resFilterL1.products.some(p => p.id === 'prod-level5-earbuds') && !resFilterL1.products.some(p => p.id === 'prod-marathon-shoes'),
+    'Filtering by Root Category includes L5 descendant and excludes other categories');
+
+  const resFilterL1Slug = engine.search({ category: 'electronics' });
+  assert(resFilterL1Slug.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Filtering by Root Category slug includes deep descendants');
+
+  const resFilterL2 = engine.search({ subCategory: 'sub-audio' });
+  assert(resFilterL2.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Filtering by L2 Subcategory includes L5 child product');
+
+  const resFilterL4 = engine.search({ nestedSubCategory: 'deep-tws' });
+  assert(resFilterL4.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Filtering by L4 Deep Subcategory includes L5 descendant');
+
+  const resFilterSports = engine.search({ category: 'cat-sports' });
+  assert(resFilterSports.products.some(p => p.id === 'prod-marathon-shoes') && !resFilterSports.products.some(p => p.id === 'prod-level5-earbuds'),
+    'Filtering by Sports category isolates sports products');
+
+  // 20d. Deduplication Across Multiple Hierarchy Paths
+  const multiPathProduct: Product = {
+    id: 'prod-multipath-gadget',
+    name: 'MultiConnect Hybrid DAC Audio Hub',
+    brand: 'MultiConnect',
+    categoryId: 'cat-electronics',
+    categories: ['cat-electronics', 'electronics'],
+    subCategoryId: 'sub-audio',
+    subCategoryIds: ['sub-audio', 'nest-earphones'],
+    nestedSubCategoryId: 'deep-tws',
+    visualNestedSubcategoryId: 'vis-flagship-audio',
+    price: 8999,
+    productCode: '890123456903',
+    sku: 'MUL-DAC-01',
+    rating: 4.6,
+    numReviews: 30,
+    stock: 10,
+    inStock: true,
+    vendorId: 'vendor-multi',
+    images: ['https://example.com/dac.jpg'],
+    description: 'Multi-category audio DAC hub',
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    isVisible: true
+  };
+  engine.upsertProduct(multiPathProduct);
+
+  const resMulti = engine.search({ q: 'Audio & Sound Systems' });
+  const multiIds = resMulti.products.map(p => p.id);
+  const uniqueMultiIds = new Set(multiIds);
+  assert(multiIds.length === uniqueMultiIds.size,
+    `Zero duplicate products returned across multiple hierarchy pathways (found ${multiIds.length} unique)`);
+  assert(multiIds.filter(id => id === 'prod-multipath-gadget').length <= 1,
+    'Multi-path product is present at most once in search results');
+
+  // 20e. Attribute & Specification Search
+  const resAttr = engine.search({ q: 'Planar Magnetic' });
+  assert(resAttr.products.length > 0 && resAttr.products[0].id === 'prod-level5-earbuds',
+    'Product specification attributes (Planar Magnetic) are indexed and searchable');
+
+  // 20f. Empty-Results State Preservation (No fabricated products)
+  const resEmptyCat = engine.search({ category: 'nonexistent-category-id-9999' });
+  assert(resEmptyCat.total === 0 && resEmptyCat.products.length === 0,
+    'Category with no matching products returns empty results rather than fabricated products');
+
+  // 20g. Dynamic Hierarchy Synchronization
+  const updatedCategories: Category[] = JSON.parse(JSON.stringify(hierCategories));
+  updatedCategories[1].subcategories!.push({
+    id: 'sub-trail-running',
+    slug: 'trail-running-gear',
+    name: 'Ultra Trail Mountain Running',
+    subcategories: []
+  });
+  const updatedEngine = new CategoryHierarchyEngine(updatedCategories, hierVisualItems);
+  engine.setHierarchy(updatedEngine);
+
+  const trailProduct: Product = {
+    id: 'prod-trail-vest',
+    name: 'Alpine Hydration Race Vest',
+    brand: 'AlpinePro',
+    categoryId: 'cat-sports',
+    subCategoryId: 'sub-trail-running',
+    price: 5499,
+    productCode: '890123456904',
+    sku: 'ALP-VES-01',
+    rating: 4.8,
+    numReviews: 45,
+    stock: 20,
+    inStock: true,
+    vendorId: 'vendor-alpine',
+    images: ['https://example.com/vest.jpg'],
+    description: 'Mountain trail running hydration vest',
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    isVisible: true
+  };
+  engine.upsertProduct(trailProduct);
+
+  const resDynamic = engine.search({ q: 'Ultra Trail Mountain Running' });
+  assert(resDynamic.products.length > 0 && resDynamic.products.some(p => p.id === 'prod-trail-vest'),
+    'Dynamically added subcategory name is immediately searchable and finds newly assigned product');
+
+  const resDynamicFilter = engine.search({ subCategory: 'sub-trail-running' });
+  assert(resDynamicFilter.products.length === 1 && resDynamicFilter.products[0].id === 'prod-trail-vest',
+    'Filtering by newly added dynamic subcategory works without restart');
+
+  // Cleanup added test products
+  engine.removeProduct('prod-level5-earbuds');
+  engine.removeProduct('prod-marathon-shoes');
+  engine.removeProduct('prod-multipath-gadget');
+  engine.removeProduct('prod-trail-vest');
 
   console.log('\n================================================================');
   console.log(`   TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

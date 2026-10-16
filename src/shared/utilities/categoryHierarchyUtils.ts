@@ -270,3 +270,65 @@ export function getProductAssignmentBreadcrumbs(
 export function findCategoryNodeByKey(nodes: FlatCategoryNode[], key: string): FlatCategoryNode | undefined {
   return nodes.find(n => n.key === key);
 }
+
+// Re-export CategoryHierarchyEngine and provide cached helpers for component filtering
+import { CategoryHierarchyEngine } from '../../backend/search/categoryHierarchy';
+export { CategoryHierarchyEngine };
+
+const hierarchyEngineCache = new WeakMap<Category[], CategoryHierarchyEngine>();
+
+/**
+ * Get or create cached CategoryHierarchyEngine for a category set.
+ */
+export function getOrCreateHierarchyEngine(
+  categories: Category[],
+  visualItems: VisualNestedSubcategory[] = []
+): CategoryHierarchyEngine {
+  let engine = hierarchyEngineCache.get(categories);
+  if (!engine) {
+    engine = new CategoryHierarchyEngine(categories, visualItems);
+    hierarchyEngineCache.set(categories, engine);
+  }
+  return engine;
+}
+
+/**
+ * Determine if a product is assigned to a target category, subcategory, nested subcategory,
+ * or visual subcategory, OR any of its descendant levels.
+ */
+export function isProductInHierarchy(
+  product: Product,
+  targetFilter: string,
+  categories: Category[],
+  visualItems: VisualNestedSubcategory[] = []
+): boolean {
+  if (!product || !targetFilter) return false;
+  const engine = getOrCreateHierarchyEngine(categories, visualItems);
+  const { hierarchyIds } = engine.resolveProductHierarchy(product);
+  return engine.matchesFilter(hierarchyIds, targetFilter);
+}
+
+/**
+ * Get all hierarchy IDs (category, subcategory, nested, visual, and all ancestor IDs)
+ * for a product.
+ */
+export function getProductHierarchyIds(
+  product: Product,
+  categories: Category[],
+  visualItems: VisualNestedSubcategory[] = []
+): Set<string> {
+  const engine = getOrCreateHierarchyEngine(categories, visualItems);
+  return engine.resolveProductHierarchy(product).hierarchyIds;
+}
+
+/**
+ * Get all descendant IDs for a category/subcategory/nested/visual node.
+ */
+export function getDescendantCategoryIds(
+  nodeIdOrSlug: string,
+  categories: Category[],
+  visualItems: VisualNestedSubcategory[] = []
+): Set<string> {
+  const engine = getOrCreateHierarchyEngine(categories, visualItems);
+  return engine.getDescendantIds(nodeIdOrSlug);
+}

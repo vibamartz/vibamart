@@ -287,7 +287,9 @@ export class VisualSearchService {
 
     const matches: VisualSearchResult[] = [];
 
-    const catFilter = filters?.category?.toLowerCase().trim();
+    const catFilter = filters?.category
+      ? (Array.isArray(filters.category) ? filters.category[0] : String(filters.category)).toLowerCase().trim()
+      : undefined;
     const brandFilter = filters?.brand
       ? (Array.isArray(filters.brand) ? filters.brand[0] : filters.brand).toLowerCase().trim()
       : undefined;

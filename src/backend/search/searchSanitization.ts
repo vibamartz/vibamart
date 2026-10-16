@@ -30,8 +30,22 @@ export function sanitizeSearchString(input: string | undefined): string {
  */
 export function sanitizeSearchParams(raw: Record<string, any>): SearchParams {
   const q = raw.q !== undefined ? sanitizeSearchString(String(raw.q)) : undefined;
-  const category = raw.category !== undefined ? sanitizeSearchString(String(raw.category)) : undefined;
-  const subCategory = raw.subCategory !== undefined ? sanitizeSearchString(String(raw.subCategory)) : undefined;
+  let category: string | string[] | undefined = undefined;
+  if (typeof raw.category === 'string') {
+    const cleaned = sanitizeSearchString(raw.category);
+    category = cleaned.includes(',') ? cleaned.split(',').map(c => c.trim()).filter(Boolean) : cleaned;
+  } else if (Array.isArray(raw.category)) {
+    category = raw.category.map(c => sanitizeSearchString(String(c))).filter(Boolean);
+  }
+
+  let subCategory: string | string[] | undefined = undefined;
+  if (typeof raw.subCategory === 'string') {
+    const cleaned = sanitizeSearchString(raw.subCategory);
+    subCategory = cleaned.includes(',') ? cleaned.split(',').map(s => s.trim()).filter(Boolean) : cleaned;
+  } else if (Array.isArray(raw.subCategory)) {
+    subCategory = raw.subCategory.map(s => sanitizeSearchString(String(s))).filter(Boolean);
+  }
+
   const nestedSubCategory = raw.nestedSubCategory !== undefined ? sanitizeSearchString(String(raw.nestedSubCategory)) : undefined;
   const visualSubCategory = raw.visualSubCategory !== undefined ? sanitizeSearchString(String(raw.visualSubCategory)) : undefined;
 

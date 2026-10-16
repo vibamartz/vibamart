@@ -3,7 +3,7 @@ import { initializeApp as initClientApp, getApps as getClientApps } from 'fireba
 import { getFirestore as getClientFirestore, collection as clientCollection, getDocs as getClientDocs, onSnapshot as clientOnSnapshot } from 'firebase/firestore';
 import { ViBaSearchEngine } from './searchEngine';
 import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
-import { Product } from '../../shared/types';
+import { Product, Category, VisualNestedSubcategory } from '../../shared/types';
 import { searchCache } from './searchCache';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
 
@@ -58,7 +58,11 @@ export class SearchService {
   private categoryNameMap: Record<string, string> = {};
   private subCategoryNameMap: Record<string, string> = {};
   private nestedSubCategoryNameMap: Record<string, string> = {};
-  private unsubscribeFirestore: (() => void) | null = null;
+  private cachedCategories: Category[] = [];
+  private cachedVisualItems: VisualNestedSubcategory[] = [];
+  private unsubscribeProducts: (() => void) | null = null;
+  private unsubscribeCategories: (() => void) | null = null;
+  private unsubscribeVisual: (() => void) | null = null;
 
   constructor() {
     this.engine = new ViBaSearchEngine();
@@ -72,6 +76,7 @@ export class SearchService {
     return {
       isInitialized: this.isInitialized,
       indexedCount: this.engine.getCount(),
+      hierarchyNodeCount: this.engine.getHierarchyEngine().getNodeCount(),
       lastIndexedTimestamp: this.lastIndexedTimestamp,
       cache: searchCache.getStats(),
       ai: getSemanticSearchStatus()
@@ -86,11 +91,11 @@ export class SearchService {
     this.isInitializing = true;
 
     try {
-      await this.loadCategoryMaps();
+      await this.loadCategoryHierarchy();
       await this.indexAllProducts();
-      this.attachRealtimeListener();
+      this.attachRealtimeListeners();
       this.isInitialized = true;
-      console.log(`[SearchService] Successfully initialized with ${this.engine.getCount()} indexed products.`);
+      console.log(`[SearchService] Successfully initialized with ${this.engine.getCount()} indexed products across ${this.engine.getHierarchyEngine().getNodeCount()} hierarchy levels.`);
     } catch (err) {
       console.error('[SearchService] Failed to initialize search index:', err);
     } finally {
@@ -99,17 +104,26 @@ export class SearchService {
   }
 
   /**
-   * Cache category, subcategory, and nested subcategory names for search tokenization.
+   * Dynamically loads all categories, subcategories, nested subcategories,
+   * and visual nested subcategories from Firestore.
    */
-  private async loadCategoryMaps(): Promise<void> {
+  public async loadCategoryHierarchy(): Promise<void> {
     try {
-      const catDocs = await fetchFirestoreCollectionDocs('categories');
-      catDocs.forEach(docSnap => {
-        const cat = docSnap.data;
-        const catId = docSnap.id;
-        const catName = cat.name || '';
-        this.categoryNameMap[catId] = catName;
+      const [catDocs, visualDocs] = await Promise.all([
+        fetchFirestoreCollectionDocs('categories'),
+        fetchFirestoreCollectionDocs('visual_nested_subcategories')
+      ]);
 
+      this.cachedCategories = catDocs.map(doc => ({ id: doc.id, ...doc.data } as Category));
+      this.cachedVisualItems = visualDocs.map(doc => ({ id: doc.id, ...doc.data } as VisualNestedSubcategory));
+
+      this.categoryNameMap = {};
+      this.subCategoryNameMap = {};
+      this.nestedSubCategoryNameMap = {};
+
+      this.cachedCategories.forEach(cat => {
+        if (!cat || !cat.id) return;
+        this.categoryNameMap[cat.id] = cat.name || '';
         if (Array.isArray(cat.subcategories)) {
           cat.subcategories.forEach((sub: any) => {
             if (sub && sub.id) {
@@ -125,8 +139,11 @@ export class SearchService {
           });
         }
       });
+
+      this.engine.setHierarchy(this.cachedCategories, this.cachedVisualItems);
+      searchCache.invalidate();
     } catch (err) {
-      console.warn('[SearchService] Could not load category names from Firestore:', err);
+      console.warn('[SearchService] Could not load category hierarchy from Firestore:', err);
     }
   }
 
@@ -160,9 +177,10 @@ export class SearchService {
 
       this.engine.indexProducts(
         products,
-        this.categoryNameMap,
-        this.subCategoryNameMap,
-        this.nestedSubCategoryNameMap
+        this.cachedCategories.length > 0 ? this.cachedCategories : this.categoryNameMap,
+        this.cachedVisualItems.length > 0 ? this.cachedVisualItems : this.subCategoryNameMap,
+        this.nestedSubCategoryNameMap,
+        this.cachedVisualItems
       );
 
       this.lastIndexedTimestamp = Date.now();
@@ -175,15 +193,24 @@ export class SearchService {
   }
 
   /**
-   * Listens for real-time changes in Firestore products collection to update index incrementally.
+   * Listens for real-time changes in Firestore products, categories, and visual_nested_subcategories
+   * to keep index and hierarchy synchronized automatically.
    */
-  private attachRealtimeListener(): void {
-    if (this.unsubscribeFirestore) {
-      this.unsubscribeFirestore();
-      this.unsubscribeFirestore = null;
+  private attachRealtimeListeners(): void {
+    if (this.unsubscribeProducts) {
+      this.unsubscribeProducts();
+      this.unsubscribeProducts = null;
+    }
+    if (this.unsubscribeCategories) {
+      this.unsubscribeCategories();
+      this.unsubscribeCategories = null;
+    }
+    if (this.unsubscribeVisual) {
+      this.unsubscribeVisual();
+      this.unsubscribeVisual = null;
     }
 
-    const handleSnapshot = (snapshot: any) => {
+    const handleProductSnapshot = (snapshot: any) => {
       let hasChanges = false;
       snapshot.docChanges().forEach((change: any) => {
         const product = { id: change.doc.id, ...change.doc.data() } as Product;
@@ -205,37 +232,61 @@ export class SearchService {
       }
     };
 
+    const handleHierarchySnapshot = async () => {
+      try {
+        await this.loadCategoryHierarchy();
+      } catch (err) {
+        console.warn('[SearchService] Error synchronizing hierarchy change:', err);
+      }
+    };
+
     if (hasAdminCredentials()) {
       try {
         const db = admin.firestore();
-        this.unsubscribeFirestore = db.collection('products').onSnapshot(
-          snapshot => handleSnapshot(snapshot),
+        this.unsubscribeProducts = db.collection('products').onSnapshot(
+          snapshot => handleProductSnapshot(snapshot),
           error => {
-            console.warn('[SearchService] Admin realtime listener error, falling back to Client SDK:', error);
-            this.attachClientRealtimeListener(handleSnapshot);
+            console.warn('[SearchService] Admin products listener error, falling back to Client SDK:', error);
+            this.attachClientRealtimeListeners(handleProductSnapshot, handleHierarchySnapshot);
           }
         );
+
+        this.unsubscribeCategories = db.collection('categories').onSnapshot(() => handleHierarchySnapshot(), () => {});
+        this.unsubscribeVisual = db.collection('visual_nested_subcategories').onSnapshot(() => handleHierarchySnapshot(), () => {});
         return;
       } catch (err) {
-        console.warn('[SearchService] Could not attach Admin realtime listener, using fallback:', err);
+        console.warn('[SearchService] Could not attach Admin realtime listeners, using fallback:', err);
       }
     }
 
-    this.attachClientRealtimeListener(handleSnapshot);
+    this.attachClientRealtimeListeners(handleProductSnapshot, handleHierarchySnapshot);
   }
 
-  private attachClientRealtimeListener(handleSnapshot: (snapshot: any) => void): void {
+  private attachClientRealtimeListeners(
+    handleProductSnapshot: (snapshot: any) => void,
+    handleHierarchySnapshot: () => void
+  ): void {
     try {
       const clientDb = getFallbackClientDb();
-      this.unsubscribeFirestore = clientOnSnapshot(
+      this.unsubscribeProducts = clientOnSnapshot(
         clientCollection(clientDb, 'products'),
-        snapshot => handleSnapshot(snapshot),
-        error => {
-          console.warn('[SearchService] Client SDK realtime listener error:', error);
-        }
+        snapshot => handleProductSnapshot(snapshot),
+        error => console.warn('[SearchService] Client SDK products listener error:', error)
+      );
+
+      this.unsubscribeCategories = clientOnSnapshot(
+        clientCollection(clientDb, 'categories'),
+        () => handleHierarchySnapshot(),
+        () => {}
+      );
+
+      this.unsubscribeVisual = clientOnSnapshot(
+        clientCollection(clientDb, 'visual_nested_subcategories'),
+        () => handleHierarchySnapshot(),
+        () => {}
       );
     } catch (err) {
-      console.warn('[SearchService] Failed to attach Client SDK realtime listener:', err);
+      console.warn('[SearchService] Failed to attach Client SDK realtime listeners:', err);
     }
   }
 

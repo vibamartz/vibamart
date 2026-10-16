@@ -18,6 +18,7 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 import { searchApiClient } from '../../services/searchApiClient';
+import { isProductInHierarchy, getOrCreateHierarchyEngine } from '../../shared/utilities/categoryHierarchyUtils';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -275,10 +276,12 @@ export default function ProductList() {
   }, [rawVisual, rawLevel5, pathSegments, rawNestedSubCat, rawSubCat, searchParams, matchedCategory, matchedSubcategory, visualNestedItems]);
 
   // Match banner object if opening a banner route
+  const isSearchQuery = Boolean(searchParams.get('q'));
+
   const matchedBanner = useMemo(() => {
-    if (!rawOffer) return null;
+    if (isSearchQuery || !rawOffer) return null;
     return allBanners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
-  }, [rawOffer, allBanners]);
+  }, [isSearchQuery, rawOffer, allBanners]);
 
   // Category-Specific Banners for the selected category (Strict Isolation)
   const categoryBanners = useMemo(() => {
@@ -314,16 +317,25 @@ export default function ProductList() {
 
   // Base Page Context (from route / visual / brand / category hierarchy)
   const baseCatId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('category') || '';
+    }
     return matchedCategory?.id || matchedVisualNestedSubcategory?.categoryId || (rawCat && rawCat !== 'products' && rawCat !== 'categories' ? rawCat : '');
-  }, [matchedCategory, matchedVisualNestedSubcategory, rawCat]);
+  }, [isSearchQuery, searchParams, matchedCategory, matchedVisualNestedSubcategory, rawCat]);
 
   const baseSubId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('subCategory') || '';
+    }
     return matchedSubcategory?.id || (matchedVisualNestedSubcategory?.subCategoryId && matchedVisualNestedSubcategory.subCategoryId !== 'all' ? matchedVisualNestedSubcategory.subCategoryId : '');
-  }, [matchedSubcategory, matchedVisualNestedSubcategory]);
+  }, [isSearchQuery, searchParams, matchedSubcategory, matchedVisualNestedSubcategory]);
 
   const baseNestedId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('nestedSubCategory') || '';
+    }
     return matchedDeepChildSubcategory?.id || matchedNestedSubcategory?.id || matchedVisualNestedSubcategory?.nestedSubCategoryId || (matchedVisualNestedSubcategory?.parentTargetType === 'nested_subcategory' ? matchedVisualNestedSubcategory.parentTargetId : '') || '';
-  }, [matchedDeepChildSubcategory, matchedNestedSubcategory, matchedVisualNestedSubcategory]);
+  }, [isSearchQuery, searchParams, matchedDeepChildSubcategory, matchedNestedSubcategory, matchedVisualNestedSubcategory]);
 
   const baseBrand = useMemo(() => {
     if (!rawBrand) return '';
@@ -350,6 +362,7 @@ export default function ProductList() {
     return allProducts.filter(p => {
       // Visual Nested Subcategory filter
       const hasVisualExplicit = Boolean(
+        !isSearchQuery &&
         matchedVisualNestedSubcategory && (
           (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
           allProducts.some(item =>
@@ -367,22 +380,22 @@ export default function ProductList() {
         if (!isAssigned) return false;
       }
 
-      // Category filter
+      // Category filter across entire hierarchy
       if (!hasVisualExplicit) {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
-            if (!p.discountPrice && !effectiveCats.includes(p.categoryId)) return false;
-          } else if (!effectiveCats.includes(p.categoryId) && !(matchedCategory && (p.categoryId === matchedCategory.slug || createSlug(matchedCategory.name) === p.categoryId))) {
+            if (!p.discountPrice && !effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems))) return false;
+          } else if (!effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems))) {
             return false;
           }
         }
       }
 
-      // SubCategory filter
+      // SubCategory filter across entire hierarchy
       if (!hasVisualExplicit) {
         const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
-        if (effectiveSubs.length > 0 && p.subCategoryId && !effectiveSubs.includes(p.subCategoryId)) return false;
+        if (effectiveSubs.length > 0 && !effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems))) return false;
       }
 
       // Brand filter
@@ -404,19 +417,32 @@ export default function ProductList() {
 
       if (filterType !== 'availability' && onlyInStock && p.stock <= 0) return false;
 
-      // Search query filter
+      // Search query filter across all hierarchy levels
       const queryStr = searchParams.get('q');
       if (queryStr) {
         const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
         if (terms.length > 0) {
-          const searchableText = [p.name, p.brand, p.description, p.fullDescription, ...(p.tags || [])].filter(Boolean).join(' ').toLowerCase();
-          const isMatch = terms.every(term => searchableText.includes(term));
+          const engine = getOrCreateHierarchyEngine(CATEGORIES, visualNestedItems);
+          const { categoryNames, visualNames } = engine.resolveProductHierarchy(p);
+          const searchableText = [
+            p.name,
+            p.brand,
+            p.id,
+            p.productCode,
+            p.productCode ? cleanProductCode(p.productCode) : '',
+            p.description,
+            p.fullDescription,
+            ...categoryNames,
+            ...visualNames,
+            ...(p.tags || [])
+          ].filter(Boolean).join(' ').toLowerCase();
+          const isMatch = terms.every(term => searchableText.includes(term) || (cleanProductCode(term).length > 0 && searchableText.includes(cleanProductCode(term))));
           if (!isMatch) return false;
         }
       }
 
       // Check the specific value for the current filterType
-      if (filterType === 'subcategory' && p.subCategoryId !== value) return false;
+      if (filterType === 'subcategory' && !isProductInHierarchy(p, value, CATEGORIES, visualNestedItems)) return false;
       if (filterType === 'brand' && p.brand !== value) return false;
       if (filterType === 'price' && effectivePrice > value) return false;
       if (filterType === 'rating' && p.rating < value) return false;
@@ -525,6 +551,7 @@ export default function ProductList() {
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
       const hasVisualExplicit = Boolean(
+        !isSearchQuery &&
         matchedVisualNestedSubcategory && (
           (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
           allProducts.some(item =>
@@ -542,37 +569,32 @@ export default function ProductList() {
         if (!isAssigned) return false;
       }
 
-      // Category filter (Skip category filter if viewing explicit banner or explicit visual subcategory)
+      // Category filter across entire hierarchy (Skip category filter if viewing explicit banner or explicit visual subcategory)
       if (!matchedBanner && !hasVisualExplicit) {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
         if (effectiveCats.length > 0) {
-          const productCatIds = [p.categoryId, ...(p.categories || [])].filter(Boolean) as string[];
           if (effectiveCats.includes('all-deals')) {
-            if (!p.discountPrice && !productCatIds.some(c => effectiveCats.includes(c))) return false;
+            const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
+            if (!p.discountPrice && !hasCatMatch) return false;
           } else {
-            const hasCatMatch = productCatIds.some(c =>
-              effectiveCats.includes(c) ||
-              (matchedCategory && (c === matchedCategory.slug || createSlug(matchedCategory.name) === c))
-            );
+            const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
             if (!hasCatMatch) return false;
           }
         }
       }
 
-      // SubCategory filter (Skip if explicit visual subcategory assignment)
+      // SubCategory filter across entire hierarchy (Skip if explicit visual subcategory assignment)
       if (!hasVisualExplicit) {
         const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
         if (effectiveSubs.length > 0) {
-          const productSubIds = [p.subCategoryId, ...(p.subCategoryIds || [])].filter(Boolean) as string[];
-          const hasSubMatch = productSubIds.some(s => effectiveSubs.includes(s));
+          const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems));
           if (!hasSubMatch) return false;
         }
 
-        // Nested SubCategory filter
+        // Nested SubCategory filter across entire hierarchy
         const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
         if (effectiveNested.length > 0) {
-          const productNestedIds = [p.nestedSubCategoryId, ...(p.nestedSubCategoryIds || [])].filter(Boolean) as string[];
-          const hasNestedMatch = productNestedIds.some(n => effectiveNested.includes(n));
+          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems));
           if (!hasNestedMatch) return false;
         }
       }
@@ -604,11 +626,8 @@ export default function ProductList() {
       if (queryStr && searchResults === null) {
         const terms = queryStr.toLowerCase().split(/\s+/).filter(Boolean);
         if (terms.length > 0) {
-          const catObj = CATEGORIES.find(c => c.id === p.categoryId);
-          const catName = catObj?.name || '';
-          const subCatObj = catObj?.subcategories?.find(s => s.id === p.subCategoryId);
-          const subCatName = subCatObj?.name || '';
-          const nestedSubCatName = subCatObj?.subcategories?.find(n => n.id === p.nestedSubCategoryId)?.name || '';
+          const engine = getOrCreateHierarchyEngine(CATEGORIES, visualNestedItems);
+          const { categoryNames, visualNames } = engine.resolveProductHierarchy(p);
 
           const searchableText = [
             p.name,
@@ -618,9 +637,8 @@ export default function ProductList() {
             p.productCode ? cleanProductCode(p.productCode) : '',
             p.description,
             p.fullDescription,
-            catName,
-            subCatName,
-            nestedSubCatName,
+            ...categoryNames,
+            ...visualNames,
             ...(p.tags || [])
           ].filter(Boolean).join(' ').toLowerCase();
 
@@ -638,7 +656,7 @@ export default function ProductList() {
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return result;
-  }, [allProducts, searchResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES]);
+  }, [allProducts, searchResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES, visualNestedItems, isSearchQuery]);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);

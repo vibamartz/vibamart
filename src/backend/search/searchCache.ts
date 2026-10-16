@@ -34,10 +34,10 @@ export class SearchCache {
   public generateKey(params: SearchParams): string {
     const parts = [
       params.q?.trim().toLowerCase() || '',
-      params.category || '',
-      params.subCategory || '',
-      params.nestedSubCategory || '',
-      params.visualSubCategory || '',
+      Array.isArray(params.category) ? params.category.slice().sort().join(',') : (params.category || ''),
+      Array.isArray(params.subCategory) ? params.subCategory.slice().sort().join(',') : (params.subCategory || ''),
+      Array.isArray(params.nestedSubCategory) ? params.nestedSubCategory.slice().sort().join(',') : (params.nestedSubCategory || ''),
+      Array.isArray(params.visualSubCategory) ? params.visualSubCategory.slice().sort().join(',') : (params.visualSubCategory || ''),
       Array.isArray(params.brand) ? params.brand.sort().join(',') : (params.brand || ''),
       params.minPrice ?? '',
       params.maxPrice ?? '',

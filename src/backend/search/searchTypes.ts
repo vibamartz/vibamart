@@ -2,10 +2,10 @@ import { Product } from '../../shared/types';
 
 export interface SearchParams {
   q?: string;
-  category?: string;
-  subCategory?: string;
-  nestedSubCategory?: string;
-  visualSubCategory?: string;
+  category?: string | string[];
+  subCategory?: string | string[];
+  nestedSubCategory?: string | string[];
+  visualSubCategory?: string | string[];
   brand?: string | string[];
   minPrice?: number;
   maxPrice?: number;
@@ -47,9 +47,13 @@ export interface IndexedProductDoc {
   categoryName: string;
   subCategoryName: string;
   nestedSubCategoryName: string;
+  allCategoryNames: string;
+  visualSubcategoryNames: string;
+  categoryHierarchyIds: string[];
   tags: string;
   specifications: string;
   variantAttributes: string;
+  availableAttributes: string;
   description: string;
   searchableText?: string;
   embedding?: Float32Array;

@@ -1,6 +1,16 @@
 import MiniSearch from 'minisearch';
 import { Product } from '../../shared/types';
-import { SearchParams, SearchResult, SearchFacets, SearchFacetValue, SuggestionResult, SuggestionItem, SearchLatencyTelemetry } from './searchTypes';
+import {
+  SearchParams,
+  SearchResult,
+  SearchFacets,
+  SearchFacetValue,
+  SuggestionResult,
+  SuggestionItem,
+  SearchLatencyTelemetry,
+  IndexedProductDoc
+} from './searchTypes';
+export type { IndexedProductDoc };
 import { expandQueryWithSynonyms, stemToken, normalizeQueryString } from './searchSynonyms';
 import { cleanProductCode } from '../../shared/utilities/productCode';
 import { ZeroResultRecovery } from './zeroResultRecovery';
@@ -17,44 +27,6 @@ import {
 import { rankingFramework } from './rankingFramework';
 import { sessionRankingManager } from './sessionRanking';
 import { visualSearchService } from './visualSearch';
-
-export interface IndexedProductDoc {
-  id: string;
-  name: string;
-  brand: string;
-  productCode: string;
-  cleanProductCode: string;
-  sku: string;
-  categoryName: string;
-  subCategoryName: string;
-  nestedSubCategoryName: string;
-  tags: string;
-  specifications: string;
-  variantAttributes: string;
-  description: string;
-  searchableText?: string;
-  embedding?: Float32Array;
-  // Metadata for filtering & facets
-  categoryId: string;
-  subCategoryId?: string;
-  nestedSubCategoryId?: string;
-  visualNestedSubcategoryIds?: string[];
-  effectivePrice: number;
-  price: number;
-  discountPrice?: number;
-  discountPercentage: number;
-  rating: number;
-  numReviews: number;
-  stock: number;
-  inStock: boolean;
-  colors: string[];
-  sizes: string[];
-  createdAt: string;
-  status: string;
-  isVisible: boolean;
-  isReward: boolean;
-  raw: Product;
-}
 
 /**
  * Intelligent gender matching helper
@@ -89,11 +61,15 @@ function checkGenderMatch(doc: IndexedProductDoc, targetGender: string): boolean
   return true;
 }
 
+import { Category, SubCategory, VisualNestedSubcategory } from '../../shared/types';
+import { CategoryHierarchyEngine, globalCategoryHierarchy } from './categoryHierarchy';
+
 export class ViBaSearchEngine {
   private miniSearch: MiniSearch<IndexedProductDoc>;
   private indexedDocs: Map<string, IndexedProductDoc> = new Map();
   private rewardProductIds: Set<string> = new Set();
   private tfIdfIndex: LocalTfIdfIndex = new LocalTfIdfIndex();
+  private hierarchyEngine: CategoryHierarchyEngine = globalCategoryHierarchy;
 
   constructor() {
     this.miniSearch = new MiniSearch<IndexedProductDoc>({
@@ -107,6 +83,9 @@ export class ViBaSearchEngine {
         'categoryName',
         'subCategoryName',
         'nestedSubCategoryName',
+        'allCategoryNames',
+        'visualSubcategoryNames',
+        'availableAttributes',
         'specifications',
         'variantAttributes',
         'description'
@@ -121,9 +100,12 @@ export class ViBaSearchEngine {
           name: 6,
           brand: 4,
           tags: 3,
-          categoryName: 2,
-          subCategoryName: 2,
-          nestedSubCategoryName: 2,
+          allCategoryNames: 3,
+          visualSubcategoryNames: 2.5,
+          categoryName: 2.5,
+          subCategoryName: 2.5,
+          nestedSubCategoryName: 2.5,
+          availableAttributes: 2,
           specifications: 1.5,
           variantAttributes: 1.5,
           description: 1
@@ -142,6 +124,40 @@ export class ViBaSearchEngine {
   }
 
   /**
+   * Set dynamic category hierarchy tree across all category, subcategory,
+   * nested subcategory, and visual nested subcategory levels.
+   */
+  public setHierarchy(categoriesOrEngine: Category[] | CategoryHierarchyEngine, visualItems: VisualNestedSubcategory[] = []): void {
+    if (categoriesOrEngine instanceof CategoryHierarchyEngine) {
+      this.hierarchyEngine = categoriesOrEngine;
+    } else {
+      this.hierarchyEngine.loadHierarchy(categoriesOrEngine, visualItems);
+    }
+
+    // Synchronize and refresh indexed docs metadata with the updated hierarchy
+    for (const [id, doc] of this.indexedDocs.entries()) {
+      if (!doc.raw) continue;
+      const { hierarchyIds, allNames, visualNames } = this.hierarchyEngine.resolveProductHierarchy(doc.raw);
+      doc.categoryHierarchyIds = Array.from(hierarchyIds);
+      doc.allCategoryNames = Array.from(new Set(allNames)).join(' ');
+      doc.visualSubcategoryNames = Array.from(new Set(visualNames)).join(' ');
+
+      // Re-add to MiniSearch so new category & visual names are immediately searchable
+      try {
+        this.miniSearch.discard(id);
+        this.miniSearch.add(doc);
+      } catch {}
+    }
+  }
+
+  /**
+   * Access active CategoryHierarchyEngine instance.
+   */
+  public getHierarchyEngine(): CategoryHierarchyEngine {
+    return this.hierarchyEngine;
+  }
+
+  /**
    * Set known exclusive reward product IDs to respect publication rules.
    */
   public setRewardProductIds(rewardIds: Set<string>) {
@@ -151,12 +167,16 @@ export class ViBaSearchEngine {
   /**
    * Transform raw Product into indexed document representation.
    */
+  /**
+   * Transform raw Product into indexed document representation.
+   */
   public static toIndexedDoc(
     product: Product,
     categoryName = '',
     subCategoryName = '',
     nestedSubCategoryName = '',
-    isReward = false
+    isReward = false,
+    hierarchyEngine?: CategoryHierarchyEngine
   ): IndexedProductDoc {
     if (!product || !product.id) {
       return {
@@ -169,9 +189,13 @@ export class ViBaSearchEngine {
         categoryName: '',
         subCategoryName: '',
         nestedSubCategoryName: '',
+        allCategoryNames: '',
+        visualSubcategoryNames: '',
+        categoryHierarchyIds: [],
         tags: '',
         specifications: '',
         variantAttributes: '',
+        availableAttributes: '',
         description: '',
         categoryId: '',
         effectivePrice: 0,
@@ -260,12 +284,90 @@ export class ViBaSearchEngine {
       });
     }
 
+    // Extract all comprehensive product attributes for deep attribute search
+    const attrParts: string[] = [];
+    if (product.specifications && Array.isArray(product.specifications)) {
+      product.specifications.forEach(s => {
+        if (s && s.key && s.value) attrParts.push(`${s.key} ${s.value}`);
+      });
+    }
+    if (product.variantSpecifications && typeof product.variantSpecifications === 'object') {
+      Object.values(product.variantSpecifications).forEach(specs => {
+        if (Array.isArray(specs)) {
+          specs.forEach(s => {
+            if (s && s.key && s.value) attrParts.push(`${s.key} ${s.value}`);
+          });
+        }
+      });
+    }
+    if (Array.isArray(product.variantAttributes)) {
+      product.variantAttributes.forEach(v => {
+        if (typeof v === 'string' && v.trim()) attrParts.push(v.trim());
+      });
+    }
+    if (Array.isArray(product.variantAttributesList)) {
+      product.variantAttributesList.forEach(a => {
+        if (a && a.name) {
+          attrParts.push(a.name);
+          if (Array.isArray(a.values)) {
+            attrParts.push(a.values.join(' '));
+          }
+        }
+      });
+    }
+    if (Array.isArray(product.features)) {
+      product.features.forEach(f => {
+        if (typeof f === 'string' && f.trim()) attrParts.push(f.trim());
+      });
+    }
+    if (product.familyAttributeName) attrParts.push(String(product.familyAttributeName));
+    if (product.familyAttributeValue) attrParts.push(String(product.familyAttributeValue));
+    if (product.color) attrParts.push(String(product.color));
+    if (product.size) attrParts.push(String(product.size));
+    if (Array.isArray(product.sizes)) {
+      attrParts.push(product.sizes.join(' '));
+    }
+    const availableAttributes = Array.from(new Set(attrParts)).join(' ');
+
     const visualNestedSubcategoryIds: string[] = [];
     if (product.visualNestedSubcategoryId) visualNestedSubcategoryIds.push(String(product.visualNestedSubcategoryId));
     if (Array.isArray(product.visualNestedSubcategoryIds)) {
       product.visualNestedSubcategoryIds.forEach(v => {
         if (v) visualNestedSubcategoryIds.push(String(v));
       });
+    }
+
+    // Dynamic Hierarchy Resolution across all depth levels and visual showcases
+    let resolvedHierarchyIds: string[] = [];
+    let allCatNamesStr = '';
+    let visualCatNamesStr = '';
+
+    if (hierarchyEngine) {
+      const hierarchy = hierarchyEngine.resolveProductHierarchy(product);
+      resolvedHierarchyIds = Array.from(hierarchy.hierarchyIds);
+      allCatNamesStr = hierarchy.allNames.join(' ');
+      visualCatNamesStr = hierarchy.visualNames.join(' ');
+      if (!categoryName && hierarchy.allNames.length > 0) {
+        categoryName = hierarchy.allNames[0];
+      }
+      if (!subCategoryName && hierarchy.allNames.length > 1) {
+        subCategoryName = hierarchy.allNames[1];
+      }
+      if (!nestedSubCategoryName && hierarchy.allNames.length > 2) {
+        nestedSubCategoryName = hierarchy.allNames[2];
+      }
+    } else {
+      const direct = new Set<string>();
+      if (product.categoryId) direct.add(String(product.categoryId));
+      if (Array.isArray(product.categories)) product.categories.forEach(c => c && direct.add(String(c)));
+      if (product.subCategoryId) direct.add(String(product.subCategoryId));
+      if (Array.isArray(product.subCategoryIds)) product.subCategoryIds.forEach(s => s && direct.add(String(s)));
+      if (product.nestedSubCategoryId) direct.add(String(product.nestedSubCategoryId));
+      if (Array.isArray(product.nestedSubCategoryIds)) product.nestedSubCategoryIds.forEach(n => n && direct.add(String(n)));
+      if (product.visualNestedSubcategoryId) direct.add(String(product.visualNestedSubcategoryId));
+      if (Array.isArray(product.visualNestedSubcategoryIds)) product.visualNestedSubcategoryIds.forEach(v => v && direct.add(String(v)));
+      resolvedHierarchyIds = Array.from(direct);
+      allCatNamesStr = [categoryName, subCategoryName, nestedSubCategoryName].filter(Boolean).join(' ');
     }
 
     const rating = Math.max(0, Math.min(5, Number(product.rating) || 0));
@@ -277,7 +379,7 @@ export class ViBaSearchEngine {
     const rawVariantAttrs = Array.isArray(product.variantAttributes) ? product.variantAttributes.filter(v => typeof v === 'string').join(' ') : '';
     const rawDesc = String(product.description || '') + ' ' + String(product.fullDescription || '');
 
-    const searchableText = `${String(product.name || '')} ${String(product.brand || '')} ${categoryName} ${subCategoryName} ${nestedSubCategoryName} ${rawTags} ${specStrings.join(' ')} ${rawVariantAttrs} ${String(product.sku || '')} ${rawDesc}`.trim();
+    const searchableText = `${String(product.name || '')} ${String(product.brand || '')} ${categoryName} ${subCategoryName} ${nestedSubCategoryName} ${allCatNamesStr} ${visualCatNamesStr} ${rawTags} ${specStrings.join(' ')} ${rawVariantAttrs} ${availableAttributes} ${String(product.sku || '')} ${rawDesc}`.trim();
     const embedding = LocalSentenceEmbedding.embed(searchableText);
 
     return {
@@ -290,9 +392,13 @@ export class ViBaSearchEngine {
       categoryName,
       subCategoryName,
       nestedSubCategoryName,
+      allCategoryNames: allCatNamesStr,
+      visualSubcategoryNames: visualCatNamesStr,
+      categoryHierarchyIds: resolvedHierarchyIds,
       tags: rawTags,
       specifications: specStrings.join(' '),
       variantAttributes: rawVariantAttrs,
+      availableAttributes,
       description: rawDesc,
       searchableText,
       embedding,
@@ -319,28 +425,95 @@ export class ViBaSearchEngine {
   }
 
   /**
-   * Bulk index an array of products.
+   * Bulk index an array of products with dynamic category hierarchy support.
    */
   public indexProducts(
     products: Product[],
-    categoryNameMap: Record<string, string> = {},
-    subCategoryNameMap: Record<string, string> = {},
-    nestedSubCategoryNameMap: Record<string, string> = {}
+    categoryNameMap: Record<string, string> | Category[] = {},
+    subCategoryNameMap: Record<string, string> | VisualNestedSubcategory[] = {},
+    nestedSubCategoryNameMap: Record<string, string> = {},
+    visualItems: VisualNestedSubcategory[] = []
   ) {
     this.miniSearch.removeAll();
     this.indexedDocs.clear();
     this.tfIdfIndex.clear();
 
+    // Check if Category[] array was passed
+    if (Array.isArray(categoryNameMap)) {
+      const visualList = Array.isArray(subCategoryNameMap) ? subCategoryNameMap : visualItems;
+      this.hierarchyEngine.loadHierarchy(categoryNameMap, visualList);
+    } else if (categoryNameMap && typeof categoryNameMap === 'object') {
+      // Build synthetic Category tree for backward-compatible map calls
+      const syntheticCategories: Category[] = [];
+      const catMap = categoryNameMap as Record<string, string>;
+      const subMap = (typeof subCategoryNameMap === 'object' && !Array.isArray(subCategoryNameMap))
+        ? (subCategoryNameMap as Record<string, string>)
+        : {};
+      const nestedMap = nestedSubCategoryNameMap || {};
+
+      for (const [catId, catName] of Object.entries(catMap)) {
+        syntheticCategories.push({
+          id: catId,
+          name: catName,
+          slug: catId,
+          image: '',
+          subcategories: []
+        });
+      }
+
+      // Link subcategories and nested subcategories from product assignments
+      for (const p of products) {
+        if (p.categoryId && p.subCategoryId) {
+          const parentCat = syntheticCategories.find(c => c.id === p.categoryId);
+          if (parentCat) {
+            if (!parentCat.subcategories) parentCat.subcategories = [];
+            const subName = subMap[p.subCategoryId] || p.subCategoryId;
+            let sub = parentCat.subcategories.find(s => s.id === p.subCategoryId);
+            if (!sub) {
+              sub = {
+                id: p.subCategoryId,
+                name: subName,
+                slug: p.subCategoryId,
+                subcategories: []
+              };
+              parentCat.subcategories.push(sub);
+            }
+            if (p.nestedSubCategoryId) {
+              if (!sub.subcategories) sub.subcategories = [];
+              const nName = nestedMap[p.nestedSubCategoryId] || p.nestedSubCategoryId;
+              if (!sub.subcategories.some(n => n.id === p.nestedSubCategoryId)) {
+                sub.subcategories.push({
+                  id: p.nestedSubCategoryId,
+                  name: nName,
+                  slug: p.nestedSubCategoryId
+                });
+              }
+            }
+          }
+        }
+      }
+
+      const visualList = Array.isArray(visualItems) ? visualItems : [];
+      this.hierarchyEngine.loadHierarchy(syntheticCategories, visualList);
+    }
+
     const docsToIndex: IndexedProductDoc[] = [];
 
     for (const product of products) {
       if (!product || !product.id) continue;
-      const catName = categoryNameMap[product.categoryId] || '';
-      const subName = product.subCategoryId ? (subCategoryNameMap[product.subCategoryId] || '') : '';
+      const catName = !Array.isArray(categoryNameMap) ? (categoryNameMap[product.categoryId] || '') : '';
+      const subName = (!Array.isArray(subCategoryNameMap) && product.subCategoryId) ? (subCategoryNameMap[product.subCategoryId] || '') : '';
       const nestedName = product.nestedSubCategoryId ? (nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
       const isReward = this.rewardProductIds.has(product.id);
 
-      const doc = ViBaSearchEngine.toIndexedDoc(product, catName, subName, nestedName, isReward);
+      const doc = ViBaSearchEngine.toIndexedDoc(
+        product,
+        catName,
+        subName,
+        nestedName,
+        isReward,
+        this.hierarchyEngine
+      );
       this.indexedDocs.set(product.id, doc);
       if (doc.searchableText) {
         this.tfIdfIndex.addDocument(doc.id, doc.searchableText);
@@ -355,7 +528,7 @@ export class ViBaSearchEngine {
   }
 
   /**
-   * Add or update an individual product incrementally.
+   * Add or update an individual product incrementally with hierarchy resolution.
    */
   public upsertProduct(
     product: Product,
@@ -365,7 +538,14 @@ export class ViBaSearchEngine {
   ): IndexedProductDoc | null {
     if (!product || !product.id) return null;
     const isReward = this.rewardProductIds.has(product.id);
-    const doc = ViBaSearchEngine.toIndexedDoc(product, catName, subName, nestedName, isReward);
+    const doc = ViBaSearchEngine.toIndexedDoc(
+      product,
+      catName,
+      subName,
+      nestedName,
+      isReward,
+      this.hierarchyEngine
+    );
 
     if (doc.searchableText) {
       this.tfIdfIndex.addDocument(doc.id, doc.searchableText);
@@ -489,6 +669,23 @@ export class ViBaSearchEngine {
         scoreMap.set(pid, 20000 - idx);
       });
 
+      // 0. Dynamic Category & Subcategory Hierarchy Expansion
+      const categoryMatches = this.hierarchyEngine.findNodesMatchingQuery(queryToSearch || rawQuery);
+      if (categoryMatches.length > 0) {
+        for (const catNode of categoryMatches) {
+          const descendantIds = this.hierarchyEngine.getDescendantIds(catNode.id);
+          for (const [id, doc] of this.indexedDocs.entries()) {
+            if (!params.includeDrafts && (!doc.isVisible || doc.status === 'inactive' || doc.status === 'draft')) continue;
+            const docHierarchy = doc.categoryHierarchyIds || [];
+            if (docHierarchy.some(hId => descendantIds.has(hId))) {
+              const current = scoreMap.get(id) || 0;
+              const categoryBoost = catNode.levelNumber === 1 ? 1600 : (catNode.levelNumber === 2 ? 1800 : 2000);
+              scoreMap.set(id, Math.max(current, categoryBoost));
+            }
+          }
+        }
+      }
+
       // If not exact unique match or we want full text retrieval
       const synonymTokens = expandQueryWithSynonyms(queryToSearch);
       const searchTerms = Array.from(new Set([queryToSearch, effectiveQuery, rawQuery, ...synonymTokens]));
@@ -581,11 +778,6 @@ export class ViBaSearchEngine {
     // Filter candidate documents
     const candidateDocs: { doc: IndexedProductDoc; score: number }[] = [];
 
-    const categoryFilter = params.category ? params.category.toLowerCase().trim() : undefined;
-    const subCategoryFilter = params.subCategory ? params.subCategory.toLowerCase().trim() : undefined;
-    const nestedSubCategoryFilter = params.nestedSubCategory ? params.nestedSubCategory.toLowerCase().trim() : undefined;
-    const visualSubCategoryFilter = params.visualSubCategory ? params.visualSubCategory.toLowerCase().trim() : undefined;
-
     const brandFilters = params.brand
       ? (Array.isArray(params.brand) ? params.brand : [params.brand]).map(b => b.toLowerCase().trim())
       : undefined;
@@ -610,39 +802,123 @@ export class ViBaSearchEngine {
         if (doc.status === 'inactive' || doc.status === 'draft') continue;
       }
 
-      // 2. Category Hierarchy Filters
-      if (categoryFilter && categoryFilter !== 'all-deals' && categoryFilter !== 'categories') {
-        const cf = categoryFilter.toLowerCase();
-        const cfSingular = cf.replace(/s$/, '');
-        const catMatch = doc.categoryId.toLowerCase() === cf ||
-                         doc.categoryName.toLowerCase() === cf ||
-                         doc.categoryName.toLowerCase().includes(cf) ||
-                         cf.includes(doc.categoryName.toLowerCase()) ||
-                         (doc.subCategoryName && (doc.subCategoryName.toLowerCase() === cf || doc.subCategoryName.toLowerCase().includes(cf))) ||
-                         (doc.nestedSubCategoryName && (
-                           doc.nestedSubCategoryName.toLowerCase() === cf ||
-                           doc.nestedSubCategoryName.toLowerCase().replace(/s$/, '') === cfSingular ||
-                           doc.nestedSubCategoryName.toLowerCase().includes(cf) ||
-                           cf.includes(doc.nestedSubCategoryName.toLowerCase())
-                         ));
-        if (!catMatch) continue;
+      // 2. Dynamic Category Hierarchy Filters across all descendant levels
+      if (params.category && params.category !== 'all-deals' && params.category !== 'categories') {
+        const catFilters = (Array.isArray(params.category) ? params.category : String(params.category).split(','))
+          .map(c => c.trim().toLowerCase())
+          .filter(Boolean);
+
+        let matchesAnyCat = false;
+        for (const cf of catFilters) {
+          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, cf)) {
+            matchesAnyCat = true;
+            break;
+          }
+          const cfSingular = cf.replace(/s$/, '');
+          const matchAllCat = doc.allCategoryNames
+            ? (Array.isArray(doc.allCategoryNames)
+                ? (doc.allCategoryNames as string[]).some(n => n.toLowerCase().includes(cf) || n.toLowerCase().includes(cfSingular))
+                : (doc.allCategoryNames.toLowerCase().includes(cf) || doc.allCategoryNames.toLowerCase().includes(cfSingular)))
+            : false;
+
+          if (
+            doc.categoryId.toLowerCase() === cf ||
+            doc.categoryName.toLowerCase() === cf ||
+            doc.categoryName.toLowerCase().includes(cf) ||
+            cf.includes(doc.categoryName.toLowerCase()) ||
+            matchAllCat
+          ) {
+            matchesAnyCat = true;
+            break;
+          }
+        }
+        if (!matchesAnyCat) continue;
       }
 
-      if (subCategoryFilter && subCategoryFilter !== 'all') {
-        const subMatch = (doc.subCategoryId && doc.subCategoryId.toLowerCase() === subCategoryFilter) ||
-                         doc.subCategoryName.toLowerCase() === subCategoryFilter;
-        if (!subMatch) continue;
+      if (params.subCategory && params.subCategory !== 'all') {
+        const subFilters = (Array.isArray(params.subCategory) ? params.subCategory : String(params.subCategory).split(','))
+          .map(s => s.trim().toLowerCase())
+          .filter(Boolean);
+
+        let matchesAnySub = false;
+        for (const sf of subFilters) {
+          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, sf)) {
+            matchesAnySub = true;
+            break;
+          }
+          const matchAllSub = doc.allCategoryNames
+            ? (Array.isArray(doc.allCategoryNames)
+                ? (doc.allCategoryNames as string[]).some(n => n.toLowerCase().includes(sf))
+                : doc.allCategoryNames.toLowerCase().includes(sf))
+            : false;
+
+          if (
+            (doc.subCategoryId && doc.subCategoryId.toLowerCase() === sf) ||
+            doc.subCategoryName.toLowerCase() === sf ||
+            matchAllSub
+          ) {
+            matchesAnySub = true;
+            break;
+          }
+        }
+        if (!matchesAnySub) continue;
       }
 
-      if (nestedSubCategoryFilter && nestedSubCategoryFilter !== 'all') {
-        const nestedMatch = (doc.nestedSubCategoryId && doc.nestedSubCategoryId.toLowerCase() === nestedSubCategoryFilter) ||
-                            doc.nestedSubCategoryName.toLowerCase() === nestedSubCategoryFilter;
-        if (!nestedMatch) continue;
+      if (params.nestedSubCategory && params.nestedSubCategory !== 'all') {
+        const nestedFilters = (Array.isArray(params.nestedSubCategory) ? params.nestedSubCategory : String(params.nestedSubCategory).split(','))
+          .map(n => n.trim().toLowerCase())
+          .filter(Boolean);
+
+        let matchesAnyNested = false;
+        for (const nf of nestedFilters) {
+          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, nf)) {
+            matchesAnyNested = true;
+            break;
+          }
+          const matchAllNested = doc.allCategoryNames
+            ? (Array.isArray(doc.allCategoryNames)
+                ? (doc.allCategoryNames as string[]).some(n => n.toLowerCase().includes(nf))
+                : doc.allCategoryNames.toLowerCase().includes(nf))
+            : false;
+
+          if (
+            (doc.nestedSubCategoryId && doc.nestedSubCategoryId.toLowerCase() === nf) ||
+            doc.nestedSubCategoryName.toLowerCase() === nf ||
+            matchAllNested
+          ) {
+            matchesAnyNested = true;
+            break;
+          }
+        }
+        if (!matchesAnyNested) continue;
       }
 
-      if (visualSubCategoryFilter) {
-        const visualMatch = doc.visualNestedSubcategoryIds?.some(v => v.toLowerCase() === visualSubCategoryFilter);
-        if (!visualMatch) continue;
+      if (params.visualSubCategory) {
+        const visualFilters = (Array.isArray(params.visualSubCategory) ? params.visualSubCategory : String(params.visualSubCategory).split(','))
+          .map(v => v.trim().toLowerCase())
+          .filter(Boolean);
+
+        let matchesAnyVisual = false;
+        for (const vf of visualFilters) {
+          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, vf)) {
+            matchesAnyVisual = true;
+            break;
+          }
+          const matchVisual = doc.visualSubcategoryNames
+            ? (Array.isArray(doc.visualSubcategoryNames)
+                ? (doc.visualSubcategoryNames as string[]).some(v => v.toLowerCase().includes(vf))
+                : doc.visualSubcategoryNames.toLowerCase().includes(vf))
+            : false;
+
+          if (
+            doc.visualNestedSubcategoryIds?.some(v => v.toLowerCase() === vf) ||
+            matchVisual
+          ) {
+            matchesAnyVisual = true;
+            break;
+          }
+        }
+        if (!matchesAnyVisual) continue;
       }
 
       // 3. Brand Filter
@@ -1141,29 +1417,26 @@ export class ViBaSearchEngine {
       }
     }
 
-    // 3. Category & Brand matching suggestions
-    const matchedCategories = new Set<string>();
-    const matchedBrands = new Set<string>();
-
-    for (const doc of this.indexedDocs.values()) {
-      if (!doc.isVisible) continue;
-      if (doc.categoryName && doc.categoryName.toLowerCase().includes(lowerQuery)) {
-        matchedCategories.add(doc.categoryName);
-      }
-      if (doc.brand && doc.brand.toLowerCase().includes(lowerQuery)) {
-        matchedBrands.add(doc.brand);
-      }
-    }
-
-    for (const cat of Array.from(matchedCategories).slice(0, 3)) {
+    // 3. Category & Subcategory matching suggestions across all hierarchy levels
+    const matchedCategoryNodes = this.hierarchyEngine.searchNodes(lowerQuery, 4);
+    for (const node of matchedCategoryNodes) {
       const item: SuggestionItem = {
-        id: `cat_${cat}`,
-        title: cat,
+        id: `cat_${node.id}`,
+        title: node.name,
         type: 'category',
-        subtitle: 'In Categories'
+        subtitle: node.levelNumber === 1 ? 'In Categories' : `In ${node.breadcrumb}`,
+        slug: node.slug || node.id
       };
       if (suggestions.length < limit) suggestions.push(item);
       categoryItems.push(item);
+    }
+
+    const matchedBrands = new Set<string>();
+    for (const doc of this.indexedDocs.values()) {
+      if (!doc.isVisible) continue;
+      if (doc.brand && doc.brand.toLowerCase().includes(lowerQuery)) {
+        matchedBrands.add(doc.brand);
+      }
     }
 
     for (const br of Array.from(matchedBrands).slice(0, 3)) {
@@ -1380,25 +1653,47 @@ export class ViBaSearchEngine {
     const ratingBuckets: Record<number, number> = { 4: 0, 3: 0, 2: 0, 1: 0 };
 
     for (const doc of docs) {
-      // Categories
-      if (doc.categoryId) {
-        const existing = categoryCount.get(doc.categoryId) || { label: doc.categoryName || doc.categoryId, count: 0 };
-        existing.count++;
-        categoryCount.set(doc.categoryId, existing);
-      }
-
-      // Subcategories
-      if (doc.subCategoryId) {
-        const existing = subCategoryCount.get(doc.subCategoryId) || { label: doc.subCategoryName || doc.subCategoryId, count: 0 };
-        existing.count++;
-        subCategoryCount.set(doc.subCategoryId, existing);
-      }
-
-      // Nested Subcategories
-      if (doc.nestedSubCategoryId) {
-        const existing = nestedSubCategoryCount.get(doc.nestedSubCategoryId) || { label: doc.nestedSubCategoryName || doc.nestedSubCategoryId, count: 0 };
-        existing.count++;
-        nestedSubCategoryCount.set(doc.nestedSubCategoryId, existing);
+      // Categories & Subcategories across all hierarchy levels
+      if (doc.categoryHierarchyIds && doc.categoryHierarchyIds.length > 0) {
+        const seenLevelsForDoc = new Set<string>();
+        for (const hId of doc.categoryHierarchyIds) {
+          const node = this.hierarchyEngine.getNode(hId);
+          if (node) {
+            if (node.levelNumber === 1 && !seenLevelsForDoc.has(`cat_${node.id}`)) {
+              seenLevelsForDoc.add(`cat_${node.id}`);
+              const existing = categoryCount.get(node.id) || { label: node.name, count: 0 };
+              existing.count++;
+              categoryCount.set(node.id, existing);
+            } else if (node.levelNumber === 2 && !seenLevelsForDoc.has(`sub_${node.id}`)) {
+              seenLevelsForDoc.add(`sub_${node.id}`);
+              const existing = subCategoryCount.get(node.id) || { label: node.name, count: 0 };
+              existing.count++;
+              subCategoryCount.set(node.id, existing);
+            } else if (node.levelNumber >= 3 && !seenLevelsForDoc.has(`nested_${node.id}`)) {
+              seenLevelsForDoc.add(`nested_${node.id}`);
+              const existing = nestedSubCategoryCount.get(node.id) || { label: node.name, count: 0 };
+              existing.count++;
+              nestedSubCategoryCount.set(node.id, existing);
+            }
+          }
+        }
+      } else {
+        // Fallback for docs without hierarchy
+        if (doc.categoryId) {
+          const existing = categoryCount.get(doc.categoryId) || { label: doc.categoryName || doc.categoryId, count: 0 };
+          existing.count++;
+          categoryCount.set(doc.categoryId, existing);
+        }
+        if (doc.subCategoryId) {
+          const existing = subCategoryCount.get(doc.subCategoryId) || { label: doc.subCategoryName || doc.subCategoryId, count: 0 };
+          existing.count++;
+          subCategoryCount.set(doc.subCategoryId, existing);
+        }
+        if (doc.nestedSubCategoryId) {
+          const existing = nestedSubCategoryCount.get(doc.nestedSubCategoryId) || { label: doc.nestedSubCategoryName || doc.nestedSubCategoryId, count: 0 };
+          existing.count++;
+          nestedSubCategoryCount.set(doc.nestedSubCategoryId, existing);
+        }
       }
 
       // Brands

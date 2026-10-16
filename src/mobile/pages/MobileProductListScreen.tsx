@@ -15,6 +15,7 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { searchApiClient } from '../../services/searchApiClient';
+import { isProductInHierarchy, getOrCreateHierarchyEngine } from '../../shared/utilities/categoryHierarchyUtils';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -275,24 +276,35 @@ export default function MobileProductListScreen() {
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
+  const isSearchQuery = Boolean(querySearch);
+
   // Match banner if accessing a banner route
   const matchedBanner = useMemo(() => {
-    if (!rawOffer) return null;
+    if (isSearchQuery || !rawOffer) return null;
     return banners.find(b => b.id === rawOffer || b.slug === rawOffer || getBannerSlug(b) === rawOffer || (b.link && b.link.includes(rawOffer))) || null;
-  }, [rawOffer, banners]);
+  }, [isSearchQuery, rawOffer, banners]);
 
   // Base Page Context (from route / visual / brand / category hierarchy)
   const baseCatId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('category') || '';
+    }
     return currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.categoryId || (rawCat && rawCat !== 'products' && rawCat !== 'categories' ? rawCat : '');
-  }, [currentCategoryObj, currentVisualNestedSubcategoryObj, rawCat]);
+  }, [isSearchQuery, searchParams, currentCategoryObj, currentVisualNestedSubcategoryObj, rawCat]);
 
   const baseSubId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('subCategory') || '';
+    }
     return currentSubCategoryObj?.id || (currentVisualNestedSubcategoryObj?.subCategoryId && currentVisualNestedSubcategoryObj.subCategoryId !== 'all' ? currentVisualNestedSubcategoryObj.subCategoryId : '') || (rawSubCat || '');
-  }, [currentSubCategoryObj, currentVisualNestedSubcategoryObj, rawSubCat]);
+  }, [isSearchQuery, searchParams, currentSubCategoryObj, currentVisualNestedSubcategoryObj, rawSubCat]);
 
   const baseNestedId = useMemo(() => {
+    if (isSearchQuery) {
+      return searchParams.get('nestedSubCategory') || '';
+    }
     return currentDeepChildSubCategoryObj?.id || currentNestedSubCategoryObj?.id || currentVisualNestedSubcategoryObj?.nestedSubCategoryId || (currentVisualNestedSubcategoryObj?.parentTargetType === 'nested_subcategory' ? currentVisualNestedSubcategoryObj.parentTargetId : '') || (rawNestedSubCat || '');
-  }, [currentDeepChildSubCategoryObj, currentNestedSubCategoryObj, currentVisualNestedSubcategoryObj, rawNestedSubCat]);
+  }, [isSearchQuery, searchParams, currentDeepChildSubCategoryObj, currentNestedSubCategoryObj, currentVisualNestedSubcategoryObj, rawNestedSubCat]);
 
   const baseBrand = useMemo(() => {
     return rawBrand || '';
@@ -388,6 +400,8 @@ export default function MobileProductListScreen() {
       if (querySearch && searchResults === null) {
         const q = querySearch.toLowerCase();
         const cleanQ = cleanProductCode(q);
+        const engine = getOrCreateHierarchyEngine(categories, visualNestedItems);
+        const { categoryNames, visualNames } = engine.resolveProductHierarchy(product);
         const matchesName = product.name.toLowerCase().includes(q);
         const matchesBrand = product.brand?.toLowerCase().includes(q);
         const matchesId = product.id.toLowerCase().includes(q);
@@ -395,12 +409,14 @@ export default function MobileProductListScreen() {
           product.productCode.toLowerCase().includes(q) ||
           (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
         );
+        const matchesHierarchy = [...categoryNames, ...visualNames].some(name => name.toLowerCase().includes(q));
         const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesTags) return false;
+        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesHierarchy && !matchesTags) return false;
       }
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
       const hasVisualExplicit = Boolean(
+        !isSearchQuery &&
         currentVisualNestedSubcategoryObj && (
           (currentVisualNestedSubcategoryObj.productIds && currentVisualNestedSubcategoryObj.productIds.length > 0) ||
           products.some(item =>
@@ -424,31 +440,17 @@ export default function MobileProductListScreen() {
         const effectiveSub = selectedSubCategory || baseSubId;
         const effectiveCat = selectedCategory || baseCatId;
 
-        // 1. Nested SubCategory Filter
+        // 1. Nested SubCategory Filter across entire hierarchy
         if (effectiveNested) {
-          const targetNested = (currentNestedSubCategoryObj?.id || effectiveNested).toLowerCase();
-          const pNestedList = [product.nestedSubCategoryId, ...(product.nestedSubCategoryIds || [])]
-            .filter(Boolean)
-            .map(n => n.toLowerCase());
-          if (!pNestedList.includes(targetNested)) return false;
+          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems)) return false;
         }
-        // 2. SubCategory Filter
+        // 2. SubCategory Filter across entire hierarchy
         else if (effectiveSub) {
-          const targetSub = (currentSubCategoryObj?.id || effectiveSub).toLowerCase();
-          const pSubList = [product.subCategoryId, ...(product.subCategoryIds || [])]
-            .filter(Boolean)
-            .map(s => s.toLowerCase());
-          if (!pSubList.includes(targetSub)) return false;
+          if (!isProductInHierarchy(product, effectiveSub, categories, visualNestedItems)) return false;
         }
-        // 3. Category Filter
-        else if (effectiveCat && effectiveCat !== 'all-deals') {
-          const target = (currentCategoryObj?.id || effectiveCat).toLowerCase();
-          const targetSlug = currentCategoryObj ? getCategorySlug(currentCategoryObj).toLowerCase() : target;
-          const pCatList = [product.categoryId, ...(product.categories || [])]
-            .filter(Boolean)
-            .map(c => c.toLowerCase());
-          const hasMatch = pCatList.some(c => c === target || c === targetSlug);
-          if (!hasMatch) return false;
+        // 3. Category Filter across entire hierarchy
+        else if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') {
+          if (!isProductInHierarchy(product, effectiveCat, categories, visualNestedItems)) return false;
         }
       }
 
@@ -483,7 +485,7 @@ export default function MobileProductListScreen() {
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0;
     });
-  }, [products, searchResults, querySearch, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy]);
+  }, [products, searchResults, querySearch, isSearchQuery, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy, categories, visualNestedItems]);
 
   const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
     (selectedSubCategory !== baseSubId ? 1 : 0) +
