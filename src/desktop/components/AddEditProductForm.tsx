@@ -26,7 +26,7 @@ import { generateUniqueProductCode, formatProductCode, validateProductCode, isPr
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
-import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
+import { generateProductKeywords, productHasOutdatedKeywords, registerKeywordRequest } from '../../shared/utilities/productKeywordGenerator';
 
 export interface SpecificationPreset {
   id: string;
@@ -605,15 +605,18 @@ export default function AddEditProductForm({
     e.preventDefault();
 
     // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
+    // Regenerates whenever relevant product information changes or keywords are missing/outdated
     const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
     let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
-    if (finalTags.length < requiredMinKeywords) {
-      finalTags = await generateProductKeywords(formData, {
-        existingKeywords: finalTags,
-        categoryName: selectedCategory?.name,
-        subCategoryName: selectedSubCategory?.name,
-        minCount: requiredMinKeywords
-      });
+    const options = {
+      existingKeywords: finalTags,
+      categoryName: selectedCategory?.name,
+      subCategoryName: selectedSubCategory?.name,
+      minCount: requiredMinKeywords
+    };
+
+    if (finalTags.length < requiredMinKeywords || productHasOutdatedKeywords(formData, options)) {
+      finalTags = await generateProductKeywords(formData, options);
       setFormData(prev => ({ ...prev, tags: finalTags }));
     }
 

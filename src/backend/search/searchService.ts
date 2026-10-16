@@ -297,16 +297,28 @@ export class SearchService {
               nestedSubCategoryName: nestedName,
               minCount: 6
             }).then(newTags => {
-              if (newTags.length >= 6 && productNeedsKeywordUpgrade(product, 6)) {
-                if (hasAdminCredentials()) {
-                  admin.firestore().collection('products').doc(product.id).update({
-                    tags: newTags,
-                    updatedAt: new Date().toISOString()
-                  }).catch(() => {});
+              const persistUpdate = async () => {
+                try {
+                  if (hasAdminCredentials()) {
+                    await admin.firestore().collection('products').doc(product.id).update({
+                      tags: newTags,
+                      updatedAt: new Date().toISOString()
+                    });
+                  } else {
+                    const clientDb = getFallbackClientDb();
+                    const { doc: firestoreDoc, updateDoc: clientUpdateDoc } = await import('firebase/firestore');
+                    await clientUpdateDoc(firestoreDoc(clientDb, 'products', product.id), {
+                      tags: newTags,
+                      updatedAt: new Date().toISOString()
+                    });
+                  }
+                } catch (err) {
+                  console.warn(`[SearchService] Failed to persist realtime keywords for ${product.id}:`, err);
                 }
-                product.tags = newTags;
-                this.engine.upsertProduct(product, catName, subName, nestedName);
-              }
+              };
+              persistUpdate();
+              product.tags = newTags;
+              this.engine.upsertProduct(product, catName, subName, nestedName);
             }).catch(() => {});
           }
 

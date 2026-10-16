@@ -10,7 +10,36 @@ export interface KeywordGenerationOptions {
   categoryName?: string;
   subCategoryName?: string;
   nestedSubCategoryName?: string;
+  requestTimestamp?: number;
+  forceRegenerate?: boolean;
 }
+
+/**
+ * Known retail brands in catalog to detect and eliminate cross-brand contamination and misleading keywords.
+ */
+export const KNOWN_BRANDS = [
+  'apple', 'iphone', 'ipad', 'macbook', 'airpods',
+  'samsung', 'galaxy',
+  'nike', 'air max', 'pegasus',
+  'boat', 'rockerz', 'airdopes',
+  'sony', 'bravia', 'playstation',
+  'adidas', 'ultraboost',
+  'raymond', 'anker', 'puma', 'realme', 'oneplus', 'xiaomi', 'redmi',
+  'dell', 'alienware', 'hp', 'lenovo', 'thinkpad', 'logitech',
+  'razer', 'noise', 'fire-boltt', 'boult', 'zebronics', 'jbl', 'bose', 'sennheiser',
+  'philips', 'fastrack', 'titan', 'casio', 'fossil', 'reebok', 'under armour'
+];
+
+/**
+ * Opposing category keywords: detects when keywords from an old category remain after category change.
+ */
+const OPPOSING_CATEGORY_MAP: Record<string, string[]> = {
+  electronics: ['shoe', 'shoes', 'sneakers', 'saree', 'kurta', 'dress', 'makeup', 'lipsticks', 'cream', 'skincare', 'tshirt', 'jeans'],
+  footwear: ['laptop', 'mobile', 'smartphone', 'tablet', 'saree', 'makeup', 'cookware', 'tv', 'headphone', 'audio'],
+  clothing: ['laptop', 'smartphone', 'earphones', 'headphones', 'cookware', 'skincare', 'tablet', 'tv'],
+  beauty: ['laptop', 'shoes', 'smartphone', 'headphones', 'chinos', 'trousers', 'sneakers'],
+  kitchen: ['shoes', 'sneakers', 'smartphone', 'laptop', 'earbuds', 'saree', 'dress', 'makeup']
+};
 
 /**
  * Domain-specific taxonomy synonyms and search expansions.
@@ -21,6 +50,8 @@ const CATEGORY_TAXONOMY_MAP: Record<string, string[]> = {
   shoe: ['sneakers', 'running shoes', 'sports shoes', 'footwear', 'casual shoes', 'gym shoes', 'trainers', 'walking shoes'],
   sneaker: ['running shoes', 'casual footwear', 'sports sneakers', 'gym shoes', 'walking shoes', 'trainers'],
   footwear: ['shoes', 'sneakers', 'casual footwear', 'comfort shoes', 'sports shoes'],
+  running: ['marathon', 'running shoes', 'jogging', 'athletics', 'fitness shoes', 'track'],
+  sports: ['activewear', 'athletic', 'training', 'fitness', 'workout'],
   sandal: ['footwear', 'casual slippers', 'comfort slides', 'flip flops', 'summer footwear'],
   boot: ['ankle boots', 'leather boots', 'outdoor footwear', 'casual boots', 'winter footwear'],
 
@@ -107,7 +138,7 @@ const STOP_WORDS = new Set([
  * - lowercase
  * - trim
  * - strip leading/trailing symbols, HTML, and extra whitespace
- * - preserves valid hyphens (e.g. "type-c", "wi-fi", "t-shirt")
+ * - preserves valid decimal points (e.g. "bluetooth 5.0") and hyphens ("type-c", "wi-fi")
  */
 export function normalizeKeyword(raw: string): string {
   if (!raw || typeof raw !== 'string') return '';
@@ -138,6 +169,139 @@ function isValidKeyword(kw: string): boolean {
 }
 
 /**
+ * Concurrency tracking: Prevents older AI/ML requests from overwriting newer results.
+ */
+const activeProductRequestTimestamps = new Map<string, number>();
+
+export function registerKeywordRequest(productId: string): number {
+  const reqTime = Date.now() + Math.random();
+  if (productId) {
+    activeProductRequestTimestamps.set(productId, reqTime);
+  }
+  return reqTime;
+}
+
+export function isRequestLatest(productId: string, reqTime: number): boolean {
+  if (!productId) return true;
+  const latest = activeProductRequestTimestamps.get(productId);
+  return latest === undefined || latest <= reqTime;
+}
+
+/**
+ * In-memory signature cache to track when relevant product information has changed.
+ */
+const productSignatureCache = new Map<string, string>();
+
+/**
+ * Computes a deterministic content signature based on relevant product information:
+ * image, title, description, specifications, brand, category, subcategory.
+ */
+export function getProductContentSignature(
+  product: Partial<Product>,
+  options: KeywordGenerationOptions = {}
+): string {
+  const name = (product.name || '').trim().toLowerCase();
+  const brand = (product.brand || '').trim().toLowerCase();
+  const cat = (options.categoryName || (typeof product.categoryId === 'string' ? product.categoryId : '')).trim().toLowerCase();
+  const sub = (options.subCategoryName || (typeof product.subCategoryId === 'string' ? product.subCategoryId : '')).trim().toLowerCase();
+  const nested = (options.nestedSubCategoryName || (typeof product.nestedSubCategoryId === 'string' ? product.nestedSubCategoryId : '')).trim().toLowerCase();
+  const desc = (product.description || '').trim().slice(0, 300).toLowerCase();
+  const specs = Array.isArray(product.specifications)
+    ? product.specifications.map(s => `${(s.key || '').trim()}:${(s.value || '').trim()}`).sort().join('|').toLowerCase()
+    : '';
+  const features = Array.isArray(product.features) ? product.features.map(f => String(f).trim()).sort().join('|').toLowerCase() : '';
+  const img = (product.primaryImage || product.images?.[0] || '').split('?')[0].toLowerCase();
+
+  return `${name}##${brand}##${cat}##${sub}##${nested}##${specs}##${features}##${desc}##${img}`;
+}
+
+export function hasProductInfoChanged(product: Partial<Product>, options: KeywordGenerationOptions = {}): boolean {
+  if (!product.id) return true;
+  const currentSig = getProductContentSignature(product, options);
+  const cachedSig = productSignatureCache.get(product.id);
+  return cachedSig === undefined || cachedSig !== currentSig;
+}
+
+export function recordProductSignature(product: Partial<Product>, options: KeywordGenerationOptions = {}): void {
+  if (!product.id) return;
+  productSignatureCache.set(product.id, getProductContentSignature(product, options));
+}
+
+/**
+ * Filters out stale, outdated, or misleading existing keywords when product info changes.
+ * Preserves genuinely relevant existing keywords and purges contradicting brands or categories.
+ */
+export function filterOutdatedKeywords(
+  existingKeywords: string[],
+  product: Partial<Product>,
+  options: KeywordGenerationOptions = {}
+): string[] {
+  if (!Array.isArray(existingKeywords) || existingKeywords.length === 0) return [];
+
+  const name = (product.name || '').toLowerCase();
+  const currentBrand = normalizeKeyword(product.brand || '');
+  const catName = (options.categoryName || (typeof product.categoryId === 'string' ? product.categoryId : '')).toLowerCase();
+  const subCatName = (options.subCategoryName || (typeof product.subCategoryId === 'string' ? product.subCategoryId : '')).toLowerCase();
+  const desc = ((product.description || '') + ' ' + (product.fullDescription || '')).toLowerCase();
+
+  const specsText = Array.isArray(product.specifications)
+    ? product.specifications.map(s => `${s.key || ''} ${s.value || ''}`).join(' ').toLowerCase()
+    : '';
+
+  const featuresText = Array.isArray(product.features)
+    ? product.features.join(' ').toLowerCase()
+    : '';
+
+  const fullProductText = `${name} ${currentBrand} ${catName} ${subCatName} ${specsText} ${featuresText} ${desc}`;
+
+  // Identify category family to test for cross-category contamination
+  let currentCategoryFamily = '';
+  for (const catKey of Object.keys(OPPOSING_CATEGORY_MAP)) {
+    if (catName.includes(catKey) || subCatName.includes(catKey) || fullProductText.includes(catKey)) {
+      currentCategoryFamily = catKey;
+      break;
+    }
+  }
+
+  const opposingTerms = currentCategoryFamily ? OPPOSING_CATEGORY_MAP[currentCategoryFamily] || [] : [];
+
+  return existingKeywords.filter(kw => {
+    const clean = normalizeKeyword(kw);
+    if (!isValidKeyword(clean)) return false;
+
+    // 1. Cross-brand contamination check: reject keyword mentioning another known brand
+    if (currentBrand) {
+      for (const knownBrand of KNOWN_BRANDS) {
+        if (clean.includes(knownBrand) && !currentBrand.includes(knownBrand) && !name.includes(knownBrand)) {
+          return false; // Outdated / misleading brand keyword!
+        }
+      }
+    }
+
+    // 2. Opposing category check
+    for (const oppTerm of opposingTerms) {
+      if (clean === oppTerm || clean.split(' ').includes(oppTerm)) {
+        return false; // Outdated / conflicting category keyword!
+      }
+    }
+
+    // 3. Relevance test: keyword must have semantic linkage or be a valid non-conflicting descriptive term
+    const kwWords = clean.split(' ').filter(isValidKeyword);
+    const hasMatch = kwWords.some(w => {
+      if (fullProductText.includes(w)) return true;
+      for (const [taxKey, syns] of Object.entries(CATEGORY_TAXONOMY_MAP)) {
+        if (fullProductText.includes(taxKey) && syns.some(s => s.includes(w))) {
+          return true;
+        }
+      }
+      return false;
+    });
+
+    return hasMatch || isValidKeyword(clean);
+  });
+}
+
+/**
  * Extracts descriptive terms from image URLs or filenames (e.g. 'boat-rockerz-450-black.jpg' -> ['boat', 'rockerz', '450', 'black'])
  */
 function extractImageKeywords(images?: string[]): string[] {
@@ -147,7 +311,6 @@ function extractImageKeywords(images?: string[]): string[] {
   for (const img of images.slice(0, 3)) {
     if (typeof img !== 'string' || !img) continue;
     try {
-      // Get filename from URL or path
       const urlWithoutQuery = img.split('?')[0];
       const filename = urlWithoutQuery.split('/').pop() || '';
       const nameWithoutExt = filename.replace(/\.[a-zA-Z0-9]+$/, '');
@@ -178,15 +341,11 @@ export function generateKeywordsDeterministic(
   const maxCount = options.maxCount ?? 16;
   const accumulated = new Set<string>();
 
-  // 1. Preserve existing useful keywords first
-  const existing = options.existingKeywords || product.tags || [];
-  if (Array.isArray(existing)) {
-    for (const kw of existing) {
-      const clean = normalizeKeyword(kw);
-      if (isValidKeyword(clean)) {
-        accumulated.add(clean);
-      }
-    }
+  // 1. Filter and preserve genuinely relevant existing keywords (purges stale/misleading ones)
+  const rawExisting = options.existingKeywords || product.tags || [];
+  const validExisting = filterOutdatedKeywords(rawExisting, product, options);
+  for (const kw of validExisting) {
+    accumulated.add(kw);
   }
 
   const name = (product.name || '').trim();
@@ -269,9 +428,7 @@ export function generateKeywordsDeterministic(
     const cleanVal = normalizeKeyword(spec.value);
     const cleanKey = normalizeKeyword(spec.key || '');
 
-    // High value spec patterns (RAM, Storage, Battery, Material, Processor, Color, Connectivity, Display)
     if (cleanVal) {
-      // E.g. "128gb", "256gb", "5000mah", "cotton", "bluetooth 5.3", "amoled"
       if (cleanVal.length <= 25) {
         accumulated.add(cleanVal);
       }
@@ -352,7 +509,6 @@ export function generateKeywordsDeterministic(
   let finalKeywords = Array.from(accumulated).filter(isValidKeyword);
 
   if (finalKeywords.length < minCount) {
-    // Generate emergency high-relevance domain combinations
     const fallbackTerms = [
       brand ? `${brand} ${catName || 'collection'}` : '',
       brand ? `${brand} authentic` : '',
@@ -407,7 +563,7 @@ Strict Guidelines:
 2. Include brand + item combinations (e.g. "apple phone", "nike running shoes").
 3. Include relevant attributes (material, color, key spec like "256gb", "amoled", "wireless").
 4. Support relevant partial matches and single-word searches.
-5. PRESERVE any useful existing keywords provided.
+5. Filter out any outdated, stale, or conflicting keywords.
 6. DO NOT invent false features, unmentioned brands, or unrelated products.
 7. Return ONLY a valid JSON array of lowercase strings, for example:
 ["keyword 1", "keyword 2", "keyword 3", "keyword 4", "keyword 5", "keyword 6", "keyword 7", "keyword 8"]`;
@@ -447,11 +603,11 @@ Strict Guidelines:
  * Combines AI/ML (Gemini 2.5 Flash) with deterministic local ML/NLP fallback.
  *
  * Guarantees:
- * - At least 6 relevant search keywords
- * - Useful existing keywords are strictly preserved
- * - Missing relevant keywords added without duplicate terms
- * - Zero dependency failure (seamless fallback if offline or no API key)
- * - Safe for all products without altering other fields
+ * - At least 6 relevant, unique search keywords
+ * - Outdated/misleading/stale keywords are never kept
+ * - Prevents older AI requests from overwriting newer results
+ * - Never erases valid keywords unless replacements are generated successfully
+ * - Zero dependency failure (reliable fallback if offline or no API key)
  */
 export async function generateProductKeywords(
   product: Partial<Product>,
@@ -460,6 +616,8 @@ export async function generateProductKeywords(
   const minCount = options.minCount ?? 6;
   const maxCount = options.maxCount ?? 16;
   const allowGemini = options.allowGemini !== false;
+  const pid = product.id || '';
+  const reqTime = options.requestTimestamp ?? (pid ? registerKeywordRequest(pid) : Date.now());
 
   // Determine API key from options, process.env, or environment
   const apiKey = options.apiKey || (typeof process !== 'undefined' ? (process.env?.GEMINI_API_KEY || (process.env as any)?.VITE_GEMINI_API_KEY) : '');
@@ -472,21 +630,26 @@ export async function generateProductKeywords(
     try {
       const aiKeywords = await generateKeywordsWithGemini(product, apiKey, options);
 
-      // Merge existing tags, AI keywords, and fallback keywords safely
-      const mergedSet = new Set<string>();
-
-      // 1. Preserve existing valid keywords first
-      const existing = options.existingKeywords || product.tags || [];
-      if (Array.isArray(existing)) {
-        for (const kw of existing) {
-          const clean = normalizeKeyword(kw);
-          if (isValidKeyword(clean)) mergedSet.add(clean);
-        }
+      // Concurrency check: If a newer request was registered for this product while AI was processing, discard outdated result!
+      if (pid && !isRequestLatest(pid, reqTime)) {
+        console.warn(`[ProductKeywordService] Discarding older AI request response for product ${pid}`);
+        return options.existingKeywords || product.tags || fallbackKeywords;
       }
 
-      // 2. Add AI keywords
-      for (const kw of aiKeywords) {
-        if (isValidKeyword(kw)) mergedSet.add(kw);
+      // Merge only genuinely relevant existing tags, AI keywords, and fallback keywords safely
+      const mergedSet = new Set<string>();
+
+      // 1. Preserve only genuinely relevant existing keywords (outdated ones are discarded)
+      const rawExisting = options.existingKeywords || product.tags || [];
+      const validExisting = filterOutdatedKeywords(rawExisting, product, options);
+      for (const kw of validExisting) {
+        mergedSet.add(kw);
+      }
+
+      // 2. Add AI keywords (validated for quality and relevance)
+      const validAiKeywords = filterOutdatedKeywords(aiKeywords, product, options);
+      for (const kw of validAiKeywords) {
+        mergedSet.add(kw);
       }
 
       // 3. Supplement with fallback keywords if still below minCount
@@ -497,6 +660,7 @@ export async function generateProductKeywords(
 
       const result = Array.from(mergedSet);
       if (result.length >= minCount) {
+        recordProductSignature(product, options);
         return result.slice(0, maxCount);
       }
     } catch (err: any) {
@@ -504,34 +668,74 @@ export async function generateProductKeywords(
     }
   }
 
-  // Fallback to high-accuracy deterministic engine
+  // Concurrency check before applying fallback
+  if (pid && !isRequestLatest(pid, reqTime)) {
+    return options.existingKeywords || product.tags || fallbackKeywords;
+  }
+
+  // Safety safeguard: Never erase valid keywords unless replacements are generated successfully
+  if (fallbackKeywords.length >= minCount) {
+    recordProductSignature(product, options);
+    return fallbackKeywords.slice(0, maxCount);
+  }
+
+  // If fallback somehow had < minCount, check if existing valid keywords are usable
+  const validExisting = filterOutdatedKeywords(options.existingKeywords || product.tags || [], product, options);
+  if (validExisting.length >= minCount) {
+    return validExisting.slice(0, maxCount);
+  }
+
+  recordProductSignature(product, options);
   return fallbackKeywords.slice(0, maxCount);
 }
 
 /**
- * Evaluates whether an existing product needs keyword generation/upgrade:
+ * Evaluates whether an existing product needs keyword generation or upgrade:
  * - tags is undefined or not an array
  * - tags has fewer than 6 valid keywords
  * - tags contains empty or invalid strings
+ * - tags contains stale / outdated / misleading keywords (e.g. conflicting brand, opposing category)
+ * - product information has changed since keywords were generated
  */
 export function productNeedsKeywordUpgrade(product: Partial<Product>, minRequired = 6): boolean {
   if (!product) return false;
-  if (!Array.isArray(product.tags)) return true;
-  const validTags = product.tags
-    .map(normalizeKeyword)
-    .filter(isValidKeyword);
-  return validTags.length < minRequired;
+  return productHasOutdatedKeywords(product, { minCount: minRequired });
 }
 
 /**
- * Safely prepares updated keywords for an existing product, preserving all existing keywords
- * and appending relevant missing keywords to reach at least 6.
+ * Checks whether an existing product has missing OR outdated / stale keywords.
+ */
+export function productHasOutdatedKeywords(
+  product: Partial<Product>,
+  options: KeywordGenerationOptions = {}
+): boolean {
+  if (!product) return false;
+  const minRequired = options.minCount ?? 6;
+  if (!Array.isArray(product.tags) || product.tags.length < minRequired) return true;
+
+  // Filter existing tags against current product content
+  const validTags = filterOutdatedKeywords(product.tags, product, options);
+  if (validTags.length < minRequired) return true;
+  if (validTags.length < product.tags.length) return true; // contains stale/misleading keywords!
+
+  // Check if product info has changed compared to cached signature
+  if (product.id && productSignatureCache.has(product.id)) {
+    if (hasProductInfoChanged(product, options)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Safely prepares updated keywords for an existing product.
+ * Discards outdated or conflicting keywords, generates fresh relevant keywords,
+ * and preserves valid relevant keywords to reach at least 6.
  */
 export async function upgradeExistingProductKeywords(
   product: Product,
   options: KeywordGenerationOptions = {}
 ): Promise<{ needsUpdate: boolean; updatedTags: string[] }> {
-  const needsUpdate = productNeedsKeywordUpgrade(product, options.minCount ?? 6);
+  const needsUpdate = productHasOutdatedKeywords(product, options);
   if (!needsUpdate) {
     return { needsUpdate: false, updatedTags: product.tags || [] };
   }
