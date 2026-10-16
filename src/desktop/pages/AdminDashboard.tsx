@@ -28,7 +28,7 @@ import NewCategoriesManagementView from '../components/CategoriesManagementView'
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
-import { generateProductKeywords, productHasOutdatedKeywords } from '../../shared/utilities/productKeywordGenerator';
+import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 import AdminInvoicesView from '../components/AdminInvoicesView';
@@ -4634,16 +4634,14 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
     e.preventDefault();
 
     // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
-    // Regenerates whenever relevant product information changes or keywords are missing/outdated
     const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
     let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
-    const keywordOptions = {
-      existingKeywords: finalTags,
-      categoryName: categories.find(c => c.id === formData.categoryId)?.name,
-      minCount: requiredMinKeywords
-    };
-    if (finalTags.length < requiredMinKeywords || productHasOutdatedKeywords(formData, keywordOptions)) {
-      finalTags = await generateProductKeywords(formData, keywordOptions);
+    if (finalTags.length < requiredMinKeywords) {
+      finalTags = await generateProductKeywords(formData, {
+        existingKeywords: finalTags,
+        categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+        minCount: requiredMinKeywords
+      });
       setFormData(prev => ({ ...prev, tags: finalTags }));
     }
 
