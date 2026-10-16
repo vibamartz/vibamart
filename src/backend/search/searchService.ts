@@ -6,6 +6,7 @@ import { SearchParams, SearchResult, SuggestionResult } from './searchTypes';
 import { Product, Category, VisualNestedSubcategory } from '../../shared/types';
 import { searchCache } from './searchCache';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
+import { generateProductKeywords, productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 
 function getValidProjectId(): string {
   const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
@@ -185,10 +186,79 @@ export class SearchService {
 
       this.lastIndexedTimestamp = Date.now();
       searchCache.invalidate();
+
+      // Automatically audit and upgrade search keywords for any existing catalog products with missing or < 6 keywords
+      this.upgradeAllProductKeywords().catch(err => {
+        console.warn('[SearchService] Background keyword upgrade warning:', err.message || err);
+      });
+
       return products.length;
     } catch (err) {
       console.error('[SearchService] Error indexing all products:', err);
       return 0;
+    }
+  }
+
+  /**
+   * Audits and upgrades search keywords for all catalog products having missing or < 6 keywords.
+   * Preserves useful existing keywords, appends relevant missing keywords, and updates ONLY tags field.
+   */
+  public async upgradeAllProductKeywords(): Promise<{ totalChecked: number; upgradedCount: number }> {
+    try {
+      const productDocs = await fetchFirestoreCollectionDocs('products');
+      let upgradedCount = 0;
+      const adminCredentials = hasAdminCredentials();
+
+      for (const docItem of productDocs) {
+        const prod = { id: docItem.id, ...docItem.data } as Product;
+        if (!productNeedsKeywordUpgrade(prod, 6)) {
+          continue;
+        }
+
+        const catName = this.categoryNameMap[prod.categoryId] || '';
+        const subName = prod.subCategoryId ? (this.subCategoryNameMap[prod.subCategoryId] || '') : '';
+        const nestedName = prod.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[prod.nestedSubCategoryId] || '') : '';
+
+        const generatedTags = await generateProductKeywords(prod, {
+          categoryName: catName,
+          subCategoryName: subName,
+          nestedSubCategoryName: nestedName,
+          minCount: 6
+        });
+
+        if (generatedTags.length >= 6) {
+          try {
+            if (adminCredentials) {
+              await admin.firestore().collection('products').doc(prod.id).update({
+                tags: generatedTags,
+                updatedAt: new Date().toISOString()
+              });
+            } else {
+              const clientDb = getFallbackClientDb();
+              const { doc: firestoreDoc, updateDoc: clientUpdateDoc } = await import('firebase/firestore');
+              await clientUpdateDoc(firestoreDoc(clientDb, 'products', prod.id), {
+                tags: generatedTags,
+                updatedAt: new Date().toISOString()
+              });
+            }
+            prod.tags = generatedTags;
+            this.engine.upsertProduct(prod, catName, subName, nestedName);
+            upgradedCount++;
+          } catch (updateErr) {
+            console.warn(`[SearchService] Failed to persist upgraded keywords for product ${prod.id}:`, updateErr);
+          }
+        }
+      }
+
+      if (upgradedCount > 0) {
+        searchCache.invalidate();
+        console.log(`[SearchService] Successfully upgraded search keywords for ${upgradedCount} catalog products.`);
+      }
+
+      return { totalChecked: productDocs.length, upgradedCount };
+    } catch (err) {
+      console.error('[SearchService] Error upgrading product keywords:', err);
+      return { totalChecked: 0, upgradedCount: 0 };
     }
   }
 
@@ -219,6 +289,27 @@ export class SearchService {
         const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
 
         if (change.type === 'added' || change.type === 'modified') {
+          // If product needs keyword upgrade, automatically generate keywords
+          if (productNeedsKeywordUpgrade(product, 6)) {
+            generateProductKeywords(product, {
+              categoryName: catName,
+              subCategoryName: subName,
+              nestedSubCategoryName: nestedName,
+              minCount: 6
+            }).then(newTags => {
+              if (newTags.length >= 6 && productNeedsKeywordUpgrade(product, 6)) {
+                if (hasAdminCredentials()) {
+                  admin.firestore().collection('products').doc(product.id).update({
+                    tags: newTags,
+                    updatedAt: new Date().toISOString()
+                  }).catch(() => {});
+                }
+                product.tags = newTags;
+                this.engine.upsertProduct(product, catName, subName, nestedName);
+              }
+            }).catch(() => {});
+          }
+
           this.engine.upsertProduct(product, catName, subName, nestedName);
           hasChanges = true;
         } else if (change.type === 'removed') {

@@ -26,6 +26,7 @@ import { generateUniqueProductCode, formatProductCode, validateProductCode, isPr
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
+import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 
 export interface SpecificationPreset {
   id: string;
@@ -313,6 +314,7 @@ export default function AddEditProductForm({
   });
 
   const [currentTag, setCurrentTag] = useState('');
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const [currentPincodeInput, setCurrentPincodeInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
@@ -602,9 +604,17 @@ export default function AddEditProductForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.tags && formData.tags.length > 0 && formData.tags.length < settings.minKeywords) {
-      toast.error(`You've added some keywords but the minimum is ${settings.minKeywords}. Please add more or remove all.`);
-      return;
+    // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
+    const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
+    let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
+    if (finalTags.length < requiredMinKeywords) {
+      finalTags = await generateProductKeywords(formData, {
+        existingKeywords: finalTags,
+        categoryName: selectedCategory?.name,
+        subCategoryName: selectedSubCategory?.name,
+        minCount: requiredMinKeywords
+      });
+      setFormData(prev => ({ ...prev, tags: finalTags }));
     }
 
     // Validate Product Code
@@ -679,6 +689,7 @@ export default function AddEditProductForm({
 
       const rawData = {
         ...formData,
+        tags: finalTags,
         specifications: cleanedSpecs,
         variantSpecifications: hasVariantSpecs ? cleanedVariantSpecs : null,
         specificationsByVariant: hasVariantSpecs ? cleanedVariantSpecs : null,
@@ -1855,7 +1866,41 @@ export default function AddEditProductForm({
 
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+                <p className="text-xs font-semibold text-gray-400 mt-0.5">
+                  Search keywords improve product discoverability and partial matching (minimum {Math.max(6, settings.minKeywords || 6)}).
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isGeneratingKeywords}
+                onClick={async () => {
+                  setIsGeneratingKeywords(true);
+                  const toastId = toast.loading('Generating intelligent search keywords with AI/ML...');
+                  try {
+                    const finalKeywords = await generateProductKeywords(formData, {
+                      existingKeywords: formData.tags,
+                      categoryName: selectedCategory?.name,
+                      subCategoryName: selectedSubCategory?.name,
+                      minCount: Math.max(6, settings.minKeywords || 6)
+                    });
+                    setFormData(prev => ({ ...prev, tags: finalKeywords }));
+                    toast.success(`Generated ${finalKeywords.length} relevant search keywords!`, { id: toastId });
+                  } catch (err: any) {
+                    toast.error('Failed to generate keywords', { id: toastId });
+                  } finally {
+                    setIsGeneratingKeywords(false);
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-2xl font-black text-xs uppercase tracking-wider transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer shadow-sm"
+                title="Automatically generate at least 6 relevant search keywords using AI/ML"
+              >
+                <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isGeneratingKeywords ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingKeywords ? 'Generating AI Keywords...' : 'AI Auto-Keywords'}</span>
+              </button>
+            </div>
             <div className="space-y-4">
               <div className="flex gap-2">
                 <input
@@ -1888,12 +1933,14 @@ export default function AddEditProductForm({
                     }
                     setCurrentTag('');
                   }}
-                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all cursor-pointer"
                 >
                   Add
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Optional — if added, minimum {settings.minKeywords}.</p>
+              <p className="text-[10px] text-gray-400 font-bold ml-1">
+                Press Enter, comma, or click Add. At least {Math.max(6, settings.minKeywords || 6)} relevant keywords are automatically generated & saved upon saving.
+              </p>
             </div>
 
             {formData.tags && formData.tags.length > 0 && (

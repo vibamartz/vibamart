@@ -252,6 +252,26 @@ class SearchApiClient {
     const res = await axios.get('/api/search/benchmark');
     return res.data;
   }
+
+  /**
+   * Generate intelligent search keywords using AI/ML with deterministic fallback.
+   */
+  public async generateKeywords(product: any, options: any = {}): Promise<{ success: boolean; keywords: string[] }> {
+    try {
+      const res = await axios.post('/api/search/keywords/generate', { product, options }, { timeout: 8000 });
+      return res.data;
+    } catch {
+      return { success: false, keywords: [] };
+    }
+  }
+
+  /**
+   * Run keyword synchronization across all existing products.
+   */
+  public async upgradeAllKeywords(): Promise<{ success: boolean; totalChecked: number; upgradedCount: number }> {
+    const res = await axios.post('/api/search/keywords/upgrade-all', {}, { timeout: 60000 });
+    return res.data;
+  }
 }
 
 export const searchApiClient = new SearchApiClient();

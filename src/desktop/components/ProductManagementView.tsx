@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import AddEditProductForm from './AddEditProductForm';
 import CategoryAssignmentModal from './CategoryAssignmentModal';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -6,6 +6,7 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, ProductVariant, FlatCategoryNode } from '../../shared/types';
 import toast from 'react-hot-toast';
+import { productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 import {
   Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3,
   X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles, Layers, Filter,
@@ -53,6 +54,79 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     });
     return () => unsubscribe();
   }, []);
+
+  const [isUpgradingKeywords, setIsUpgradingKeywords] = useState(false);
+  const processedKeywordIdsRef = useRef<Set<string>>(new Set());
+
+  // Automatically check and upgrade keywords for any existing products missing them or having fewer than 6 keywords
+  useEffect(() => {
+    if (products.length === 0) return;
+    const candidates = products.filter(p => productNeedsKeywordUpgrade(p, 6) && !processedKeywordIdsRef.current.has(p.id));
+    if (candidates.length === 0) return;
+
+    let isMounted = true;
+    const runAutoUpgrade = async () => {
+      for (const prod of candidates) {
+        if (!isMounted) break;
+        processedKeywordIdsRef.current.add(prod.id);
+        try {
+          const { needsUpdate, updatedTags } = await upgradeExistingProductKeywords(prod, {
+            categoryName: categories.find(c => c.id === prod.categoryId)?.name,
+            minCount: 6
+          });
+          if (needsUpdate && updatedTags.length >= 6) {
+            await updateDoc(doc(db, 'products', prod.id), {
+              tags: updatedTags,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        } catch (err) {
+          console.warn(`[ProductManagementView] Keyword auto-upgrade failed for ${prod.id}:`, err);
+        }
+      }
+    };
+
+    const timer = setTimeout(runAutoUpgrade, 1200);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [products, categories]);
+
+  const handleUpgradeAllKeywords = async () => {
+    setIsUpgradingKeywords(true);
+    const toastId = toast.loading('Auditing catalog products and upgrading keywords...');
+    try {
+      const candidates = products.filter(p => productNeedsKeywordUpgrade(p, 6));
+      if (candidates.length === 0) {
+        toast.success('All catalog products already have at least 6 relevant search keywords!', { id: toastId });
+        setIsUpgradingKeywords(false);
+        return;
+      }
+
+      let upgraded = 0;
+      for (const prod of candidates) {
+        const { needsUpdate, updatedTags } = await upgradeExistingProductKeywords(prod, {
+          categoryName: categories.find(c => c.id === prod.categoryId)?.name,
+          minCount: 6
+        });
+        if (needsUpdate && updatedTags.length >= 6) {
+          await updateDoc(doc(db, 'products', prod.id), {
+            tags: updatedTags,
+            updatedAt: new Date().toISOString()
+          });
+          upgraded++;
+        }
+      }
+
+      toast.success(`Keyword upgrade complete! Successfully upgraded ${upgraded} product(s) with at least 6 keywords.`, { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to complete keyword upgrade', { id: toastId });
+    } finally {
+      setIsUpgradingKeywords(false);
+    }
+  };
 
   const toggleExpand = (productId: string) => {
     setExpandedProducts(prev =>
@@ -500,6 +574,16 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
               Assign to Categories ({selectedProductIds.length})
             </button>
           )}
+
+          <button
+            onClick={handleUpgradeAllKeywords}
+            disabled={isUpgradingKeywords}
+            className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-sm"
+            title="Automatically audit all existing products and generate at least 6 relevant search keywords using AI/ML"
+          >
+            <Sparkles className={`w-4 h-4 text-indigo-600 ${isUpgradingKeywords ? 'animate-spin' : ''}`} />
+            <span>{isUpgradingKeywords ? 'Upgrading Keywords...' : 'Upgrade AI Keywords'}</span>
+          </button>
 
           <button
             onClick={onAddProduct}

@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useAdminDateFilter } from './AdminDateFilterContext';
 import { processAllProductImages } from '../../backend/services/productStorageService';
 import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
+import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
@@ -715,6 +716,9 @@ export default function AdminRewardsManagementView() {
         createdAt: new Date().toISOString()
       };
 
+      const generatedTags = await generateProductKeywords(newProd, { minCount: 6 });
+      newProd.tags = generatedTags;
+
       const docRef = await addDoc(collection(db, 'products'), newProd);
       const newId = docRef.id;
 
@@ -743,6 +747,11 @@ export default function AdminRewardsManagementView() {
       const sanitizedImages = (editingProductModal.images || []).filter(img => img && img.trim().length > 0).slice(0, 6);
       const finalImages = sanitizedImages.length > 0 ? sanitizedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
 
+      const generatedTags = await generateProductKeywords(editingProductModal, {
+        existingKeywords: editingProductModal.tags,
+        minCount: 6
+      });
+
       const prodRef = doc(db, 'products', editingProductModal.id);
       await updateDoc(prodRef, {
         name: editingProductModal.name,
@@ -752,7 +761,8 @@ export default function AdminRewardsManagementView() {
         stock: Number(editingProductModal.stock),
         inStock: Number(editingProductModal.stock) > 0,
         status: editingProductModal.stock > 0 ? 'active' : 'out_of_stock',
-        images: finalImages
+        images: finalImages,
+        tags: generatedTags
       });
       toast.success(`Updated "${editingProductModal.name}" (${finalImages.length} image(s)) in store database.`);
       setEditingProductModal(null);

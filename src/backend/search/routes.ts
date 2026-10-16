@@ -12,6 +12,7 @@ import { visualSearchService } from './visualSearch';
 import { rankingFramework } from './rankingFramework';
 import { sessionRankingManager } from './sessionRanking';
 import { searchBenchmarkSuite } from './benchmark';
+import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 
 export const searchRouter = Router();
 
@@ -410,6 +411,49 @@ searchRouter.get('/benchmark', async (_req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Benchmark execution failed'
+    });
+  }
+});
+
+/**
+ * POST /api/search/keywords/generate
+ * Generates high-relevance search keywords for a product using AI/ML with deterministic fallback.
+ */
+searchRouter.post('/keywords/generate', searchRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { product, options } = req.body || {};
+    if (!product || typeof product !== 'object') {
+      return res.status(400).json({ success: false, error: 'Product payload required' });
+    }
+    const keywords = await generateProductKeywords(product, options || {});
+    res.json({
+      success: true,
+      keywords,
+      count: keywords.length
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Keyword generation failed'
+    });
+  }
+});
+
+/**
+ * POST /api/search/keywords/upgrade-all
+ * Audits and upgrades search keywords across all existing catalog products in Firestore having missing or < 6 keywords.
+ */
+searchRouter.post('/keywords/upgrade-all', adminSearchRateLimiter, async (_req: Request, res: Response) => {
+  try {
+    const result = await searchService.upgradeAllProductKeywords();
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to upgrade existing product keywords'
     });
   }
 });

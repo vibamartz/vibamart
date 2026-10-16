@@ -28,6 +28,7 @@ import NewCategoriesManagementView from '../components/CategoriesManagementView'
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
+import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 import AdminInvoicesView from '../components/AdminInvoicesView';
@@ -4632,9 +4633,16 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.tags && formData.tags.length > 0 && formData.tags.length < settings.minKeywords) {
-      toast.error(`You've added some keywords but the minimum is ${settings.minKeywords}. Please add more or remove all.`);
-      return;
+    // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
+    const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
+    let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
+    if (finalTags.length < requiredMinKeywords) {
+      finalTags = await generateProductKeywords(formData, {
+        existingKeywords: finalTags,
+        categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+        minCount: requiredMinKeywords
+      });
+      setFormData(prev => ({ ...prev, tags: finalTags }));
     }
 
     setBusy(true);
@@ -4652,6 +4660,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
       const rawData = {
         ...formData,
+        tags: finalTags,
         id: pid,
         images: processedImages,
         primaryImage: processedPrimaryImage,
@@ -5091,7 +5100,36 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
           {/* Tags & Search */}
           <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+                <p className="text-xs font-semibold text-gray-400 mt-0.5">
+                  Search keywords improve product discoverability (minimum {Math.max(6, settings.minKeywords || 6)}).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const toastId = toast.loading('Generating intelligent search keywords with AI/ML...');
+                  try {
+                    const finalKeywords = await generateProductKeywords(formData, {
+                      existingKeywords: formData.tags,
+                      categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+                      minCount: Math.max(6, settings.minKeywords || 6)
+                    });
+                    setFormData(prev => ({ ...prev, tags: finalKeywords }));
+                    toast.success(`Generated ${finalKeywords.length} relevant search keywords!`, { id: toastId });
+                  } catch (err: any) {
+                    toast.error('Failed to generate keywords', { id: toastId });
+                  }
+                }}
+                className="flex items-center gap-2 px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-2xl font-black text-xs uppercase tracking-wider transition-all self-start sm:self-auto cursor-pointer shadow-sm"
+                title="Automatically generate at least 6 relevant search keywords using AI/ML"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>AI Auto-Keywords</span>
+              </button>
+            </div>
             <div className="space-y-4">
               <div className="flex gap-2">
                 <input
@@ -5124,12 +5162,14 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
                     }
                     setCurrentTag('');
                   }}
-                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all cursor-pointer"
                 >
                   Add
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 font-bold ml-1">Press Enter, comma, or click Add to insert keywords. Optional — if added, minimum {settings.minKeywords}.</p>
+              <p className="text-[10px] text-gray-400 font-bold ml-1">
+                Press Enter, comma, or click Add. At least {Math.max(6, settings.minKeywords || 6)} relevant keywords are automatically generated & saved upon saving.
+              </p>
             </div>
 
             {formData.tags && formData.tags.length > 0 && (
