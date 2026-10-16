@@ -888,18 +888,18 @@ export default function AddEditProductForm({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto pb-20 space-y-12"
+      className="max-w-7xl mx-auto pb-12 space-y-6"
     >
-      <div className="flex justify-between items-end border-b border-gray-100 pb-10">
+      <div className="flex justify-between items-end border-b border-gray-100 pb-5">
         <div>
-          <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic">
-            {product ? 'EDIT_NODE' : 'NEW_ENTITY'}
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight italic">
+            {product ? 'EDIT_PRODUCT' : 'NEW_PRODUCT'}
           </h2>
-          <p className="text-sm text-gray-500 font-bold uppercase tracking-[0.2em] mt-2">
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">
             Product Identification {product?.id ? `(${product.id.slice(0, 8)})` : ''}
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-2.5">
           {product && (
             <button
               type="button"
@@ -930,23 +930,23 @@ export default function AddEditProductForm({
                   }
                 }
               }}
-              className="px-8 py-4 bg-red-50 text-red-500 border-2 border-transparent rounded-[28px] font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all"
+              className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-black uppercase text-[10px] tracking-wider hover:bg-red-500 hover:text-white transition-all cursor-pointer"
             >
               Delete Product
             </button>
           )}
-          <button onClick={onClose} type="button" className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-[28px] font-black uppercase text-[10px] tracking-widest hover:border-gray-900 hover:text-gray-900 transition-all">
-            Abort Operation
+          <button onClick={onClose} type="button" className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl font-black uppercase text-[10px] tracking-wider hover:border-gray-900 hover:text-gray-900 transition-all cursor-pointer">
+            Cancel
           </button>
-          <button type="submit" form="product-form" disabled={busy} className="px-10 py-4 bg-gray-900 text-white rounded-[28px] font-black uppercase text-[10px] tracking-widest shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95 transition-all">
+          <button type="submit" form="product-form" disabled={busy} className="px-5 py-2 bg-gray-900 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg shadow-gray-900/10 hover:bg-gray-800 transition-all cursor-pointer">
             Save Product
           </button>
         </div>
       </div>
 
-      <form id="product-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <form id="product-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Media & Variants */}
-        <div className="lg:col-span-2 space-y-12">
+        <div className="lg:col-span-2 space-y-6">
 
           {/* Media Section */}
           <ProductImageUploader
@@ -961,58 +961,58 @@ export default function AddEditProductForm({
           />
 
           {/* Product Info Section */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-10">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Core Configuration</h3>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Entity Name</label>
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+            <h3 className="text-base font-black text-gray-900 tracking-tight">Core Configuration</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Entity Name</label>
                 <input
                   value={formData.name}
                   onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="E.g. Lunar Edition X-1"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Brand Signature</label>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Brand Signature</label>
                 <input
                   value={formData.brand}
                   onChange={e => setFormData(p => ({ ...p, brand: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="Manufacturer Name"
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Internal Digest (Short Description)</label>
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Internal Digest (Short Description)</label>
                 <input
                   value={formData.description}
                   onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-bold text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm"
                   placeholder="Brief architectural summary..."
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Technical Documentation (Full Description)</label>
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Technical Documentation (Full Description)</label>
                 <textarea
                   value={formData.fullDescription}
                   onChange={e => setFormData(p => ({ ...p, fullDescription: e.target.value }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[32px] px-8 py-6 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm h-48 resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm h-36 resize-none"
                   placeholder="Exhaustive specifications and features..."
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Serviceable Pincodes (Comma separated, empty for nationwide)</label>
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Serviceable Pincodes (Comma separated, empty for nationwide)</label>
                 <textarea
                   value={formData.serviceablePincodes?.join(', ') || ''}
                   onChange={e => setFormData(p => ({ ...p, serviceablePincodes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[32px] px-8 py-6 outline-none focus:bg-white focus:border-primary/5 transition-all font-medium text-sm h-32 resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-medium text-sm h-24 resize-none"
                   placeholder="E.g. 560001, 560064, 110001"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-8">
-              <div className="col-span-3 bg-emerald-50/60 border border-emerald-100 p-6 rounded-[28px] space-y-3">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-3 bg-emerald-50/60 border border-emerald-100 p-4 rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
@@ -1420,15 +1420,15 @@ export default function AddEditProductForm({
           </div>
 
           {/* Logistics & Category */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Logistics & Placement</h3>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Protocol Status</label>
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+            <h3 className="text-base font-black text-gray-900 tracking-tight">Logistics & Placement</h3>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Protocol Status</label>
                 <select
                   value={formData.status}
                   onChange={e => setFormData(p => ({ ...p, status: e.target.value as any }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                 >
                   <option value="active">Active Deployment</option>
                   <option value="draft">Draft Protocol</option>
@@ -1755,44 +1755,44 @@ export default function AddEditProductForm({
         </div>
 
         {/* Right Column: Pricing, Inventory & Meta */}
-        <div className="space-y-12">
+        <div className="space-y-6">
 
           {/* Economy & Pricing */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-8">
-            <h3 className="text-lg font-black text-gray-900 tracking-tight">Economic Model</h3>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Market Retail Price (MRP)</label>
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+            <h3 className="text-base font-black text-gray-900 tracking-tight">Economic Model</h3>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Market Retail Price (MRP)</label>
                 <input
                   type="number"
                   value={formData.mrp}
                   onChange={e => setFormData(p => ({ ...p, mrp: Number(e.target.value) }))}
-                  className="w-full bg-gray-50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-lg text-gray-800"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Effective Selling Price</label>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Effective Selling Price</label>
                 <input
                   type="number"
                   value={formData.price}
                   onChange={e => setFormData(p => ({ ...p, price: Number(e.target.value) }))}
-                  className="w-full bg-blue-50/50 border-4 border-transparent rounded-[24px] px-8 py-5 outline-none focus:bg-white focus:border-primary/5 transition-all font-black text-xl italic text-blue-600"
+                  className="w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3.5 py-2 outline-none focus:bg-white focus:border-primary transition-all font-black text-lg text-blue-600"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Discount (%)</label>
-                  <div className="w-full bg-gray-50 rounded-[24px] px-8 py-5 font-black text-sm opacity-50">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Discount (%)</label>
+                  <div className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2 font-black text-sm text-gray-600">
                     {formData.discountPercentage}%
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Savings (₹)</label>
-                  <div className="w-full bg-green-50 text-green-700 rounded-[24px] px-8 py-5 font-black text-sm">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Savings (₹)</label>
+                  <div className="w-full bg-green-50 text-green-700 border border-green-100 rounded-xl px-3.5 py-2 font-black text-sm">
                     ₹{formData.mrp && formData.price && formData.mrp > formData.price ? (formData.mrp - formData.price).toLocaleString() : 0}
                   </div>
                 </div>
-                <div className="space-y-3 col-span-full md:col-span-2 bg-gray-50/80 p-6 rounded-[28px] border border-gray-100">
+                <div className="space-y-2.5 col-span-full bg-gray-50/80 p-4 rounded-xl border border-gray-100">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">GST / Tax Control</span>
@@ -1812,30 +1812,30 @@ export default function AddEditProductForm({
                         }}
                         className="sr-only peer"
                       />
-                      <div className="w-12 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                   {formData.enableGst !== false ? (
-                    <div className="pt-2 flex items-center gap-4">
+                    <div className="pt-2 flex items-center gap-3">
                       <div className="flex-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">GST Rate (%)</label>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">GST Rate (%)</label>
                         <input
                           type="number"
                           value={formData.gst}
                           onChange={e => setFormData(p => ({ ...p, gst: Number(e.target.value) }))}
                           placeholder="18"
-                          className="w-full bg-white border-2 border-gray-100 rounded-[20px] px-6 py-3 outline-none focus:border-primary transition-all font-black text-sm"
+                          className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 outline-none focus:border-primary transition-all font-bold text-xs"
                         />
                       </div>
-                      <div className="flex items-center gap-2 pt-5">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                      <div className="flex items-center gap-2 pt-4">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                           GST Active ({formData.gst || 0}%)
                         </span>
                       </div>
                     </div>
                   ) : (
                     <div className="pt-1">
-                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-3 py-1.5 rounded-full">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-200/60 px-2.5 py-1 rounded-full">
                         🚫 GST Disabled / Tax Exempt
                       </span>
                     </div>
@@ -1846,11 +1846,11 @@ export default function AddEditProductForm({
           </div>
 
           {/* Size Chart Section */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">Upload an image file or enter exact Size Chart image URL for customer viewing</p>
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Size Chart Configuration</h3>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">Upload an image file or enter Size Chart image URL</p>
               </div>
             </div>
             <div>
@@ -1863,12 +1863,11 @@ export default function AddEditProductForm({
             </div>
           </div>
 
-
           {/* Tags & Search */}
-          <div className="bg-white p-10 rounded-[48px] border border-gray-100 shadow-sm space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
+                <h3 className="text-base font-black text-gray-900 tracking-tight">Keywords / Search Tags</h3>
                 <p className="text-xs font-semibold text-gray-400 mt-0.5">
                   Search keywords improve product discoverability and partial matching (minimum {Math.max(6, settings.minKeywords || 6)}).
                 </p>

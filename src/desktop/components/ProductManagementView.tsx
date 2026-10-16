@@ -42,6 +42,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [filterVisual, setFilterVisual] = useState('all');
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPlacement, setFilterPlacement] = useState<'all' | 'main_only'>('all');
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -407,7 +408,47 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     return sub?.subcategories || [];
   }, [availableSubCategories, filterSubCategory]);
 
-  // Filter products by search query and category/brand/status filters
+  // Check if a product exists ONLY in a Main Category and not in any Subcategory, Nested Subcategory, or other category placement
+  const isProductMainCategoryOnly = (p: Product) => {
+    // 1. Must exist in a Main Category
+    const hasMainCategory = Boolean(
+      p.categoryId || (Array.isArray(p.categories) && p.categories.length > 0)
+    );
+    if (!hasMainCategory) return false;
+
+    // 2. Must NOT be assigned to any Subcategory
+    const hasSubCategory = Boolean(
+      p.subCategoryId || (Array.isArray(p.subCategoryIds) && p.subCategoryIds.length > 0)
+    );
+    if (hasSubCategory) return false;
+
+    // 3. Must NOT be assigned to any Nested Subcategory or Deep Subcategory
+    const hasNestedSubCategory = Boolean(
+      p.nestedSubCategoryId || (Array.isArray(p.nestedSubCategoryIds) && p.nestedSubCategoryIds.length > 0)
+    );
+    if (hasNestedSubCategory) return false;
+
+    // 4. Must NOT be assigned to any Visual Showcase or other category placement
+    const hasVisual = Boolean(
+      p.visualNestedSubcategoryId ||
+      (Array.isArray(p.visualNestedSubcategoryIds) && p.visualNestedSubcategoryIds.length > 0) ||
+      visualNestedItems.some(v => Array.isArray(v.productIds) && v.productIds.includes(p.id))
+    );
+    if (hasVisual) return false;
+
+    // 5. Cross-check against dynamic category assignment nodes
+    const assignedNodes = getProductAssignmentNodes(p, allCategoryNodes, visualNestedItems);
+    const hasNonMainPlacement = assignedNodes.some(n => n.level !== 'category');
+    if (hasNonMainPlacement) return false;
+
+    return true;
+  };
+
+  const mainCategoryOnlyCount = useMemo(() => {
+    return products.filter(isProductMainCategoryOnly).length;
+  }, [products, visualNestedItems, allCategoryNodes]);
+
+  // Filter products by search query and category/brand/status/placement filters
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       // 1. Text Search (name, id, productCode, SKU, brand, tags)
@@ -468,6 +509,11 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       if (filterStatus === 'visible' && p.isVisible === false) return false;
       if (filterStatus === 'hidden' && p.isVisible !== false) return false;
 
+      // 8. Placement Filter: Main Category Only (no subcategory, nested subcategory, or showcase placement)
+      if (filterPlacement === 'main_only') {
+        if (!isProductMainCategoryOnly(p)) return false;
+      }
+
       return true;
     });
   }, [
@@ -479,12 +525,14 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     filterVisual,
     filterBrand,
     filterStatus,
-    visualNestedItems
+    filterPlacement,
+    visualNestedItems,
+    allCategoryNodes
   ]);
 
   const hasActiveFilters = filterCategory !== 'all' || filterSubCategory !== 'all' ||
     filterNestedSubCategory !== 'all' || filterVisual !== 'all' ||
-    filterBrand !== 'all' || filterStatus !== 'all' || Boolean(searchQuery.trim());
+    filterBrand !== 'all' || filterStatus !== 'all' || filterPlacement !== 'all' || Boolean(searchQuery.trim());
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -494,6 +542,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     setFilterVisual('all');
     setFilterBrand('all');
     setFilterStatus('all');
+    setFilterPlacement('all');
   };
 
   // Selection handlers
@@ -540,26 +589,26 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-12">
       {/* Top Header Card */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Inventory & Variants</h2>
-          <p className="text-sm text-gray-500">Manage product stock, 12-digit Product Codes, variants, and category assignments</p>
+          <h2 className="text-lg font-bold text-gray-900">Inventory & Variants</h2>
+          <p className="text-xs text-gray-500">Manage product stock, 12-digit Product Codes, variants, and category assignments</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {/* Admin Search Bar: Name, ID, SKU, or Product Code */}
-          <div className="relative flex-1 sm:w-72">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Name, SKU, ID, Code, Tag..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              placeholder="Search Name, SKU, Code..."
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-8 pr-7 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-3.5 h-3.5" />
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
@@ -568,9 +617,9 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           {selectedProductIds.length > 0 && (
             <button
               onClick={() => setIsAssignmentModalOpen(true)}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+              className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
             >
-              <Layers className="w-4 h-4" />
+              <Layers className="w-3.5 h-3.5" />
               Assign to Categories ({selectedProductIds.length})
             </button>
           )}
@@ -578,41 +627,85 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           <button
             onClick={handleUpgradeAllKeywords}
             disabled={isUpgradingKeywords}
-            className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-sm"
-            title="Automatically audit all existing products and generate at least 6 relevant search keywords using AI/ML"
+            className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
+            title="Automatically audit catalog products and upgrade AI keywords"
           >
-            <Sparkles className={`w-4 h-4 text-indigo-600 ${isUpgradingKeywords ? 'animate-spin' : ''}`} />
-            <span>{isUpgradingKeywords ? 'Upgrading Keywords...' : 'Upgrade AI Keywords'}</span>
+            <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isUpgradingKeywords ? 'animate-spin' : ''}`} />
+            <span>{isUpgradingKeywords ? 'Upgrading...' : 'AI Keywords'}</span>
           </button>
 
           <button
             onClick={onAddProduct}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+            className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            Add New Product
+            <Plus className="w-3.5 h-3.5" />
+            Add Product
           </button>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+      <div className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm space-y-2.5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-            <Filter className="w-4 h-4 text-primary" />
+            <Filter className="w-3.5 h-3.5 text-primary" />
             <span>Filter Inventory:</span>
+            {/* Quick Toggle Pill for Main Category Only */}
+            <button
+              type="button"
+              onClick={() => setFilterPlacement(prev => prev === 'main_only' ? 'all' : 'main_only')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ml-1 ${
+                filterPlacement === 'main_only'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+              }`}
+              title="Show only products that exist in a Main Category and have NOT been assigned to any Subcategory or Nested Subcategory"
+            >
+              <FolderTree className="w-3 h-3" />
+              <span>Main Category Only ({mainCategoryOnlyCount})</span>
+            </button>
           </div>
           {hasActiveFilters && (
             <button
               onClick={resetAllFilters}
               className="text-xs font-bold text-rose-500 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" /> Clear All Filters
+              <X className="w-3 h-3" /> Clear All Filters
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        {filterPlacement === 'main_only' && (
+          <div className="flex items-center justify-between bg-amber-50/80 text-amber-900 border border-amber-200/80 px-3 py-1.5 rounded-xl text-xs font-semibold">
+            <span className="flex items-center gap-1.5">
+              📁 <strong>Filtered by Placement:</strong> Showing {filteredProducts.length} product(s) assigned ONLY to a Main Category with no Subcategories or Showcases.
+            </span>
+            <button
+              onClick={() => setFilterPlacement('all')}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-900 underline ml-2 cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+          {/* Placement Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-amber-700 tracking-wider block mb-0.5">Placement</label>
+            <select
+              value={filterPlacement}
+              onChange={e => setFilterPlacement(e.target.value as any)}
+              className={`w-full rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-all ${
+                filterPlacement === 'main_only'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
+                  : 'bg-gray-50 border border-gray-200 focus:border-primary focus:bg-white'
+              }`}
+            >
+              <option value="all">All Placements</option>
+              <option value="main_only">Main Category Only ({mainCategoryOnlyCount})</option>
+            </select>
+          </div>
           {/* Category Filter */}
           <div>
             <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Category</label>
@@ -749,7 +842,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           <table className="w-full text-left">
             <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
               <tr>
-                <th className="px-4 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                <th className="px-3 py-3 w-10 text-center" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={handleToggleSelectAll}
                     title={selectedProductIds.length === filteredProducts.length ? 'Deselect All' : 'Select All Filtered'}
@@ -766,21 +859,21 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                     )}
                   </button>
                 </th>
-                <th className="px-3 py-4 w-10"></th>
-                <th className="px-6 py-4">Product Info & Category Assignments</th>
-                <th className="px-6 py-4">Product Code (12-Digit)</th>
-                <th className="px-6 py-4">Total Stock</th>
-                <th className="px-6 py-4">Variants Count</th>
-                <th className="px-6 py-4">GST Tax</th>
-                <th className="px-6 py-4">Delivery</th>
-                <th className="px-6 py-4">Status & Visibility</th>
+                <th className="px-2 py-3 w-8"></th>
+                <th className="px-4 py-3 min-w-[280px]">Product Info & Category Assignments</th>
+                <th className="px-4 py-3 min-w-[140px]">Product Code</th>
+                <th className="px-4 py-3 min-w-[80px]">Total Stock</th>
+                <th className="px-4 py-3 min-w-[70px]">Variants</th>
+                <th className="px-4 py-3 min-w-[95px]">GST Tax</th>
+                <th className="px-4 py-3 min-w-[100px]">Delivery</th>
+                <th className="px-4 py-3 min-w-[140px]">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-500">Loading products...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">Loading products...</td></tr>
               ) : filteredProducts.length === 0 ? (
-                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-500">No products found matching your search and filter criteria.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500">No products found matching your search and filter criteria.</td></tr>
               ) : filteredProducts.map(product => {
                 const isExpanded = expandedProducts.includes(product.id);
                 const isSelected = selectedProductIds.includes(product.id);
@@ -795,7 +888,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       onClick={() => toggleExpand(product.id)}
                     >
                       {/* Checkbox */}
-                      <td className="px-4 py-4 text-center" onClick={(e) => handleToggleSelectProduct(product.id, e)}>
+                      <td className="px-3 py-2.5 text-center" onClick={(e) => handleToggleSelectProduct(product.id, e)}>
                         <button
                           type="button"
                           className="p-1 rounded text-gray-400 hover:text-primary transition-colors cursor-pointer"
@@ -809,80 +902,101 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Expand Chevron */}
-                      <td className="px-3 py-4">
+                      <td className="px-2 py-2.5">
                         {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                       </td>
 
-                      {/* Product Info & Category Assignments */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-3">
+                      {/* Product Info & Category Assignments: Strictly single-line horizontal with ellipsis */}
+                      <td className="px-4 py-2.5 whitespace-nowrap min-w-0 max-w-sm">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={product.images[0] || 'https://via.placeholder.com/80'}
-                            className="w-12 h-12 rounded-lg object-contain bg-white border border-gray-100 shrink-0 mt-0.5"
+                            className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100 shrink-0"
                             alt=""
                           />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                          <div className="min-w-0 flex-1">
+                            {/* Product Name: Single horizontal line with ellipsis truncation */}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p
+                                className="text-xs font-bold text-gray-900 truncate max-w-[200px] sm:max-w-[280px]"
+                                title={product.name}
+                              >
+                                {product.name}
+                              </p>
                               {product.brand && (
-                                <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase bg-gray-50 px-1 py-0.2 rounded border border-gray-100 shrink-0">
                                   {product.brand}
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400 mt-0.5">ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}</p>
 
-                            {/* Live Category Assignment Badges */}
-                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                              ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}
+                            </p>
+
+                            {/* Live Category Assignment Badges: Compact horizontal single line */}
+                            <div className="flex items-center gap-1 flex-nowrap overflow-hidden mt-1">
                               {assignedCategoryNodes.length === 0 ? (
-                                <span className="text-[10px] text-gray-400 italic">No categories assigned</span>
+                                <span className="text-[9px] text-gray-400 italic shrink-0">No categories assigned</span>
                               ) : (
-                                assignedCategoryNodes.map(node => {
-                                  const isVisual = node.level === 'visual_nested_subcategory';
-                                  const isNested = node.level === 'nested_subcategory' || node.level === 'deep_subcategory';
-                                  const isSub = node.level === 'subcategory';
-                                  const badgeClass = isVisual
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                    : isNested
-                                    ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                    : isSub
-                                    ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
-                                    : 'bg-blue-50 text-blue-800 border-blue-200';
+                                <>
+                                  {assignedCategoryNodes.slice(0, 2).map(node => {
+                                    const isVisual = node.level === 'visual_nested_subcategory';
+                                    const isNested = node.level === 'nested_subcategory' || node.level === 'deep_subcategory';
+                                    const isSub = node.level === 'subcategory';
+                                    const badgeClass = isVisual
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                      : isNested
+                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                      : isSub
+                                      ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                      : 'bg-blue-50 text-blue-800 border-blue-200';
 
-                                  return (
-                                    <span
-                                      key={node.key}
-                                      title={node.breadcrumb}
-                                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeClass} group`}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {isVisual && <Sparkles className="w-2.5 h-2.5 text-emerald-600" />}
-                                      <span className="truncate max-w-[130px]">{node.name}</span>
-                                      <button
-                                        onClick={(e) => handleRemoveCategoryAssignment(e, product, node)}
-                                        title={`Remove from ${node.breadcrumb}`}
-                                        className="text-gray-400 hover:text-red-600 transition-colors ml-0.5"
+                                    return (
+                                      <span
+                                        key={node.key}
+                                        title={node.breadcrumb}
+                                        className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${badgeClass} shrink-0 max-w-[110px] truncate`}
+                                        onClick={(e) => e.stopPropagation()}
                                       >
-                                        <X className="w-2.5 h-2.5" />
-                                      </button>
+                                        {isVisual && <Sparkles className="w-2 h-2 text-emerald-600 shrink-0" />}
+                                        <span className="truncate">{node.name}</span>
+                                        <button
+                                          onClick={(e) => handleRemoveCategoryAssignment(e, product, node)}
+                                          title={`Remove from ${node.breadcrumb}`}
+                                          className="text-gray-400 hover:text-red-600 transition-colors ml-0.5 shrink-0"
+                                        >
+                                          <X className="w-2.5 h-2.5" />
+                                        </button>
+                                      </span>
+                                    );
+                                  })}
+                                  {assignedCategoryNodes.length > 2 && (
+                                    <span
+                                      className="text-[9px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0"
+                                      title={assignedCategoryNodes.slice(2).map(n => n.name).join(', ')}
+                                    >
+                                      +{assignedCategoryNodes.length - 2} more
                                     </span>
-                                  );
-                                })
+                                  )}
+                                </>
                               )}
                               <button
                                 onClick={(e) => handleOpenAssignForProduct(e, product)}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
+                                className="inline-flex items-center gap-0.5 text-[9px] font-bold text-primary hover:underline bg-primary/5 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-colors shrink-0"
                               >
-                                <Plus className="w-2.5 h-2.5" /> Assign
+                                <Plus className="w-2 h-2" /> Assign
                               </button>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+
+                      {/* Product Code */}
+                      <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {product.productCode ? (
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200/80">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded-lg border border-emerald-200/80">
                               {formatProductCode(product.productCode)}
                             </span>
                             <button
@@ -893,7 +1007,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 toast.success(`Product Code "${codeStr}" copied!`);
                               }}
                               title="Copy Product Code"
-                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                              className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                             >
                               <Copy className="w-3.5 h-3.5" />
                             </button>
@@ -910,27 +1024,33 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 toast.error('Failed to assign code');
                               }
                             }}
-                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all"
+                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer"
                           >
                             + Generate Code
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium">
+
+                      {/* Total Stock */}
+                      <td className="px-4 py-2.5 whitespace-nowrap text-xs font-semibold">
                         <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
                           {product.stock}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
+
+                      {/* Variants Count */}
+                      <td className="px-4 py-2.5 whitespace-nowrap text-xs">
                         <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
                           {product.variants?.length || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+
+                      {/* GST Tax */}
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleGst(e, product)}
                           title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
-                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                             product.enableGst !== false && (product.gst || 0) > 0
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
@@ -943,29 +1063,33 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           )}
                         </button>
                       </td>
-                      <td className="px-6 py-4">
+
+                      {/* Delivery */}
+                      <td className="px-4 py-2.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleFreeDelivery(e, product)}
                           title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
-                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                             product.isFreeDelivery !== false
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
                           }`}
                         >
                           {product.isFreeDelivery !== false ? (
-                            <><span>🚚</span> Free Delivery</>
+                            <><span>🚚</span> Free</>
                           ) : (
-                            <><span>📦</span> Paid Delivery</>
+                            <><span>📦</span> Paid</>
                           )}
                         </button>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+
+                      {/* Status & Visibility */}
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                               product.isVisible !== false
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
@@ -973,12 +1097,12 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           >
                             {product.isVisible !== false ? (
                               <>
-                                <Eye className="w-3.5 h-3.5 shrink-0" />
+                                <Eye className="w-3 h-3 shrink-0" />
                                 <span>Visible</span>
                               </>
                             ) : (
                               <>
-                                <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                                <EyeOff className="w-3 h-3 shrink-0" />
                                 <span>Hidden</span>
                               </>
                             )}
@@ -991,7 +1115,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             className="p-1 text-gray-400 hover:text-emerald-600 transition-colors cursor-pointer"
                             title="Assign to Categories"
                           >
-                            <Layers className="w-4 h-4" />
+                            <Layers className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={(e) => {
@@ -1001,7 +1125,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             className="p-1 text-gray-400 hover:text-primary transition-colors cursor-pointer"
                             title="Edit Product"
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={async (e) => {
@@ -1013,7 +1137,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             className="p-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
                             title="Delete Product"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

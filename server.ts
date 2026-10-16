@@ -16,6 +16,8 @@ import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 import { searchRouter } from "./src/backend/search/routes";
 import { searchService } from "./src/backend/search/searchService";
+import { adminNotificationsCleanupHandler, adminNotificationsPurgeHandler } from "./api/_handlers/notifications/admin-cleanup";
+import { cleanExpiredAdminNotifications } from "./src/backend/services/adminNotificationCleanupService";
 
 
 dotenv.config();
@@ -98,6 +100,10 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", name: "ViBa Mart API" });
   });
+
+  // Admin Notifications Automated Cleanup (24h after read) & Permanent Purge APIs
+  app.post("/api/admin/notifications/cleanup", adminNotificationsCleanupHandler);
+  app.post("/api/admin/notifications/purge-all", adminNotificationsPurgeHandler);
 
   // Razorpay order creation
   app.post("/api/payment/create-order", async (req, res) => {
@@ -841,6 +847,22 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+
+    // Automated backend database cleanup: delete admin notifications 24 hours after they are read
+    const runNotificationsCleanup = async () => {
+      try {
+        const cleanupResult = await cleanExpiredAdminNotifications();
+        if (cleanupResult.deletedCount > 0) {
+          console.log(`[Admin Notifications Cleanup] Automatically deleted ${cleanupResult.deletedCount} notification(s) older than 24h since read. Preserved ${cleanupResult.preservedUnreadCount} unread.`);
+        }
+      } catch (cleanErr) {
+        console.warn('[Admin Notifications Cleanup] Scheduled cleanup error:', cleanErr);
+      }
+    };
+
+    // Run initial cleanup after 3 seconds, then every 15 minutes
+    setTimeout(runNotificationsCleanup, 3000);
+    setInterval(runNotificationsCleanup, 15 * 60 * 1000);
   });
 }
 

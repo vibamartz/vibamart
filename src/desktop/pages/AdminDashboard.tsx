@@ -401,11 +401,32 @@ function AdminDashboardContent() {
     if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notificationsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+      const notificationsData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
-      setAdminNotifications(notificationsData);
+
+      // Reliable DB Cleanup: Automatically and permanently delete read notifications after 24h
+      const expiredDocs = notificationsData.filter(n => {
+        if (!n.read) return false; // Preserve unread notifications indefinitely
+        const readTime = n.readAt ? new Date(n.readAt).getTime() : (n.createdAt ? new Date(n.createdAt).getTime() : null);
+        return Boolean(readTime && (now - readTime >= TWENTY_FOUR_HOURS_MS));
+      });
+
+      if (expiredDocs.length > 0) {
+        expiredDocs.forEach(n => {
+          deleteDoc(doc(db, 'notifications', n.id)).catch(err => console.warn('[Auto-Cleanup] Failed to delete expired notification:', err));
+        });
+      }
+
+      // Filter out any expired notifications from state
+      setAdminNotifications(notificationsData.filter(n => {
+        if (!n.read) return true;
+        const readTime = n.readAt ? new Date(n.readAt).getTime() : (n.createdAt ? new Date(n.createdAt).getTime() : null);
+        return !readTime || (now - readTime < TWENTY_FOUR_HOURS_MS);
+      }));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'notifications', false);
     });
@@ -464,7 +485,13 @@ function AdminDashboardContent() {
                 onClick={async () => {
                   toast.dismiss(t.id);
                   try {
-                    await updateDoc(doc(db, 'notifications', newestNotif.id), { read: true });
+                    const nowIso = new Date().toISOString();
+                    const expiresIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+                    await updateDoc(doc(db, 'notifications', newestNotif.id), {
+                      read: true,
+                      readAt: nowIso,
+                      expiresAt: expiresIso
+                    });
                   } catch (e) {
                     console.error('Failed to mark read:', e);
                   }
@@ -494,20 +521,57 @@ function AdminDashboardContent() {
 
   const handleMarkAllAsRead = async () => {
     try {
+      const nowIso = new Date().toISOString();
+      const expiresIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const batchPromises = adminNotifications
         .filter(n => !n.read)
-        .map(n => updateDoc(doc(db, 'notifications', n.id), { read: true }));
+        .map(n => updateDoc(doc(db, 'notifications', n.id), {
+          read: true,
+          readAt: nowIso,
+          expiresAt: expiresIso
+        }));
       await Promise.all(batchPromises);
-      toast.success('All notifications marked as read');
+      toast.success('All notifications marked as read (auto-deletes in 24 hours)');
     } catch (error) {
       console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  const handlePermanentlyDeleteAllNotifications = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete all admin notifications from the database? This cannot be undone.')) return;
+    const toastId = toast.loading('Permanently deleting notifications...');
+    try {
+      const deletePromises = adminNotifications.map(n => deleteDoc(doc(db, 'notifications', n.id)));
+      await Promise.all(deletePromises);
+      try {
+        await fetch('/api/admin/notifications/purge-all', { method: 'POST' });
+      } catch (e) {}
+      toast.success('All admin notifications permanently deleted.', { id: toastId });
+    } catch (err: any) {
+      toast.error('Failed to delete notifications: ' + err.message, { id: toastId });
+    }
+  };
+
+  const handleDeleteSingleNotification = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'notifications', id));
+      toast.success('Notification deleted.');
+    } catch (err: any) {
+      toast.error('Failed to delete notification.');
     }
   };
 
   const handleNotificationClick = async (notif: any) => {
     try {
       if (!notif.read) {
-        await updateDoc(doc(db, 'notifications', notif.id), { read: true });
+        const nowIso = new Date().toISOString();
+        const expiresIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        await updateDoc(doc(db, 'notifications', notif.id), {
+          read: true,
+          readAt: nowIso,
+          expiresAt: expiresIso
+        });
       }
       setShowNotificationDropdown(false);
       if (notif.orderId) {
@@ -702,54 +766,91 @@ function AdminDashboardContent() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl z-20 py-2 overflow-hidden text-left"
+                      className="absolute right-0 mt-2 w-88 bg-white rounded-2xl border border-gray-100 shadow-xl z-20 py-2 overflow-hidden text-left"
                     >
                       <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                        <span className="text-xs font-bold text-gray-800">Notifications ({unreadCount})</span>
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={handleMarkAllAsRead}
-                            className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline"
-                          >
-                            Mark all read
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-gray-800">Notifications ({unreadCount})</span>
+                          <span className="text-[9px] font-semibold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded" title="Notifications are automatically deleted 24 hours after being read. Unread notifications are preserved.">
+                            24h Auto-Expiry
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllAsRead}
+                              className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline cursor-pointer"
+                            >
+                              Mark all read
+                            </button>
+                          )}
+                          {adminNotifications.length > 0 && (
+                            <button
+                              onClick={handlePermanentlyDeleteAllNotifications}
+                              className="text-[10px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                              title="Permanently delete all notifications from database"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Clear All
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
                         {adminNotifications.length === 0 ? (
                           <div className="px-4 py-6 text-center text-xs text-gray-400 italic">No notifications</div>
                         ) : (
-                          adminNotifications.map((notif) => (
-                            <div
-                              key={notif.id}
-                              onClick={() => handleNotificationClick(notif)}
-                              className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col gap-1 relative ${!notif.read ? 'bg-primary/5' : ''}`}
-                            >
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5">
-                                  {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0"></span>}
-                                  {notif.title}
+                          adminNotifications.map((notif) => {
+                            const isRead = Boolean(notif.read);
+                            let hoursLeft: number | null = null;
+                            if (isRead && notif.readAt) {
+                              const readTime = new Date(notif.readAt).getTime();
+                              const elapsed = Date.now() - readTime;
+                              const remaining = Math.max(0, 24 - Math.floor(elapsed / (1000 * 60 * 60)));
+                              hoursLeft = remaining;
+                            }
+
+                            return (
+                              <div
+                                key={notif.id}
+                                onClick={() => handleNotificationClick(notif)}
+                                className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col gap-1 relative group ${!isRead ? 'bg-primary/5' : ''}`}
+                              >
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5 min-w-0">
+                                    {!isRead && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0"></span>}
+                                    <span className="truncate">{notif.title}</span>
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleDeleteSingleNotification(e, notif.id)}
+                                    title="Permanently delete notification"
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-500 transition-opacity cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <span className="text-[11px] text-gray-650 font-medium truncate max-w-full">
+                                  {notif.message}
                                 </span>
-                              </div>
-                              <span className="text-[11px] text-gray-650 font-medium">
-                                {notif.message}
-                              </span>
-                              {(notif.paymentMethod || notif.status) && (
-                                <div className="text-[10px] text-gray-500 font-bold mt-1 flex items-center gap-2">
-                                  {notif.status && <span className="uppercase bg-gray-200 px-1.5 py-0.5 rounded">{notif.status}</span>}
-                                  {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
-                                  {notif.smsStatus && (
-                                    <span className={`px-1.5 py-0.5 rounded uppercase ${notif.smsStatus === 'sent' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
-                                      SMS {notif.smsStatus}
+                                {(notif.paymentMethod || notif.status) && (
+                                  <div className="text-[10px] text-gray-500 font-bold mt-1 flex items-center gap-2">
+                                    {notif.status && <span className="uppercase bg-gray-200 px-1.5 py-0.5 rounded">{notif.status}</span>}
+                                    {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between mt-0.5">
+                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                                    {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  {isRead && hoursLeft !== null && (
+                                    <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/50">
+                                      Auto-deletes in {hoursLeft}h
                                     </span>
                                   )}
                                 </div>
-                              )}
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-0.5">
-                                {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          ))
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </motion.div>
@@ -764,45 +865,45 @@ function AdminDashboardContent() {
           </div>
         </header>
 
-        <div className="p-4 lg:p-8 space-y-6 lg:space-y-8 overflow-y-auto flex-1">
+        <div className="p-4 lg:p-6 space-y-4 lg:space-y-5 overflow-y-auto flex-1">
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
                 {dynamicStats.map((stat, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
-                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between"
+                    className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between"
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={`${stat.bg} p-2.5 rounded-xl`}>
-                        <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    <div className="flex justify-between items-start mb-3">
+                      <div className={`${stat.bg} p-2 rounded-xl`}>
+                        <stat.icon className={`w-4 h-4 ${stat.color}`} />
                       </div>
-                      <span className={`text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md`}>
+                      <span className={`text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md`}>
                         {stat.change}
                       </span>
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-gray-900 mb-0.5">{stat.value}</p>
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                      <p className="text-xl sm:text-2xl font-black text-gray-900 mb-0.5">{stat.value}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
                     </div>
                   </motion.div>
                 ))}
               </div>
 
               {/* Analytics & Alerts Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
                 {/* Left Column - Charts */}
-                <div className="xl:col-span-2 space-y-8">
+                <div className="xl:col-span-2 space-y-5">
                   {/* Revenue Chart */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center mb-6">
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900">Revenue Overview</h3>
+                        <h3 className="text-base font-bold text-gray-900">Revenue Overview</h3>
                         <p className="text-xs text-gray-400 font-medium">Delivered sales performance for {dateRange.label}</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -831,10 +932,10 @@ function AdminDashboardContent() {
                   </div>
 
                   {/* Customer Insights Chart */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center mb-6">
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900">Customer Insights</h3>
+                        <h3 className="text-base font-bold text-gray-900">Customer Insights</h3>
                         <p className="text-xs text-gray-400 font-medium">New vs Returning customers in {dateRange.label}</p>
                       </div>
                     </div>
@@ -854,10 +955,10 @@ function AdminDashboardContent() {
                 </div>
 
                 {/* Right Column - Sidebars */}
-                <div className="space-y-8">
+                <div className="space-y-5">
 
                   {/* Notification Center */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col max-h-[550px]">
+                  <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col max-h-[550px]">
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <h3 className="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
                         <Bell className="w-5 h-5 text-primary" />

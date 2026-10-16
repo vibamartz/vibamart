@@ -17,6 +17,7 @@ import verifyPaymentHandler from "./_handlers/payment/verify";
 import { initializeFirebaseAdmin } from "./_utils";
 import { cicdRouter } from "../src/backend/cicd/routes";
 import { searchRouter } from "../src/backend/search/routes";
+import { adminNotificationsCleanupHandler, adminNotificationsPurgeHandler } from "./_handlers/notifications/admin-cleanup";
 
 initializeFirebaseAdmin();
 
@@ -67,5 +68,9 @@ app.post(["/api/notifications/send", "/notifications/send"], sendNotificationHan
 app.all(["/api/campaigns/manage", "/campaigns/manage", "/api/campaigns/create"], campaignsHandler);
 app.post(["/api/notifications/track", "/notifications/track"], trackNotificationHandler);
 app.get(["/api/segments", "/segments"], segmentsHandler);
+
+// Admin Notifications Automated Cleanup & Purge APIs
+app.post(["/api/admin/notifications/cleanup", "/admin/notifications/cleanup"], adminNotificationsCleanupHandler);
+app.post(["/api/admin/notifications/purge-all", "/admin/notifications/purge-all"], adminNotificationsPurgeHandler);
 
 export default app;
