@@ -281,34 +281,68 @@ export class CategoryHierarchyEngine {
   }
 
   /**
-   * Find a hierarchy node by ID, slug, or exact name.
+   * Find all hierarchy nodes matching an ID, slug, or exact/normalized name.
    */
-  public getNode(idOrSlugOrName: string): HierarchyNodeInfo | undefined {
-    if (!idOrSlugOrName) return undefined;
+  public getNodes(idOrSlugOrName: string): HierarchyNodeInfo[] {
+    if (!idOrSlugOrName) return [];
     const trimmed = idOrSlugOrName.trim();
+    const results: HierarchyNodeInfo[] = [];
+    const seen = new Set<string>();
+
+    const add = (node?: HierarchyNodeInfo) => {
+      if (node && !seen.has(node.id)) {
+        seen.add(node.id);
+        results.push(node);
+      }
+    };
+
     if (this.nodesById.has(trimmed)) {
-      return this.nodesById.get(trimmed);
+      add(this.nodesById.get(trimmed));
     }
     const lower = trimmed.toLowerCase();
     if (this.nodesBySlug.has(lower)) {
-      return this.nodesBySlug.get(lower);
+      add(this.nodesBySlug.get(lower));
     }
     const norm = normalizeName(trimmed);
     const byName = this.nodesByNormalizedName.get(norm);
-    if (byName && byName.length > 0) {
-      return byName[0];
+    if (byName) {
+      byName.forEach(add);
     }
-    return undefined;
+    const singularNorm = normalizeName(trimmed.replace(/s$/i, ''));
+    if (singularNorm && singularNorm !== norm) {
+      const bySingular = this.nodesByNormalizedName.get(singularNorm);
+      if (bySingular) bySingular.forEach(add);
+    }
+
+    return results;
+  }
+
+  /**
+   * Find a hierarchy node by ID, slug, or exact name.
+   */
+  public getNode(idOrSlugOrName: string): HierarchyNodeInfo | undefined {
+    const nodes = this.getNodes(idOrSlugOrName);
+    return nodes.length > 0 ? nodes[0] : undefined;
   }
 
   /**
    * Returns all descendant IDs (including the node itself) for a given category/subcategory/nested/visual node.
+   * Aggregates across all matching nodes when names overlap across branches.
    */
   public getDescendantIds(idOrSlugOrName: string): Set<string> {
     if (!idOrSlugOrName) return new Set();
-    const node = this.getNode(idOrSlugOrName);
-    if (node && this.descendantIdsMap.has(node.id)) {
-      return this.descendantIdsMap.get(node.id)!;
+    const nodes = this.getNodes(idOrSlugOrName);
+    if (nodes.length > 0) {
+      const descendants = new Set<string>();
+      for (const node of nodes) {
+        const dSet = this.descendantIdsMap.get(node.id);
+        if (dSet) {
+          dSet.forEach(id => descendants.add(id));
+        } else {
+          descendants.add(node.id);
+        }
+      }
+      return descendants;
     }
     // Fallback: If not found in tree, return just the normalized value
     return new Set([idOrSlugOrName.trim()]);
@@ -435,11 +469,9 @@ export class CategoryHierarchyEngine {
       }
     }
 
-    // Also check direct slug/name match
-    const filterLower = filterTrim.toLowerCase();
-    const filterNorm = normalizeName(filterTrim);
-    const targetNode = this.getNode(filterTrim);
-    if (targetNode) {
+    // Also check direct node IDs across all matching nodes
+    const targetNodes = this.getNodes(filterTrim);
+    for (const targetNode of targetNodes) {
       if (productHierarchyIds instanceof Set) {
         if (productHierarchyIds.has(targetNode.id)) return true;
       } else if (Array.isArray(productHierarchyIds)) {

@@ -303,9 +303,54 @@ export function isProductInHierarchy(
   visualItems: VisualNestedSubcategory[] = []
 ): boolean {
   if (!product || !targetFilter) return false;
+  const filterTrim = targetFilter.trim();
+  if (!filterTrim || filterTrim === 'all' || filterTrim === 'all-deals' || filterTrim === 'categories') {
+    return true;
+  }
+
   const engine = getOrCreateHierarchyEngine(categories, visualItems);
-  const { hierarchyIds } = engine.resolveProductHierarchy(product);
-  return engine.matchesFilter(hierarchyIds, targetFilter);
+  const { hierarchyIds, categoryNames, visualNames } = engine.resolveProductHierarchy(product);
+  if (engine.matchesFilter(hierarchyIds, filterTrim)) {
+    return true;
+  }
+
+  // Resilient direct fallback (e.g. if category store is still initializing or direct product property match)
+  const filterLower = filterTrim.toLowerCase();
+  const filterSingular = filterLower.replace(/s$/, '');
+
+  if (
+    (product.categoryId && String(product.categoryId).toLowerCase() === filterLower) ||
+    (product.subCategoryId && String(product.subCategoryId).toLowerCase() === filterLower) ||
+    (product.nestedSubCategoryId && String(product.nestedSubCategoryId).toLowerCase() === filterLower) ||
+    (product.visualNestedSubcategoryId && String(product.visualNestedSubcategoryId).toLowerCase() === filterLower)
+  ) {
+    return true;
+  }
+
+  const pCatName = (product as any).categoryName ? String((product as any).categoryName).toLowerCase() : '';
+  const pSubName = (product as any).subCategoryName ? String((product as any).subCategoryName).toLowerCase() : '';
+  const pNestedName = (product as any).nestedSubCategoryName ? String((product as any).nestedSubCategoryName).toLowerCase() : '';
+
+  if (
+    (pCatName && (pCatName === filterLower || pCatName.includes(filterLower) || filterLower.includes(pCatName) || pCatName === filterSingular)) ||
+    (pSubName && (pSubName === filterLower || pSubName.includes(filterLower) || filterLower.includes(pSubName))) ||
+    (pNestedName && (pNestedName === filterLower || pNestedName.includes(filterLower) || filterLower.includes(pNestedName)))
+  ) {
+    return true;
+  }
+
+  if (categoryNames.some(n => {
+    const nLow = n.toLowerCase();
+    return nLow === filterLower || nLow.includes(filterLower) || filterLower.includes(nLow) || nLow === filterSingular;
+  })) {
+    return true;
+  }
+
+  if (visualNames.some(v => v.toLowerCase().includes(filterLower))) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

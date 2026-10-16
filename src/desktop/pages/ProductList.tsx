@@ -83,6 +83,7 @@ export default function ProductList() {
     }
 
     let isCurrent = true;
+    setSearchResults(null);
     setSearchLoading(true);
     setSearchCompleted(false);
 
@@ -571,7 +572,9 @@ export default function ProductList() {
 
       // Category filter across entire hierarchy (Skip category filter if viewing explicit banner or explicit visual subcategory)
       if (!matchedBanner && !hasVisualExplicit) {
-        const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
+        const effectiveCats = isSearchQuery
+          ? (searchParams.get('category') ? [searchParams.get('category')!] : selectedCategories)
+          : (selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []));
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
             const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
@@ -585,14 +588,18 @@ export default function ProductList() {
 
       // SubCategory filter across entire hierarchy (Skip if explicit visual subcategory assignment)
       if (!hasVisualExplicit) {
-        const effectiveSubs = selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []);
+        const effectiveSubs = isSearchQuery
+          ? (searchParams.get('subCategory') ? [searchParams.get('subCategory')!] : selectedSubCategories)
+          : (selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []));
         if (effectiveSubs.length > 0) {
           const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems));
           if (!hasSubMatch) return false;
         }
 
         // Nested SubCategory filter across entire hierarchy
-        const effectiveNested = selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []);
+        const effectiveNested = isSearchQuery
+          ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
+          : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
         if (effectiveNested.length > 0) {
           const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems));
           if (!hasNestedMatch) return false;
@@ -600,7 +607,9 @@ export default function ProductList() {
       }
 
       // Brand filter
-      const effectiveBrands = selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []);
+      const effectiveBrands = isSearchQuery
+        ? (searchParams.get('brand') ? [searchParams.get('brand')!] : selectedBrands)
+        : (selectedBrands.length > 0 ? selectedBrands : (baseBrand ? [baseBrand] : []));
       if (effectiveBrands.length > 0 && p.brand && !effectiveBrands.includes(p.brand)) return false;
 
       // Price filter
@@ -887,27 +896,31 @@ export default function ProductList() {
             <div className="mb-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                  {matchedVisualNestedSubcategory
-                    ? (matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Visual Collection')
-                    : (matchedDeepChildSubcategory
-                      ? matchedDeepChildSubcategory.name
-                      : (matchedNestedSubcategory
-                        ? matchedNestedSubcategory.name
-                        : (matchedSubcategory
-                          ? matchedSubcategory.name
-                          : (matchedCategory ? matchedCategory.name : 'Browse Products'))))}
+                  {isSearchQuery
+                    ? `Search results for "${searchParams.get('q') || ''}"`
+                    : (matchedVisualNestedSubcategory
+                      ? (matchedVisualNestedSubcategory.name || matchedVisualNestedSubcategory.offerText || 'Visual Collection')
+                      : (matchedDeepChildSubcategory
+                        ? matchedDeepChildSubcategory.name
+                        : (matchedNestedSubcategory
+                          ? matchedNestedSubcategory.name
+                          : (matchedSubcategory
+                            ? matchedSubcategory.name
+                            : (matchedCategory ? matchedCategory.name : 'Browse Products')))))}
                 </h1>
               </div>
               <p className="text-xs text-gray-500 font-medium mt-1">
-                {matchedVisualNestedSubcategory
-                  ? (matchedVisualNestedSubcategory.description || `Browse all products in ${matchedVisualNestedSubcategory.name || 'this collection'}`)
-                  : (matchedDeepChildSubcategory
-                    ? `Browse all ${matchedDeepChildSubcategory.name} products and collections`
-                    : (matchedNestedSubcategory
-                      ? `Browse all ${matchedNestedSubcategory.name} products and collections`
-                      : (matchedSubcategory
-                        ? `Browse all ${matchedSubcategory.name} products and collections`
-                        : (matchedCategory ? `Explore all products and collections in ${matchedCategory.name}` : 'Discover products matching your selection'))))}
+                {isSearchQuery
+                  ? `Showing ${filteredProducts.length} ${filteredProducts.length === 1 ? 'product' : 'products'} matching your search`
+                  : (matchedVisualNestedSubcategory
+                    ? (matchedVisualNestedSubcategory.description || `Browse all products in ${matchedVisualNestedSubcategory.name || 'this collection'}`)
+                    : (matchedDeepChildSubcategory
+                      ? `Browse all ${matchedDeepChildSubcategory.name} products and collections`
+                      : (matchedNestedSubcategory
+                        ? `Browse all ${matchedNestedSubcategory.name} products and collections`
+                        : (matchedSubcategory
+                          ? `Browse all ${matchedSubcategory.name} products and collections`
+                          : (matchedCategory ? `Explore all products and collections in ${matchedCategory.name}` : 'Discover products matching your selection')))))}
               </p>
             </div>
           )}

@@ -36,6 +36,7 @@ export default function MobileProductListScreen() {
   const { addItem, items: cartItems } = useCartStore();
 
   const querySearch = searchParams.get('q') || searchParams.get('search') || '';
+  const [searchInputVal, setSearchInputVal] = useState(querySearch);
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const [searchRecovery, setSearchRecovery] = useState<any | null>(null);
   const [searchCorrection, setSearchCorrection] = useState<{
@@ -46,6 +47,21 @@ export default function MobileProductListScreen() {
   const [searchIntent, setSearchIntent] = useState<any | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchCompleted, setSearchCompleted] = useState(false);
+
+  // Keep input in sync with URL param
+  useEffect(() => {
+    setSearchInputVal(querySearch);
+  }, [querySearch]);
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = searchInputVal.trim();
+    if (trimmed) {
+      navigate(`/products?q=${encodeURIComponent(trimmed)}`);
+    } else {
+      navigate('/products');
+    }
+  };
 
   // Fetch from Search Engine API when querySearch is present
   useEffect(() => {
@@ -70,6 +86,7 @@ export default function MobileProductListScreen() {
     }
 
     let isCurrent = true;
+    setSearchResults(null);
     setSearchLoading(true);
     setSearchCompleted(false);
 
@@ -398,20 +415,35 @@ export default function MobileProductListScreen() {
 
       // Query Search (Executed locally as fallback only when server searchResults is not loaded)
       if (querySearch && searchResults === null) {
-        const q = querySearch.toLowerCase();
-        const cleanQ = cleanProductCode(q);
-        const engine = getOrCreateHierarchyEngine(categories, visualNestedItems);
-        const { categoryNames, visualNames } = engine.resolveProductHierarchy(product);
-        const matchesName = product.name.toLowerCase().includes(q);
-        const matchesBrand = product.brand?.toLowerCase().includes(q);
-        const matchesId = product.id.toLowerCase().includes(q);
-        const matchesCode = product.productCode && (
-          product.productCode.toLowerCase().includes(q) ||
-          (cleanQ.length > 0 && cleanProductCode(product.productCode).includes(cleanQ))
-        );
-        const matchesHierarchy = [...categoryNames, ...visualNames].some(name => name.toLowerCase().includes(q));
-        const matchesTags = product.tags?.some(t => t.toLowerCase().includes(q));
-        if (!matchesName && !matchesBrand && !matchesId && !matchesCode && !matchesHierarchy && !matchesTags) return false;
+        const q = querySearch.trim().toLowerCase();
+        const terms = q.split(/\s+/).filter(Boolean);
+        if (terms.length > 0) {
+          const cleanQ = cleanProductCode(q);
+          const engine = getOrCreateHierarchyEngine(categories, visualNestedItems);
+          const { categoryNames, visualNames } = engine.resolveProductHierarchy(product);
+
+          const searchableText = [
+            product.name,
+            product.brand,
+            product.id,
+            product.sku,
+            product.productCode,
+            product.productCode ? cleanProductCode(product.productCode) : '',
+            product.categoryName,
+            product.subCategoryName,
+            product.nestedSubCategoryName,
+            ...categoryNames,
+            ...visualNames,
+            ...(product.tags || []),
+            product.description
+          ].filter(Boolean).join(' ').toLowerCase();
+
+          const isMatch = terms.every(term =>
+            searchableText.includes(term) ||
+            (cleanProductCode(term).length > 0 && searchableText.includes(cleanProductCode(term)))
+          );
+          if (!isMatch) return false;
+        }
       }
 
       // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
@@ -436,9 +468,15 @@ export default function MobileProductListScreen() {
 
       // Skip category hierarchy filtering if opening explicit banner or explicit visual subcategory
       if (!matchedBanner && !hasVisualExplicit) {
-        const effectiveNested = selectedNestedSubCategory || baseNestedId;
-        const effectiveSub = selectedSubCategory || baseSubId;
-        const effectiveCat = selectedCategory || baseCatId;
+        const effectiveNested = isSearchQuery
+          ? (searchParams.get('nestedSubCategory') || '')
+          : (selectedNestedSubCategory || baseNestedId);
+        const effectiveSub = isSearchQuery
+          ? (searchParams.get('subCategory') || '')
+          : (selectedSubCategory || baseSubId);
+        const effectiveCat = isSearchQuery
+          ? (searchParams.get('category') || '')
+          : (selectedCategory || baseCatId);
 
         // 1. Nested SubCategory Filter across entire hierarchy
         if (effectiveNested) {
@@ -455,7 +493,9 @@ export default function MobileProductListScreen() {
       }
 
       // Brand filter
-      const effectiveBrand = selectedBrand || baseBrand;
+      const effectiveBrand = isSearchQuery
+        ? (searchParams.get('brand') || '')
+        : (selectedBrand || baseBrand);
       if (effectiveBrand && product.brand !== effectiveBrand) {
         return false;
       }
@@ -487,26 +527,31 @@ export default function MobileProductListScreen() {
     });
   }, [products, searchResults, querySearch, isSearchQuery, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy, categories, visualNestedItems]);
 
-  const activeFilterCount = (selectedCategory !== baseCatId ? 1 : 0) +
-    (selectedSubCategory !== baseSubId ? 1 : 0) +
-    (selectedNestedSubCategory !== baseNestedId ? 1 : 0) +
-    (selectedBrand !== baseBrand ? 1 : 0) +
+  const activeFilterCount = (selectedCategory !== baseCatId && selectedCategory !== 'all' ? 1 : 0) +
+    (selectedSubCategory !== baseSubId && selectedSubCategory !== '' ? 1 : 0) +
+    (selectedNestedSubCategory !== baseNestedId && selectedNestedSubCategory !== '' ? 1 : 0) +
+    (selectedBrand !== baseBrand && selectedBrand !== '' ? 1 : 0) +
     (maxPrice < 100000 ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
     (minDiscount > 0 ? 1 : 0) +
-    (inStockOnly ? 1 : 0) +
-    (querySearch ? 1 : 0);
+    (inStockOnly ? 1 : 0);
 
   const clearAllFilters = () => {
-    setSelectedCategory(baseCatId);
-    setSelectedSubCategory(baseSubId);
-    setSelectedNestedSubCategory(baseNestedId);
-    setSelectedBrand(baseBrand);
+    setSelectedCategory(baseCatId || 'all');
+    setSelectedSubCategory(baseSubId || '');
+    setSelectedNestedSubCategory(baseNestedId || '');
+    setSelectedBrand(baseBrand || '');
     setMaxPrice(100000);
     setMinRating(0);
     setMinDiscount(0);
     setInStockOnly(false);
-    setSearchParams({});
+    if (querySearch) {
+      const next = new URLSearchParams();
+      next.set('q', querySearch);
+      setSearchParams(next);
+    } else {
+      setSearchParams({});
+    }
   };
 
   const handleSubCategorySelect = (subId: string) => {
@@ -570,6 +615,64 @@ export default function MobileProductListScreen() {
 
   return (
     <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none p-3 space-y-3">
+      {/* Mobile Search Bar */}
+      <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+        <div className="relative w-full">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchInputVal}
+            onChange={(e) => setSearchInputVal(e.target.value)}
+            placeholder="Search products, brands, categories..."
+            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-xs"
+          />
+          {searchInputVal && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInputVal('');
+                if (querySearch) {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete('q');
+                  next.delete('search');
+                  setSearchParams(next);
+                }
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </form>
+
+      {/* Active Search Results Banner */}
+      {querySearch && (
+        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200/80 rounded-2xl px-3 py-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Search className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span className="text-xs text-emerald-950 font-bold truncate">
+              Results for: <strong className="font-black">"{querySearch}"</strong>
+            </span>
+            <span className="text-[10px] font-black text-emerald-800 bg-emerald-200/60 px-1.5 py-0.5 rounded-full shrink-0">
+              {filteredProducts.length}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSearchInputVal('');
+              const next = new URLSearchParams(searchParams);
+              next.delete('q');
+              next.delete('search');
+              setSearchParams(next);
+            }}
+            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-0.5 shrink-0 ml-2 cursor-pointer"
+          >
+            Clear <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Top Filter & Sort Bar */}
       <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">

@@ -698,25 +698,36 @@ export class ViBaSearchEngine {
           prefix: true
         });
 
+        const stemmedQuery = stemToken(queryToSearch.toLowerCase());
         for (const res of primaryResults) {
+          // Filter out weak spurious fuzzy matches that ONLY match description
+          const matchFields = Object.values(res.match || {}).flat();
+          const isOnlyDescription = matchFields.length > 0 && matchFields.every((f: any) => f === 'description');
+          const isFuzzyOnly = res.terms && res.terms.length > 0 && !res.terms.includes(stemmedQuery);
+          if (isOnlyDescription && isFuzzyOnly && res.score < 3.0) {
+            continue;
+          }
           const current = scoreMap.get(res.id) || 0;
           scoreMap.set(res.id, Math.max(current, res.score * 2.0));
         }
 
-        // 2. If no direct AND match was found, try OR mode on multi-word query
-        if (primaryResults.length === 0 && queryToSearch.includes(' ')) {
+        // 2. OR mode on multi-word query to ensure high recall for multi-word queries
+        if (queryToSearch.includes(' ')) {
           const orResults = this.miniSearch.search(queryToSearch, {
             combineWith: 'OR',
             prefix: true
           });
           for (const res of orResults) {
+            const matchFields = Object.values(res.match || {}).flat();
+            const isOnlyDescription = matchFields.length > 0 && matchFields.every((f: any) => f === 'description');
+            if (isOnlyDescription && res.score < 2.5) continue;
             const current = scoreMap.get(res.id) || 0;
             scoreMap.set(res.id, Math.max(current, res.score * 0.9));
           }
         }
 
-        // 3. Fallback to valid synonyms (skipping pure numbers, single chars, or stop words)
-        if (scoreMap.size === 0 && searchTerms.length > 1) {
+        // 3. Fallback and synonym expansion (skipping pure numbers, single chars, or stop words)
+        if (searchTerms.length > 1) {
           for (const syn of searchTerms) {
             if (syn === queryToSearch || syn.length < 3 || /^\d+$/.test(syn)) continue;
             const synResults = this.miniSearch.search(syn, {
@@ -990,35 +1001,38 @@ export class ViBaSearchEngine {
       // 11. Category Intent Filter (when explicit category param is not provided)
       if (semanticIntent?.detectedFilters.category && !params.category) {
         const cat = semanticIntent.detectedFilters.category.toLowerCase();
-        const docCatText = (doc.categoryName + ' ' + (doc.subCategoryName || '') + ' ' + (doc.nestedSubCategoryName || '') + ' ' + doc.name + ' ' + doc.tags).toLowerCase();
-        if (cat === 'kurtis') {
-          if (!docCatText.includes('kurti') && !docCatText.includes('kurta')) continue;
-        } else if (cat === 't-shirts') {
-          if (!docCatText.includes('t-shirt') && !docCatText.includes('tshirt') && !docCatText.includes('tee')) continue;
-        } else if (cat === 'shirts') {
-          if (!docCatText.includes('shirt')) continue;
-        } else if (cat === 'shoes') {
-          if (!docCatText.includes('shoe') && !docCatText.includes('sneaker') && !docCatText.includes('footwear')) continue;
-        } else if (cat === 'mobile phones') {
-          if (!docCatText.includes('phone') && !docCatText.includes('mobile') && !docCatText.includes('smartphone') && !docCatText.includes('redmi') && !docCatText.includes('apple') && !docCatText.includes('samsung')) continue;
-        } else if (cat === 'perfume') {
-          if (!docCatText.includes('perfume') && !docCatText.includes('fragrance') && !docCatText.includes('deo') && !docCatText.includes('cologne')) continue;
-        } else if (cat === 'jeans') {
-          if (!docCatText.includes('jean') && !docCatText.includes('denim') && !docCatText.includes('trouser') && !docCatText.includes('pant')) continue;
-        } else if (cat === 'dresses') {
-          if (!docCatText.includes('dress') && !docCatText.includes('frock') && !docCatText.includes('gown')) continue;
-        } else if (cat === 'watches') {
-          if (!docCatText.includes('watch') && !docCatText.includes('timepiece')) continue;
-        } else if (cat === 'audio') {
-          if (!docCatText.includes('earbud') && !docCatText.includes('headphone') && !docCatText.includes('earphone') && !docCatText.includes('audio') && !docCatText.includes('airdope')) continue;
-        } else if (cat === 'accessories') {
-          if (!docCatText.includes('accessor') && !docCatText.includes('bag') && !docCatText.includes('wallet') && !docCatText.includes('belt') && !docCatText.includes('jewel')) continue;
-        } else if (cat === 'mouse') {
-          if (!docCatText.includes('mouse') && !docCatText.includes('mice')) continue;
-        } else if (cat === 'laptops') {
-          if (!docCatText.includes('laptop') && !docCatText.includes('notebook') && !docCatText.includes('macbook')) continue;
-        } else if (cat === 'keyboards') {
-          if (!docCatText.includes('keyboard')) continue;
+        const matchesHierarchy = this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, cat);
+        if (!matchesHierarchy) {
+          const docCatText = (doc.categoryName + ' ' + (doc.subCategoryName || '') + ' ' + (doc.nestedSubCategoryName || '') + ' ' + doc.name + ' ' + doc.tags).toLowerCase();
+          if (cat === 'kurtis') {
+            if (!docCatText.includes('kurti') && !docCatText.includes('kurta')) continue;
+          } else if (cat === 't-shirts') {
+            if (!docCatText.includes('t-shirt') && !docCatText.includes('tshirt') && !docCatText.includes('tee')) continue;
+          } else if (cat === 'shirts') {
+            if (!docCatText.includes('shirt')) continue;
+          } else if (cat === 'shoes') {
+            if (!docCatText.includes('shoe') && !docCatText.includes('sneaker') && !docCatText.includes('footwear')) continue;
+          } else if (cat === 'mobile phones') {
+            if (!docCatText.includes('phone') && !docCatText.includes('mobile') && !docCatText.includes('smartphone') && !docCatText.includes('redmi') && !docCatText.includes('apple') && !docCatText.includes('samsung')) continue;
+          } else if (cat === 'perfume') {
+            if (!docCatText.includes('perfume') && !docCatText.includes('fragrance') && !docCatText.includes('deo') && !docCatText.includes('cologne')) continue;
+          } else if (cat === 'jeans') {
+            if (!docCatText.includes('jean') && !docCatText.includes('denim') && !docCatText.includes('trouser') && !docCatText.includes('pant')) continue;
+          } else if (cat === 'dresses') {
+            if (!docCatText.includes('dress') && !docCatText.includes('frock') && !docCatText.includes('gown')) continue;
+          } else if (cat === 'watches') {
+            if (!docCatText.includes('watch') && !docCatText.includes('timepiece')) continue;
+          } else if (cat === 'audio') {
+            if (!docCatText.includes('earbud') && !docCatText.includes('headphone') && !docCatText.includes('earphone') && !docCatText.includes('audio') && !docCatText.includes('airdope')) continue;
+          } else if (cat === 'accessories') {
+            if (!docCatText.includes('accessor') && !docCatText.includes('bag') && !docCatText.includes('wallet') && !docCatText.includes('belt') && !docCatText.includes('jewel')) continue;
+          } else if (cat === 'mouse') {
+            if (!docCatText.includes('mouse') && !docCatText.includes('mice')) continue;
+          } else if (cat === 'laptops') {
+            if (!docCatText.includes('laptop') && !docCatText.includes('notebook') && !docCatText.includes('macbook')) continue;
+          } else if (cat === 'keyboards') {
+            if (!docCatText.includes('keyboard')) continue;
+          }
         }
       }
 
