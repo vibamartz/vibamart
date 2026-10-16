@@ -4,8 +4,29 @@ import { doc, getDocFromServer, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging, isSupported, Messaging } from "firebase/messaging";
 
-// @ts-ignore
-const firebaseConfig = process.env.FIREBASE_CONFIG || {};
+let firebaseConfig: any = {};
+try {
+  if (typeof process.env.FIREBASE_CONFIG === 'string') {
+    firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+  } else if (process.env.FIREBASE_CONFIG) {
+    firebaseConfig = process.env.FIREBASE_CONFIG;
+  }
+} catch (e) {
+  firebaseConfig = {};
+}
+
+if (!firebaseConfig.projectId) {
+  const pId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
+  firebaseConfig = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || '',
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || `${pId}.firebaseapp.com`,
+    projectId: pId,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || `${pId}.appspot.com`,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1083492847291',
+    appId: process.env.VITE_FIREBASE_APP_ID || '1:1083492847291:web:viba1234567890',
+    ...firebaseConfig
+  };
+}
 
 const app = initializeApp(firebaseConfig);
 

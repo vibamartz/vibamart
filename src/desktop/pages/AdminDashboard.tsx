@@ -120,7 +120,7 @@ function AdminDashboardContent() {
   const [popupOrders, setPopupOrders] = useState<Order[]>([]);
   const [showPopup, setShowPopup] = useState(false);
   const [hasShownPopup, setHasShownPopup] = useState(false);
-  const [notificationTab, setNotificationTab] = useState<'alerts' | 'pending' | 'confirmed' | 'cancelled' | 'returns'>('alerts');
+  const [notificationTab, setNotificationTab] = useState<'all' | 'unread' | 'read' | 'orders' | 'returns'>('all');
 
   // Track initial snapshot load to avoid toaster spamming
   const isInitialLoad = useRef(true);
@@ -438,6 +438,13 @@ function AdminDashboardContent() {
       handleFirestoreError(error, OperationType.LIST, 'notifications', false);
     });
     return () => unsubscribe();
+  }, [user]);
+
+  // Automated backend database cleanup invocation on admin login/mount
+  useEffect(() => {
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      fetch('/api/admin/notifications/cleanup', { method: 'POST' }).catch(() => {});
+    }
   }, [user]);
 
   // Track the last unread notifications count to play audio
@@ -966,31 +973,67 @@ function AdminDashboardContent() {
 
                   {/* Notification Center */}
                   <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col max-h-[550px]">
-                    <div className="flex items-center justify-between mb-4 shrink-0">
-                      <h3 className="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        <Bell className="w-5 h-5 text-primary" />
-                        Notification Center
-                      </h3>
-                      <span className="bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
-                        {filteredOrders.filter(o => o.status === 'pending').length} New
+                    <div className="flex items-center justify-between mb-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
+                          <Bell className="w-5 h-5 text-primary" />
+                          Notification Center
+                        </h3>
+                        {unreadCount > 0 ? (
+                          <span className="bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full animate-pulse">
+                            {unreadCount} New
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-50 text-emerald-600 border border-emerald-200/60 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                            Up to date
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline cursor-pointer"
+                            title="Mark all notifications as read (auto-deletes in 24 hours)"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        {adminNotifications.length > 0 && (
+                          <button
+                            onClick={handlePermanentlyDeleteAllNotifications}
+                            className="text-[10px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded-lg transition-all"
+                            title="Permanently delete all admin notifications from database"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100 text-[10px]">
+                      <span className="font-semibold text-gray-500 flex items-center gap-1">
+                        ⏳ Read alerts auto-delete in 24h
                       </span>
+                      <span className="text-emerald-600 font-bold">Unread preserved</span>
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="flex gap-1 overflow-x-auto pb-2 mb-4 shrink-0 border-b border-gray-100 scrollbar-none">
-                      {(['alerts', 'pending', 'confirmed', 'cancelled', 'returns'] as const).map((tab) => {
-                        const counts: Record<string, number> = {
-                          alerts: filteredOrders.slice(0, 5).length,
-                          pending: filteredOrders.filter(o => o.status === 'pending').length,
-                          confirmed: filteredOrders.filter(o => o.status === 'confirmed').length,
-                          cancelled: filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length,
+                    <div className="flex gap-1 overflow-x-auto pb-2 mb-3 shrink-0 border-b border-gray-100 scrollbar-none">
+                      {(['all', 'unread', 'read', 'orders', 'returns'] as const).map((tab) => {
+                        const counts: Record<'all' | 'unread' | 'read' | 'orders' | 'returns', number> = {
+                          all: adminNotifications.length,
+                          unread: unreadCount,
+                          read: adminNotifications.filter(n => n.read).length,
+                          orders: filteredOrders.filter(o => o.status === 'pending').length,
                           returns: filteredReturns.filter(r => r.status?.toLowerCase() === 'pending').length
                         };
                         return (
                           <button
                             key={tab}
                             onClick={() => setNotificationTab(tab)}
-                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${notificationTab === tab
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${notificationTab === tab
                               ? 'bg-primary text-white shadow-md shadow-primary/15'
                               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                               }`}
@@ -1003,44 +1046,127 @@ function AdminDashboardContent() {
 
                     {/* Tab Content */}
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
-                      {notificationTab === 'alerts' && (
-                        filteredOrders.slice(0, 5).length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No order alerts in selected period</p>
-                        ) : (
-                          filteredOrders.slice(0, 5).map(order => (
-                            <div key={order.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all space-y-2 text-left relative group">
-                              <div className="flex justify-between items-start">
-                                <span className="text-[11px] font-black text-gray-900 flex items-center gap-1.5 leading-tight">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse shrink-0"></span>
-                                  🔔 New Order Received (#{getDisplayOrderId(order.id)})
-                                </span>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedOrder(order);
-                                      setActiveTab('order-details');
-                                    }}
-                                    className="p-1 text-gray-400 hover:text-primary rounded bg-white border border-gray-100"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                  </button>
+                      {(notificationTab === 'all' || notificationTab === 'unread' || notificationTab === 'read') && (() => {
+                        const displayedList = notificationTab === 'unread'
+                          ? adminNotifications.filter(n => !n.read)
+                          : notificationTab === 'read'
+                            ? adminNotifications.filter(n => n.read)
+                            : adminNotifications;
 
+                        if (displayedList.length === 0) {
+                          return (
+                            <div className="py-12 px-4 text-center flex flex-col items-center justify-center gap-2 text-gray-400">
+                              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">
+                                <Bell className="w-5 h-5 text-gray-400" />
+                              </div>
+                              <p className="text-xs font-bold text-gray-600">
+                                No {notificationTab === 'unread' ? 'unread' : notificationTab === 'read' ? 'read' : ''} notifications
+                              </p>
+                              <p className="text-[11px] text-gray-400 max-w-xs">
+                                New alerts will automatically appear here when orders or important store activities occur.
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        return displayedList.map((notif) => {
+                          const isRead = Boolean(notif.read);
+                          let hoursLeft: number | null = null;
+                          if (isRead && notif.readAt) {
+                            const readTime = new Date(notif.readAt).getTime();
+                            const elapsed = Date.now() - readTime;
+                            const remaining = Math.max(0, 24 - Math.floor(elapsed / (1000 * 60 * 60)));
+                            hoursLeft = remaining;
+                          }
+
+                          return (
+                            <div
+                              key={notif.id}
+                              onClick={() => handleNotificationClick(notif)}
+                              className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group text-left ${
+                                !isRead
+                                  ? 'bg-rose-50/50 border-rose-200/70 hover:bg-rose-50/80 shadow-sm'
+                                  : 'bg-gray-50 border-gray-100 hover:border-gray-200'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {!isRead ? (
+                                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-ping" />
+                                  ) : (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                                  )}
+                                  <span className="text-xs font-black text-gray-900 truncate">
+                                    {notif.title}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {!isRead && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          const nowIso = new Date().toISOString();
+                                          const expiresIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+                                          await updateDoc(doc(db, 'notifications', notif.id), {
+                                            read: true,
+                                            readAt: nowIso,
+                                            expiresAt: expiresIso
+                                          });
+                                          toast.success('Marked as read (auto-deletes in 24h)');
+                                        } catch (err: any) {
+                                          toast.error('Failed to mark as read');
+                                        }
+                                      }}
+                                      title="Mark as read (auto-deletes in 24 hours)"
+                                      className="text-[10px] font-bold text-primary hover:bg-white p-1 rounded-lg border border-transparent hover:border-gray-200 transition-colors cursor-pointer"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => handleDeleteSingleNotification(e, notif.id)}
+                                    title="Permanently delete notification from database"
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-500 hover:bg-white rounded-lg transition-opacity cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
-                              <div className="text-[11px] text-gray-600 space-y-0.5">
-                                <p className="flex items-center gap-1">👤 <span className="font-bold text-gray-800">{order.contactName}</span></p>
-                                <p className="flex items-center gap-1">📞 <span className="font-medium text-gray-700">{order.contactPhone || 'N/A'}</span></p>
-                                <p className="flex items-center gap-1">💰 <span className="font-black text-gray-900">₹{order.total.toLocaleString()}</span></p>
-                              </div>
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mt-1">
-                                {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          ))
-                        )
-                      )}
 
-                      {notificationTab === 'pending' && (
+                              <p className="text-xs text-gray-600 font-medium mt-1 leading-snug">
+                                {notif.message}
+                              </p>
+
+                              {(notif.paymentMethod || notif.status) && (
+                                <div className="text-[10px] text-gray-500 font-bold mt-1.5 flex items-center gap-2">
+                                  {notif.status && <span className="uppercase bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-700">{notif.status}</span>}
+                                  {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-100/60">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                                  {notif.createdAt ? `${new Date(notif.createdAt).toLocaleDateString()} at ${new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                                </span>
+                                {isRead ? (
+                                  hoursLeft !== null && (
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/50 flex items-center gap-1">
+                                      ⏳ Auto-deletes in {hoursLeft}h
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-[9px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/50">
+                                    Unread
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+
+                      {notificationTab === 'orders' && (
                         filteredOrders.filter(o => o.status === 'pending').length === 0 ? (
                           <p className="text-xs text-gray-400 italic py-6 text-center">No pending orders in selected period</p>
                         ) : (
@@ -1057,67 +1183,12 @@ function AdminDashboardContent() {
                                     setSelectedOrder(order);
                                     setActiveTab('order-details');
                                   }}
-                                  className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
+                                  className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all cursor-pointer"
+                                  title="View Order"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
-
                               </div>
-                            </div>
-                          ))
-                        )
-                      )}
-
-                      {notificationTab === 'confirmed' && (
-                        filteredOrders.filter(o => o.status === 'confirmed').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No confirmed orders in selected period</p>
-                        ) : (
-                          filteredOrders.filter(o => o.status === 'confirmed').map(order => (
-                            <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
-                              <div>
-                                <p className="text-xs font-black text-gray-900">#{getDisplayOrderId(order.id)}</p>
-                                <p className="text-[10px] text-gray-600 font-bold mt-1">👤 {order.contactName}</p>
-                                <p className="text-[10px] text-gray-500 font-medium">💰 ₹{order.total.toLocaleString()}</p>
-                              </div>
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => {
-                                    setSelectedOrder(order);
-                                    setActiveTab('order-details');
-                                  }}
-                                  className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-
-                              </div>
-                            </div>
-                          ))
-                        )
-                      )}
-
-                      {notificationTab === 'cancelled' && (
-                        filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').length === 0 ? (
-                          <p className="text-xs text-gray-400 italic py-6 text-center">No cancelled orders in selected period</p>
-                        ) : (
-                          filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'refunded').map(order => (
-                            <div key={order.id} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center text-left">
-                              <div>
-                                <p className="text-xs font-black text-gray-750">#{getDisplayOrderId(order.id)}</p>
-                                <p className="text-[10px] text-gray-500 font-bold mt-1">👤 {order.contactName}</p>
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${order.status === 'refunded' ? 'bg-pink-50 text-pink-500' : 'bg-gray-100 text-gray-500'}`}>
-                                  {order.status}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setSelectedOrder(order);
-                                  setActiveTab('order-details');
-                                }}
-                                className="p-2 bg-white text-gray-600 rounded-xl border border-gray-100 hover:text-primary transition-all"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
                             </div>
                           ))
                         )
@@ -1138,7 +1209,7 @@ function AdminDashboardContent() {
                                 onClick={() => {
                                   setActiveTab('returns');
                                 }}
-                                className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow"
+                                className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded-xl shadow cursor-pointer hover:bg-primary-hover transition-all"
                               >
                                 Manage
                               </button>
