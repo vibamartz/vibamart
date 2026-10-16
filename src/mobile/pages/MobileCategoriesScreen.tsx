@@ -293,8 +293,13 @@ export default function MobileCategoriesScreen() {
                             className="flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95 py-1"
                           >
                             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 mb-1.5">
-                              {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
-                                <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                              {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                                <img
+                                  src={sub.image}
+                                  alt={sub.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
                                   {renderCategoryFallbackIcon(sub.name, sub.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}

@@ -280,8 +280,13 @@ export default function Home() {
                     className="group/item flex flex-col items-center text-center shrink-0 w-24 sm:w-28 snap-start cursor-pointer transition-all"
                   >
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center bg-gray-50/80">
-                      {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
-                        <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
+                      {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                        <img
+                          src={sub.image}
+                          alt={sub.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
                           {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", false)}

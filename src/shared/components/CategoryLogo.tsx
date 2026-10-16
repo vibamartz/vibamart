@@ -127,6 +127,18 @@ export default function CategoryLogo({
   showLabel = false,
   labelClassName = '',
 }: CategoryLogoProps) {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasError(false);
+  }, [image]);
+
+  const isValidImage =
+    Boolean(image) &&
+    !hasError &&
+    !image?.includes('cdn.vibamart.com') &&
+    (image?.startsWith('http') || image?.startsWith('data:') || image?.startsWith('/'));
+
   // Dimension mappings matching Category UI specifications with enlarged subcategory and category visual sizing
   const sizeMap = {
     sm: {
@@ -163,8 +175,13 @@ export default function CategoryLogo({
     <div className="flex flex-col items-center justify-center text-center">
       <div className={`${baseStyle} ${activeStyle} ${className}`}>
         <div className="flex items-center justify-center w-full h-full">
-          {image && (image.startsWith('http') || image.startsWith('data:') || image.startsWith('/')) ? (
-            <img src={image} alt={name} className="w-full h-full object-cover" />
+          {isValidImage ? (
+            <img
+              src={image}
+              alt={name}
+              className="w-full h-full object-cover"
+              onError={() => setHasError(true)}
+            />
           ) : (
             renderCategoryFallbackIcon(name, icon, currentSize.icon, active)
           )}

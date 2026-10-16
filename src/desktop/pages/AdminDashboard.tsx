@@ -6428,7 +6428,12 @@ function CategoriesManagementView() {
                                 >
                                   <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${expandedSubs.includes(`${cat.id}-${sub.id}`) ? 'rotate-90' : ''}`} />
                                 </button>
-                                <img src={sub.image} alt={sub.name} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />
+                                <img
+                                  src={sub.image && !sub.image.includes('cdn.vibamart.com') ? sub.image : 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'}
+                                  alt={sub.name}
+                                  className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400'; }}
+                                />
                                 <div>
                                   <span className="font-bold text-gray-800 text-sm">{sub.name}</span>
                                   <div className="flex items-center gap-2">
