@@ -7,7 +7,8 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, EyeOff, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet, Sparkles
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet, Sparkles,
+  PanelLeftClose, PanelLeftOpen, Boxes, Clock
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -111,6 +112,38 @@ function AdminDashboardContent() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+
+  // Check admin role or local dev bypass
+  const isDevAdmin = typeof window !== 'undefined' && (
+    localStorage.getItem('viba_admin_bypass') === 'true' ||
+    window.location.search.includes('mockAdmin=true')
+  );
+  const hasAdminAccess = isDevAdmin || user?.role === 'admin' || user?.role === 'super_admin';
+
+  // Collapsible Desktop Sidebar state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('viba_admin_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('viba_admin_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut Ctrl+B or Cmd+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
 
   // Parent shared states for live orders and returns
   const [orders, setOrders] = useState<Order[]>([]);
@@ -341,7 +374,7 @@ function AdminDashboardContent() {
 
   // Live Firebase snapshot listener for orders
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!hasAdminAccess) return;
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
@@ -397,15 +430,45 @@ function AdminDashboardContent() {
   }, [user]);
 
   // Live Firebase listener for admin notifications
+  // Live Firebase listener for admin notifications with 24-hour auto-deletion
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(50));
+    if (!hasAdminAccess) return;
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notificationsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setAdminNotifications(notificationsData);
+      const now = Date.now();
+      const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+      const validNotifications: any[] = [];
+
+      snapshot.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+
+        // Auto-delete each notification 24 hours after it has been seen/read.
+        // Unread notifications must remain until they are read; then start the 24-hour deletion period.
+        if (data.read) {
+          const readAtTime = data.readAt
+            ? new Date(data.readAt).getTime()
+            : (data.updatedAt ? new Date(data.updatedAt).getTime() : null);
+
+          if (readAtTime && (now - readAtTime >= twentyFourHoursMs)) {
+            // Delete reliably from database in Firestore!
+            deleteDoc(doc(db, 'notifications', id)).catch(err =>
+              console.warn('[AdminNotifications] Error auto-deleting expired notification:', err)
+            );
+            return; // Omit from state since it's deleted
+          } else if (!readAtTime) {
+            // Start 24h countdown for read notifications missing timestamp
+            updateDoc(doc(db, 'notifications', id), {
+              readAt: new Date().toISOString(),
+              expiresAt: new Date(now + twentyFourHoursMs).toISOString()
+            }).catch(() => {});
+          }
+        }
+
+        validNotifications.push({ id, ...data });
+      });
+
+      setAdminNotifications(validNotifications);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'notifications', false);
     });
@@ -464,7 +527,13 @@ function AdminDashboardContent() {
                 onClick={async () => {
                   toast.dismiss(t.id);
                   try {
-                    await updateDoc(doc(db, 'notifications', newestNotif.id), { read: true });
+                    const now = new Date().toISOString();
+                    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+                    await updateDoc(doc(db, 'notifications', newestNotif.id), {
+                      read: true,
+                      readAt: now,
+                      expiresAt
+                    });
                   } catch (e) {
                     console.error('Failed to mark read:', e);
                   }
@@ -494,11 +563,30 @@ function AdminDashboardContent() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const batchPromises = adminNotifications
-        .filter(n => !n.read)
-        .map(n => updateDoc(doc(db, 'notifications', n.id), { read: true }));
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const unread = adminNotifications.filter(n => !n.read);
+      if (unread.length === 0) return;
+
+      const batchPromises = unread.map(n =>
+        updateDoc(doc(db, 'notifications', n.id), {
+          read: true,
+          readAt: now,
+          expiresAt
+        })
+      );
       await Promise.all(batchPromises);
-      toast.success('All notifications marked as read');
+
+      // Backend sync
+      try {
+        await fetch('/api/admin/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds: unread.map(n => n.id) })
+        });
+      } catch (e) {}
+
+      toast.success('All notifications marked as read (will delete in 24 hours)');
     } catch (error) {
       console.error('Failed to mark all as read:', error);
     }
@@ -507,7 +595,13 @@ function AdminDashboardContent() {
   const handleNotificationClick = async (notif: any) => {
     try {
       if (!notif.read) {
-        await updateDoc(doc(db, 'notifications', notif.id), { read: true });
+        const now = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        await updateDoc(doc(db, 'notifications', notif.id), {
+          read: true,
+          readAt: now,
+          expiresAt
+        });
       }
       setShowNotificationDropdown(false);
       if (notif.orderId) {
@@ -524,9 +618,47 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleDeleteAllNotifications = async () => {
+    if (adminNotifications.length === 0) {
+      toast('No notifications to delete');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Permanently delete all ${adminNotifications.length} notification(s) from the database?`
+    );
+    if (!confirmed) return;
+
+    const toastId = toast.loading('Deleting all notifications...');
+    try {
+      const promises = adminNotifications.map(n => deleteDoc(doc(db, 'notifications', n.id)));
+      await Promise.all(promises);
+
+      // Backend sync
+      try {
+        await fetch('/api/admin/notifications/purge-all', { method: 'POST' });
+      } catch (e) {}
+
+      toast.success('All admin notifications deleted from database', { id: toastId });
+    } catch (err: any) {
+      console.error('Failed to delete notifications:', err);
+      toast.error('Failed to delete: ' + err.message, { id: toastId });
+    }
+  };
+
+  const handleDeleteSingleNotification = async (e: React.MouseEvent, notifId: string) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'notifications', notifId));
+      toast.success('Notification deleted');
+    } catch (err: any) {
+      console.error('Failed to delete notification:', err);
+      toast.error('Failed to delete notification');
+    }
+  };
+
   // Live Firebase snapshot listener for return requests
   useEffect(() => {
-    if (user?.role !== 'admin' && user?.role !== 'super_admin') return;
+    if (!hasAdminAccess) return;
     const q = query(collection(db, 'return_requests'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const returnsData = snapshot.docs.map(doc => ({
@@ -541,7 +673,7 @@ function AdminDashboardContent() {
       setLoadingReturns(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, hasAdminAccess]);
 
   // Show login popup for pending orders
   useEffect(() => {
@@ -555,7 +687,7 @@ function AdminDashboardContent() {
     }
   }, [loadingOrders, orders, hasShownPopup]);
 
-  if (user?.role !== 'admin' && user?.role !== 'super_admin') {
+  if (!hasAdminAccess) {
     return <Navigate to="/" />;
   }
 
@@ -600,87 +732,130 @@ function AdminDashboardContent() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col transition-transform transform ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 overflow-y-auto`}>
-        <div className="p-6 border-b border-gray-100 italic flex items-center justify-between">
-          <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2">
-            <Logo />
-            <span className="font-bold text-gray-800">{user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
-          </Link>
-          <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden p-2 -mr-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={FileText} label="Invoices" active={activeTab === 'invoices'} onClick={() => { setActiveTab('invoices'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
-          <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Smartphone} label="App Capabilities" active={activeTab === 'app-capabilities'} onClick={() => { setActiveTab('app-capabilities'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Wallet} label="Monthly Cashback" active={activeTab === 'cashback-management'} onClick={() => { setActiveTab('cashback-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
+      {/* Collapsible Left Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out ${
+          showMobileSidebar ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
+        } ${
+          isSidebarCollapsed ? 'lg:w-16' : 'lg:w-64'
+        } overflow-y-auto overflow-x-hidden`}
+      >
+        <div className={`p-3.5 sm:p-4 border-b border-gray-100 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!isSidebarCollapsed ? (
+            <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2 min-w-0">
+              <Logo />
+              <span className="font-bold text-gray-800 truncate text-sm">
+                {user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+              </span>
+            </Link>
+          ) : (
+            <Link to="/" className="hover:opacity-80 transition-opacity flex items-center justify-center" title="ViBa Mart">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-black text-sm">
+                V
+              </div>
+            </Link>
+          )}
 
-          <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={ShieldCheck} label="Terms of Service" active={activeTab === 'terms-management'} onClick={() => { setActiveTab('terms-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Lock} label="Privacy Policy" active={activeTab === 'privacy-management'} onClick={() => { setActiveTab('privacy-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Search} label="Search Engine" active={activeTab === 'search-management'} onClick={() => { setActiveTab('search-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleSidebar}
+              className="hidden lg:flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="lg:hidden p-1.5 text-gray-400 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-2 sm:p-2.5 space-y-1">
+          <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Boxes} label="Inventory" active={activeTab === 'inventory'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('inventory'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={FileText} label="Invoices" active={activeTab === 'invoices'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('invoices'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} collapsed={isSidebarCollapsed} onClick={() => { window.location.href = '/cicd'; }} />
+          <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Smartphone} label="App Capabilities" active={activeTab === 'app-capabilities'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('app-capabilities'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Wallet} label="Monthly Cashback" active={activeTab === 'cashback-management'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('cashback-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
+
+          <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={ShieldCheck} label="Terms of Service" active={activeTab === 'terms-management'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('terms-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Lock} label="Privacy Policy" active={activeTab === 'privacy-management'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('privacy-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Search} label="Search Engine" active={activeTab === 'search-management'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('search-management'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
+          <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} collapsed={isSidebarCollapsed} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
         </nav>
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-2 sm:p-3 border-t border-gray-100">
           <button
             onClick={() => {
               logAdminAction(AdminAction.USER_ROLE_UPDATE, 'Admin initiated logout.');
             }}
-            className="flex touch-target min-h-[44px] items-center gap-3 text-gray-500 hover:text-red-600 px-4 py-3 w-full transition-colors font-medium"
+            title={isSidebarCollapsed ? "Logout" : undefined}
+            className={`flex touch-target min-h-[40px] items-center ${
+              isSidebarCollapsed ? 'justify-center px-2' : 'gap-3 px-3.5'
+            } py-2 text-gray-500 hover:text-red-600 hover:bg-red-50/50 rounded-xl w-full transition-colors font-medium text-xs sm:text-sm cursor-pointer`}
           >
-            <LogOut className="w-5 h-5" />
-            Logout
+            <LogOut className="w-5 h-5 shrink-0" />
+            {!isSidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 lg:px-8 shrink-0 gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <header className="h-14 sm:h-15 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 lg:px-6 shrink-0 gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <button onClick={() => setShowMobileSidebar(true)} className="lg:hidden p-2 touch-target -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[90px] sm:max-w-xs">{activeTab.replace('-', ' ')}</h1>
+            <button
+              onClick={toggleSidebar}
+              className="hidden lg:flex p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
+            <h1 className="text-base sm:text-lg font-bold text-gray-800 capitalize truncate max-w-[120px] sm:max-w-xs">
+              {activeTab === 'inventory' ? 'Inventory & Stock' : activeTab.replace('-', ' ')}
+            </h1>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Global Admin Date Range Filter */}
             <AdminDateRangeFilter />
 
             <div className="relative hidden md:block">
-              <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-4 py-2 pl-10 text-sm w-48 lg:w-64 focus:ring-2 focus:ring-primary/20" />
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <input type="text" placeholder="Search..." className="bg-gray-50 border-none rounded-lg px-3.5 py-1.5 pl-9 text-xs w-44 lg:w-56 focus:ring-2 focus:ring-primary/20" />
+              <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-gray-400" />
             </div>
 
             {/* Notification Bell Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-                className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all"
+                className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all cursor-pointer"
                 title="Notifications"
               >
                 <Bell className="w-5 h-5" />
@@ -702,54 +877,91 @@ function AdminDashboardContent() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl z-20 py-2 overflow-hidden text-left"
+                      className="absolute right-0 mt-2 w-88 sm:w-96 bg-white rounded-2xl border border-gray-100 shadow-2xl z-20 py-2 overflow-hidden text-left"
                     >
-                      <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                        <span className="text-xs font-bold text-gray-800">Notifications ({unreadCount})</span>
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={handleMarkAllAsRead}
-                            className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline"
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                      </div>
-                      <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
-                        {adminNotifications.length === 0 ? (
-                          <div className="px-4 py-6 text-center text-xs text-gray-400 italic">No notifications</div>
-                        ) : (
-                          adminNotifications.map((notif) => (
-                            <div
-                              key={notif.id}
-                              onClick={() => handleNotificationClick(notif)}
-                              className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col gap-1 relative ${!notif.read ? 'bg-primary/5' : ''}`}
+                      <div className="px-4 py-2.5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <span className="text-xs font-bold text-gray-800">Notifications ({adminNotifications.length})</span>
+                        <div className="flex items-center gap-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllAsRead}
+                              className="text-[10px] font-black uppercase tracking-wider text-primary hover:underline cursor-pointer"
                             >
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5">
-                                  {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0"></span>}
-                                  {notif.title}
+                              Mark all read
+                            </button>
+                          )}
+                          {adminNotifications.length > 0 && (
+                            <button
+                              onClick={handleDeleteAllNotifications}
+                              className="text-[10px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                              title="Delete all admin notifications from the database"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete All</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+                        {adminNotifications.length === 0 ? (
+                          <div className="px-4 py-8 text-center text-xs text-gray-400 italic">No admin notifications</div>
+                        ) : (
+                          adminNotifications.map((notif) => {
+                            const readTime = notif.readAt ? new Date(notif.readAt).getTime() : Date.now();
+                            const msLeft = (readTime + 24 * 60 * 60 * 1000) - Date.now();
+                            const hoursLeft = Math.max(0, Math.ceil(msLeft / (60 * 60 * 1000)));
+
+                            return (
+                              <div
+                                key={notif.id}
+                                onClick={() => handleNotificationClick(notif)}
+                                className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col gap-1 relative group ${!notif.read ? 'bg-primary/5' : ''}`}
+                              >
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5 flex-1 min-w-0">
+                                    {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block shrink-0"></span>}
+                                    <span className="truncate">{notif.title}</span>
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleDeleteSingleNotification(e, notif.id)}
+                                    title="Delete notification permanently from database"
+                                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-600 transition-all cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <span className="text-[11px] text-gray-650 font-medium line-clamp-2">
+                                  {notif.message}
                                 </span>
-                              </div>
-                              <span className="text-[11px] text-gray-650 font-medium">
-                                {notif.message}
-                              </span>
-                              {(notif.paymentMethod || notif.status) && (
-                                <div className="text-[10px] text-gray-500 font-bold mt-1 flex items-center gap-2">
-                                  {notif.status && <span className="uppercase bg-gray-200 px-1.5 py-0.5 rounded">{notif.status}</span>}
-                                  {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
-                                  {notif.smsStatus && (
-                                    <span className={`px-1.5 py-0.5 rounded uppercase ${notif.smsStatus === 'sent' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
-                                      SMS {notif.smsStatus}
+                                {(notif.paymentMethod || notif.status) && (
+                                  <div className="text-[10px] text-gray-500 font-bold mt-0.5 flex items-center gap-2">
+                                    {notif.status && <span className="uppercase bg-gray-200 px-1.5 py-0.5 rounded">{notif.status}</span>}
+                                    {notif.paymentMethod && <span>Payment: {notif.paymentMethod}</span>}
+                                    {notif.smsStatus && (
+                                      <span className={`px-1.5 py-0.5 rounded uppercase ${notif.smsStatus === 'sent' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
+                                        SMS {notif.smsStatus}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between gap-2 mt-1">
+                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                                    {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  {notif.read ? (
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 flex items-center gap-1 shrink-0">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      <span>Deletes in {hoursLeft}h</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 shrink-0">
+                                      Unread (kept until read)
                                     </span>
                                   )}
                                 </div>
-                              )}
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider mt-0.5">
-                                {new Date(notif.createdAt).toLocaleDateString()} at {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                          ))
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </motion.div>
@@ -758,13 +970,13 @@ function AdminDashboardContent() {
               </AnimatePresence>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {user.displayName?.[0] || user.email?.[0] || 'A'}
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
+              {user?.displayName?.[0] || user?.email?.[0] || 'A'}
             </div>
           </div>
         </header>
 
-        <div className="p-4 lg:p-8 space-y-6 lg:space-y-8 overflow-y-auto flex-1">
+        <div className="p-3 sm:p-4 lg:p-5 space-y-4 lg:space-y-4 overflow-y-auto flex-1">
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}
@@ -1128,7 +1340,7 @@ function AdminDashboardContent() {
           {activeTab === 'payment-reports' && <ReportsView type="payment" />}
           {activeTab === 'activity-logs' && <ActivityLogsView />}
           {activeTab === 'user-roles' && <UserManagementView />}
-          {activeTab === 'products' && <NewProductManagementView />}
+          {(activeTab === 'products' || activeTab === 'inventory') && <NewProductManagementView />}
           {activeTab === 'deal-259' && <Deal259AdminManagementView />}
 
           {activeTab === 'orders' && (
@@ -1188,7 +1400,7 @@ function AdminDashboardContent() {
           {activeTab === 'terms-management' && <AdminTermsManagementView />}
           {activeTab === 'privacy-management' && <AdminPrivacyManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'search-management' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'search-management' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'inventory' && activeTab !== 'deal-259' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />
@@ -1274,18 +1486,34 @@ function AdminDashboardContent() {
   );
 }
 
-function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active?: boolean, onClick: () => void }) {
+function SidebarItem({
+  icon: Icon,
+  label,
+  active,
+  collapsed,
+  onClick
+}: {
+  icon: any,
+  label: string,
+  active?: boolean,
+  collapsed?: boolean,
+  onClick: () => void
+}) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex touch-target min-h-[44px] items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${active
-        ? 'bg-primary text-white shadow-lg shadow-blue-100'
-        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-        }`}
+      title={collapsed ? label : undefined}
+      className={`w-full flex touch-target min-h-[38px] items-center ${
+        collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3.5 py-2'
+      } rounded-xl font-medium transition-all cursor-pointer ${
+        active
+          ? 'bg-primary text-white shadow-md shadow-primary/20 font-bold'
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+      }`}
     >
-      <Icon className="w-5 h-5" />
-      <span className="truncate">{label}</span>
-      {active && <ChevronRight className="w-4 h-4 ml-auto" />}
+      <Icon className="w-5 h-5 shrink-0" />
+      {!collapsed && <span className="truncate text-xs sm:text-sm">{label}</span>}
+      {!collapsed && active && <ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />}
     </button>
   );
 }

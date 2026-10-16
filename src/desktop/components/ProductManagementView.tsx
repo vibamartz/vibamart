@@ -10,12 +10,12 @@ import { productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../.
 import {
   Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3,
   X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles, Layers, Filter,
-  CheckSquare, Square, FolderTree
+  CheckSquare, Square, FolderTree, AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
 import { useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
-import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
+import { buildFlatCategoryHierarchy, getProductAssignmentNodes, isProductMainCategoryOnly } from '../../shared/utilities/categoryHierarchyUtils';
 import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
 
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
@@ -42,6 +42,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [filterVisual, setFilterVisual] = useState('all');
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterHierarchyAssignment, setFilterHierarchyAssignment] = useState<'all' | 'main_only' | 'has_sub'>('all');
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -468,6 +469,13 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       if (filterStatus === 'visible' && p.isVisible === false) return false;
       if (filterStatus === 'hidden' && p.isVisible !== false) return false;
 
+      // 8. Hierarchy / Subcategory Assignment Filter (Main Category Only)
+      if (filterHierarchyAssignment === 'main_only') {
+        if (!isProductMainCategoryOnly(p, visualNestedItems)) return false;
+      } else if (filterHierarchyAssignment === 'has_sub') {
+        if (isProductMainCategoryOnly(p, visualNestedItems)) return false;
+      }
+
       return true;
     });
   }, [
@@ -479,12 +487,19 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     filterVisual,
     filterBrand,
     filterStatus,
+    filterHierarchyAssignment,
     visualNestedItems
   ]);
 
+  // Count products that exist ONLY in a main category (no subcategory or nested subcategory)
+  const mainCategoryOnlyCount = useMemo(() => {
+    return products.filter(p => isProductMainCategoryOnly(p, visualNestedItems)).length;
+  }, [products, visualNestedItems]);
+
   const hasActiveFilters = filterCategory !== 'all' || filterSubCategory !== 'all' ||
     filterNestedSubCategory !== 'all' || filterVisual !== 'all' ||
-    filterBrand !== 'all' || filterStatus !== 'all' || Boolean(searchQuery.trim());
+    filterBrand !== 'all' || filterStatus !== 'all' || filterHierarchyAssignment !== 'all' ||
+    Boolean(searchQuery.trim());
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -494,6 +509,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     setFilterVisual('all');
     setFilterBrand('all');
     setFilterStatus('all');
+    setFilterHierarchyAssignment('all');
   };
 
   // Selection handlers
@@ -540,25 +556,25 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-20">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-16">
       {/* Top Header Card */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Inventory & Variants</h2>
-          <p className="text-sm text-gray-500">Manage product stock, 12-digit Product Codes, variants, and category assignments</p>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Inventory & Variants</h2>
+          <p className="text-xs sm:text-sm text-gray-500">Manage product stock, 12-digit Product Codes, variants, and category assignments</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           {/* Admin Search Bar: Name, ID, SKU, or Product Code */}
-          <div className="relative flex-1 sm:w-72">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by Name, SKU, ID, Code, Tag..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-8 pr-7 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -568,7 +584,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           {selectedProductIds.length > 0 && (
             <button
               onClick={() => setIsAssignmentModalOpen(true)}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+              className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
             >
               <Layers className="w-4 h-4" />
               Assign to Categories ({selectedProductIds.length})
@@ -578,16 +594,16 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           <button
             onClick={handleUpgradeAllKeywords}
             disabled={isUpgradingKeywords}
-            className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3.5 py-2 rounded-lg font-black text-xs uppercase tracking-wider hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
             title="Automatically audit all existing products and generate at least 6 relevant search keywords using AI/ML"
           >
-            <Sparkles className={`w-4 h-4 text-indigo-600 ${isUpgradingKeywords ? 'animate-spin' : ''}`} />
-            <span>{isUpgradingKeywords ? 'Upgrading Keywords...' : 'Upgrade AI Keywords'}</span>
+            <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isUpgradingKeywords ? 'animate-spin' : ''}`} />
+            <span>{isUpgradingKeywords ? 'Upgrading...' : 'AI Keywords'}</span>
           </button>
 
           <button
             onClick={onAddProduct}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0"
+            className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider shadow-md shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Add New Product
@@ -596,11 +612,31 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-100 shadow-sm space-y-2.5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
             <Filter className="w-4 h-4 text-primary" />
             <span>Filter Inventory:</span>
+
+            {/* Quick Filter: Main Category Only (Unassigned Subcategory) */}
+            <button
+              type="button"
+              onClick={() => setFilterHierarchyAssignment(prev => prev === 'main_only' ? 'all' : 'main_only')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ml-1 ${
+                filterHierarchyAssignment === 'main_only'
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm shadow-amber-500/20'
+                  : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+              }`}
+              title="Show products that exist ONLY in a Main Category and have not been assigned to any subcategory or nested subcategory"
+            >
+              <FolderTree className="w-3.5 h-3.5 shrink-0" />
+              <span>Main Category Only</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                filterHierarchyAssignment === 'main_only' ? 'bg-white text-amber-800' : 'bg-amber-200 text-amber-950'
+              }`}>
+                {mainCategoryOnlyCount}
+              </span>
+            </button>
           </div>
           {hasActiveFilters && (
             <button
@@ -612,8 +648,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* Category Filter */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
+          {/* Main Category Filter */}
           <div>
             <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Category</label>
             <select
@@ -623,7 +659,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 setFilterSubCategory('all');
                 setFilterNestedSubCategory('all');
               }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Categories</option>
               {categories.map(c => (
@@ -641,7 +677,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 setFilterSubCategory(e.target.value);
                 setFilterNestedSubCategory('all');
               }}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Subcategories</option>
               {availableSubCategories.map(s => (
@@ -656,7 +692,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             <select
               value={filterNestedSubCategory}
               onChange={e => setFilterNestedSubCategory(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Nested</option>
               {availableNestedSubCategories.map(n => (
@@ -665,13 +701,27 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             </select>
           </div>
 
+          {/* Hierarchy Assignment Status Filter */}
+          <div>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Assignment</label>
+            <select
+              value={filterHierarchyAssignment}
+              onChange={e => setFilterHierarchyAssignment(e.target.value as any)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+            >
+              <option value="all">All Assignments</option>
+              <option value="main_only">Main Category Only ({mainCategoryOnlyCount})</option>
+              <option value="has_sub">Assigned to Subcategory</option>
+            </select>
+          </div>
+
           {/* Visual Showcase Filter */}
           <div>
-            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Visual Showcase</label>
+            <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Showcase</label>
             <select
               value={filterVisual}
               onChange={e => setFilterVisual(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Showcases</option>
               {visualNestedItems.map(v => (
@@ -686,7 +736,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             <select
               value={filterBrand}
               onChange={e => setFilterBrand(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Brands</option>
               {uniqueBrands.map(b => (
@@ -701,7 +751,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
               <option value="all">All Status</option>
               <option value="in_stock">In Stock (&gt; 0)</option>
@@ -744,12 +794,12 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       )}
 
       {/* Inventory Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider border-b border-gray-100">
               <tr>
-                <th className="px-4 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                <th className="px-4 py-3.5 w-12 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={handleToggleSelectAll}
                     title={selectedProductIds.length === filteredProducts.length ? 'Deselect All' : 'Select All Filtered'}
@@ -766,14 +816,14 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                     )}
                   </button>
                 </th>
-                <th className="px-3 py-4 w-10"></th>
-                <th className="px-6 py-4">Product Info & Category Assignments</th>
-                <th className="px-6 py-4">Product Code (12-Digit)</th>
-                <th className="px-6 py-4">Total Stock</th>
-                <th className="px-6 py-4">Variants Count</th>
-                <th className="px-6 py-4">GST Tax</th>
-                <th className="px-6 py-4">Delivery</th>
-                <th className="px-6 py-4">Status & Visibility</th>
+                <th className="px-3 py-3.5 w-10 whitespace-nowrap"></th>
+                <th className="px-5 py-3.5 min-w-[320px] whitespace-nowrap">Product Info & Category Assignments</th>
+                <th className="px-5 py-3.5 min-w-[170px] whitespace-nowrap">Product Code (12-Digit)</th>
+                <th className="px-5 py-3.5 min-w-[100px] whitespace-nowrap">Total Stock</th>
+                <th className="px-5 py-3.5 min-w-[100px] whitespace-nowrap">Variants</th>
+                <th className="px-5 py-3.5 min-w-[110px] whitespace-nowrap">GST Tax</th>
+                <th className="px-5 py-3.5 min-w-[120px] whitespace-nowrap">Delivery</th>
+                <th className="px-5 py-3.5 min-w-[210px] whitespace-nowrap">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -795,7 +845,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       onClick={() => toggleExpand(product.id)}
                     >
                       {/* Checkbox */}
-                      <td className="px-4 py-4 text-center" onClick={(e) => handleToggleSelectProduct(product.id, e)}>
+                      <td className="px-4 py-3.5 text-center whitespace-nowrap" onClick={(e) => handleToggleSelectProduct(product.id, e)}>
                         <button
                           type="button"
                           className="p-1 rounded text-gray-400 hover:text-primary transition-colors cursor-pointer"
@@ -809,31 +859,47 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Expand Chevron */}
-                      <td className="px-3 py-4">
+                      <td className="px-3 py-3.5 whitespace-nowrap">
                         {isExpanded ? <ChevronDown className="w-4 h-4 text-primary" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                       </td>
 
                       {/* Product Info & Category Assignments */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-3">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-start gap-3 min-w-0">
                           <img
                             src={product.images[0] || 'https://via.placeholder.com/80'}
-                            className="w-12 h-12 rounded-lg object-contain bg-white border border-gray-100 shrink-0 mt-0.5"
+                            className="w-11 h-11 rounded-lg object-contain bg-white border border-gray-100 shrink-0 mt-0.5"
                             alt=""
                           />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 max-w-full min-w-0">
+                              <p
+                                className="text-sm font-bold text-gray-900 truncate max-w-[200px] sm:max-w-[280px] lg:max-w-[360px] whitespace-nowrap"
+                                title={product.name}
+                              >
+                                {product.name}
+                              </p>
                               {product.brand && (
-                                <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 shrink-0">
                                   {product.brand}
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400 mt-0.5">ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}</p>
+                            <p className="text-xs text-gray-400 mt-0.5 whitespace-nowrap truncate max-w-[260px]">
+                              ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}
+                            </p>
 
                             {/* Live Category Assignment Badges */}
-                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1.5 max-h-14 overflow-hidden">
+                              {isProductMainCategoryOnly(product, visualNestedItems) && (
+                                <span
+                                  title="Needs Subcategory: This product is only assigned to a Main Category and not to any subcategory or nested subcategory. Click '+ Assign' to assign it."
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border bg-amber-50 text-amber-800 border-amber-300 shrink-0"
+                                >
+                                  <AlertCircle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                  <span>Main Category Only</span>
+                                </span>
+                              )}
                               {assignedCategoryNodes.length === 0 ? (
                                 <span className="text-[10px] text-gray-400 italic">No categories assigned</span>
                               ) : (
@@ -853,15 +919,15 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                     <span
                                       key={node.key}
                                       title={node.breadcrumb}
-                                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeClass} group`}
+                                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeClass} group shrink-0`}
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {isVisual && <Sparkles className="w-2.5 h-2.5 text-emerald-600" />}
-                                      <span className="truncate max-w-[130px]">{node.name}</span>
+                                      <span className="truncate max-w-[120px]">{node.name}</span>
                                       <button
                                         onClick={(e) => handleRemoveCategoryAssignment(e, product, node)}
                                         title={`Remove from ${node.breadcrumb}`}
-                                        className="text-gray-400 hover:text-red-600 transition-colors ml-0.5"
+                                        className="text-gray-400 hover:text-red-600 transition-colors ml-0.5 cursor-pointer"
                                       >
                                         <X className="w-2.5 h-2.5" />
                                       </button>
@@ -871,7 +937,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                               )}
                               <button
                                 onClick={(e) => handleOpenAssignForProduct(e, product)}
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-md transition-colors shrink-0 cursor-pointer"
                               >
                                 <Plus className="w-2.5 h-2.5" /> Assign
                               </button>
@@ -879,7 +945,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-5 py-3.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {product.productCode ? (
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200/80">
@@ -893,7 +959,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 toast.success(`Product Code "${codeStr}" copied!`);
                               }}
                               title="Copy Product Code"
-                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                              className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
                             >
                               <Copy className="w-3.5 h-3.5" />
                             </button>
@@ -910,27 +976,27 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 toast.error('Failed to assign code');
                               }
                             }}
-                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all"
+                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer"
                           >
                             + Generate Code
                           </button>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium">
+                      <td className="px-5 py-3.5 text-sm font-medium whitespace-nowrap">
                         <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
                           {product.stock}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-5 py-3.5 text-sm whitespace-nowrap">
                         <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
                           {product.variants?.length || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleGst(e, product)}
                           title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
-                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                             product.enableGst !== false && (product.gst || 0) > 0
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
@@ -943,11 +1009,11 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           )}
                         </button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleFreeDelivery(e, product)}
                           title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
-                          className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm ${
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                             product.isFreeDelivery !== false
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
@@ -960,12 +1026,12 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           )}
                         </button>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                           <button
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
                               product.isVisible !== false
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
@@ -984,7 +1050,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             )}
                           </button>
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
-                            {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                            {product.stock > 0 ? 'In Stock' : 'Out'}
                           </span>
                           <button
                             onClick={(e) => handleOpenAssignForProduct(e, product)}

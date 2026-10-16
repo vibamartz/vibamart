@@ -377,3 +377,45 @@ export function getDescendantCategoryIds(
   const engine = getOrCreateHierarchyEngine(categories, visualItems);
   return engine.getDescendantIds(nodeIdOrSlug);
 }
+
+/**
+ * Checks if a product exists ONLY in a Main Category and has not been assigned
+ * to any subcategory, nested subcategory, deep subcategory, or visual nested showcase.
+ */
+export function isProductMainCategoryOnly(
+  product: Product,
+  visualItems: VisualNestedSubcategory[] = []
+): boolean {
+  if (!product) return false;
+
+  // 1. Must have a Main Category
+  const hasCategory = Boolean(
+    (product.categoryId && product.categoryId.trim() !== '' && product.categoryId !== 'none') ||
+    (Array.isArray(product.categories) && product.categories.some(c => c && c.trim() !== '' && c !== 'none'))
+  );
+  if (!hasCategory) return false;
+
+  // 2. Must NOT have any Subcategory
+  const hasSubcategory = Boolean(
+    (product.subCategoryId && product.subCategoryId.trim() !== '' && product.subCategoryId !== 'none') ||
+    (Array.isArray(product.subCategoryIds) && product.subCategoryIds.some(id => id && id.trim() !== '' && id !== 'none'))
+  );
+  if (hasSubcategory) return false;
+
+  // 3. Must NOT have any Nested Subcategory or Deep Subcategory
+  const hasNestedSubcategory = Boolean(
+    (product.nestedSubCategoryId && product.nestedSubCategoryId.trim() !== '' && product.nestedSubCategoryId !== 'none') ||
+    (Array.isArray(product.nestedSubCategoryIds) && product.nestedSubCategoryIds.some(id => id && id.trim() !== '' && id !== 'none'))
+  );
+  if (hasNestedSubcategory) return false;
+
+  // 4. Must NOT have any Visual Nested Subcategory
+  const hasVisual = Boolean(
+    (product.visualNestedSubcategoryId && product.visualNestedSubcategoryId.trim() !== '' && product.visualNestedSubcategoryId !== 'none') ||
+    (Array.isArray(product.visualNestedSubcategoryIds) && product.visualNestedSubcategoryIds.some(id => id && id.trim() !== '' && id !== 'none')) ||
+    (Array.isArray(visualItems) && visualItems.some(v => Array.isArray(v.productIds) && v.productIds.includes(product.id)))
+  );
+  if (hasVisual) return false;
+
+  return true;
+}
