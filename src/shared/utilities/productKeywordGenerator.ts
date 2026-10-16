@@ -3,6 +3,7 @@ import { Product } from '../types';
 
 export interface KeywordGenerationOptions {
   existingKeywords?: string[];
+  previousKeywords?: string[];
   minCount?: number;
   maxCount?: number;
   allowGemini?: boolean;
@@ -10,6 +11,8 @@ export interface KeywordGenerationOptions {
   categoryName?: string;
   subCategoryName?: string;
   nestedSubCategoryName?: string;
+  isAlternative?: boolean;
+  replaceOutdated?: boolean;
 }
 
 /**
@@ -99,7 +102,8 @@ const STOP_WORDS = new Set([
   'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves',
   // Generic e-commerce marketing noise
   'buy', 'best', 'online', 'genuine', 'original', 'product', 'item', 'quality', 'store', 'shop', 'sale', 'new', 'latest',
-  'pack', 'combo', 'piece', 'pieces', 'free', 'shipping', 'offer', 'brand', 'price', 'low', 'high', 'rated'
+  'pack', 'combo', 'piece', 'pieces', 'free', 'shipping', 'offer', 'brand', 'price', 'low', 'high', 'rated',
+  'official', 'authentic', 'collection', 'deal', 'deals'
 ]);
 
 /**
@@ -128,13 +132,56 @@ export function normalizeKeyword(raw: string): string {
  * - not a stop word
  * - not a pure meaningless number (unless spec e.g. "5g", "128gb", "4k")
  */
-function isValidKeyword(kw: string): boolean {
+export function isValidKeyword(kw: string): boolean {
   if (!kw) return false;
   if (kw.length < 2) return false;
   if (STOP_WORDS.has(kw)) return false;
   // If pure digits, skip unless it's a known model year/number
   if (/^\d+$/.test(kw) && kw.length < 3) return false;
   return true;
+}
+
+/**
+ * Extracts high-relevance search phrases and descriptive terms directly from product descriptions.
+ * Uses 2-word, 3-word customer search phrases and salient descriptive attributes.
+ */
+export function extractDescriptionKeywords(desc: string, maxPhrases = 12): string[] {
+  if (!desc || typeof desc !== 'string') return [];
+  const clean = normalizeKeyword(desc);
+  if (!clean) return [];
+
+  const rawWords = clean.split(' ').filter(w => w.length > 1);
+  const phrases = new Set<string>();
+
+  // 1. Extract 2-word collocations where both words are valid keywords
+  for (let i = 0; i < rawWords.length - 1; i++) {
+    const w1 = rawWords[i];
+    const w2 = rawWords[i + 1];
+    if (isValidKeyword(w1) && isValidKeyword(w2)) {
+      phrases.add(`${w1} ${w2}`);
+      if (phrases.size >= maxPhrases) break;
+    }
+  }
+
+  // 2. Extract 3-word customer search queries (e.g. "active noise cancellation", "built in mic")
+  for (let i = 0; i < rawWords.length - 2; i++) {
+    const w1 = rawWords[i];
+    const w2 = rawWords[i + 1];
+    const w3 = rawWords[i + 2];
+    if (isValidKeyword(w1) && isValidKeyword(w3) && (isValidKeyword(w2) || ['in', 'with', 'for'].includes(w2))) {
+      phrases.add(`${w1} ${w2} ${w3}`);
+      if (phrases.size >= maxPhrases + 4) break;
+    }
+  }
+
+  // 3. Significant descriptive single words (length >= 4, not stop words)
+  const singleWords = rawWords.filter(w => isValidKeyword(w) && w.length >= 4);
+  for (const sw of singleWords) {
+    phrases.add(sw);
+    if (phrases.size >= maxPhrases + 8) break;
+  }
+
+  return Array.from(phrases);
 }
 
 /**
@@ -147,7 +194,6 @@ function extractImageKeywords(images?: string[]): string[] {
   for (const img of images.slice(0, 3)) {
     if (typeof img !== 'string' || !img) continue;
     try {
-      // Get filename from URL or path
       const urlWithoutQuery = img.split('?')[0];
       const filename = urlWithoutQuery.split('/').pop() || '';
       const nameWithoutExt = filename.replace(/\.[a-zA-Z0-9]+$/, '');
@@ -166,9 +212,91 @@ function extractImageKeywords(images?: string[]): string[] {
 }
 
 /**
+ * Computes a deterministic signature of product information relevant to keyword generation.
+ * Any change to title, description, specifications, brand, category, or subcategory changes this signature.
+ */
+export function computeProductKeywordSignature(product: Partial<Product>): string {
+  if (!product) return '';
+  const name = (product.name || '').trim().toLowerCase();
+  const brand = (product.brand || '').trim().toLowerCase();
+  const categoryId = (product.categoryId || '').trim().toLowerCase();
+  const subCategoryId = (product.subCategoryId || '').trim().toLowerCase();
+  const nestedSubCategoryId = (product.nestedSubCategoryId || '').trim().toLowerCase();
+  const desc = ((product.description || '') + ' ' + (product.fullDescription || '')).trim().toLowerCase().slice(0, 600);
+  const specs = Array.isArray(product.specifications)
+    ? product.specifications.map(s => `${(s.key || '').trim().toLowerCase()}:${(s.value || '').trim().toLowerCase()}`).sort().join(';')
+    : '';
+  return `${name}::${brand}::${categoryId}::${subCategoryId}::${nestedSubCategoryId}::${desc}::${specs}`;
+}
+
+/**
+ * Checks whether relevant product information (title, description, specifications, brand, category)
+ * has changed between original and current versions.
+ */
+export function hasProductRelevantInfoChanged(
+  current: Partial<Product>,
+  original?: Partial<Product> | null
+): boolean {
+  if (!original) return true;
+  return computeProductKeywordSignature(current) !== computeProductKeywordSignature(original);
+}
+
+/**
+ * Evaluates whether an existing product's keywords are missing, insufficient (< 6),
+ * outdated, or contain invalid/hardcoded placeholder keywords.
+ */
+export function isKeywordOutdatedOrMissing(product: Partial<Product>, minRequired = 6): boolean {
+  if (!product) return true;
+  if (!Array.isArray(product.tags) || product.tags.length < minRequired) return true;
+
+  const validTags = product.tags
+    .map(normalizeKeyword)
+    .filter(isValidKeyword);
+
+  if (validTags.length < minRequired) return true;
+
+  // Check for forbidden generic or hardcoded filler keywords
+  const FORBIDDEN_JUNK = new Set(['official product', 'authentic', 'collection', 'item', 'best online', 'product']);
+  if (validTags.some(t => FORBIDDEN_JUNK.has(t))) {
+    return true;
+  }
+
+  // Check for semantic alignment with current product:
+  // If ALL tags are completely disconnected from the product title, brand, category, and description,
+  // the tags are outdated from a previous product version/edit and must be regenerated.
+  const fullText = normalizeKeyword(
+    `${product.name || ''} ${product.brand || ''} ${product.categoryId || ''} ${product.subCategoryId || ''} ${product.description || ''}`
+  );
+  const contextWords = new Set(fullText.split(' ').filter(isValidKeyword));
+
+  if (contextWords.size > 0) {
+    let matchCount = 0;
+    for (const tag of validTags) {
+      const tagWords = tag.split(' ').filter(isValidKeyword);
+      if (tagWords.some(tw => contextWords.has(tw))) {
+        matchCount++;
+      }
+    }
+    if (matchCount === 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Backward compatibility alias for productNeedsKeywordUpgrade.
+ */
+export function productNeedsKeywordUpgrade(product: Partial<Product>, minRequired = 6): boolean {
+  return isKeywordOutdatedOrMissing(product, minRequired);
+}
+
+/**
  * Deterministic ML/NLP Keyword Extraction Fallback Engine.
  * Operates purely locally with 0ms network latency.
- * Guarantees at least 6 high-relevance search keywords for any product.
+ * Guarantees at least 6 high-relevance search keywords for any product using title,
+ * description, specifications, brand, category, and subcategory.
  */
 export function generateKeywordsDeterministic(
   product: Partial<Product>,
@@ -176,112 +304,153 @@ export function generateKeywordsDeterministic(
 ): string[] {
   const minCount = options.minCount ?? 6;
   const maxCount = options.maxCount ?? 16;
+  const isAlternative = Boolean(options.isAlternative);
+  const replaceOutdated = Boolean(options.replaceOutdated || options.isAlternative);
   const accumulated = new Set<string>();
 
-  // 1. Preserve existing useful keywords first
-  const existing = options.existingKeywords || product.tags || [];
-  if (Array.isArray(existing)) {
-    for (const kw of existing) {
-      const clean = normalizeKeyword(kw);
-      if (isValidKeyword(clean)) {
-        accumulated.add(clean);
+  const previousList = options.previousKeywords || (Array.isArray(product.tags) ? product.tags : []);
+  const previousSet = new Set(previousList.map(normalizeKeyword).filter(isValidKeyword));
+
+  // If NOT replacing outdated / NOT alternative mode, preserve existing valid keywords first
+  if (!replaceOutdated) {
+    const existing = options.existingKeywords || product.tags || [];
+    if (Array.isArray(existing)) {
+      for (const kw of existing) {
+        const clean = normalizeKeyword(kw);
+        if (isValidKeyword(clean)) {
+          accumulated.add(clean);
+        }
       }
     }
   }
 
   const name = (product.name || '').trim();
   const brand = (product.brand || '').trim();
-  const desc = (product.description || '') + ' ' + (product.fullDescription || '');
+  const desc = ((product.description || '') + ' ' + (product.fullDescription || '')).trim();
   const catName = options.categoryName || (typeof product.categoryId === 'string' ? product.categoryId : '');
   const subCatName = options.subCategoryName || (typeof product.subCategoryId === 'string' ? product.subCategoryId : '');
   const nestedCatName = options.nestedSubCategoryName || (typeof product.nestedSubCategoryId === 'string' ? product.nestedSubCategoryId : '');
 
-  // 2. Brand Keywords & Brand Combinations
+  // 1. Brand Keywords
+  const brandList: string[] = [];
   if (brand) {
     const cleanBrand = normalizeKeyword(brand);
     if (isValidKeyword(cleanBrand)) {
-      accumulated.add(cleanBrand);
-      if (catName) {
-        accumulated.add(normalizeKeyword(`${cleanBrand} ${catName}`));
-      }
-      if (subCatName) {
-        accumulated.add(normalizeKeyword(`${cleanBrand} ${subCatName}`));
-      }
+      brandList.push(cleanBrand);
+      if (catName) brandList.push(normalizeKeyword(`${cleanBrand} ${catName}`));
+      if (subCatName) brandList.push(normalizeKeyword(`${cleanBrand} ${subCatName}`));
     }
   }
 
-  // 3. Product Title Tokenization & Significant Collocations
+  // 2. Title Terms
+  const titleList: string[] = [];
   if (name) {
     const cleanTitle = normalizeKeyword(name);
-    // Add cleaned full title if concise (<= 4 words)
     const titleWords = cleanTitle.split(' ').filter(isValidKeyword);
+
     if (titleWords.length > 0 && titleWords.length <= 4) {
-      accumulated.add(cleanTitle);
+      titleList.push(cleanTitle);
     }
-
-    // Add unigrams from title
+    // Title unigrams
     for (const word of titleWords) {
-      accumulated.add(word);
+      titleList.push(word);
     }
-
-    // Add 2-word collocations from title
+    // Bigrams
     for (let i = 0; i < titleWords.length - 1; i++) {
-      const bigram = `${titleWords[i]} ${titleWords[i + 1]}`;
-      accumulated.add(bigram);
+      titleList.push(`${titleWords[i]} ${titleWords[i + 1]}`);
     }
-
-    // Add 3-word phrase if >= 3 words
+    // 3-word phrase if >= 3 words
     if (titleWords.length >= 3) {
-      accumulated.add(`${titleWords[0]} ${titleWords[1]} ${titleWords[2]}`);
+      titleList.push(`${titleWords[0]} ${titleWords[1]} ${titleWords[2]}`);
+    }
+    // Brand + primary title noun
+    if (brand && titleWords.length > 0) {
+      const primaryTitleNoun = titleWords.find(w => w !== brand.toLowerCase()) || titleWords[0];
+      if (primaryTitleNoun) {
+        titleList.push(normalizeKeyword(`${brand} ${primaryTitleNoun}`));
+      }
     }
   }
 
-  // 4. Category, Subcategory, & Hierarchy Expansion
+  // 3. Category & Hierarchy terms
+  const catList: string[] = [];
   const hierarchyTerms = [catName, subCatName, nestedCatName].filter(Boolean);
   for (const hTerm of hierarchyTerms) {
     const cleanH = normalizeKeyword(hTerm);
     if (isValidKeyword(cleanH)) {
-      accumulated.add(cleanH);
-      // Also add individual words if compound e.g. "Mobile Phones" -> "mobile", "phones"
-      cleanH.split(' ').filter(isValidKeyword).forEach(w => accumulated.add(w));
+      catList.push(cleanH);
+      cleanH.split(' ').filter(isValidKeyword).forEach(w => catList.push(w));
+    }
+  }
+
+  // 4. Description Key Phrases & Salient Noun Collocations
+  const descList: string[] = [];
+  if (desc) {
+    const descKeywords = extractDescriptionKeywords(desc, 14);
+    for (const dk of descKeywords) {
+      const cleanDk = normalizeKeyword(dk);
+      if (isValidKeyword(cleanDk)) {
+        if (isAlternative && previousSet.has(cleanDk) && descKeywords.length > 6) {
+          continue;
+        }
+        descList.push(cleanDk);
+      }
     }
   }
 
   // 5. Taxonomy Synonyms & Search Intents
+  const taxonomyList: string[] = [];
   const fullContextText = `${name} ${brand} ${catName} ${subCatName} ${nestedCatName} ${desc}`.toLowerCase();
   for (const [key, synonyms] of Object.entries(CATEGORY_TAXONOMY_MAP)) {
     const keyRegex = new RegExp(`\\b${key}\\b`, 'i');
     if (keyRegex.test(fullContextText)) {
-      for (const syn of synonyms) {
+      const synList = isAlternative ? [...synonyms].reverse() : synonyms;
+      for (const syn of synList) {
         const cleanSyn = normalizeKeyword(syn);
         if (isValidKeyword(cleanSyn)) {
-          accumulated.add(cleanSyn);
-          if (accumulated.size >= maxCount + 6) break;
+          if (isAlternative && previousSet.has(cleanSyn)) {
+            continue;
+          }
+          taxonomyList.push(cleanSyn);
         }
       }
     }
   }
 
   // 6. Specifications Key-Value Attributes
+  const specList: string[] = [];
   const specs = Array.isArray(product.specifications) ? product.specifications : [];
   for (const spec of specs) {
     if (!spec || !spec.value) continue;
     const cleanVal = normalizeKeyword(spec.value);
     const cleanKey = normalizeKeyword(spec.key || '');
 
-    // High value spec patterns (RAM, Storage, Battery, Material, Processor, Color, Connectivity, Display)
-    if (cleanVal) {
-      // E.g. "128gb", "256gb", "5000mah", "cotton", "bluetooth 5.3", "amoled"
-      if (cleanVal.length <= 25) {
-        accumulated.add(cleanVal);
-      }
+    if (cleanVal && cleanVal.length <= 25) {
+      specList.push(cleanVal);
       if (cleanKey && cleanVal.length <= 15) {
-        accumulated.add(normalizeKeyword(`${cleanVal} ${cleanKey}`));
+        specList.push(normalizeKeyword(`${cleanVal} ${cleanKey}`));
       }
     }
   }
 
-  // Variant specifications (universal specs)
+  // Interleave sources into accumulated set so that Description and Specifications
+  // are never crowded out by long titles
+  for (const b of brandList.slice(0, 2)) accumulated.add(b);
+  for (const t of titleList.slice(0, 4)) accumulated.add(t);
+  for (const d of descList.slice(0, 4)) accumulated.add(d);
+  for (const syn of taxonomyList.slice(0, 3)) accumulated.add(syn);
+  for (const s of specList.slice(0, 3)) accumulated.add(s);
+  for (const c of catList.slice(0, 2)) accumulated.add(c);
+
+  // Fill remaining slots
+  for (const d of descList) { if (accumulated.size >= maxCount) break; accumulated.add(d); }
+  for (const t of titleList) { if (accumulated.size >= maxCount) break; accumulated.add(t); }
+  for (const syn of taxonomyList) { if (accumulated.size >= maxCount) break; accumulated.add(syn); }
+  for (const s of specList) { if (accumulated.size >= maxCount) break; accumulated.add(s); }
+  for (const b of brandList) { if (accumulated.size >= maxCount) break; accumulated.add(b); }
+  for (const c of catList) { if (accumulated.size >= maxCount) break; accumulated.add(c); }
+
+  // Variant specifications
   const varSpecs = product.variantSpecifications || product.specificationsByVariant;
   if (varSpecs && typeof varSpecs === 'object') {
     Object.values(varSpecs).forEach(specList => {
@@ -336,33 +505,34 @@ export function generateKeywordsDeterministic(
     }
   }
 
-  // 10. Description Significant Noun Phrases
-  if (desc) {
-    const cleanDesc = normalizeKeyword(desc);
-    const descWords = cleanDesc.split(' ').filter(isValidKeyword);
-    for (const dw of descWords.slice(0, 30)) {
-      if (dw.length >= 4 && !accumulated.has(dw)) {
-        accumulated.add(dw);
-        if (accumulated.size >= maxCount) break;
-      }
-    }
+  // 10. Filter and format final keywords
+  let finalKeywords = Array.from(accumulated).filter(isValidKeyword);
+
+  // If in alternative mode, prioritize keywords that differ from previousKeywords
+  if (isAlternative && previousSet.size > 0) {
+    const novel = finalKeywords.filter(k => !previousSet.has(k));
+    const repeated = finalKeywords.filter(k => previousSet.has(k));
+    finalKeywords = [...novel, ...repeated];
   }
 
   // 11. Ensure guaranteed minimum of at least 6 relevant search keywords
-  let finalKeywords = Array.from(accumulated).filter(isValidKeyword);
-
+  // NEVER use hardcoded marketing filler like 'official product' or 'authentic'.
+  // Combine genuine product attributes from title, description, brand, category, specs.
   if (finalKeywords.length < minCount) {
-    // Generate emergency high-relevance domain combinations
-    const fallbackTerms = [
-      brand ? `${brand} ${catName || 'collection'}` : '',
-      brand ? `${brand} authentic` : '',
-      catName ? `${catName} online` : '',
-      subCatName ? `${subCatName} best` : '',
-      name ? `${name.split(' ')[0]} item` : '',
-      'official product'
-    ].map(normalizeKeyword).filter(isValidKeyword);
+    const titleWords = name ? normalizeKeyword(name).split(' ').filter(isValidKeyword) : [];
+    const descWords = desc ? normalizeKeyword(desc).split(' ').filter(isValidKeyword) : [];
 
-    for (const fb of fallbackTerms) {
+    const organicFallbacks: string[] = [];
+
+    if (brand && catName) organicFallbacks.push(`${brand} ${catName}`);
+    if (brand && subCatName) organicFallbacks.push(`${brand} ${subCatName}`);
+    if (titleWords.length > 0 && catName) organicFallbacks.push(`${titleWords[0]} ${catName}`);
+    if (titleWords.length > 1) organicFallbacks.push(`${titleWords[0]} ${titleWords[1]}`);
+    if (brand && titleWords.length > 0) organicFallbacks.push(`${brand} ${titleWords[0]}`);
+    if (descWords.length > 0 && catName) organicFallbacks.push(`${descWords[0]} ${catName}`);
+    if (descWords.length > 1) organicFallbacks.push(`${descWords[0]} ${descWords[1]}`);
+
+    for (const fb of organicFallbacks.map(normalizeKeyword).filter(isValidKeyword)) {
       if (!finalKeywords.includes(fb)) {
         finalKeywords.push(fb);
       }
@@ -388,9 +558,20 @@ async function generateKeywordsWithGemini(
     : '';
 
   const featuresText = Array.isArray(product.features) ? product.features.join(', ') : '';
+  const descText = ((product.description || '') + ' ' + (product.fullDescription || '')).slice(0, 600);
+  const previousList = options.previousKeywords || (Array.isArray(product.tags) ? product.tags : []);
 
-  const prompt = `You are an expert e-commerce search keyword generator for an online retail platform.
-Generate at least 8 to 14 highly relevant, customer-friendly search keywords and search phrases for this product.
+  let taskInstruction = `Generate at least 8 to 14 highly relevant, unique customer-friendly search keywords and search phrases for this product.
+Carefully use both the product title AND product description to identify what real customers type into an e-commerce search bar.`;
+
+  if (options.isAlternative) {
+    taskInstruction = `The store administrator requested NEW ALTERNATIVE keywords for this product.
+Generate a fresh, alternative set of at least 8 to 14 high-relevance search keywords, customer search queries, and feature phrases based on the latest title, description, specifications, brand, and category.
+Provide alternative synonyms, descriptive angles, and phrasing distinct from or improving upon the previous keywords: [${previousList.slice(0, 15).join(', ')}].`;
+  }
+
+  const prompt = `You are an expert e-commerce search engine keyword optimizer for an online retail platform.
+${taskInstruction}
 
 Product Information:
 - Title: ${product.name || 'N/A'}
@@ -399,22 +580,21 @@ Product Information:
 - Subcategory: ${options.subCategoryName || product.subCategoryId || 'N/A'}
 - Specifications: ${specsText || 'N/A'}
 - Features: ${featuresText || 'N/A'}
-- Description: ${(product.description || '').slice(0, 300) || 'N/A'}
-- Existing Keywords: ${(product.tags || []).join(', ') || 'None'}
+- Description: ${descText || 'N/A'}
+- Previous Keywords: ${previousList.join(', ') || 'None'}
 
 Strict Guidelines:
-1. Include core product synonyms (what customers type into the search bar, e.g. "running shoes", "sneakers", "sports footwear").
-2. Include brand + item combinations (e.g. "apple phone", "nike running shoes").
-3. Include relevant attributes (material, color, key spec like "256gb", "amoled", "wireless").
-4. Support relevant partial matches and single-word searches.
-5. PRESERVE any useful existing keywords provided.
-6. DO NOT invent false features, unmentioned brands, or unrelated products.
-7. Return ONLY a valid JSON array of lowercase strings, for example:
+1. Include core product synonyms and shopper intent queries (e.g. "running shoes", "sneakers", "sports footwear").
+2. Include brand + item combinations (e.g. "boat headphones", "nike running shoes").
+3. Include salient attributes and features from the description and specifications (e.g. "wireless earphones", "active noise cancellation", "fast charging", "cotton blend").
+4. NEVER invent fake brands, unmentioned specifications, or unrelated categories.
+5. NEVER include generic marketing filler or hardcoded placeholder words (e.g. "official product", "item", "authentic", "best online").
+6. Return ONLY a valid JSON array of lowercase strings, for example:
 ["keyword 1", "keyword 2", "keyword 3", "keyword 4", "keyword 5", "keyword 6", "keyword 7", "keyword 8"]`;
 
-  // 2500ms timeout safeguard
+  // 3500ms timeout safeguard
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Gemini keyword generation timeout (2500ms exceeded)')), 2500)
+    setTimeout(() => reject(new Error('Gemini keyword generation timeout (3500ms exceeded)')), 3500)
   );
 
   const requestPromise = ai.models.generateContent({
@@ -447,11 +627,12 @@ Strict Guidelines:
  * Combines AI/ML (Gemini 2.5 Flash) with deterministic local ML/NLP fallback.
  *
  * Guarantees:
- * - At least 6 relevant search keywords
- * - Useful existing keywords are strictly preserved
- * - Missing relevant keywords added without duplicate terms
- * - Zero dependency failure (seamless fallback if offline or no API key)
- * - Safe for all products without altering other fields
+ * - At least 6 relevant, unique search keywords
+ * - Uses Title, Description, Specifications, Brand, Category, Subcategory
+ * - When clicking "AI Auto Keyword" or regenerating: replaces outdated keywords with fresh alternatives
+ * - Never generates irrelevant, misleading, hardcoded, or duplicate keywords
+ * - Reliable title-and-description-based fallback on AI failure
+ * - Never erases valid keywords unless replacements are generated successfully
  */
 export async function generateProductKeywords(
   product: Partial<Product>,
@@ -460,36 +641,38 @@ export async function generateProductKeywords(
   const minCount = options.minCount ?? 6;
   const maxCount = options.maxCount ?? 16;
   const allowGemini = options.allowGemini !== false;
+  const isAlternative = Boolean(options.isAlternative);
+  const replaceOutdated = Boolean(options.replaceOutdated || options.isAlternative);
 
-  // Determine API key from options, process.env, or environment
   const apiKey = options.apiKey || (typeof process !== 'undefined' ? (process.env?.GEMINI_API_KEY || (process.env as any)?.VITE_GEMINI_API_KEY) : '');
   const isValidApiKey = Boolean(apiKey && apiKey !== 'your_gemini_api_key' && !apiKey.includes('dummy') && !apiKey.includes('placeholder'));
 
-  // Generate deterministic baseline first
+  // Always compute deterministic fallback keywords (based on title, description, brand, category, specs)
   const fallbackKeywords = generateKeywordsDeterministic(product, options);
 
   if (allowGemini && isValidApiKey) {
     try {
       const aiKeywords = await generateKeywordsWithGemini(product, apiKey, options);
 
-      // Merge existing tags, AI keywords, and fallback keywords safely
       const mergedSet = new Set<string>();
 
-      // 1. Preserve existing valid keywords first
-      const existing = options.existingKeywords || product.tags || [];
-      if (Array.isArray(existing)) {
-        for (const kw of existing) {
-          const clean = normalizeKeyword(kw);
-          if (isValidKeyword(clean)) mergedSet.add(clean);
+      // In alternative or replaceOutdated mode, replace outdated keywords with newly generated ones
+      if (!replaceOutdated) {
+        const existing = options.existingKeywords || product.tags || [];
+        if (Array.isArray(existing)) {
+          for (const kw of existing) {
+            const clean = normalizeKeyword(kw);
+            if (isValidKeyword(clean)) mergedSet.add(clean);
+          }
         }
       }
 
-      // 2. Add AI keywords
+      // Add AI generated keywords
       for (const kw of aiKeywords) {
         if (isValidKeyword(kw)) mergedSet.add(kw);
       }
 
-      // 3. Supplement with fallback keywords if still below minCount
+      // Supplement with fallback keywords if still below minCount
       for (const fb of fallbackKeywords) {
         if (mergedSet.size >= maxCount) break;
         mergedSet.add(fb);
@@ -500,45 +683,54 @@ export async function generateProductKeywords(
         return result.slice(0, maxCount);
       }
     } catch (err: any) {
-      console.warn('[ProductKeywordService] AI generation fallback:', err.message || err);
+      const errMsg = err?.message || (typeof err === 'string' ? err : 'AI service unavailable');
+      console.warn('[ProductKeywordService] AI generation fallback:', errMsg.length > 120 ? errMsg.slice(0, 120) + '...' : errMsg);
     }
   }
 
-  // Fallback to high-accuracy deterministic engine
+  // AI failed or disabled — use the reliable title-and-description-based fallback
+  if (fallbackKeywords.length >= minCount) {
+    return fallbackKeywords.slice(0, maxCount);
+  }
+
+  // Safety: Never erase valid keywords unless replacements are generated successfully
+  const previousList = options.previousKeywords || (Array.isArray(product.tags) ? product.tags : []);
+  const validPrevious = previousList.map(normalizeKeyword).filter(isValidKeyword);
+  if (validPrevious.length >= minCount) {
+    return validPrevious.slice(0, maxCount);
+  }
+
   return fallbackKeywords.slice(0, maxCount);
 }
 
 /**
- * Evaluates whether an existing product needs keyword generation/upgrade:
- * - tags is undefined or not an array
- * - tags has fewer than 6 valid keywords
- * - tags contains empty or invalid strings
- */
-export function productNeedsKeywordUpgrade(product: Partial<Product>, minRequired = 6): boolean {
-  if (!product) return false;
-  if (!Array.isArray(product.tags)) return true;
-  const validTags = product.tags
-    .map(normalizeKeyword)
-    .filter(isValidKeyword);
-  return validTags.length < minRequired;
-}
-
-/**
- * Safely prepares updated keywords for an existing product, preserving all existing keywords
- * and appending relevant missing keywords to reach at least 6.
+ * Safely prepares updated keywords for an existing product.
+ * If product has missing or outdated keywords, generates fresh keywords replacing outdated ones.
  */
 export async function upgradeExistingProductKeywords(
   product: Product,
   options: KeywordGenerationOptions = {}
 ): Promise<{ needsUpdate: boolean; updatedTags: string[] }> {
-  const needsUpdate = productNeedsKeywordUpgrade(product, options.minCount ?? 6);
+  const needsUpdate = isKeywordOutdatedOrMissing(product, options.minCount ?? 6);
   if (!needsUpdate) {
     return { needsUpdate: false, updatedTags: product.tags || [] };
   }
 
-  const generated = await generateProductKeywords(product, options);
+  const generated = await generateProductKeywords(product, {
+    ...options,
+    replaceOutdated: true,
+    previousKeywords: product.tags || []
+  });
+
+  if (generated.length >= (options.minCount ?? 6)) {
+    return {
+      needsUpdate: true,
+      updatedTags: generated
+    };
+  }
+
   return {
-    needsUpdate: true,
-    updatedTags: generated
+    needsUpdate: false,
+    updatedTags: product.tags || []
   };
 }

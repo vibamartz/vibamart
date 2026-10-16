@@ -748,7 +748,8 @@ export default function AdminRewardsManagementView() {
       const finalImages = sanitizedImages.length > 0 ? sanitizedImages : ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'];
 
       const generatedTags = await generateProductKeywords(editingProductModal, {
-        existingKeywords: editingProductModal.tags,
+        replaceOutdated: true,
+        previousKeywords: editingProductModal.tags,
         minCount: 6
       });
 

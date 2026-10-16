@@ -220,6 +220,8 @@ export class SearchService {
         const nestedName = prod.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[prod.nestedSubCategoryId] || '') : '';
 
         const generatedTags = await generateProductKeywords(prod, {
+          replaceOutdated: true,
+          previousKeywords: prod.tags || [],
           categoryName: catName,
           subCategoryName: subName,
           nestedSubCategoryName: nestedName,
@@ -289,15 +291,17 @@ export class SearchService {
         const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';
 
         if (change.type === 'added' || change.type === 'modified') {
-          // If product needs keyword upgrade, automatically generate keywords
+          // If product needs keyword upgrade or has missing/outdated keywords, automatically generate keywords
           if (productNeedsKeywordUpgrade(product, 6)) {
             generateProductKeywords(product, {
+              replaceOutdated: true,
+              previousKeywords: product.tags || [],
               categoryName: catName,
               subCategoryName: subName,
               nestedSubCategoryName: nestedName,
               minCount: 6
             }).then(newTags => {
-              if (newTags.length >= 6 && productNeedsKeywordUpgrade(product, 6)) {
+              if (newTags.length >= 6) {
                 if (hasAdminCredentials()) {
                   admin.firestore().collection('products').doc(product.id).update({
                     tags: newTags,
@@ -306,6 +310,7 @@ export class SearchService {
                 }
                 product.tags = newTags;
                 this.engine.upsertProduct(product, catName, subName, nestedName);
+                searchCache.invalidate();
               }
             }).catch(() => {});
           }

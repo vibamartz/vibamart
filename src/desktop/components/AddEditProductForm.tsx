@@ -26,7 +26,7 @@ import { generateUniqueProductCode, formatProductCode, validateProductCode, isPr
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
-import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
+import { generateProductKeywords, hasProductRelevantInfoChanged, isKeywordOutdatedOrMissing } from '../../shared/utilities/productKeywordGenerator';
 
 export interface SpecificationPreset {
   id: string;
@@ -315,6 +315,7 @@ export default function AddEditProductForm({
 
   const [currentTag, setCurrentTag] = useState('');
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
+  const latestKeywordRequestIdRef = useRef(0);
   const [currentPincodeInput, setCurrentPincodeInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
@@ -607,9 +608,13 @@ export default function AddEditProductForm({
     // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
     const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
     let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
-    if (finalTags.length < requiredMinKeywords) {
+    const relevantChanged = hasProductRelevantInfoChanged(formData, product);
+    const needsUpgrade = finalTags.length < requiredMinKeywords || isKeywordOutdatedOrMissing(formData, requiredMinKeywords);
+
+    if (needsUpgrade || relevantChanged) {
       finalTags = await generateProductKeywords(formData, {
-        existingKeywords: finalTags,
+        replaceOutdated: relevantChanged,
+        previousKeywords: finalTags,
         categoryName: selectedCategory?.name,
         subCategoryName: selectedSubCategory?.name,
         minCount: requiredMinKeywords
@@ -1876,25 +1881,34 @@ export default function AddEditProductForm({
                 type="button"
                 disabled={isGeneratingKeywords}
                 onClick={async () => {
+                  const requestId = ++latestKeywordRequestIdRef.current;
                   setIsGeneratingKeywords(true);
-                  const toastId = toast.loading('Generating intelligent search keywords with AI/ML...');
+                  const toastId = toast.loading('Generating alternative search keywords with AI...');
                   try {
                     const finalKeywords = await generateProductKeywords(formData, {
-                      existingKeywords: formData.tags,
+                      isAlternative: true,
+                      previousKeywords: formData.tags,
                       categoryName: selectedCategory?.name,
                       subCategoryName: selectedSubCategory?.name,
                       minCount: Math.max(6, settings.minKeywords || 6)
                     });
-                    setFormData(prev => ({ ...prev, tags: finalKeywords }));
-                    toast.success(`Generated ${finalKeywords.length} relevant search keywords!`, { id: toastId });
+                    if (requestId !== latestKeywordRequestIdRef.current) {
+                      return; // Older AI request resolved; superseded by newer action
+                    }
+                    if (finalKeywords && finalKeywords.length >= 6) {
+                      setFormData(prev => ({ ...prev, tags: finalKeywords }));
+                      toast.success(`Generated ${finalKeywords.length} alternative search keywords!`, { id: toastId });
+                    }
                   } catch (err: any) {
                     toast.error('Failed to generate keywords', { id: toastId });
                   } finally {
-                    setIsGeneratingKeywords(false);
+                    if (requestId === latestKeywordRequestIdRef.current) {
+                      setIsGeneratingKeywords(false);
+                    }
                   }
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer shadow-xs"
-                title="Automatically generate at least 6 relevant search keywords using AI/ML"
+                title="Automatically generate new alternative search keywords using AI"
               >
                 <Sparkles className={`w-3 h-3 text-indigo-600 ${isGeneratingKeywords ? 'animate-spin' : ''}`} />
                 <span>{isGeneratingKeywords ? 'Generating AI...' : 'AI Auto-Keywords'}</span>

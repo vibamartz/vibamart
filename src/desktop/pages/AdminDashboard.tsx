@@ -28,7 +28,7 @@ import NewCategoriesManagementView from '../components/CategoriesManagementView'
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
-import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
+import { generateProductKeywords, hasProductRelevantInfoChanged, isKeywordOutdatedOrMissing } from '../../shared/utilities/productKeywordGenerator';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 import AdminInvoicesView from '../components/AdminInvoicesView';
@@ -4784,6 +4784,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
   });
 
   const [currentTag, setCurrentTag] = useState('');
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
+  const latestKeywordRequestIdRef = useRef(0);
   const [busy, setBusy] = useState(false);
 
   // Set default categoryId once categories load, if none is set
@@ -4815,10 +4817,15 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
     // Automatically generate at least 6 relevant search keywords using AI/ML & fallback
     const requiredMinKeywords = Math.max(6, settings.minKeywords || 6);
     let finalTags = (formData.tags || []).filter(t => t && t.trim().length > 0);
-    if (finalTags.length < requiredMinKeywords) {
+    const relevantChanged = hasProductRelevantInfoChanged(formData, product);
+    const needsUpgrade = finalTags.length < requiredMinKeywords || isKeywordOutdatedOrMissing(formData, requiredMinKeywords);
+
+    if (needsUpgrade || relevantChanged) {
       finalTags = await generateProductKeywords(formData, {
-        existingKeywords: finalTags,
-        categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+        replaceOutdated: relevantChanged,
+        previousKeywords: finalTags,
+        categoryName: selectedCategory?.name,
+        subCategoryName: selectedSubCategory?.name,
         minCount: requiredMinKeywords
       });
       setFormData(prev => ({ ...prev, tags: finalTags }));
@@ -5288,25 +5295,39 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
               </div>
               <button
                 type="button"
+                disabled={isGeneratingKeywords}
                 onClick={async () => {
-                  const toastId = toast.loading('Generating intelligent search keywords with AI/ML...');
+                  const requestId = ++latestKeywordRequestIdRef.current;
+                  setIsGeneratingKeywords(true);
+                  const toastId = toast.loading('Generating alternative search keywords with AI...');
                   try {
                     const finalKeywords = await generateProductKeywords(formData, {
-                      existingKeywords: formData.tags,
-                      categoryName: categories.find(c => c.id === formData.categoryId)?.name,
+                      isAlternative: true,
+                      previousKeywords: formData.tags,
+                      categoryName: selectedCategory?.name,
+                      subCategoryName: selectedSubCategory?.name,
                       minCount: Math.max(6, settings.minKeywords || 6)
                     });
-                    setFormData(prev => ({ ...prev, tags: finalKeywords }));
-                    toast.success(`Generated ${finalKeywords.length} relevant search keywords!`, { id: toastId });
+                    if (requestId !== latestKeywordRequestIdRef.current) {
+                      return; // Older AI request resolved; superseded by newer action
+                    }
+                    if (finalKeywords && finalKeywords.length >= 6) {
+                      setFormData(prev => ({ ...prev, tags: finalKeywords }));
+                      toast.success(`Generated ${finalKeywords.length} alternative search keywords!`, { id: toastId });
+                    }
                   } catch (err: any) {
                     toast.error('Failed to generate keywords', { id: toastId });
+                  } finally {
+                    if (requestId === latestKeywordRequestIdRef.current) {
+                      setIsGeneratingKeywords(false);
+                    }
                   }
                 }}
-                className="flex items-center gap-2 px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-2xl font-black text-xs uppercase tracking-wider transition-all self-start sm:self-auto cursor-pointer shadow-sm"
-                title="Automatically generate at least 6 relevant search keywords using AI/ML"
+                className="flex items-center gap-2 px-5 py-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-2xl font-black text-xs uppercase tracking-wider transition-all disabled:opacity-50 self-start sm:self-auto cursor-pointer shadow-sm"
+                title="Automatically generate new alternative search keywords using AI"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>AI Auto-Keywords</span>
+                <Sparkles className={`w-3.5 h-3.5 text-indigo-600 ${isGeneratingKeywords ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingKeywords ? 'Generating AI...' : 'AI Auto-Keywords'}</span>
               </button>
             </div>
             <div className="space-y-4">
