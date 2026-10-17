@@ -747,7 +747,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                 {categories.map((category, index) => {
                   const isCatExpanded = expandedCats.includes(category.id);
                   return (
-                    <React.Fragment key={category.id}>
+                    <React.Fragment key={`${category.id}-${index}`}>
                       <div
                         draggable
                         onDragStart={(e) => handleDragStart(e, index)}
@@ -795,10 +795,10 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                       {/* Subcategories (Level 2) */}
                       {isCatExpanded && category.subcategories && category.subcategories.length > 0 && (
                         <div className="bg-gray-50/50 border-t border-b border-gray-100">
-                          {category.subcategories.map((sub) => {
+                          {category.subcategories.map((sub, sIdx) => {
                             const isSubExpanded = expandedSubs.includes(`${category.id}-${sub.id}`);
                             return (
-                              <React.Fragment key={sub.id}>
+                              <React.Fragment key={`${category.id}-${sub.id || sIdx}-${sIdx}`}>
                                 <div className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-100/80 transition-colors pl-8 border-b border-gray-100/50 last:border-0">
                                   <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-4 h-4" /></div>
                                   <div className="col-span-1 flex items-center">
@@ -828,8 +828,8 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                                 {/* Nested Subcategories (Level 3) */}
                                 {isSubExpanded && sub.subcategories && sub.subcategories.length > 0 && (
                                   <div className="bg-indigo-50/30">
-                                    {sub.subcategories.map(nested => (
-                                      <div key={nested.id} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-indigo-50/50 transition-colors pl-16 border-b border-gray-100/50 last:border-0">
+                                    {sub.subcategories.map((nested, nIdx) => (
+                                      <div key={`${category.id}-${sub.id}-${nested.id || nIdx}-${nIdx}`} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-indigo-50/50 transition-colors pl-16 border-b border-gray-100/50 last:border-0">
                                         <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-3 h-3" /></div>
                                         <div className="col-span-1 flex items-center">
                                           <CategoryLogo name={nested.name} image={nested.image} icon={nested.icon} size="sm" />
