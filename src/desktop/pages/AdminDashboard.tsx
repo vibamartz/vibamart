@@ -633,14 +633,7 @@ function AdminDashboardContent() {
     }
   }, [loadingOrders, orders, hasShownPopup]);
 
-  const isDevAdmin = Boolean(
-    (import.meta as any).env?.DEV && (
-      localStorage.getItem('viba_admin_dev') === 'true' ||
-      (typeof window !== 'undefined' && window.location.search.includes('admin=true'))
-    )
-  );
-
-  if (!isDevAdmin && user?.role !== 'admin' && user?.role !== 'super_admin') {
+  if (user?.role !== 'admin' && user?.role !== 'super_admin') {
     return <Navigate to="/" />;
   }
 

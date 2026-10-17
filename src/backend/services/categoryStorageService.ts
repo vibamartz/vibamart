@@ -160,21 +160,19 @@ export async function sanitizeAndUploadCategoryDoc(
 
   // 2. Process root category image fields
   if (isBase64OrDataUrl(cleaned.image)) {
-    const uploaded = await uploadCategoryImageToStorage(cleaned.image, 'categories', catName);
-    if (uploaded) cleaned.image = uploaded;
+    cleaned.image = await uploadCategoryImageToStorage(cleaned.image, 'categories', catName);
+  } else if (typeof cleaned.image === 'string' && cleaned.image.includes('cdn.vibamart.com')) {
+    cleaned.image = '';
   }
 
   if (isBase64OrDataUrl(cleaned.icon)) {
-    const uploaded = await uploadCategoryImageToStorage(cleaned.icon, 'categories', `${catName}-icon`);
-    if (uploaded) cleaned.icon = uploaded;
+    cleaned.icon = await uploadCategoryImageToStorage(cleaned.icon, 'categories', `${catName}-icon`);
   }
   if (isBase64OrDataUrl(cleaned.iconImage)) {
-    const uploaded = await uploadCategoryImageToStorage(cleaned.iconImage, 'categories', `${catName}-icon`);
-    if (uploaded) cleaned.iconImage = uploaded;
+    cleaned.iconImage = await uploadCategoryImageToStorage(cleaned.iconImage, 'categories', `${catName}-icon`);
   }
   if (isBase64OrDataUrl(cleaned.banner)) {
-    const uploaded = await uploadCategoryImageToStorage(cleaned.banner, 'categories', `${catName}-banner`);
-    if (uploaded) cleaned.banner = uploaded;
+    cleaned.banner = await uploadCategoryImageToStorage(cleaned.banner, 'categories', `${catName}-banner`);
   }
 
   // 3. Process subcategories recursively
@@ -187,13 +185,13 @@ export async function sanitizeAndUploadCategoryDoc(
 
         const subName = subClean.name || 'subcategory';
         if (isBase64OrDataUrl(subClean.image)) {
-          const uploaded = await uploadCategoryImageToStorage(subClean.image, 'subcategories', subName);
-          if (uploaded) subClean.image = uploaded;
+          subClean.image = await uploadCategoryImageToStorage(subClean.image, 'subcategories', subName);
+        } else if (typeof subClean.image === 'string' && subClean.image.includes('cdn.vibamart.com')) {
+          subClean.image = '';
         }
 
         if (isBase64OrDataUrl(subClean.icon)) {
-          const uploaded = await uploadCategoryImageToStorage(subClean.icon, 'subcategories', `${subName}-icon`);
-          if (uploaded) subClean.icon = uploaded;
+          subClean.icon = await uploadCategoryImageToStorage(subClean.icon, 'subcategories', `${subName}-icon`);
         }
 
         if (Array.isArray(subClean.subcategories)) {
@@ -205,13 +203,13 @@ export async function sanitizeAndUploadCategoryDoc(
 
               const nestedName = nestedClean.name || 'nested-subcategory';
               if (isBase64OrDataUrl(nestedClean.image)) {
-                const uploaded = await uploadCategoryImageToStorage(nestedClean.image, 'subcategories', nestedName);
-                if (uploaded) nestedClean.image = uploaded;
+                nestedClean.image = await uploadCategoryImageToStorage(nestedClean.image, 'subcategories', nestedName);
+              } else if (typeof nestedClean.image === 'string' && nestedClean.image.includes('cdn.vibamart.com')) {
+                nestedClean.image = '';
               }
 
               if (isBase64OrDataUrl(nestedClean.icon)) {
-                const uploaded = await uploadCategoryImageToStorage(nestedClean.icon, 'subcategories', `${nestedName}-icon`);
-                if (uploaded) nestedClean.icon = uploaded;
+                nestedClean.icon = await uploadCategoryImageToStorage(nestedClean.icon, 'subcategories', `${nestedName}-icon`);
               }
               return nestedClean;
             })
@@ -233,7 +231,7 @@ export async function sanitizeAndUploadCategoryDoc(
 const migratedCategoryIds = new Set<string>();
 
 /**
- * Migrates existing category Firestore document if it contains embedded product arrays.
+ * Migrates existing category Firestore document if it contains base64 image strings or dead cdn URLs.
  */
 export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Category> {
   if (migratedCategoryIds.has(catDoc.id)) {
@@ -241,14 +239,28 @@ export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Cate
   }
 
   const hasEmbeddedProducts = (catDoc as any).products !== undefined || (catDoc as any).productItems !== undefined;
+  const hasBrokenCdn = (s?: string) => typeof s === 'string' && s.includes('cdn.vibamart.com');
 
-  // Only migrate if document has obsolete embedded product arrays that bloat the document
-  if (!hasEmbeddedProducts) {
+  const needsMigration = 
+    hasEmbeddedProducts ||
+    isBase64OrDataUrl(catDoc.image) ||
+    hasBrokenCdn(catDoc.image) ||
+    isBase64OrDataUrl(catDoc.icon) ||
+    isBase64OrDataUrl(catDoc.iconImage) ||
+    isBase64OrDataUrl((catDoc as any).banner) ||
+    (catDoc.subcategories || []).some(sub => 
+      isBase64OrDataUrl(sub.image) || 
+      hasBrokenCdn(sub.image) ||
+      isBase64OrDataUrl(sub.icon) ||
+      (sub.subcategories || []).some(n => isBase64OrDataUrl(n.image) || hasBrokenCdn(n.image) || isBase64OrDataUrl(n.icon))
+    );
+
+  if (!needsMigration) {
     return catDoc;
   }
 
   migratedCategoryIds.add(catDoc.id);
-  console.log(`Migrating bloated category document ${catDoc.id} to clean document...`);
+  console.log(`Migrating category document ${catDoc.id} to valid Storage URLs...`);
   try {
     const sanitized = await sanitizeAndUploadCategoryDoc(catDoc);
     const catRef = doc(db, 'categories', catDoc.id);
