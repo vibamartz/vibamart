@@ -467,13 +467,6 @@ export async function compressDataUrl(
  * 3. Preserves existing valid HTTP/HTTPS URLs (no duplicate uploads or file creation).
  * 4. Strictly validates format and file size limits (<= 10MB).
  */
-let isStorageBucketUnavailable = false;
-try {
-  if (typeof window !== 'undefined') {
-    isStorageBucketUnavailable = localStorage.getItem('viba_storage_bucket_unavailable') === 'true';
-  }
-} catch {}
-
 export async function uploadImageFileToStorage(
   imageInput: string | File | Blob | null | undefined,
   options: UploadImageFileOptions
@@ -491,32 +484,6 @@ export async function uploadImageFileToStorage(
     } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       return trimmed;
     }
-  }
-
-  // Fast-path: If storage bucket was verified unavailable (404/not found), proceed directly to client compression
-  if (isStorageBucketUnavailable) {
-    if (typeof imageInput === 'string' && (imageInput.startsWith('data:') || imageInput.length > 500)) {
-      try {
-        const compressed = await compressDataUrl(imageInput, 600, 600, 0.85);
-        return compressed || imageInput;
-      } catch {
-        return imageInput;
-      }
-    } else if (imageInput instanceof File || imageInput instanceof Blob) {
-      try {
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string) || '');
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(imageInput);
-        });
-        if (dataUrl) {
-          const compressed = await compressDataUrl(dataUrl, 600, 600, 0.85);
-          return compressed || dataUrl;
-        }
-      } catch {}
-    }
-    return typeof imageInput === 'string' ? imageInput : '';
   }
 
   // 2. Validate input format and extract extension
@@ -553,7 +520,7 @@ export async function uploadImageFileToStorage(
             uploadedAt: new Date().toISOString(),
           },
         }),
-        2500
+        8000
       );
       uploadedSuccessfully = true;
     } else if (typeof imageInput === 'string') {
@@ -568,7 +535,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          2500
+          8000
         );
         uploadedSuccessfully = true;
       } else if (trimmed.startsWith('blob:')) {
@@ -576,7 +543,7 @@ export async function uploadImageFileToStorage(
         const blob = await res.blob();
         if (blob.size > MAX_IMAGE_SIZE_BYTES) {
           console.warn('[StorageUpload] Blob exceeds maximum allowed size (10 MB)');
-          return typeof imageInput === 'string' ? imageInput : '';
+          return '';
         }
         await withTimeout(
           uploadBytes(storageRef, blob, {
@@ -586,7 +553,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          2500
+          8000
         );
         uploadedSuccessfully = true;
       } else if (trimmed.length > 500) {
@@ -599,7 +566,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          2500
+          8000
         );
         uploadedSuccessfully = true;
       }
@@ -607,7 +574,7 @@ export async function uploadImageFileToStorage(
 
     if (uploadedSuccessfully) {
       try {
-        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 2500);
+        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 5000);
         if (downloadUrl && (downloadUrl.startsWith('https://') || downloadUrl.startsWith('http://'))) {
           return downloadUrl;
         }
@@ -615,11 +582,7 @@ export async function uploadImageFileToStorage(
         console.warn(`[StorageUpload] Could not retrieve download URL for ${storageFilePath}:`, getErr);
       }
     }
-  } catch (err: any) {
-    if (err?.status_ === 404 || err?.code === 'storage/unknown' || err?.code === 'storage/bucket-not-found' || err?.message?.includes('404')) {
-      isStorageBucketUnavailable = true;
-      try { localStorage.setItem('viba_storage_bucket_unavailable', 'true'); } catch {}
-    }
+  } catch (err) {
     console.warn(`[StorageUpload] Firebase Storage operation warning for ${storageFilePath}:`, err);
   }
 
@@ -627,8 +590,7 @@ export async function uploadImageFileToStorage(
   // retain and compress the image data so it is NEVER lost and always persists in Firestore and displays properly
   if (typeof imageInput === 'string' && (imageInput.startsWith('data:') || imageInput.length > 500)) {
     try {
-      const compressed = await compressDataUrl(imageInput, 600, 600, 0.85);
-      return compressed || imageInput;
+      return await compressDataUrl(imageInput, 600, 600, 0.8);
     } catch {
       return imageInput;
     }
@@ -641,11 +603,10 @@ export async function uploadImageFileToStorage(
         reader.readAsDataURL(imageInput);
       });
       if (dataUrl) {
-        const compressed = await compressDataUrl(dataUrl, 600, 600, 0.85);
-        return compressed || dataUrl;
+        return await compressDataUrl(dataUrl, 600, 600, 0.8);
       }
     } catch {}
   }
 
-  return typeof imageInput === 'string' ? imageInput : '';
+  return '';
 }

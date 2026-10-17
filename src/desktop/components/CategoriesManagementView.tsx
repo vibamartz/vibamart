@@ -10,7 +10,7 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
-import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
+import { useVisualNestedSubcategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
 
@@ -56,18 +56,6 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   const dragOverItem = useRef<number | null>(null);
 
   useEffect(() => {
-    // 1. Instantly load categories from local cache if present
-    try {
-      const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCategories(parsed);
-          setLoading(false);
-        }
-      }
-    } catch {}
-
     const q = collection(db, 'categories');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const catsData = snapshot.docs.map(doc => ({
@@ -75,58 +63,16 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         ...doc.data()
       } as Category));
 
-      // Merge local cache to ensure newly added subcategories/photos are never dropped
-      let mergedCats = catsData;
-      try {
-        const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
-        if (cached) {
-          const parsed: Category[] = JSON.parse(cached);
-          mergedCats = catsData.map(remoteCat => {
-            const localCat = parsed.find(l => l.id === remoteCat.id);
-            if (!localCat) return remoteCat;
-            const subsMap = new Map<string, SubCategory>();
-            (remoteCat.subcategories || []).forEach(s => subsMap.set(s.id, s));
-            (localCat.subcategories || []).forEach(localSub => {
-              const existing = subsMap.get(localSub.id);
-              if (!existing) {
-                subsMap.set(localSub.id, localSub);
-              } else {
-                subsMap.set(localSub.id, {
-                  ...existing,
-                  ...localSub,
-                  image: localSub.image || existing.image || '',
-                  icon: localSub.icon || existing.icon || '',
-                });
-              }
-            });
-            return {
-              ...remoteCat,
-              ...localCat,
-              image: remoteCat.image || localCat.image || '',
-              subcategories: Array.from(subsMap.values())
-            };
-          });
+      catsData.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
-          parsed.forEach(localCat => {
-            if (!mergedCats.some(c => c.id === localCat.id)) {
-              mergedCats.push(localCat);
-            }
-          });
-        }
-      } catch {}
-
-      mergedCats.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-
-      setCategories(mergedCats);
+      setCategories(catsData);
       setLoading(false);
 
-      // Only migrate legacy category documents that have bloated embedded product arrays
+      // Auto-migrate any existing category documents that contain base64 image data
       catsData.forEach(cat => {
-        if ((cat as any).products || (cat as any).productItems) {
-          migrateCategoryDocIfNeeded(cat).catch(err => {
-            console.error("Migration error for category:", cat.id, err);
-          });
-        }
+        migrateCategoryDocIfNeeded(cat).catch(err => {
+          console.error("Migration error for category:", cat.id, err);
+        });
       });
     }, (error) => {
       console.error("Error fetching categories:", error);
@@ -247,21 +193,14 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       const reader = new FileReader();
       reader.onloadend = async () => {
         const rawResult = reader.result as string;
-        if (!rawResult) {
-          toast.error('Failed to read image file');
-          return;
-        }
         try {
           const compressed = await compressDataUrl(rawResult, 800, 800, 0.85);
-          setFormData(prev => ({ ...prev, image: compressed || rawResult }));
+          setFormData(prev => ({ ...prev, image: compressed }));
           toast.success('Photo selected! Click Save to apply.');
         } catch {
           setFormData(prev => ({ ...prev, image: rawResult }));
           toast.success('Photo selected! Click Save to apply.');
         }
-      };
-      reader.onerror = () => {
-        toast.error('Failed to read image file');
       };
       reader.readAsDataURL(file);
       e.target.value = '';
@@ -294,24 +233,20 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       return;
     }
 
-    // Ensure category logo is present for root categories; preserve subcategory image as-is
-    let finalLogo = formData.image?.trim() || '';
-    let finalIcon = formData.icon?.trim() || '';
-    if (modalType === 'category' && !finalLogo) {
+    // Ensure category/subcategory logo is present (Auto-generate if missing)
+    let finalLogo = formData.image;
+    let finalIcon = formData.icon;
+    if (!finalLogo) {
       const generated = generateCategoryLogo(formData.name, categories);
       finalLogo = generated.image;
-      finalIcon = finalIcon || generated.icon;
+      finalIcon = generated.icon;
     }
 
     setIsSaving(true);
     try {
-      let updatedCat: Category;
-      let catRef: any;
-      let optimisticCategories: Category[];
-
       if (modalType === 'category') {
         const catId = editingId || generateId(formData.name);
-        catRef = doc(db, 'categories', catId);
+        const catRef = doc(db, 'categories', catId);
 
         const existingCat = editingId ? categories.find(c => c.id === catId) : null;
         const rawPayload = {
@@ -323,13 +258,10 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
           id: catId,
           order: existingCat?.order ?? categories.length,
           subcategories: existingCat?.subcategories ?? [],
-          updatedAt: Date.now(),
         };
 
-        updatedCat = rawPayload as Category;
-        optimisticCategories = categories.some(c => c.id === catId)
-          ? categories.map(c => c.id === catId ? updatedCat : c)
-          : [...categories, updatedCat];
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(rawPayload);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       } else if (modalType === 'subcategory' && activeParentCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -343,35 +275,28 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         const subId = editingId || generateId(formData.name);
         let updatedSubs = [...(parentCat.subcategories || [])];
 
-        const subPayload: SubCategory = {
+        const subPayload = {
           id: subId,
           name: formData.name!.trim(),
-          image: finalLogo,
-          icon: finalIcon,
+          image: finalLogo || formData.image || '',
+          icon: finalIcon || formData.icon || '',
           isVisible: formData.isVisible ?? true,
-          updatedAt: Date.now(),
         };
 
         if (editingId) {
-          const existingSub = parentCat.subcategories?.find(s => s.id === subId);
-          updatedSubs = updatedSubs.map(s => s.id === subId ? {
-            ...s,
-            ...subPayload,
-            subcategories: s.subcategories || existingSub?.subcategories || []
-          } : s);
+          updatedSubs = updatedSubs.map(s => s.id === subId ? { ...s, ...subPayload } : s);
         } else {
           updatedSubs.push({ ...subPayload, subcategories: [] });
           setExpandedCats(prev => prev.includes(activeParentCatId) ? prev : [...prev, activeParentCatId]);
         }
 
-        catRef = doc(db, 'categories', activeParentCatId);
-        updatedCat = {
+        const catRef = doc(db, 'categories', activeParentCatId);
+        const updatedCat = {
           ...parentCat,
-          subcategories: updatedSubs,
-          updatedAt: Date.now(),
+          subcategories: updatedSubs
         };
-
-        optimisticCategories = categories.map(c => c.id === activeParentCatId ? updatedCat : c);
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       } else if (modalType === 'nested' && activeParentCatId && activeSubCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -387,76 +312,41 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         const updatedSubs = (parentCat.subcategories || []).map(sub => {
           if (sub.id === activeSubCatId) {
             let updatedNested = [...(sub.subcategories || [])];
-            const nestedPayload: SubCategory = {
+            const nestedPayload = {
               id: nestedId,
               name: formData.name!.trim(),
-              image: finalLogo,
-              icon: finalIcon,
+              image: finalLogo || formData.image || '',
+              icon: finalIcon || formData.icon || '',
               isVisible: formData.isVisible ?? true,
-              updatedAt: Date.now(),
             };
             if (editingId) {
-              const existingNested = sub.subcategories?.find(n => n.id === nestedId);
-              updatedNested = updatedNested.map(n => n.id === nestedId ? {
-                ...n,
-                ...nestedPayload,
-                subcategories: n.subcategories || existingNested?.subcategories || []
-              } : n);
+              updatedNested = updatedNested.map(n => n.id === nestedId ? { ...n, ...nestedPayload } : n);
             } else {
-              updatedNested.push({ ...nestedPayload, subcategories: [] });
+              updatedNested.push(nestedPayload);
               const expandId = `${activeParentCatId}-${activeSubCatId}`;
               setExpandedSubs(prev => prev.includes(expandId) ? prev : [...prev, expandId]);
             }
-            return { ...sub, subcategories: updatedNested, updatedAt: Date.now() };
+            return { ...sub, subcategories: updatedNested };
           }
           return sub;
         });
 
-        catRef = doc(db, 'categories', activeParentCatId);
-        updatedCat = {
+        const catRef = doc(db, 'categories', activeParentCatId);
+        const updatedCat = {
           ...parentCat,
-          subcategories: updatedSubs,
-          updatedAt: Date.now(),
+          subcategories: updatedSubs
         };
-
-        optimisticCategories = categories.map(c => c.id === activeParentCatId ? updatedCat : c);
-      } else {
-        setIsSaving(false);
-        return;
+        const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+        await setDoc(catRef, sanitizedPayload, { merge: true });
       }
 
-      // 1. Instantly update UI and Cache so saving never hangs (applied to both desktop and mobile)
-      setCategories(optimisticCategories);
-      useCategoryStore.getState().setCategories(optimisticCategories);
-      try {
-        const json = JSON.stringify(optimisticCategories);
-        localStorage.setItem('viba_categories_cache', json);
-        localStorage.setItem('viba_cached_categories', json);
-      } catch (cacheErr) {
-        console.warn('Cache write notice:', cacheErr);
-      }
-
-      // 2. Immediately close modal & show success toast
       const entityLabel = modalType === 'subcategory' ? 'Subcategory' : modalType === 'nested' ? 'Nested Subcategory' : 'Category';
       toast.success(editingId ? `${entityLabel} updated successfully` : `${entityLabel} saved successfully`);
       setIsModalOpen(false);
-      setIsSaving(false);
-
-      // 3. Persist to Firestore asynchronously in background without blocking modal
-      (async () => {
-        try {
-          const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
-          await Promise.race([
-            setDoc(catRef, sanitizedPayload, { merge: true }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
-          ]);
-        } catch (dbErr) {
-          console.warn('Firestore write notice (cached locally):', dbErr);
-        }
-      })();
     } catch (error: any) {
       console.error('Error saving category/subcategory:', error);
       toast.error(error?.message ? `Failed to save: ${error.message}` : 'Failed to save');
+    } finally {
       setIsSaving(false);
     }
   };
@@ -466,27 +356,11 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
     try {
       if (type === 'category') {
-        const nextCats = categories.filter(c => c.id !== catId);
-        setCategories(nextCats);
-        useCategoryStore.getState().setCategories(nextCats);
-        try {
-          const json = JSON.stringify(nextCats);
-          localStorage.setItem('viba_categories_cache', json);
-          localStorage.setItem('viba_cached_categories', json);
-        } catch {}
         await deleteDoc(doc(db, 'categories', catId));
       } else if (type === 'subcategory' && subId) {
         const parentCat = categories.find(c => c.id === catId);
         if (parentCat) {
           const updatedSubs = (parentCat.subcategories || []).filter(s => s.id !== subId);
-          const nextCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
-          setCategories(nextCats);
-          useCategoryStore.getState().setCategories(nextCats);
-          try {
-            const json = JSON.stringify(nextCats);
-            localStorage.setItem('viba_categories_cache', json);
-            localStorage.setItem('viba_cached_categories', json);
-          } catch {}
           await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
         }
       } else if (type === 'nested' && subId && nestedId) {
@@ -498,14 +372,6 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
             }
             return sub;
           });
-          const nextCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
-          setCategories(nextCats);
-          useCategoryStore.getState().setCategories(nextCats);
-          try {
-            const json = JSON.stringify(nextCats);
-            localStorage.setItem('viba_categories_cache', json);
-            localStorage.setItem('viba_cached_categories', json);
-          } catch {}
           await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
         }
       }
@@ -606,28 +472,29 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     const newName = e.target.value;
     const slug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
+    // Auto-generate logo if adding new category and logo not manually chosen
+    let autoImage = formData.image;
+    let autoIcon = formData.icon;
+    if (!editingId && newName.length >= 3) {
+      const autoGen = generateCategoryLogo(newName, categories);
+      autoImage = autoGen.image;
+      autoIcon = autoGen.icon;
+    }
+
     if (modalType === 'category' && !editingId) {
-      let autoImage = formData.image;
-      let autoIcon = formData.icon;
-      // Only auto-generate if adding a new category and the user has not chosen/uploaded an image
-      if (!formData.image && newName.length >= 3) {
-        const autoGen = generateCategoryLogo(newName, categories);
-        autoImage = autoGen.image;
-        autoIcon = autoGen.icon;
-      }
       setFormData(prev => ({
         ...prev,
         name: newName,
         seoSlug: slug,
-        image: autoImage || prev.image,
-        icon: autoIcon || prev.icon,
+        image: autoImage,
+        icon: autoIcon,
       }));
     } else {
-      // For subcategories and nested subcategories:
-      // Never overwrite the user's uploaded or selected photo when typing the name
       setFormData(prev => ({
         ...prev,
         name: newName,
+        image: autoImage || prev.image,
+        icon: autoIcon || prev.icon,
       }));
     }
   };
@@ -765,7 +632,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                 {categories.map((category, index) => {
                   const isCatExpanded = expandedCats.includes(category.id);
                   return (
-                    <React.Fragment key={`${category.id}-${index}`}>
+                    <React.Fragment key={category.id}>
                       <div
                         draggable
                         onDragStart={(e) => handleDragStart(e, index)}
@@ -813,10 +680,10 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                       {/* Subcategories (Level 2) */}
                       {isCatExpanded && category.subcategories && category.subcategories.length > 0 && (
                         <div className="bg-gray-50/50 border-t border-b border-gray-100">
-                          {category.subcategories.map((sub, sIdx) => {
+                          {category.subcategories.map((sub) => {
                             const isSubExpanded = expandedSubs.includes(`${category.id}-${sub.id}`);
                             return (
-                              <React.Fragment key={`${category.id}-${sub.id || sIdx}-${sIdx}`}>
+                              <React.Fragment key={sub.id}>
                                 <div className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-gray-100/80 transition-colors pl-8 border-b border-gray-100/50 last:border-0">
                                   <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-4 h-4" /></div>
                                   <div className="col-span-1 flex items-center">
@@ -846,8 +713,8 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                                 {/* Nested Subcategories (Level 3) */}
                                 {isSubExpanded && sub.subcategories && sub.subcategories.length > 0 && (
                                   <div className="bg-indigo-50/30">
-                                    {sub.subcategories.map((nested, nIdx) => (
-                                      <div key={`${category.id}-${sub.id}-${nested.id || nIdx}-${nIdx}`} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-indigo-50/50 transition-colors pl-16 border-b border-gray-100/50 last:border-0">
+                                    {sub.subcategories.map(nested => (
+                                      <div key={nested.id} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-indigo-50/50 transition-colors pl-16 border-b border-gray-100/50 last:border-0">
                                         <div className="col-span-1 text-gray-300 flex justify-center"><CornerDownRight className="w-3 h-3" /></div>
                                         <div className="col-span-1 flex items-center">
                                           <CategoryLogo name={nested.name} image={nested.image} icon={nested.icon} size="sm" />

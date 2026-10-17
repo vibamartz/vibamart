@@ -812,9 +812,9 @@ export default function MobileProductListScreen() {
                   <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
                     isSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                   }`}>
-                    {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') || sub.image.length > 500) ? (
+                    {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                       <img
-                        src={sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') ? sub.image : `data:image/jpeg;base64,${sub.image}`}
+                        src={sub.image}
                         alt={sub.name}
                         className="w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}

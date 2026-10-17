@@ -633,14 +633,7 @@ function AdminDashboardContent() {
     }
   }, [loadingOrders, orders, hasShownPopup]);
 
-  const isDevAdmin = Boolean(
-    (import.meta as any).env?.DEV && (
-      localStorage.getItem('viba_admin_dev') === 'true' ||
-      (typeof window !== 'undefined' && window.location.search.includes('admin=true'))
-    )
-  );
-
-  if (!isDevAdmin && user?.role !== 'admin' && user?.role !== 'super_admin') {
+  if (user?.role !== 'admin' && user?.role !== 'super_admin') {
     return <Navigate to="/" />;
   }
 
@@ -881,7 +874,7 @@ function AdminDashboardContent() {
             </div>
 
             <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {user?.displayName?.[0] || user?.email?.[0] || 'A'}
+              {user.displayName?.[0] || user.email?.[0] || 'A'}
             </div>
           </div>
         </header>
@@ -934,7 +927,7 @@ function AdminDashboardContent() {
                       </div>
                     </div>
                     <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
+                      <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={dynamicSalesChartData}>
                           <defs>
                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -961,7 +954,7 @@ function AdminDashboardContent() {
                       </div>
                     </div>
                     <div className="h-[250px] w-full">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
+                      <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={dynamicCustomerInsightsData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />

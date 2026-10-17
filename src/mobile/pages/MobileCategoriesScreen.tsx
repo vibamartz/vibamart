@@ -293,9 +293,9 @@ export default function MobileCategoriesScreen() {
                             className="flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95 py-1"
                           >
                             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 mb-1.5">
-                              {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') || sub.image.length > 500) ? (
+                              {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                                 <img
-                                  src={sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') ? sub.image : `data:image/jpeg;base64,${sub.image}`}
+                                  src={sub.image}
                                   alt={sub.name}
                                   className="w-full h-full object-cover"
                                   onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}

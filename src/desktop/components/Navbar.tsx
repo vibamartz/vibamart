@@ -129,15 +129,11 @@ export default function Navbar() {
 
     const q = query(
       collection(db, 'user_notifications'),
-      where('userId', 'in', [user.uid, 'all'])
+      where('userId', 'in', [user.uid, 'all']),
+      orderBy('createdAt', 'desc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      notifs.sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis?.() || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : (a.createdAt || 0));
-        const timeB = b.createdAt?.toMillis?.() || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : (b.createdAt || 0));
-        return timeB - timeA;
-      });
       setNotifications(notifs);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'user_notifications', false);

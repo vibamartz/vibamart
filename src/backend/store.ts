@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, SubCategory, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory } from "../shared/types";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
@@ -138,28 +138,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           PushService.handleLogout(lastUid);
         }
         localStorage.removeItem("viba_last_uid");
-        if (
-          (import.meta as any).env?.DEV &&
-          (localStorage.getItem('viba_admin_dev') === 'true' ||
-           (typeof window !== 'undefined' && window.location.search.includes('admin=true')))
-        ) {
-          set({
-            user: {
-              uid: 'DRGbTDsvrxQXUeMKCeG4MI2dUgP2',
-              email: 'vk311779@gmail.com',
-              displayName: 'Admin',
-              role: 'admin',
-              isVerified: true,
-              accountStatus: 'active',
-              createdAt: new Date().toISOString(),
-            },
-            orderedProductIds: [],
-            loading: false
-          });
-        } else {
-          useCartStore.getState().setUid(null);
-          set({ user: null, orderedProductIds: [], loading: false });
-        }
+        useCartStore.getState().setUid(null);
+        set({ user: null, orderedProductIds: [], loading: false });
       }
     });
   },
@@ -390,16 +370,14 @@ interface CategoryState {
   categories: Category[];
   loading: boolean;
   initCategories: () => void;
-  setCategories: (categories: Category[]) => void;
 }
 
 const CACHED_CATEGORIES_KEY = 'viba_cached_categories';
-const SECONDARY_CATEGORIES_KEY = 'viba_categories_cache';
 
 const getInitialCategories = (): Category[] => {
   if (typeof window !== 'undefined') {
     try {
-      const cached = localStorage.getItem(CACHED_CATEGORIES_KEY) || localStorage.getItem(SECONDARY_CATEGORIES_KEY);
+      const cached = localStorage.getItem(CACHED_CATEGORIES_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -420,18 +398,6 @@ export const useCategoryStore = create<CategoryState>((set) => {
   return {
     categories: initial,
     loading: initial.length === 0,
-    setCategories: (categories: Category[]) => {
-      if (typeof window !== 'undefined') {
-        try {
-          const json = JSON.stringify(categories);
-          localStorage.setItem(CACHED_CATEGORIES_KEY, json);
-          localStorage.setItem(SECONDARY_CATEGORIES_KEY, json);
-        } catch (e) {
-          console.warn('Failed to cache categories to localStorage:', e);
-        }
-      }
-      set({ categories });
-    },
     initCategories: () => {
       const q = collection(db, 'categories');
       onSnapshot(q, (snapshot) => {
@@ -450,61 +416,15 @@ export const useCategoryStore = create<CategoryState>((set) => {
             return catData;
           });
 
-          // Merge local cache to ensure newly added/edited subcategories and photos are preserved across both desktop and mobile
-          let mergedCats = fetchedCategories;
+          fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
           if (typeof window !== 'undefined') {
             try {
-              const cached = localStorage.getItem(CACHED_CATEGORIES_KEY) || localStorage.getItem(SECONDARY_CATEGORIES_KEY);
-              if (cached) {
-                const parsed: Category[] = JSON.parse(cached);
-                mergedCats = fetchedCategories.map(remoteCat => {
-                  const localCat = parsed.find(l => l.id === remoteCat.id);
-                  if (!localCat) return remoteCat;
-                  const subsMap = new Map<string, SubCategory>();
-                  (remoteCat.subcategories || []).forEach(s => subsMap.set(s.id, s));
-                  (localCat.subcategories || []).forEach(localSub => {
-                    const existing = subsMap.get(localSub.id);
-                    if (!existing) {
-                      subsMap.set(localSub.id, localSub);
-                    } else {
-                      subsMap.set(localSub.id, {
-                        ...existing,
-                        ...localSub,
-                        image: localSub.image || existing.image || '',
-                        icon: localSub.icon || existing.icon || '',
-                      });
-                    }
-                  });
-                  return {
-                    ...remoteCat,
-                    ...localCat,
-                    image: remoteCat.image || localCat.image || '',
-                    subcategories: Array.from(subsMap.values())
-                  };
-                });
-
-                parsed.forEach(localCat => {
-                  if (!mergedCats.some(c => c.id === localCat.id)) {
-                    mergedCats.push(localCat);
-                  }
-                });
-              }
-            } catch (err) {
-              console.warn('Cache merge error in useCategoryStore:', err);
-            }
-          }
-
-          mergedCats.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-          if (typeof window !== 'undefined') {
-            try {
-              const json = JSON.stringify(mergedCats);
-              localStorage.setItem(CACHED_CATEGORIES_KEY, json);
-              localStorage.setItem(SECONDARY_CATEGORIES_KEY, json);
+              localStorage.setItem(CACHED_CATEGORIES_KEY, JSON.stringify(fetchedCategories));
             } catch (e) {
               console.warn('Failed to cache categories to localStorage:', e);
             }
           }
-          set({ categories: mergedCats, loading: false });
+          set({ categories: fetchedCategories, loading: false });
         } else {
           set({ categories: [], loading: false });
         }

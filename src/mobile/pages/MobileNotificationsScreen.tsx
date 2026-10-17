@@ -27,15 +27,11 @@ export default function MobileNotificationsScreen() {
 
     const q = query(
       collection(db, 'user_notifications'),
-      where('userId', 'in', [user.uid, 'all'])
+      where('userId', 'in', [user.uid, 'all']),
+      orderBy('createdAt', 'desc')
     );
     const unsub = onSnapshot(q, (snap) => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomerNotification));
-      docs.sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis?.() || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : (a.createdAt || 0));
-        const timeB = b.createdAt?.toMillis?.() || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : (b.createdAt || 0));
-        return timeB - timeA;
-      });
       setNotifications(docs);
     });
     return () => unsub();

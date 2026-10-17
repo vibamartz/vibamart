@@ -137,7 +137,7 @@ export default function CategoryLogo({
     Boolean(image) &&
     !hasError &&
     !image?.includes('cdn.vibamart.com') &&
-    (image?.startsWith('http') || image?.startsWith('data:') || image?.startsWith('/') || (Boolean(image) && (image?.length || 0) > 500));
+    (image?.startsWith('http') || image?.startsWith('data:') || image?.startsWith('/'));
 
   // Dimension mappings matching Category UI specifications with enlarged subcategory and category visual sizing
   const sizeMap = {
@@ -171,17 +171,13 @@ export default function CategoryLogo({
     ? 'bg-emerald-600 text-white shadow-md scale-105 ring-2 ring-emerald-500/20'
     : 'bg-emerald-50/60 border border-yellow-200/90 shadow-xs hover:border-emerald-300 hover:shadow-sm';
 
-  const imageSrc = image && (image.startsWith('http') || image.startsWith('data:') || image.startsWith('/'))
-    ? image
-    : (image ? `data:image/jpeg;base64,${image}` : '');
-
   return (
     <div className="flex flex-col items-center justify-center text-center">
       <div className={`${baseStyle} ${activeStyle} ${className}`}>
         <div className="flex items-center justify-center w-full h-full">
-          {isValidImage && imageSrc ? (
+          {isValidImage ? (
             <img
-              src={imageSrc}
+              src={image}
               alt={name}
               className="w-full h-full object-cover"
               onError={() => setHasError(true)}
