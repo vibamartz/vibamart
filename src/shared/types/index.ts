@@ -297,6 +297,7 @@ export interface SubCategory {
   order?: number;
   isActive?: boolean;
   isVisible?: boolean;
+  updatedAt?: number;
   subcategories?: SubCategory[]; // Recursive subcategories
 }
 
