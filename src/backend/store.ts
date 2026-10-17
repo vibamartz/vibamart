@@ -139,7 +139,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
         localStorage.removeItem("viba_last_uid");
         if (
-          import.meta.env.DEV &&
+          (import.meta as any).env?.DEV &&
           (localStorage.getItem('viba_admin_dev') === 'true' ||
            (typeof window !== 'undefined' && window.location.search.includes('admin=true')))
         ) {
@@ -152,7 +152,6 @@ export const useAuthStore = create<AuthState>((set) => ({
               isVerified: true,
               accountStatus: 'active',
               createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
             },
             orderedProductIds: [],
             loading: false
