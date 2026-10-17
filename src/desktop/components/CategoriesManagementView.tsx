@@ -164,10 +164,9 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     setActiveParentCatId(catId);
     setActiveSubCatId(subId);
     setEditingId(data.id);
-    const existingImg = data.image && !data.image.includes('cdn.vibamart.com') ? data.image : '';
     setFormData({
       name: data.name || '',
-      image: existingImg,
+      image: data.image || '',
       icon: data.icon || '',
       seoSlug: data.seoSlug || '',
       seoTitle: data.seoTitle || '',
@@ -180,30 +179,21 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file (JPG, PNG, WEBP, GIF, SVG, AVIF)');
-        e.target.value = '';
-        return;
-      }
       if (file.size > 10 * 1024 * 1024) { // 10MB max
         toast.error('File size exceeds 10 MB limit');
-        e.target.value = '';
         return;
       }
       const reader = new FileReader();
       reader.onloadend = async () => {
         const rawResult = reader.result as string;
         try {
-          const compressed = await compressDataUrl(rawResult, 800, 800, 0.85);
+          const compressed = await compressDataUrl(rawResult, 600, 600, 0.8);
           setFormData(prev => ({ ...prev, image: compressed }));
-          toast.success('Photo selected! Click Save to apply.');
         } catch {
           setFormData(prev => ({ ...prev, image: rawResult }));
-          toast.success('Photo selected! Click Save to apply.');
         }
       };
       reader.readAsDataURL(file);
-      e.target.value = '';
     }
   };
 
@@ -340,8 +330,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         await setDoc(catRef, sanitizedPayload, { merge: true });
       }
 
-      const entityLabel = modalType === 'subcategory' ? 'Subcategory' : modalType === 'nested' ? 'Nested Subcategory' : 'Category';
-      toast.success(editingId ? `${entityLabel} updated successfully` : `${entityLabel} saved successfully`);
+      toast.success('Saved successfully');
       setIsModalOpen(false);
     } catch (error: any) {
       console.error('Error saving category/subcategory:', error);
@@ -824,9 +813,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                       {/* Image & Logo Upload */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="text-sm font-bold text-gray-700">
-                            {modalType === 'subcategory' ? 'Subcategory Photo / Logo' : modalType === 'nested' ? 'Nested Subcategory Photo / Logo' : 'Category Logo / Image'}
-                          </label>
+                          <label className="text-sm font-bold text-gray-700">Category Logo / Image</label>
                           <button
                             type="button"
                             onClick={() => handleAutoGenerateLogo()}
@@ -838,38 +825,20 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                         <div className="flex items-start gap-6">
                           <div className="shrink-0">
                             {formData.image ? (
-                              <div className="flex flex-col items-center gap-2">
-                                <div className="relative group">
-                                  <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl sm:rounded-3xl flex items-center justify-center gap-2">
-                                    <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-md" title="Upload Custom Photo">
-                                      <Edit2 className="w-4 h-4 text-gray-900" />
-                                      <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAutoGenerateLogo()}
-                                      className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600 shadow-md"
-                                      title="Auto-Regenerate Unique Logo"
-                                    >
-                                      <Wand2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <label className="cursor-pointer text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-indigo-200">
-                                    <Edit2 className="w-3 h-3" />
-                                    <span>Replace</span>
+                              <div className="relative group">
+                                <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
+                                  <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors" title="Upload Custom Logo">
+                                    <Edit2 className="w-4 h-4 text-gray-900" />
                                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                                   </label>
                                   <button
                                     type="button"
-                                    onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                                    className="text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-rose-200"
-                                    title="Remove Photo"
+                                    onClick={() => handleAutoGenerateLogo()}
+                                    className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600"
+                                    title="Auto-Regenerate Unique Logo"
                                   >
-                                    <X className="w-3 h-3" />
-                                    <span>Remove</span>
+                                    <Wand2 className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -892,24 +861,22 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                             )}
                           </div>
                           <div className="flex-1 text-sm text-gray-500 bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
-                            <p className="font-bold text-emerald-900 mb-1">Photo & Logo Guidelines</p>
+                            <p className="font-bold text-emerald-900 mb-1">Logo Guidelines</p>
                             <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
-                              <li>Upload custom photo (JPG, PNG, WEBP) up to 10 MB.</li>
+                              <li>Auto-generate selects a unique logo tailored to category name.</li>
                               <li>Guarantees visual consistency across Mobile and Desktop.</li>
-                              <li>You can edit, replace, remove, or provide an image URL below.</li>
+                              <li>You can edit, upload custom image files, or provide an image link below.</li>
                             </ul>
                           </div>
                         </div>
 
                         <div className="mt-3">
-                          <label className="text-xs font-bold text-gray-700 block mb-1">
-                            {modalType === 'subcategory' ? 'Subcategory Photo URL / Image Link' : modalType === 'nested' ? 'Nested Subcategory Photo URL' : 'Icon Image URL / Icon Link'}
-                          </label>
+                          <label className="text-xs font-bold text-gray-700 block mb-1">Icon Image URL / Icon Link</label>
                           <input
                             type="text"
                             value={formData.image || ''}
                             onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                            placeholder="https://example.com/photo.webp or image link"
+                            placeholder="https://example.com/icon.png or image link"
                             className="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-mono"
                           />
                         </div>

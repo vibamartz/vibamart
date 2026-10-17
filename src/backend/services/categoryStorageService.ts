@@ -99,16 +99,6 @@ export async function compressDataUrl(
  * - Generates a short clean permanent URL.
  * - Preserves existing valid HTTP/HTTPS URLs without duplication.
  */
-/**
- * Uploads a Category, Subcategory, or Nested Subcategory image to Storage
- * and returns a permanent, accessible image URL or compressed data URL.
- *
- * Rules:
- * - Keeps original uploaded image quality unchanged.
- * - Uploads to Firebase Storage and returns the permanent downloadable URL.
- * - Falls back to compressed high-quality data URL if Storage is offline/unavailable.
- * - Preserves existing valid HTTP/HTTPS URLs without duplication.
- */
 export async function uploadCategoryImageToStorage(
   imageInput: string | File | Blob | null | undefined,
   folderPath: string = 'categories',
@@ -117,13 +107,8 @@ export async function uploadCategoryImageToStorage(
   if (!imageInput) return '';
 
   // 1. Existing HTTP/HTTPS URLs require no re-upload
-  if (typeof imageInput === 'string') {
-    const trimmed = imageInput.trim();
-    if (trimmed.includes('cdn.vibamart.com')) {
-      // Discard dead cdn.vibamart.com links
-    } else if (isExistingUrl(trimmed)) {
-      return trimmed;
-    }
+  if (typeof imageInput === 'string' && isExistingUrl(imageInput)) {
+    return imageInput;
   }
 
   // 2. Derive target folder name
@@ -140,7 +125,7 @@ export async function uploadCategoryImageToStorage(
 
 /**
  * Recursively scans a category document and its subcategories,
- * uploading images to Firebase Storage with permanent URLs (or compressed data URLs),
+ * uploading images to Firebase Storage with SHORT clean URLs,
  * and stripping out embedded product arrays to keep Firestore documents clean.
  */
 export async function sanitizeAndUploadCategoryDoc(
@@ -161,10 +146,7 @@ export async function sanitizeAndUploadCategoryDoc(
   // 2. Process root category image fields
   if (isBase64OrDataUrl(cleaned.image)) {
     cleaned.image = await uploadCategoryImageToStorage(cleaned.image, 'categories', catName);
-  } else if (typeof cleaned.image === 'string' && cleaned.image.includes('cdn.vibamart.com')) {
-    cleaned.image = '';
   }
-
   if (isBase64OrDataUrl(cleaned.icon)) {
     cleaned.icon = await uploadCategoryImageToStorage(cleaned.icon, 'categories', `${catName}-icon`);
   }
@@ -186,10 +168,7 @@ export async function sanitizeAndUploadCategoryDoc(
         const subName = subClean.name || 'subcategory';
         if (isBase64OrDataUrl(subClean.image)) {
           subClean.image = await uploadCategoryImageToStorage(subClean.image, 'subcategories', subName);
-        } else if (typeof subClean.image === 'string' && subClean.image.includes('cdn.vibamart.com')) {
-          subClean.image = '';
         }
-
         if (isBase64OrDataUrl(subClean.icon)) {
           subClean.icon = await uploadCategoryImageToStorage(subClean.icon, 'subcategories', `${subName}-icon`);
         }
@@ -204,10 +183,7 @@ export async function sanitizeAndUploadCategoryDoc(
               const nestedName = nestedClean.name || 'nested-subcategory';
               if (isBase64OrDataUrl(nestedClean.image)) {
                 nestedClean.image = await uploadCategoryImageToStorage(nestedClean.image, 'subcategories', nestedName);
-              } else if (typeof nestedClean.image === 'string' && nestedClean.image.includes('cdn.vibamart.com')) {
-                nestedClean.image = '';
               }
-
               if (isBase64OrDataUrl(nestedClean.icon)) {
                 nestedClean.icon = await uploadCategoryImageToStorage(nestedClean.icon, 'subcategories', `${nestedName}-icon`);
               }
@@ -231,7 +207,7 @@ export async function sanitizeAndUploadCategoryDoc(
 const migratedCategoryIds = new Set<string>();
 
 /**
- * Migrates existing category Firestore document if it contains base64 image strings or dead cdn URLs.
+ * Migrates existing category Firestore document if it contains base64 image strings.
  */
 export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Category> {
   if (migratedCategoryIds.has(catDoc.id)) {
@@ -239,20 +215,17 @@ export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Cate
   }
 
   const hasEmbeddedProducts = (catDoc as any).products !== undefined || (catDoc as any).productItems !== undefined;
-  const hasBrokenCdn = (s?: string) => typeof s === 'string' && s.includes('cdn.vibamart.com');
 
   const needsMigration = 
     hasEmbeddedProducts ||
     isBase64OrDataUrl(catDoc.image) ||
-    hasBrokenCdn(catDoc.image) ||
     isBase64OrDataUrl(catDoc.icon) ||
     isBase64OrDataUrl(catDoc.iconImage) ||
     isBase64OrDataUrl((catDoc as any).banner) ||
     (catDoc.subcategories || []).some(sub => 
       isBase64OrDataUrl(sub.image) || 
-      hasBrokenCdn(sub.image) ||
       isBase64OrDataUrl(sub.icon) ||
-      (sub.subcategories || []).some(n => isBase64OrDataUrl(n.image) || hasBrokenCdn(n.image) || isBase64OrDataUrl(n.icon))
+      (sub.subcategories || []).some(n => isBase64OrDataUrl(n.image) || isBase64OrDataUrl(n.icon))
     );
 
   if (!needsMigration) {
@@ -260,7 +233,7 @@ export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Cate
   }
 
   migratedCategoryIds.add(catDoc.id);
-  console.log(`Migrating category document ${catDoc.id} to valid Storage URLs...`);
+  console.log(`Migrating category document ${catDoc.id} to clean Storage URLs...`);
   try {
     const sanitized = await sanitizeAndUploadCategoryDoc(catDoc);
     const catRef = doc(db, 'categories', catDoc.id);

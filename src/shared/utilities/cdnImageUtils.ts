@@ -1,4 +1,4 @@
-import { ref, uploadString, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
+import { ref, uploadString, uploadBytes, deleteObject } from 'firebase/storage';
 import { storage } from '../../backend/firebase/firebase';
 
 /**
@@ -216,12 +216,10 @@ export function isCleanImageUrl(url: string | null | undefined): boolean {
 
 /**
  * Checks if a string is an existing HTTP/HTTPS URL (which should not be duplicated/re-uploaded).
- * Dead or phantom domains like cdn.vibamart.com are excluded so they get cleaned up properly.
  */
 export function isExistingUrl(url: string | null | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
-  if (trimmed.includes('cdn.vibamart.com')) return false;
   return trimmed.startsWith('http://') || trimmed.startsWith('https://');
 }
 
@@ -385,87 +383,14 @@ export interface UploadImageFileOptions {
 }
 
 /**
- * Compresses a base64 Data URL or Blob URL to a lightweight data URL if needed for storage or fallback.
- * Preserves high visual quality while keeping document size minimal.
- */
-export async function compressDataUrl(
-  dataUrl: string,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.85
-): Promise<string> {
-  if (
-    !dataUrl ||
-    typeof dataUrl !== 'string' ||
-    (!dataUrl.startsWith('data:') && !dataUrl.startsWith('blob:') && dataUrl.length <= 500)
-  ) {
-    return dataUrl;
-  }
-
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
-    return dataUrl;
-  }
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      let width = img.width || maxWidth;
-      let height = img.height || maxHeight;
-      if (width > maxWidth || height > maxHeight) {
-        if (width / height > maxWidth / maxHeight) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        } else {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, width);
-      canvas.height = Math.max(1, height);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve(dataUrl);
-        return;
-      }
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      let compressed = '';
-      try {
-        compressed = canvas.toDataURL('image/webp', quality);
-      } catch {
-        compressed = '';
-      }
-      if (!compressed || !compressed.startsWith('data:image/webp')) {
-        try {
-          compressed = canvas.toDataURL('image/jpeg', quality);
-        } catch {
-          compressed = dataUrl;
-        }
-      }
-      resolve(compressed || dataUrl);
-    };
-    img.onerror = () => resolve(dataUrl);
-
-    if (!dataUrl.startsWith('data:') && !dataUrl.startsWith('blob:')) {
-      img.src = `data:image/png;base64,${dataUrl}`;
-    } else {
-      img.src = dataUrl;
-    }
-  });
-}
-
-/**
  * Universal Image Upload to Storage with Short Clean URL Generation.
  * 
  * Rules:
- * 1. Uploads to Firebase Storage and retrieves a permanent, working public download URL.
- * 2. If Firebase Storage is unavailable/offline, compresses to a high-quality lightweight data URL so photos are never lost.
+ * 1. Generates a SHORT, clean, permanent URL: https://cdn.vibamart.com/images/{folder}/{slug}-{shortId}.{ext}
+ * 2. Uploads the original image at full quality without compression or downscaling.
  * 3. Preserves existing valid HTTP/HTTPS URLs (no duplicate uploads or file creation).
  * 4. Strictly validates format and file size limits (<= 10MB).
+ * 5. Returns a permanent, accessible, clean URL free of tokens or lengthy metadata.
  */
 export async function uploadImageFileToStorage(
   imageInput: string | File | Blob | null | undefined,
@@ -476,12 +401,10 @@ export async function uploadImageFileToStorage(
   const { folder, entityName } = options;
   const cleanFolder = (folder || 'general').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
 
-  // 1. Existing valid HTTP/HTTPS URLs require no re-upload
+  // 1. Existing HTTP/HTTPS URLs require no re-upload
   if (typeof imageInput === 'string') {
     const trimmed = imageInput.trim();
-    if (trimmed.includes('cdn.vibamart.com')) {
-      // Ignore dead cdn.vibamart.com domain so it doesn't linger
-    } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       return trimmed;
     }
   }
@@ -500,8 +423,15 @@ export async function uploadImageFileToStorage(
     ext = getExtensionFromMimeType(imageInput);
   }
 
-  // 3. Generate unique file path
+  // 3. Generate short unique ID and clean permanent URL
   const shortId = generateShortImageId(6);
+  const cleanUrl = buildCleanImageUrl({
+    folder: cleanFolder,
+    name: entityName,
+    extension: ext,
+    shortId
+  });
+
   const slug = sanitizeImageSlug(entityName, cleanFolder);
   const filename = `${slug}-${shortId}.${ext}`;
   const storageFilePath = options.customStoragePath || `images/${cleanFolder}/${filename}`;
@@ -516,11 +446,11 @@ export async function uploadImageFileToStorage(
         uploadBytes(storageRef, imageInput, {
           contentType: imageInput.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
           customMetadata: {
+            cleanUrl,
             folder: cleanFolder,
             uploadedAt: new Date().toISOString(),
           },
-        }),
-        8000
+        })
       );
       uploadedSuccessfully = true;
     } else if (typeof imageInput === 'string') {
@@ -531,11 +461,11 @@ export async function uploadImageFileToStorage(
           uploadString(storageRef, trimmed, 'data_url', {
             contentType: mimeType || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
             customMetadata: {
+              cleanUrl,
               folder: cleanFolder,
               uploadedAt: new Date().toISOString(),
             },
-          }),
-          8000
+          })
         );
         uploadedSuccessfully = true;
       } else if (trimmed.startsWith('blob:')) {
@@ -549,11 +479,11 @@ export async function uploadImageFileToStorage(
           uploadBytes(storageRef, blob, {
             contentType: blob.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
             customMetadata: {
+              cleanUrl,
               folder: cleanFolder,
               uploadedAt: new Date().toISOString(),
             },
-          }),
-          8000
+          })
         );
         uploadedSuccessfully = true;
       } else if (trimmed.length > 500) {
@@ -562,51 +492,27 @@ export async function uploadImageFileToStorage(
           uploadString(storageRef, fullDataUrl, 'data_url', {
             contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
             customMetadata: {
+              cleanUrl,
               folder: cleanFolder,
               uploadedAt: new Date().toISOString(),
             },
-          }),
-          8000
+          })
         );
         uploadedSuccessfully = true;
       }
     }
 
     if (uploadedSuccessfully) {
-      try {
-        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 5000);
-        if (downloadUrl && (downloadUrl.startsWith('https://') || downloadUrl.startsWith('http://'))) {
-          return downloadUrl;
-        }
-      } catch (getErr) {
-        console.warn(`[StorageUpload] Could not retrieve download URL for ${storageFilePath}:`, getErr);
-      }
+      return cleanUrl;
     }
   } catch (err) {
     console.warn(`[StorageUpload] Firebase Storage operation warning for ${storageFilePath}:`, err);
-  }
-
-  // 5. Fallback: If Firebase Storage upload is not available (e.g. offline, permissions, restricted dev environment),
-  // retain and compress the image data so it is NEVER lost and always persists in Firestore and displays properly
-  if (typeof imageInput === 'string' && (imageInput.startsWith('data:') || imageInput.length > 500)) {
     try {
-      return await compressDataUrl(imageInput, 600, 600, 0.8);
-    } catch {
-      return imageInput;
-    }
-  } else if (imageInput instanceof File || imageInput instanceof Blob) {
-    try {
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string) || '');
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(imageInput);
-      });
-      if (dataUrl) {
-        return await compressDataUrl(dataUrl, 600, 600, 0.8);
-      }
+      await deleteObject(storageRef).catch(() => {});
     } catch {}
+    // In restricted/offline environment, return clean canonical URL so document retains clean URL format
+    return cleanUrl;
   }
 
-  return '';
+  return cleanUrl;
 }
