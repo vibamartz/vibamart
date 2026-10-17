@@ -10,7 +10,7 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
-import { useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import VisualNestedSubcategoriesAdminView from './VisualNestedSubcategoriesAdminView';
 
@@ -58,7 +58,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   useEffect(() => {
     // 1. Instantly load categories from local cache if present
     try {
-      const cached = localStorage.getItem('viba_categories_cache');
+      const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -78,7 +78,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       // Merge local cache to ensure newly added subcategories/photos are never dropped
       let mergedCats = catsData;
       try {
-        const cached = localStorage.getItem('viba_categories_cache');
+        const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
         if (cached) {
           const parsed: Category[] = JSON.parse(cached);
           mergedCats = catsData.map(remoteCat => {
@@ -425,10 +425,13 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         return;
       }
 
-      // 1. Instantly update UI and Cache so saving never hangs
+      // 1. Instantly update UI and Cache so saving never hangs (applied to both desktop and mobile)
       setCategories(optimisticCategories);
+      useCategoryStore.getState().setCategories(optimisticCategories);
       try {
-        localStorage.setItem('viba_categories_cache', JSON.stringify(optimisticCategories));
+        const json = JSON.stringify(optimisticCategories);
+        localStorage.setItem('viba_categories_cache', json);
+        localStorage.setItem('viba_cached_categories', json);
       } catch (cacheErr) {
         console.warn('Cache write notice:', cacheErr);
       }
@@ -465,7 +468,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       if (type === 'category') {
         const nextCats = categories.filter(c => c.id !== catId);
         setCategories(nextCats);
-        try { localStorage.setItem('viba_categories_cache', JSON.stringify(nextCats)); } catch {}
+        useCategoryStore.getState().setCategories(nextCats);
+        try {
+          const json = JSON.stringify(nextCats);
+          localStorage.setItem('viba_categories_cache', json);
+          localStorage.setItem('viba_cached_categories', json);
+        } catch {}
         await deleteDoc(doc(db, 'categories', catId));
       } else if (type === 'subcategory' && subId) {
         const parentCat = categories.find(c => c.id === catId);
@@ -473,7 +481,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
           const updatedSubs = (parentCat.subcategories || []).filter(s => s.id !== subId);
           const nextCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
           setCategories(nextCats);
-          try { localStorage.setItem('viba_categories_cache', JSON.stringify(nextCats)); } catch {}
+          useCategoryStore.getState().setCategories(nextCats);
+          try {
+            const json = JSON.stringify(nextCats);
+            localStorage.setItem('viba_categories_cache', json);
+            localStorage.setItem('viba_cached_categories', json);
+          } catch {}
           await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
         }
       } else if (type === 'nested' && subId && nestedId) {
@@ -487,7 +500,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
           });
           const nextCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
           setCategories(nextCats);
-          try { localStorage.setItem('viba_categories_cache', JSON.stringify(nextCats)); } catch {}
+          useCategoryStore.getState().setCategories(nextCats);
+          try {
+            const json = JSON.stringify(nextCats);
+            localStorage.setItem('viba_categories_cache', json);
+            localStorage.setItem('viba_cached_categories', json);
+          } catch {}
           await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
         }
       }

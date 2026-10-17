@@ -889,9 +889,9 @@ export default function MobileHomepage() {
                     className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-all w-20 cursor-pointer"
                   >
                     <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50">
-                      {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
+                      {sub.image && !sub.image.includes('cdn.vibamart.com') && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') || sub.image.length > 500) ? (
                         <img
-                          src={sub.image}
+                          src={sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/') ? sub.image : `data:image/jpeg;base64,${sub.image}`}
                           alt={sub.name}
                           className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
