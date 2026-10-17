@@ -881,7 +881,7 @@ function AdminDashboardContent() {
             </div>
 
             <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs shrink-0">
-              {user.displayName?.[0] || user.email?.[0] || 'A'}
+              {user?.displayName?.[0] || user?.email?.[0] || 'A'}
             </div>
           </div>
         </header>
