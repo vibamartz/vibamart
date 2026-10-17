@@ -450,7 +450,9 @@ export const useCategoryStore = create<CategoryState>((set) => {
             return catData;
           });
 
-          // Merge local cache to ensure newly added/edited subcategories and photos are preserved across both desktop and mobile
+          // Merge local cache to ensure newly added/edited subcategories and photos are preserved across both desktop and mobile.
+          // IMPORTANT: Remote (Firestore) image data takes priority over local cache so that uploaded Firebase Storage URLs
+          // are never overwritten by stale base64 images stored in the local cache.
           let mergedCats = fetchedCategories;
           if (typeof window !== 'undefined') {
             try {
@@ -460,25 +462,63 @@ export const useCategoryStore = create<CategoryState>((set) => {
                 mergedCats = fetchedCategories.map(remoteCat => {
                   const localCat = parsed.find(l => l.id === remoteCat.id);
                   if (!localCat) return remoteCat;
+
+                  // Helper: prefer a valid non-cdn remote URL over local, otherwise fall back to local
+                  const pickImage = (remote?: string, local?: string): string => {
+                    const remoteClean = remote && !remote.includes('cdn.vibamart.com') && (remote.startsWith('http') || remote.startsWith('data:') || remote.startsWith('/')) ? remote : '';
+                    const localClean = local && !local.includes('cdn.vibamart.com') ? local : '';
+                    return remoteClean || localClean || '';
+                  };
+
                   const subsMap = new Map<string, SubCategory>();
                   (remoteCat.subcategories || []).forEach(s => subsMap.set(s.id, s));
                   (localCat.subcategories || []).forEach(localSub => {
-                    const existing = subsMap.get(localSub.id);
-                    if (!existing) {
+                    const remoteSub = subsMap.get(localSub.id);
+                    if (!remoteSub) {
+                      // New local-only subcategory (not yet synced to Firestore)
                       subsMap.set(localSub.id, localSub);
                     } else {
+                      // Merge: local data for non-image fields, remote wins for images
+                      const mergedNestedSubs: SubCategory[] = [];
+                      const remoteNestedMap = new Map<string, SubCategory>();
+                      (remoteSub.subcategories || []).forEach(n => remoteNestedMap.set(n.id, n));
+                      (localSub.subcategories || []).forEach(localNested => {
+                        const remoteNested = remoteNestedMap.get(localNested.id);
+                        if (!remoteNested) {
+                          mergedNestedSubs.push(localNested);
+                        } else {
+                          mergedNestedSubs.push({
+                            ...localNested,
+                            ...remoteNested,
+                            image: pickImage(remoteNested.image, localNested.image),
+                            icon: remoteNested.icon || localNested.icon || '',
+                          });
+                          remoteNestedMap.delete(localNested.id);
+                        }
+                      });
+                      remoteNestedMap.forEach(n => mergedNestedSubs.push(n));
+
                       subsMap.set(localSub.id, {
-                        ...existing,
                         ...localSub,
-                        image: localSub.image || existing.image || '',
-                        icon: localSub.icon || existing.icon || '',
+                        ...remoteSub,
+                        image: pickImage(remoteSub.image, localSub.image),
+                        icon: remoteSub.icon || localSub.icon || '',
+                        subcategories: mergedNestedSubs.length > 0 ? mergedNestedSubs : (remoteSub.subcategories || localSub.subcategories || []),
                       });
                     }
                   });
+                  // Add any remote-only subcategories not in local cache
+                  (remoteCat.subcategories || []).forEach(remoteSub => {
+                    if (!subsMap.has(remoteSub.id)) {
+                      subsMap.set(remoteSub.id, remoteSub);
+                    }
+                  });
+
                   return {
-                    ...remoteCat,
                     ...localCat,
-                    image: remoteCat.image || localCat.image || '',
+                    ...remoteCat,
+                    image: pickImage(remoteCat.image, localCat.image),
+                    icon: remoteCat.icon || localCat.icon || '',
                     subcategories: Array.from(subsMap.values())
                   };
                 });

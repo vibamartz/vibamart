@@ -75,34 +75,71 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         ...doc.data()
       } as Category));
 
-      // Merge local cache to ensure newly added subcategories/photos are never dropped
+      // Merge local cache to ensure newly added subcategories/photos are never dropped.
+      // IMPORTANT: Remote (Firestore) image URLs take priority over local cache so uploaded Firebase Storage URLs
+      // are never overwritten by stale base64 images.
       let mergedCats = catsData;
       try {
         const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
         if (cached) {
           const parsed: Category[] = JSON.parse(cached);
+
+          // Helper: prefer a valid non-cdn remote URL, fallback to local
+          const pickImage = (remote?: string, local?: string): string => {
+            const remoteClean = remote && !remote.includes('cdn.vibamart.com') && (remote.startsWith('http') || remote.startsWith('data:') || remote.startsWith('/')) ? remote : '';
+            const localClean = local && !local.includes('cdn.vibamart.com') ? local : '';
+            return remoteClean || localClean || '';
+          };
+
           mergedCats = catsData.map(remoteCat => {
             const localCat = parsed.find(l => l.id === remoteCat.id);
             if (!localCat) return remoteCat;
             const subsMap = new Map<string, SubCategory>();
             (remoteCat.subcategories || []).forEach(s => subsMap.set(s.id, s));
             (localCat.subcategories || []).forEach(localSub => {
-              const existing = subsMap.get(localSub.id);
-              if (!existing) {
+              const remoteSub = subsMap.get(localSub.id);
+              if (!remoteSub) {
                 subsMap.set(localSub.id, localSub);
               } else {
+                const mergedNestedSubs: SubCategory[] = [];
+                const remoteNestedMap = new Map<string, SubCategory>();
+                (remoteSub.subcategories || []).forEach(n => remoteNestedMap.set(n.id, n));
+                (localSub.subcategories || []).forEach(localNested => {
+                  const remoteNested = remoteNestedMap.get(localNested.id);
+                  if (!remoteNested) {
+                    mergedNestedSubs.push(localNested);
+                  } else {
+                    mergedNestedSubs.push({
+                      ...localNested,
+                      ...remoteNested,
+                      image: pickImage(remoteNested.image, localNested.image),
+                      icon: remoteNested.icon || localNested.icon || '',
+                    });
+                    remoteNestedMap.delete(localNested.id);
+                  }
+                });
+                remoteNestedMap.forEach(n => mergedNestedSubs.push(n));
+
                 subsMap.set(localSub.id, {
-                  ...existing,
                   ...localSub,
-                  image: localSub.image || existing.image || '',
-                  icon: localSub.icon || existing.icon || '',
+                  ...remoteSub,
+                  image: pickImage(remoteSub.image, localSub.image),
+                  icon: remoteSub.icon || localSub.icon || '',
+                  subcategories: mergedNestedSubs.length > 0 ? mergedNestedSubs : (remoteSub.subcategories || localSub.subcategories || []),
                 });
               }
             });
+            // Add any remote-only subcategories not in local cache
+            (remoteCat.subcategories || []).forEach(remoteSub => {
+              if (!subsMap.has(remoteSub.id)) {
+                subsMap.set(remoteSub.id, remoteSub);
+              }
+            });
             return {
-              ...remoteCat,
               ...localCat,
-              image: remoteCat.image || localCat.image || '',
+              ...remoteCat,
+              image: pickImage(remoteCat.image, localCat.image),
+              icon: remoteCat.icon || localCat.icon || '',
               subcategories: Array.from(subsMap.values())
             };
           });
@@ -349,8 +386,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
           image: finalLogo,
           icon: finalIcon,
           isVisible: formData.isVisible ?? true,
-          updatedAt: Date.now(),
-        };
+        } as any;
 
         if (editingId) {
           const existingSub = parentCat.subcategories?.find(s => s.id === subId);
@@ -393,8 +429,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
               image: finalLogo,
               icon: finalIcon,
               isVisible: formData.isVisible ?? true,
-              updatedAt: Date.now(),
-            };
+            } as any;
             if (editingId) {
               const existingNested = sub.subcategories?.find(n => n.id === nestedId);
               updatedNested = updatedNested.map(n => n.id === nestedId ? {
@@ -450,6 +485,33 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
             setDoc(catRef, sanitizedPayload, { merge: true }),
             new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
           ]);
+          // After successful upload, update local cache with permanent Storage URLs so stale base64 is replaced
+          const latestCats = useCategoryStore.getState().categories;
+          const refreshedCats = latestCats.map(c => {
+            if (c.id !== updatedCat.id) return c;
+            const sanitized = sanitizedPayload as Category;
+            const refreshedSubs = (c.subcategories || []).map(s => {
+              const sanitizedSub = sanitized.subcategories?.find(ss => ss.id === s.id);
+              if (!sanitizedSub) return s;
+              return {
+                ...s,
+                image: sanitizedSub.image || s.image || '',
+                icon: sanitizedSub.icon || s.icon || '',
+                subcategories: (s.subcategories || []).map(n => {
+                  const sanitizedNested = sanitizedSub.subcategories?.find(nn => nn.id === n.id);
+                  return sanitizedNested ? { ...n, image: sanitizedNested.image || n.image || '', icon: sanitizedNested.icon || n.icon || '' } : n;
+                }),
+              };
+            });
+            return { ...c, image: (sanitized.image && !sanitized.image.includes('cdn.vibamart.com')) ? sanitized.image : c.image, subcategories: refreshedSubs };
+          });
+          setCategories(refreshedCats);
+          useCategoryStore.getState().setCategories(refreshedCats);
+          try {
+            const json = JSON.stringify(refreshedCats);
+            localStorage.setItem('viba_categories_cache', json);
+            localStorage.setItem('viba_cached_categories', json);
+          } catch {}
         } catch (dbErr) {
           console.warn('Firestore write notice (cached locally):', dbErr);
         }
