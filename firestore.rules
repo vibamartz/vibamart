@@ -115,6 +115,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /inventory_brand_sections/{sectionId} {
+      allow read, write: if isAdmin();
+    }
+
     match /features/{featureId} {
       allow read: if true;
       allow write: if isAdmin();

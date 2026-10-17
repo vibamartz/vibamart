@@ -55,11 +55,20 @@ export interface LocationAvailabilityRule {
   createdAt?: string;
 }
 
+export interface InventoryBrandSection {
+  id: string;
+  name: string;
+  order?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   slug?: string;
   name: string;
   brand?: string;
+  inventorySectionId?: string | null; // Strictly internal inventory organization section ID (NOT exposed to customer storefront)
   description: string;
   fullDescription?: string;
   price: number; // MRP or Original Price

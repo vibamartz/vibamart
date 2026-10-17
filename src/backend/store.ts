@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory } from "../shared/types";
+import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory, InventoryBrandSection } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
@@ -19,6 +19,16 @@ import {
   reassignProductVisualNestedSubcategory,
   assignMultipleProductsToVisualNestedSubcategory
 } from "./services/visualNestedSubcategoryService";
+import {
+  INVENTORY_BRAND_SECTIONS_COLLECTION,
+  DEFAULT_BRAND_SECTIONS,
+  seedInventoryBrandSectionsIfEmpty,
+  createInventoryBrandSection,
+  renameInventoryBrandSection,
+  deleteInventoryBrandSection,
+  assignProductToBrandSection,
+  bulkAssignProductsToBrandSection
+} from "./services/inventoryBrandSectionService";
 
 
 interface AuthState {
@@ -1223,6 +1233,92 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
 }));
 
 export * from "./services/cashbackStore";
+
+export interface InventoryBrandSectionState {
+  sections: InventoryBrandSection[];
+  loading: boolean;
+  initialized: boolean;
+  initSections: () => () => void;
+  addSection: (name: string) => Promise<InventoryBrandSection>;
+  renameSection: (id: string, name: string) => Promise<void>;
+  deleteSection: (id: string, allProducts: Product[]) => Promise<{ unassignedCount: number }>;
+  assignProduct: (productId: string, sectionId: string | null) => Promise<void>;
+  bulkAssignProducts: (productIds: string[], sectionId: string | null) => Promise<void>;
+}
+
+export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>((set, get) => ({
+  sections: DEFAULT_BRAND_SECTIONS.map(s => ({ ...s, createdAt: '', updatedAt: '' })),
+  loading: true,
+  initialized: false,
+
+  initSections: () => {
+    // Seed default sections once if collection is empty
+    seedInventoryBrandSectionsIfEmpty().catch(err => {
+      console.warn('[useInventoryBrandSectionStore] seed error:', err);
+    });
+
+    const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      if (!snapshot.empty) {
+        const fetched = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as InventoryBrandSection));
+
+        fetched.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || (a.createdAt || '').localeCompare(b.createdAt || ''));
+        set({ sections: fetched, loading: false, initialized: true });
+      } else {
+        // Fallback to default sections if empty
+        const defaultsWithDates = DEFAULT_BRAND_SECTIONS.map(s => ({
+          ...s,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+        set({ sections: defaultsWithDates, loading: false, initialized: true });
+      }
+    }, (error) => {
+      console.warn('[useInventoryBrandSectionStore] snapshot error:', error);
+      handleFirestoreError(error, OperationType.LIST, INVENTORY_BRAND_SECTIONS_COLLECTION, false);
+      set({ loading: false, initialized: true });
+    });
+
+    return unsubscribe;
+  },
+
+  addSection: async (name: string) => {
+    const existing = get().sections;
+    const newSection = await createInventoryBrandSection(name, existing);
+    set(state => ({
+      sections: [...state.sections, newSection].sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    }));
+    return newSection;
+  },
+
+  renameSection: async (id: string, name: string) => {
+    const existing = get().sections;
+    await renameInventoryBrandSection(id, name, existing);
+    set(state => ({
+      sections: state.sections.map(s => s.id === id ? { ...s, name: name.trim(), updatedAt: new Date().toISOString() } : s)
+    }));
+  },
+
+  deleteSection: async (id: string, allProducts: Product[]) => {
+    const result = await deleteInventoryBrandSection(id, allProducts);
+    set(state => ({
+      sections: state.sections.filter(s => s.id !== id)
+    }));
+    return result;
+  },
+
+  assignProduct: async (productId: string, sectionId: string | null) => {
+    await assignProductToBrandSection(productId, sectionId);
+  },
+
+  bulkAssignProducts: async (productIds: string[], sectionId: string | null) => {
+    await bulkAssignProductsToBrandSection(productIds, sectionId);
+  }
+}));
+
 
 
 

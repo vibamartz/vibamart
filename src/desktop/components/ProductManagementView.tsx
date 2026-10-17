@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import AddEditProductForm from './AddEditProductForm';
 import CategoryAssignmentModal from './CategoryAssignmentModal';
+import BrandSectionsBar from './BrandSectionsBar';
+import BrandSectionAssignmentModal from './BrandSectionAssignmentModal';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
@@ -10,16 +12,16 @@ import { productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../.
 import {
   Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3,
   X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles, Layers, Filter,
-  CheckSquare, Square, FolderTree
+  CheckSquare, Square, FolderTree, Tag
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
-import { useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCategoryStore, useVisualNestedSubcategoryStore, useInventoryBrandSectionStore } from '../../backend/store';
 import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
 import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
 
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
-  onAddProduct?: () => void,
+  onAddProduct?: (sectionId?: string) => void,
   onEditProduct?: (p: Product) => void,
   onDeleteProduct?: (id: string, name: string) => Promise<boolean>
 }) {
@@ -43,6 +45,17 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPlacement, setFilterPlacement] = useState<'all' | 'main_only'>('all');
+
+  // Internal Brand Section state (Admin Dashboard Inventory only)
+  const { sections: brandSections, initSections } = useInventoryBrandSectionStore();
+  const [activeBrandSectionId, setActiveBrandSectionId] = useState<string>('all');
+  const [isBrandAssignmentModalOpen, setIsBrandAssignmentModalOpen] = useState(false);
+  const [productsForBrandModal, setProductsForBrandModal] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = initSections();
+    return () => unsubscribe();
+  }, [initSections]);
 
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -514,6 +527,20 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
         if (!isProductMainCategoryOnly(p)) return false;
       }
 
+      // 9. Internal Brand Section Filter (Exclusively for internal inventory organization)
+      if (activeBrandSectionId !== 'all') {
+        if (activeBrandSectionId === 'unassigned') {
+          const validSectionIds = new Set(brandSections.map(s => s.id));
+          if (p.inventorySectionId && validSectionIds.has(p.inventorySectionId)) {
+            return false;
+          }
+        } else {
+          if (p.inventorySectionId !== activeBrandSectionId) {
+            return false;
+          }
+        }
+      }
+
       return true;
     });
   }, [
@@ -527,7 +554,9 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     filterStatus,
     filterPlacement,
     visualNestedItems,
-    allCategoryNodes
+    allCategoryNodes,
+    activeBrandSectionId,
+    brandSections
   ]);
 
   const hasActiveFilters = filterCategory !== 'all' || filterSubCategory !== 'all' ||
@@ -543,6 +572,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     setFilterBrand('all');
     setFilterStatus('all');
     setFilterPlacement('all');
+    setActiveBrandSectionId('all');
   };
 
   // Selection handlers
@@ -613,7 +643,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             )}
           </div>
 
-          {/* Bulk Assign Button (Shown when items are selected) */}
+          {/* Bulk Assign to Categories Button (Shown when items are selected) */}
           {selectedProductIds.length > 0 && (
             <button
               onClick={() => setIsAssignmentModalOpen(true)}
@@ -621,6 +651,22 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             >
               <Layers className="w-3.5 h-3.5" />
               Assign to Categories ({selectedProductIds.length})
+            </button>
+          )}
+
+          {/* Bulk Assign to Brand Section Button (Shown when items are selected) */}
+          {selectedProductIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const selectedProds = products.filter(p => selectedProductIds.includes(p.id));
+                setProductsForBrandModal(selectedProds);
+                setIsBrandAssignmentModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              Assign to Brand ({selectedProductIds.length})
             </button>
           )}
 
@@ -635,7 +681,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           </button>
 
           <button
-            onClick={onAddProduct}
+            onClick={() => onAddProduct?.()}
             className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -643,6 +689,21 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           </button>
         </div>
       </div>
+
+      {/* 2. Brand Sections (Positioned exactly between Inventory & Variants and Filter Inventory) */}
+      <BrandSectionsBar
+        products={products}
+        activeSectionId={activeBrandSectionId}
+        onSelectSection={setActiveBrandSectionId}
+        onCreateNewProductForSection={(secId) => {
+          onAddProduct?.(secId);
+        }}
+        onOpenAssignModal={(pids) => {
+          const prodsToAssign = products.filter(p => pids.includes(p.id));
+          setProductsForBrandModal(prodsToAssign);
+          setIsBrandAssignmentModalOpen(true);
+        }}
+      />
 
       {/* Filter Toolbar */}
       <div className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm space-y-2.5">
@@ -988,6 +1049,32 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                 <Plus className="w-2 h-2" /> Assign
                               </button>
                             </div>
+
+                            {/* Internal Brand Section Indicator */}
+                            <div className="flex items-center gap-1.5 mt-1">
+                              {(() => {
+                                const sec = brandSections.find(s => s.id === product.inventorySectionId);
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setProductsForBrandModal([product]);
+                                      setIsBrandAssignmentModalOpen(true);
+                                    }}
+                                    title={`Internal Section: ${sec ? sec.name : 'Unassigned'} (Click to change)`}
+                                    className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                                      sec
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                        : 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100'
+                                    }`}
+                                  >
+                                    <Tag className="w-2.5 h-2.5" />
+                                    <span>{sec ? sec.name : 'Unassigned'}</span>
+                                  </button>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1110,6 +1197,18 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${product.stock > 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}>
                             {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductsForBrandModal([product]);
+                              setIsBrandAssignmentModalOpen(true);
+                            }}
+                            className="p-1 text-gray-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                            title="Assign to Brand Section"
+                          >
+                            <Tag className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={(e) => handleOpenAssignForProduct(e, product)}
                             className="p-1 text-gray-400 hover:text-emerald-600 transition-colors cursor-pointer"
@@ -1362,6 +1461,19 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           setSelectedProductIds(prev => prev.filter(id => id !== pid));
         }}
       />
+
+      {/* Internal Brand Section Assignment Modal */}
+      <BrandSectionAssignmentModal
+        isOpen={isBrandAssignmentModalOpen}
+        onClose={() => {
+          setIsBrandAssignmentModalOpen(false);
+          setProductsForBrandModal([]);
+        }}
+        selectedProducts={productsForBrandModal}
+        onAssignmentSuccess={() => {
+          setSelectedProductIds([]);
+        }}
+      />
     </motion.div>
   );
 }
@@ -1369,6 +1481,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 export default function ProductManagementView() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [initialSectionId, setInitialSectionId] = useState<string | null>(null);
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE "${productName}"? This cannot be undone.`)) return false;
@@ -1384,8 +1497,33 @@ export default function ProductManagementView() {
   };
 
   if (showAddProduct) {
-    return <AddEditProductForm product={editingProduct} onDelete={handleDeleteProduct} onClose={() => { setShowAddProduct(false); setEditingProduct(null); }} />;
+    return (
+      <AddEditProductForm
+        product={editingProduct}
+        initialInventorySectionId={initialSectionId}
+        onDelete={handleDeleteProduct}
+        onClose={() => {
+          setShowAddProduct(false);
+          setEditingProduct(null);
+          setInitialSectionId(null);
+        }}
+      />
+    );
   }
 
-  return <ProductListView onAddProduct={() => { setEditingProduct(null); setShowAddProduct(true); }} onEditProduct={(p) => { setEditingProduct(p); setShowAddProduct(true); }} onDeleteProduct={handleDeleteProduct} />;
+  return (
+    <ProductListView
+      onAddProduct={(secId?: string) => {
+        setEditingProduct(null);
+        setInitialSectionId(secId || null);
+        setShowAddProduct(true);
+      }}
+      onEditProduct={(p) => {
+        setEditingProduct(p);
+        setInitialSectionId(null);
+        setShowAddProduct(true);
+      }}
+      onDeleteProduct={handleDeleteProduct}
+    />
+  );
 }

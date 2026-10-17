@@ -8,7 +8,7 @@ import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
 import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText, Bookmark, Tag, Filter, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore, useInventoryBrandSectionStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
 import { VariantImageInput, VariantMultiImageInput } from './VariantImageInput';
 import ProductLocationManager from './ProductLocationManager';
@@ -131,7 +131,8 @@ export default function AddEditProductForm({
   initialCategoryId,
   initialSubCategoryId,
   initialNestedSubCategoryId,
-  initialVisualNestedSubcategoryId
+  initialVisualNestedSubcategoryId,
+  initialInventorySectionId
 }: {
   product: Product | null;
   onClose: () => void;
@@ -140,14 +141,17 @@ export default function AddEditProductForm({
   initialSubCategoryId?: string;
   initialNestedSubCategoryId?: string;
   initialVisualNestedSubcategoryId?: string;
+  initialInventorySectionId?: string | null;
 }) {
   const { categories } = useCategoryStore();
   const { settings } = useSettingsStore();
   const { items: visualNestedSubcategoryItems } = useVisualNestedSubcategoryStore();
+  const { sections: brandSections } = useInventoryBrandSectionStore();
   const [formData, setFormData] = useState<Partial<Product>>(() => {
     const defaults = {
       name: '',
       brand: '',
+      inventorySectionId: initialInventorySectionId || null,
       description: '',
       fullDescription: '',
       price: 0,
@@ -216,6 +220,7 @@ export default function AddEditProductForm({
         ...product,
         name: product.name || '',
         brand: product.brand || '',
+        inventorySectionId: product.inventorySectionId || initialInventorySectionId || null,
         description: product.description || '',
         fullDescription: product.fullDescription || '',
         primaryImage: product.primaryImage || '',
@@ -986,6 +991,25 @@ export default function AddEditProductForm({
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm"
                   placeholder="Manufacturer Name"
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1 flex items-center justify-between">
+                  <span>Internal Brand Section</span>
+                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Inventory Only</span>
+                </label>
+                <select
+                  value={formData.inventorySectionId || ''}
+                  onChange={e => setFormData(p => ({ ...p, inventorySectionId: e.target.value || null }))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 outline-none focus:bg-white focus:border-primary transition-all font-bold text-sm text-gray-800 cursor-pointer"
+                >
+                  <option value="">-- None (Unassigned) --</option>
+                  {brandSections.map(sec => (
+                    <option key={sec.id} value={sec.id}>
+                      {sec.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-gray-400 font-medium">Internal classification for admin inventory only. Never shown to storefront customers.</p>
               </div>
               <div className="col-span-2 space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">Internal Digest (Short Description)</label>
