@@ -520,7 +520,7 @@ export async function uploadImageFileToStorage(
             uploadedAt: new Date().toISOString(),
           },
         }),
-        8000
+        2500
       );
       uploadedSuccessfully = true;
     } else if (typeof imageInput === 'string') {
@@ -535,7 +535,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          8000
+          2500
         );
         uploadedSuccessfully = true;
       } else if (trimmed.startsWith('blob:')) {
@@ -543,7 +543,7 @@ export async function uploadImageFileToStorage(
         const blob = await res.blob();
         if (blob.size > MAX_IMAGE_SIZE_BYTES) {
           console.warn('[StorageUpload] Blob exceeds maximum allowed size (10 MB)');
-          return '';
+          return typeof imageInput === 'string' ? imageInput : '';
         }
         await withTimeout(
           uploadBytes(storageRef, blob, {
@@ -553,7 +553,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          8000
+          2500
         );
         uploadedSuccessfully = true;
       } else if (trimmed.length > 500) {
@@ -566,7 +566,7 @@ export async function uploadImageFileToStorage(
               uploadedAt: new Date().toISOString(),
             },
           }),
-          8000
+          2500
         );
         uploadedSuccessfully = true;
       }
@@ -574,7 +574,7 @@ export async function uploadImageFileToStorage(
 
     if (uploadedSuccessfully) {
       try {
-        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 5000);
+        const downloadUrl = await withTimeout(getDownloadURL(storageRef), 2500);
         if (downloadUrl && (downloadUrl.startsWith('https://') || downloadUrl.startsWith('http://'))) {
           return downloadUrl;
         }
@@ -590,7 +590,8 @@ export async function uploadImageFileToStorage(
   // retain and compress the image data so it is NEVER lost and always persists in Firestore and displays properly
   if (typeof imageInput === 'string' && (imageInput.startsWith('data:') || imageInput.length > 500)) {
     try {
-      return await compressDataUrl(imageInput, 600, 600, 0.8);
+      const compressed = await compressDataUrl(imageInput, 600, 600, 0.85);
+      return compressed || imageInput;
     } catch {
       return imageInput;
     }
@@ -603,10 +604,11 @@ export async function uploadImageFileToStorage(
         reader.readAsDataURL(imageInput);
       });
       if (dataUrl) {
-        return await compressDataUrl(dataUrl, 600, 600, 0.8);
+        const compressed = await compressDataUrl(dataUrl, 600, 600, 0.85);
+        return compressed || dataUrl;
       }
     } catch {}
   }
 
-  return '';
+  return typeof imageInput === 'string' ? imageInput : '';
 }

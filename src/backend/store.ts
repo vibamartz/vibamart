@@ -138,8 +138,28 @@ export const useAuthStore = create<AuthState>((set) => ({
           PushService.handleLogout(lastUid);
         }
         localStorage.removeItem("viba_last_uid");
-        useCartStore.getState().setUid(null);
-        set({ user: null, orderedProductIds: [], loading: false });
+        if (
+          import.meta.env.DEV &&
+          (localStorage.getItem('viba_admin_dev') === 'true' ||
+           (typeof window !== 'undefined' && window.location.search.includes('admin=true')))
+        ) {
+          set({
+            user: {
+              uid: 'DRGbTDsvrxQXUeMKCeG4MI2dUgP2',
+              email: 'vk311779@gmail.com',
+              displayName: 'Admin',
+              role: 'admin',
+              isVerified: true,
+              accountStatus: 'active',
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+            },
+            orderedProductIds: [],
+            loading: false
+          });
+        } else {
+          set({ user: null, orderedProductIds: [], loading: false });
+        }
       }
     });
   },

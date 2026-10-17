@@ -68,11 +68,13 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       setCategories(catsData);
       setLoading(false);
 
-      // Auto-migrate any existing category documents that contain base64 image data
+      // Only migrate legacy category documents that have bloated embedded product arrays
       catsData.forEach(cat => {
-        migrateCategoryDocIfNeeded(cat).catch(err => {
-          console.error("Migration error for category:", cat.id, err);
-        });
+        if ((cat as any).products || (cat as any).productItems) {
+          migrateCategoryDocIfNeeded(cat).catch(err => {
+            console.error("Migration error for category:", cat.id, err);
+          });
+        }
       });
     }, (error) => {
       console.error("Error fetching categories:", error);
@@ -193,14 +195,21 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       const reader = new FileReader();
       reader.onloadend = async () => {
         const rawResult = reader.result as string;
+        if (!rawResult) {
+          toast.error('Failed to read image file');
+          return;
+        }
         try {
-          const compressed = await compressDataUrl(rawResult, 800, 800, 0.85);
-          setFormData(prev => ({ ...prev, image: compressed }));
+          const compressed = await compressDataUrl(rawResult, 600, 600, 0.85);
+          setFormData(prev => ({ ...prev, image: compressed || rawResult }));
           toast.success('Photo selected! Click Save to apply.');
         } catch {
           setFormData(prev => ({ ...prev, image: rawResult }));
           toast.success('Photo selected! Click Save to apply.');
         }
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read image file');
       };
       reader.readAsDataURL(file);
       e.target.value = '';
@@ -233,13 +242,13 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       return;
     }
 
-    // Ensure category/subcategory logo is present (Auto-generate if missing)
-    let finalLogo = formData.image;
-    let finalIcon = formData.icon;
-    if (!finalLogo) {
+    // Ensure category logo is present for root categories; preserve subcategory image as-is
+    let finalLogo = formData.image?.trim() || '';
+    let finalIcon = formData.icon?.trim() || '';
+    if (modalType === 'category' && !finalLogo) {
       const generated = generateCategoryLogo(formData.name, categories);
       finalLogo = generated.image;
-      finalIcon = generated.icon;
+      finalIcon = finalIcon || generated.icon;
     }
 
     setIsSaving(true);
@@ -275,16 +284,17 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         const subId = editingId || generateId(formData.name);
         let updatedSubs = [...(parentCat.subcategories || [])];
 
-        const subPayload = {
+        const subPayload: SubCategory = {
           id: subId,
           name: formData.name!.trim(),
-          image: finalLogo || formData.image || '',
-          icon: finalIcon || formData.icon || '',
+          image: finalLogo,
+          icon: finalIcon,
           isVisible: formData.isVisible ?? true,
         };
 
         if (editingId) {
-          updatedSubs = updatedSubs.map(s => s.id === subId ? { ...s, ...subPayload } : s);
+          const existingSub = parentCat.subcategories?.find(s => s.id === subId);
+          updatedSubs = updatedSubs.map(s => s.id === subId ? { ...s, ...subPayload, subcategories: s.subcategories || existingSub?.subcategories || [] } : s);
         } else {
           updatedSubs.push({ ...subPayload, subcategories: [] });
           setExpandedCats(prev => prev.includes(activeParentCatId) ? prev : [...prev, activeParentCatId]);
@@ -312,11 +322,11 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         const updatedSubs = (parentCat.subcategories || []).map(sub => {
           if (sub.id === activeSubCatId) {
             let updatedNested = [...(sub.subcategories || [])];
-            const nestedPayload = {
+            const nestedPayload: SubCategory = {
               id: nestedId,
               name: formData.name!.trim(),
-              image: finalLogo || formData.image || '',
-              icon: finalIcon || formData.icon || '',
+              image: finalLogo,
+              icon: finalIcon,
               isVisible: formData.isVisible ?? true,
             };
             if (editingId) {
@@ -472,29 +482,28 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     const newName = e.target.value;
     const slug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-    // Auto-generate logo if adding new category and logo not manually chosen
-    let autoImage = formData.image;
-    let autoIcon = formData.icon;
-    if (!editingId && newName.length >= 3) {
-      const autoGen = generateCategoryLogo(newName, categories);
-      autoImage = autoGen.image;
-      autoIcon = autoGen.icon;
-    }
-
-    if (modalType === 'category' && !editingId) {
+    if (modalType === 'category') {
+      let autoImage = formData.image;
+      let autoIcon = formData.icon;
+      // Only auto-generate if adding a new category and the user has not chosen/uploaded an image
+      if (!editingId && newName.length >= 3 && !formData.image) {
+        const autoGen = generateCategoryLogo(newName, categories);
+        autoImage = autoGen.image;
+        autoIcon = autoGen.icon;
+      }
       setFormData(prev => ({
         ...prev,
         name: newName,
         seoSlug: slug,
-        image: autoImage,
-        icon: autoIcon,
+        image: autoImage || prev.image,
+        icon: autoIcon || prev.icon,
       }));
     } else {
+      // For subcategories and nested subcategories:
+      // Never overwrite the user's uploaded or selected photo when typing the name
       setFormData(prev => ({
         ...prev,
         name: newName,
-        image: autoImage || prev.image,
-        icon: autoIcon || prev.icon,
       }));
     }
   };
@@ -645,7 +654,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                           <GripVertical className="w-5 h-5" />
                         </div>
                         <div className="col-span-1 flex items-center">
-                          <CategoryLogo name={category.name} icon={category.icon} size="sm" />
+                          <CategoryLogo name={category.name} image={category.image} icon={category.icon} size="sm" />
                         </div>
                         <div className="col-span-4 font-bold text-gray-900 truncate pr-4 flex items-center gap-3">
                           <button onClick={(e) => { e.stopPropagation(); toggleCat(category.id); }} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
