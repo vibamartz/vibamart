@@ -284,6 +284,8 @@ export interface Category {
   seoDescription?: string;
   isVisible?: boolean;
   subcategories?: SubCategory[];
+  createdAt?: string | number;
+  updatedAt?: string | number;
 }
 
 export interface SubCategory {
@@ -298,6 +300,8 @@ export interface SubCategory {
   isActive?: boolean;
   isVisible?: boolean;
   subcategories?: SubCategory[]; // Recursive subcategories
+  createdAt?: string | number;
+  updatedAt?: string | number;
 }
 
 export interface VisualNestedSubcategory {
