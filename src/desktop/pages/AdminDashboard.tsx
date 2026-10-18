@@ -4440,13 +4440,10 @@ const MAX_SIZE_MB = 10;
 export function ProductImageUploader({
   images,
   onChange,
-  onAutoFillFromUrl,
 }: {
   images: string[];
   onChange: (imgs: string[]) => void;
-  onAutoFillFromUrl?: (url: string) => Promise<void> | void;
 }) {
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -4524,12 +4521,7 @@ export function ProductImageUploader({
     onChange([...images, url]);
     setUrlValue('');
     setShowUrlInput(false);
-
-    if (onAutoFillFromUrl) {
-      onAutoFillFromUrl(url);
-    }
   };
-
 
   const removeImage = (idx: number) => {
     onChange(images.filter((_, i) => i !== idx));
@@ -4671,7 +4663,7 @@ export function ProductImageUploader({
               value={urlValue}
               onChange={(e) => setUrlValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddUrl(); } }}
-              placeholder="https://example.com/product-image.jpg (or product page URL for AI auto-fill)"
+              placeholder="https://example.com/product-image.jpg"
               className="flex-1 bg-gray-50 border border-gray-200 focus:border-blue-400 rounded-xl px-3.5 py-2 text-xs outline-none transition-all font-medium"
             />
             <button

@@ -189,7 +189,7 @@ export default function Cart() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
-        
+
         {/* Cart Top Section */}
         {items.length === 0 ? (
           <div className="bg-white p-12 rounded-3xl shadow-xl text-center max-w-md mx-auto border border-gray-100">
@@ -298,7 +298,7 @@ export default function Cart() {
                           <div className="mt-4 flex items-center justify-between flex-wrap gap-4 pt-3 border-t border-gray-50">
                             {/* Quantity Selector */}
                             <div className="flex items-center gap-3 sm:gap-4 bg-gray-50 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-gray-100">
-                              <button 
+                              <button
                                 onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variantId)}
                                 className="text-gray-500 hover:text-primary p-1.5 touch-target transition-colors"
                                 aria-label="Decrease quantity"
@@ -306,7 +306,7 @@ export default function Cart() {
                                 <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
                               <span className="text-xs sm:text-sm font-black w-4 text-center">{item.quantity}</span>
-                              <button 
+                              <button
                                 onClick={() => {
                                   const product = item.product;
                                   const variant = item.variantId ? product.variants?.find(v => v.id === item.variantId) : null;
@@ -332,7 +332,7 @@ export default function Cart() {
                               >
                                 <Heart className="w-3.5 h-3.5 text-rose-500" /> Move to Wishlist
                               </button>
-                              
+
                               <button
                                 onClick={() => handleBuyNow(item.productId, item.variantId)}
                                 className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-sm"
@@ -396,7 +396,7 @@ export default function Cart() {
                   Place Order <ArrowRight className="w-5 h-5" />
                 </Link>
                 <p className="mt-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest leading-relaxed">
-                  Secure SSL Encrypted Payment <br/> 100% Buyer Protection Guaranteed
+                  Secure SSL Encrypted Payment <br /> 100% Buyer Protection Guaranteed
                 </p>
               </div>
             </div>
@@ -409,9 +409,9 @@ export default function Cart() {
         {/* Requirement 1: Your Wishlist Products Section */}
         <WishlistCartSection />
 
-        <LocationPickerModal 
-          isOpen={showLocationModal} 
-          onClose={() => setShowLocationModal(false)} 
+        <LocationPickerModal
+          isOpen={showLocationModal}
+          onClose={() => setShowLocationModal(false)}
         />
       </div>
     </div>
