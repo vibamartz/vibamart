@@ -426,10 +426,10 @@ export default function RewardProducts() {
                     onClick={(e) => handleAddToCart(product, e)}
                     disabled={isOutOfStock}
                     className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${isOutOfStock
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : isInCart
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                          : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 shadow-sm'
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : isInCart
+                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-100 shadow-sm'
                       }`}
                   >
                     <ShoppingCart className="w-3.5 h-3.5" />
@@ -440,8 +440,8 @@ export default function RewardProducts() {
                     onClick={(e) => handleBuyNow(product, e)}
                     disabled={isOutOfStock}
                     className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${isOutOfStock
-                        ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
-                        : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                      ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20'
                       }`}
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />

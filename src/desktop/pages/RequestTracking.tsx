@@ -274,8 +274,8 @@ export default function RequestTracking() {
                     <div key={stepConfig.status} className="flex flex-col items-center">
                       <div
                         className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted
-                            ? 'bg-primary text-white shadow-primary/30 scale-105 z-20'
-                            : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
+                          ? 'bg-primary text-white shadow-primary/30 scale-105 z-20'
+                          : 'bg-gray-100 text-gray-400 border border-gray-200 scale-100'
                           }`}
                       >
                         <Icon className="w-6 h-6" />

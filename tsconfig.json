@@ -28,8 +28,6 @@
     "functions",
     "dist",
     "node_modules",
-    "**/__tests__/**",
-    "src/backend/search/__tests__/**",
     "src/backend/search/meiliSearchService.ts"
   ]
 }

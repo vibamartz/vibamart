@@ -314,8 +314,8 @@ export default function Login() {
                         key={m}
                         onClick={() => setMode(m)}
                         className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${mode === m
-                            ? 'bg-white text-green-700 shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
+                          ? 'bg-white text-green-700 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600'
                           }`}
                       >
                         {m === 'login' ? 'Log In' : 'Sign Up'}
