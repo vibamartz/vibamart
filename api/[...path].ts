@@ -18,6 +18,8 @@ import { initializeFirebaseAdmin } from "./_utils";
 import { cicdRouter } from "../src/backend/cicd/routes";
 import { searchRouter } from "../src/backend/search/routes";
 import { adminNotificationsCleanupHandler, adminNotificationsPurgeHandler } from "./_handlers/notifications/admin-cleanup";
+import { aiProductImportHandler } from "../src/backend/services/aiProductImportService";
+
 
 initializeFirebaseAdmin();
 
@@ -73,4 +75,8 @@ app.get(["/api/segments", "/segments"], segmentsHandler);
 app.post(["/api/admin/notifications/cleanup", "/admin/notifications/cleanup"], adminNotificationsCleanupHandler);
 app.post(["/api/admin/notifications/purge-all", "/admin/notifications/purge-all"], adminNotificationsPurgeHandler);
 
+// AI Product Import API
+app.post(["/api/products/ai-import", "/products/ai-import"], aiProductImportHandler);
+
 export default app;
+

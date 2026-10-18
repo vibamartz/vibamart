@@ -6,10 +6,13 @@ import { logAdminAction, AdminAction } from '../../backend/services/adminLogServ
 import { Product, ProductVariant, LocationAvailabilityRule } from '../../shared/types';
 import { CATEGORIES } from '../../shared/constants';
 import toast from 'react-hot-toast';
-import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText, Bookmark, Tag, Filter, CheckCircle2 } from 'lucide-react';
+import axios from 'axios';
+import { Upload, X, Check, Search, Copy, Sparkles, Hash, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Layers, FileText, Bookmark, Tag, Filter, CheckCircle2, Loader2, Link2, ExternalLink } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore, useInventoryBrandSectionStore } from '../../backend/store';
 import { ProductImageUploader, KEYWORD_SUGGESTIONS } from '../pages/AdminDashboard';
+import { ExtractedProductInfo } from '../../backend/services/aiProductImportService';
+
 import { VariantImageInput, VariantMultiImageInput } from './VariantImageInput';
 import ProductLocationManager from './ProductLocationManager';
 import VariantMatrixManager from './VariantMatrixManager';
@@ -345,6 +348,147 @@ export default function AddEditProductForm({
   const [newPresetName, setNewPresetName] = useState('');
   const [selectedAttributeFilter, setSelectedAttributeFilter] = useState<string>('all');
   const [activeSpecTargetKey, setActiveSpecTargetKey] = useState<string>('default');
+
+  // AI Product Import State
+  const [isImportingProduct, setIsImportingProduct] = useState(false);
+  const [importUrlInput, setImportUrlInput] = useState('');
+  const [showImportBar, setShowImportBar] = useState(false);
+  const [lastImportSource, setLastImportSource] = useState<{ url: string; count: number } | null>(null);
+
+  /**
+   * AI-powered Product Import:
+   * Fetches and imports available product images, description, specifications, and reliable stock
+   * from the source page/image URL, then auto-fills the product form for admin review.
+   */
+  const handleImportProductFromUrl = async (targetUrl: string) => {
+    const cleanUrl = targetUrl.trim();
+    if (!cleanUrl) return;
+
+    setIsImportingProduct(true);
+    const toastId = toast.loading('Extracting product details & images with AI...');
+    try {
+      const response = await axios.post('/api/products/ai-import', { url: cleanUrl }, { timeout: 15000 });
+      const data = response.data;
+
+      if (!data.success || !data.extracted) {
+        throw new Error(data.error || 'Failed to extract product information.');
+      }
+
+      const ext: ExtractedProductInfo = data.extracted;
+      let filledFieldsCount = 0;
+
+      setFormData((prev) => {
+        const updated = { ...prev };
+
+        // 1. Images: Merge extracted images with existing images up to 10
+        if (Array.isArray(ext.images) && ext.images.length > 0) {
+          const currentImages = prev.images || [];
+          const combined = Array.from(new Set([...currentImages, ...ext.images])).slice(0, 10);
+          updated.images = combined;
+          if (!updated.primaryImage && combined.length > 0) {
+            updated.primaryImage = combined[0];
+          }
+          filledFieldsCount++;
+        }
+
+        // 2. Name & Brand
+        if (ext.name && (!prev.name || prev.name.trim() === '')) {
+          updated.name = ext.name;
+          filledFieldsCount++;
+        }
+        if (ext.brand && (!prev.brand || prev.brand.trim() === '')) {
+          updated.brand = ext.brand;
+          filledFieldsCount++;
+        }
+
+        // 3. Description & Full Description
+        if (ext.description && (!prev.description || prev.description.trim() === '')) {
+          updated.description = ext.description;
+          filledFieldsCount++;
+        }
+        if (ext.fullDescription && (!prev.fullDescription || prev.fullDescription.trim() === '')) {
+          updated.fullDescription = ext.fullDescription;
+          filledFieldsCount++;
+        }
+
+        // 4. Pricing (MRP & Selling Price)
+        if (typeof ext.price === 'number' && ext.price > 0 && (!prev.price || prev.price === 0)) {
+          updated.price = ext.price;
+          filledFieldsCount++;
+        }
+        if (typeof ext.mrp === 'number' && ext.mrp > 0 && (!prev.mrp || prev.mrp === 0)) {
+          updated.mrp = ext.mrp;
+          filledFieldsCount++;
+        }
+
+        // 5. Stock: ONLY when reliably available, never guessed
+        if (typeof ext.stock === 'number' && !isNaN(ext.stock) && ext.stock >= 0) {
+          updated.stock = ext.stock;
+          filledFieldsCount++;
+        }
+
+        // 6. Color & Size if present
+        if (ext.color && (!prev.color || prev.color.trim() === '')) {
+          updated.color = ext.color;
+        }
+        if (ext.size && (!prev.size || prev.size.trim() === '')) {
+          updated.size = ext.size;
+        }
+
+        // 7. Specifications: Merge extracted specifications
+        if (Array.isArray(ext.specifications) && ext.specifications.length > 0) {
+          const existingSpecs = prev.specifications || [];
+          const existingKeys = new Set(existingSpecs.map((s) => s.key.toLowerCase()));
+          const newSpecs = ext.specifications.filter((s) => s.key && s.value && !existingKeys.has(s.key.toLowerCase()));
+          if (newSpecs.length > 0) {
+            updated.specifications = [...existingSpecs, ...newSpecs];
+            filledFieldsCount++;
+          }
+        }
+
+        // 8. Features
+        if (Array.isArray(ext.features) && ext.features.length > 0) {
+          const existingFeats = prev.features || [];
+          const newFeats = ext.features.filter((f) => !existingFeats.includes(f));
+          if (newFeats.length > 0) {
+            updated.features = [...existingFeats, ...newFeats];
+            filledFieldsCount++;
+          }
+        }
+
+        // 9. Category suggestion matching
+        if (ext.categorySuggestion && (!prev.categoryId || prev.categoryId === '')) {
+          const matchedCategory = categories.find((c) =>
+            c.name.toLowerCase().includes(ext.categorySuggestion!.toLowerCase()) ||
+            ext.categorySuggestion!.toLowerCase().includes(c.name.toLowerCase())
+          );
+          if (matchedCategory) {
+            updated.categoryId = matchedCategory.id;
+          }
+        }
+
+        return updated;
+      });
+
+      setLastImportSource({ url: cleanUrl, count: filledFieldsCount });
+      setImportUrlInput('');
+      toast.success(
+        filledFieldsCount > 0
+          ? `AI Import Complete! Extracted product details filled in. Review and edit below.`
+          : `Images and metadata extracted. Review and refine any fields manually before saving.`,
+        { id: toastId, duration: 5000 }
+      );
+    } catch (err: any) {
+      console.warn('[AddEditProductForm] AI Import error:', err);
+      toast.error(
+        err.response?.data?.error || err.message || 'Could not auto-import from URL. You can still enter details manually.',
+        { id: toastId, duration: 5000 }
+      );
+    } finally {
+      setIsImportingProduct(false);
+    }
+  };
+
 
   const availableSizes = extractProductSizes(formData);
   const dynamicVariantAttrs = getProductVariantAttributes(formData);
@@ -958,9 +1102,94 @@ export default function AddEditProductForm({
         {/* Left Column: Media & Variants */}
         <div className="lg:col-span-2 space-y-4">
 
+          {/* AI-Powered Product Import Banner / Bar */}
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-4 rounded-xl border border-blue-200/70 shadow-xs space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                    <span>AI Product Import</span>
+                    <span className="text-[9px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full border border-blue-200">
+                      Gemini Auto-Fill
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-gray-500 font-medium">
+                    Paste a product image URL or public product page URL to extract images, description, specifications, and verified stock.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportBar(p => !p)}
+                className="text-[11px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-wider self-start sm:self-auto cursor-pointer"
+              >
+                {showImportBar ? 'Hide Import URL' : 'Paste Import URL'}
+              </button>
+            </div>
+
+            {/* Quick URL Import Input */}
+            {showImportBar && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 animate-in fade-in duration-200">
+                <div className="relative flex-1">
+                  <Link2 className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="url"
+                    value={importUrlInput}
+                    onChange={(e) => setImportUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (importUrlInput.trim() && !isImportingProduct) {
+                          handleImportProductFromUrl(importUrlInput.trim());
+                        }
+                      }
+                    }}
+                    placeholder="Paste product image URL or public source link (e.g. https://...)..."
+                    className="w-full bg-white border border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl pl-8 pr-3 py-2 text-xs font-medium outline-none transition-all"
+                    disabled={isImportingProduct}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={!importUrlInput.trim() || isImportingProduct}
+                  onClick={() => handleImportProductFromUrl(importUrlInput.trim())}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                >
+                  {isImportingProduct ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Extracting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Import with AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Last Import Success Notice */}
+            {lastImportSource && (
+              <div className="flex items-center justify-between text-[11px] bg-white/80 p-2 rounded-lg border border-blue-100 text-gray-600 font-medium">
+                <span className="truncate max-w-md">
+                  ✨ Extracted details imported from: <strong className="text-gray-900">{lastImportSource.url}</strong>
+                </span>
+                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0 ml-2">
+                  Ready for Review
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Media Section */}
           <ProductImageUploader
             images={formData.images || []}
+            onAutoFillFromUrl={(url) => handleImportProductFromUrl(url)}
             onChange={(imgs) =>
               setFormData(p => ({
                 ...p,
@@ -969,6 +1198,7 @@ export default function AddEditProductForm({
               }))
             }
           />
+
 
           {/* Product Info Section */}
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm space-y-4">

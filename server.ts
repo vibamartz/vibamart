@@ -18,6 +18,8 @@ import { searchRouter } from "./src/backend/search/routes";
 import { searchService } from "./src/backend/search/searchService";
 import { adminNotificationsCleanupHandler, adminNotificationsPurgeHandler } from "./api/_handlers/notifications/admin-cleanup";
 import { cleanExpiredAdminNotifications } from "./src/backend/services/adminNotificationCleanupService";
+import { aiProductImportHandler } from "./src/backend/services/aiProductImportService";
+
 
 
 dotenv.config();
@@ -104,6 +106,9 @@ async function startServer() {
   // Admin Notifications Automated Cleanup (24h after read) & Permanent Purge APIs
   app.post("/api/admin/notifications/cleanup", adminNotificationsCleanupHandler);
   app.post("/api/admin/notifications/purge-all", adminNotificationsPurgeHandler);
+
+  // AI Product Import Endpoint
+  app.post("/api/products/ai-import", aiProductImportHandler);
 
   // Razorpay order creation
   app.post("/api/payment/create-order", async (req, res) => {
