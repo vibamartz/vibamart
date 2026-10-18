@@ -54,8 +54,12 @@ export async function importProductFromUrl(url: string, categories: Category[] =
     try {
       result = JSON.parse(rawText);
     } catch {
-      // The server returned plain text or HTML error (e.g., "A server error has occurred")
-      console.error('[ProductImport] Non-JSON response received from server:', rawText);
+      // The server returned plain text or HTML error (e.g. Vercel serverless FUNCTION_INVOCATION_FAILED)
+      console.warn('[ProductImport] Non-JSON response from server, triggering client-side fallback:', rawText);
+      const fallbackResult = await clientSideImportFallback(trimmed, categories);
+      if (fallbackResult.success) {
+        return fallbackResult;
+      }
       const cleanSnippet = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150);
       return {
         success: false,
