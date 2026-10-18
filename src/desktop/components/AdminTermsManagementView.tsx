@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { 
-  ShieldCheck, Save, RotateCcw, Plus, Trash2, Edit3, 
+import {
+  ShieldCheck, Save, RotateCcw, Plus, Trash2, Edit3,
   FileText, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -132,7 +132,7 @@ export default function AdminTermsManagementView() {
 
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
-      
+
       {/* Header Controls */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl shadow-gray-100/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -232,12 +232,12 @@ export default function AdminTermsManagementView() {
             const isExpanded = expandedSectionId === section.id;
 
             return (
-              <div 
-                key={section.id} 
+              <div
+                key={section.id}
                 className="border border-gray-200/80 rounded-2xl overflow-hidden bg-white shadow-2xs transition-all"
               >
                 {/* Section Header */}
-                <div 
+                <div
                   onClick={() => setExpandedSectionId(isExpanded ? null : section.id)}
                   className="p-4 bg-gray-50/80 hover:bg-gray-100/80 flex items-center justify-between gap-4 cursor-pointer transition-colors"
                 >
