@@ -919,13 +919,13 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                   </button>
                 </th>
                 <th className="px-2 py-3 w-8"></th>
-                <th className="px-3 py-3 w-[34%] min-w-[240px]">Product Info & Category Assignments</th>
-                <th className="px-3 py-3 w-[15%] min-w-[130px]">Product Code</th>
-                <th className="px-3 py-3 w-[9%] min-w-[75px]">Total Stock</th>
-                <th className="px-3 py-3 w-[8%] min-w-[65px]">Variants</th>
-                <th className="px-3 py-3 w-[10%] min-w-[90px]">GST Tax</th>
-                <th className="px-3 py-3 w-[9%] min-w-[85px]">Delivery</th>
-                <th className="px-3 py-3 w-[15%] min-w-[135px]">Status & Visibility</th>
+                <th className="px-3 py-3 text-center">Product Info & Category Assignments</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Product Code</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Total Stock</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Variants</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">GST Tax</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Delivery</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1076,9 +1076,9 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Product Code */}
-                      <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                         {product.productCode ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1.5">
                             <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded-lg border border-emerald-200/80">
                               {formatProductCode(product.productCode)}
                             </span>
@@ -1096,77 +1096,83 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const newCode = generateUniqueProductCode(products);
-                              try {
-                                await updateDoc(doc(db, 'products', product.id), { productCode: newCode });
-                                toast.success(`Product Code "${newCode}" assigned!`);
-                              } catch (err) {
-                                toast.error('Failed to assign code');
-                              }
-                            }}
-                            className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer"
-                          >
-                            + Generate Code
-                          </button>
+                          <div className="flex justify-center">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newCode = generateUniqueProductCode(products);
+                                try {
+                                  await updateDoc(doc(db, 'products', product.id), { productCode: newCode });
+                                  toast.success(`Product Code "${newCode}" assigned!`);
+                                } catch (err) {
+                                  toast.error('Failed to assign code');
+                                }
+                              }}
+                              className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-all cursor-pointer"
+                            >
+                              + Generate Code
+                            </button>
+                          </div>
                         )}
                       </td>
 
                       {/* Total Stock */}
-                      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-semibold">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-semibold text-center">
                         <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
                           {product.stock}
                         </span>
                       </td>
 
                       {/* Variants Count */}
-                      <td className="px-3 py-2.5 whitespace-nowrap text-xs">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs text-center">
                         <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
                           {product.variants?.length || 0}
                         </span>
                       </td>
 
                       {/* GST Tax */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <button
-                          onClick={(e) => handleToggleGst(e, product)}
-                          title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
-                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.enableGst !== false && (product.gst || 0) > 0
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
-                            }`}
-                        >
-                          {product.enableGst !== false && (product.gst || 0) > 0 ? (
-                            <><span>✅</span> GST {product.gst}%</>
-                          ) : (
-                            <><span>🚫</span> GST Off</>
-                          )}
-                        </button>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={(e) => handleToggleGst(e, product)}
+                            title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.enableGst !== false && (product.gst || 0) > 0
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
+                              }`}
+                          >
+                            {product.enableGst !== false && (product.gst || 0) > 0 ? (
+                              <><span>✅</span> GST {product.gst}%</>
+                            ) : (
+                              <><span>🚫</span> GST Off</>
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Delivery */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <button
-                          onClick={(e) => handleToggleFreeDelivery(e, product)}
-                          title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
-                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.isFreeDelivery !== false
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
-                              : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
-                            }`}
-                        >
-                          {product.isFreeDelivery !== false ? (
-                            <><span>🚚</span> Free</>
-                          ) : (
-                            <><span>📦</span> Paid</>
-                          )}
-                        </button>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={(e) => handleToggleFreeDelivery(e, product)}
+                            title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.isFreeDelivery !== false
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
+                              }`}
+                          >
+                            {product.isFreeDelivery !== false ? (
+                              <><span>🚚</span> Free</>
+                            ) : (
+                              <><span>📦</span> Paid</>
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Status & Visibility */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
