@@ -297,22 +297,50 @@ async function clientSideImportFallback(
       }
     });
 
+    // 6. Price & MRP from meta and JSON-LD
+    let price: number | undefined;
+    let mrp: number | undefined;
+    const ogPrice = doc.querySelector('meta[property="product:price:amount"]')?.getAttribute('content') ||
+                    doc.querySelector('meta[property="og:price:amount"]')?.getAttribute('content');
+    if (ogPrice) {
+      const p = parseFloat(ogPrice);
+      if (!isNaN(p) && p > 0) price = p;
+    }
+
     // JSON-LD fallback
     doc.querySelectorAll('script[type="application/ld+json"]').forEach((s) => {
       try {
         const json = JSON.parse(s.textContent || '');
-        if (json['@type'] === 'Product') {
-          if (!title && json.name) title = json.name;
-          if (!brand && json.brand) {
-            brand = typeof json.brand === 'object' ? json.brand.name : json.brand;
+        const items = Array.isArray(json) ? json : (json['@graph'] || [json]);
+        for (const item of items) {
+          if (item?.['@type'] === 'Product') {
+            if (!title && item.name) title = item.name;
+            if (!brand && item.brand) {
+              brand = typeof item.brand === 'object' ? item.brand.name : item.brand;
+            }
+            if (!description && item.description) description = item.description;
+            if (item.offers) {
+              const off = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+              const p = parseFloat(off.price || off.lowPrice);
+              if (!isNaN(p) && p > 0 && !price) price = p;
+              const m = parseFloat(off.highPrice);
+              if (!isNaN(m) && m > 0 && !mrp) mrp = m;
+            }
           }
-          if (!description && json.description) description = json.description;
         }
       } catch {}
     });
 
+    // Clean brand and title
+    if (!brand && title) {
+      const firstWord = title.split(' ')[0];
+      if (firstWord && /^[A-Z][a-zA-Z0-9]+$/.test(firstWord) && firstWord.length > 2) {
+        brand = firstWord;
+      }
+    }
+
     if (!title && !description && images.length === 0 && specs.length === 0) {
-      return { success: false, error: 'No product information found on page.' };
+      return { success: false, error: 'No product information could be parsed from the page.' };
     }
 
     const payload: ExtractedProductPayload = {
@@ -320,13 +348,15 @@ async function clientSideImportFallback(
       brand: brand || undefined,
       description: description ? description.slice(0, 197) + (description.length > 200 ? '...' : '') : undefined,
       fullDescription: description || undefined,
+      price: price || undefined,
+      mrp: mrp || price || undefined,
       images,
       specifications: specs.slice(0, 25),
       sourceUrl: targetUrl,
     };
 
     const matchedCategory = matchCategoryHeuristic(title, description, specs, categories);
-    const inferredTags = generateLocalInferredTags(title, brand, specs);
+    const inferredTags = generateLocalInferredTags(title, brand || '', specs);
 
     return {
       success: true,
@@ -337,7 +367,7 @@ async function clientSideImportFallback(
   } catch (e: any) {
     return {
       success: false,
-      error: e?.message || 'Fallback client-side parsing failed.',
+      error: e?.message || 'Fallback parsing failed.',
     };
   }
 }
