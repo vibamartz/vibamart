@@ -48,9 +48,27 @@ export async function importProductFromUrl(url: string, categories: Category[] =
       body: JSON.stringify({ url: trimmed }),
     });
 
-    const result = await response.json();
+    const rawText = await response.text();
+    let result: any = null;
+
+    try {
+      result = JSON.parse(rawText);
+    } catch {
+      // The server returned plain text or HTML error (e.g., "A server error has occurred")
+      console.error('[ProductImport] Non-JSON response received from server:', rawText);
+      const cleanSnippet = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150);
+      return {
+        success: false,
+        error: cleanSnippet || `Server returned invalid response (HTTP ${response.status}).`,
+      };
+    }
 
     if (!response.ok || !result.success || !result.data) {
+      // If server route returned an error, try client-side direct fetch fallback
+      const fallbackResult = await clientSideImportFallback(trimmed, categories);
+      if (fallbackResult.success) {
+        return fallbackResult;
+      }
       return {
         success: false,
         error: result?.error || `Failed to extract product from URL (HTTP ${response.status}).`,
@@ -184,3 +202,139 @@ function generateLocalInferredTags(
 
   return Array.from(tags).slice(0, 12);
 }
+
+/**
+ * Client-side browser fallback parser that extracts metadata and specifications using DOMParser
+ * when the local server backend route is unreachable or returns a server error.
+ */
+async function clientSideImportFallback(
+  targetUrl: string,
+  categories: Category[]
+): Promise<ImportProductResult> {
+  try {
+    // Attempt fetch via open CORS proxies if direct fetch is blocked by browser CORS
+    const proxyUrls = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+    ];
+
+    let html = '';
+    for (const pUrl of proxyUrls) {
+      try {
+        const resp = await fetch(pUrl, { signal: AbortSignal.timeout(8000) });
+        if (resp.ok) {
+          const text = await resp.text();
+          if (text && text.length > 200) {
+            html = text;
+            break;
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (!html) {
+      return {
+        success: false,
+        error: 'Unable to reach or read product page via proxy.',
+      };
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // 1. Title
+    let title =
+      doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+      doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content') ||
+      doc.querySelector('title')?.textContent ||
+      '';
+    title = title.replace(/\s*[-–|:]\s*(Amazon|Flipkart|Myntra|eBay|Walmart|Shopify)[\w\s.]*$/i, '').trim();
+
+    // 2. Brand
+    let brand =
+      doc.querySelector('meta[property="og:brand"]')?.getAttribute('content') ||
+      doc.querySelector('meta[name="brand"]')?.getAttribute('content') ||
+      '';
+
+    // 3. Description
+    let description =
+      doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+      doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+      '';
+    description = description.trim();
+
+    // 4. Images
+    const images: string[] = [];
+    const ogImg = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+    if (ogImg) images.push(ogImg);
+    const twImg = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
+    if (twImg && !images.includes(twImg)) images.push(twImg);
+
+    doc.querySelectorAll('img[src], img[data-src]').forEach((el) => {
+      if (images.length >= 8) return;
+      const src = el.getAttribute('data-src') || el.getAttribute('src');
+      if (src && /^https?:\/\/.+/i.test(src) && !/logo|icon|badge|tracker|pixel/i.test(src)) {
+        if (!images.includes(src)) images.push(src);
+      }
+    });
+
+    // 5. Specs from tables
+    const specs: { key: string; value: string }[] = [];
+    doc.querySelectorAll('tr').forEach((row) => {
+      const cells = row.querySelectorAll('th, td');
+      if (cells.length === 2) {
+        const k = (cells[0].textContent || '').trim().replace(/[:：]$/, '');
+        const v = (cells[1].textContent || '').trim();
+        if (k.length >= 2 && k.length <= 50 && v.length >= 1 && v.length <= 300) {
+          specs.push({ key: k, value: v });
+        }
+      }
+    });
+
+    // JSON-LD fallback
+    doc.querySelectorAll('script[type="application/ld+json"]').forEach((s) => {
+      try {
+        const json = JSON.parse(s.textContent || '');
+        if (json['@type'] === 'Product') {
+          if (!title && json.name) title = json.name;
+          if (!brand && json.brand) {
+            brand = typeof json.brand === 'object' ? json.brand.name : json.brand;
+          }
+          if (!description && json.description) description = json.description;
+        }
+      } catch {}
+    });
+
+    if (!title && !description && images.length === 0 && specs.length === 0) {
+      return { success: false, error: 'No product information found on page.' };
+    }
+
+    const payload: ExtractedProductPayload = {
+      title: title || undefined,
+      brand: brand || undefined,
+      description: description ? description.slice(0, 197) + (description.length > 200 ? '...' : '') : undefined,
+      fullDescription: description || undefined,
+      images,
+      specifications: specs.slice(0, 25),
+      sourceUrl: targetUrl,
+    };
+
+    const matchedCategory = matchCategoryHeuristic(title, description, specs, categories);
+    const inferredTags = generateLocalInferredTags(title, brand, specs);
+
+    return {
+      success: true,
+      data: payload,
+      matchedCategory,
+      inferredTags,
+    };
+  } catch (e: any) {
+    return {
+      success: false,
+      error: e?.message || 'Fallback client-side parsing failed.',
+    };
+  }
+}
+
