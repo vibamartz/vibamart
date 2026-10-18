@@ -219,8 +219,8 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                   }
                 }}
                 className={`p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${scopeType === opt.id
-                    ? 'border-emerald-600 bg-white ring-2 ring-emerald-600/20 shadow-xs text-emerald-900'
-                    : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
+                  ? 'border-emerald-600 bg-white ring-2 ring-emerald-600/20 shadow-xs text-emerald-900'
+                  : 'border-gray-200 bg-white hover:border-gray-300 text-gray-900'
                   }`}
               >
                 <span className={`text-xs font-black block ${scopeType === opt.id ? 'text-emerald-700' : 'text-gray-900'}`}>
@@ -297,8 +297,8 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                     type="button"
                     onClick={handleToggleSelectAll}
                     className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-2xs ${isAllSelected
-                        ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                        : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                      : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
                       }`}
                   >
                     {isAllSelected ? (
@@ -342,8 +342,8 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                         type="button"
                         onClick={() => handleTogglePincode(pin)}
                         className={`px-3 py-2 rounded-xl text-xs font-extrabold transition-all border flex items-center justify-between gap-1.5 ${isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                            : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/30'
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/30'
                           }`}
                       >
                         <span>{pin}</span>
@@ -452,8 +452,8 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                 <div
                   key={rule.id}
                   className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isEnabled
-                      ? 'bg-white border-emerald-200/90 shadow-2xs'
-                      : 'bg-gray-50 border-gray-200 opacity-60'
+                    ? 'bg-white border-emerald-200/90 shadow-2xs'
+                    : 'bg-gray-50 border-gray-200 opacity-60'
                     }`}
                 >
                   <div className="space-y-1">
@@ -478,8 +478,8 @@ export default function ProductLocationManager({ rules = [], onChange }: Product
                       type="button"
                       onClick={() => handleToggleRuleEnabled(rule.id)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase transition-all ${isEnabled
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-gray-200 text-gray-600 border border-gray-300'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-gray-200 text-gray-600 border border-gray-300'
                         }`}
                     >
                       {isEnabled ? <ToggleRight className="w-4 h-4 text-emerald-600" /> : <ToggleLeft className="w-4 h-4 text-gray-400" />}

@@ -201,14 +201,14 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       const updatedVariants = (product.variants || []).map(v =>
         v.id === variantId
           ? {
-              ...v,
-              name: editingVariant.name,
-              material: editingVariant.material,
-              price: editingVariant.price,
-              stock: editingVariant.stock,
-              inStock: editingVariant.stock > 0,
-              status: v.disabled ? 'disabled' : (editingVariant.stock > 0 ? 'active' : 'out_of_stock')
-            }
+            ...v,
+            name: editingVariant.name,
+            material: editingVariant.material,
+            price: editingVariant.price,
+            stock: editingVariant.stock,
+            inStock: editingVariant.stock > 0,
+            status: v.disabled ? 'disabled' : (editingVariant.stock > 0 ? 'active' : 'out_of_stock')
+          }
           : v
       );
 
@@ -246,11 +246,11 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       const updatedVariants = (product.variants || []).map(v =>
         v.id === variantId
           ? {
-              ...v,
-              stock: newStock,
-              inStock: newStock > 0,
-              status: v.disabled ? 'disabled' : (newStock > 0 ? 'active' : 'out_of_stock')
-            }
+            ...v,
+            stock: newStock,
+            inStock: newStock > 0,
+            status: v.disabled ? 'disabled' : (newStock > 0 ? 'active' : 'out_of_stock')
+          }
           : v
       );
 
@@ -715,11 +715,10 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             <button
               type="button"
               onClick={() => setFilterPlacement(prev => prev === 'main_only' ? 'all' : 'main_only')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ml-1 ${
-                filterPlacement === 'main_only'
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ml-1 ${filterPlacement === 'main_only'
                   ? 'bg-amber-500 text-white shadow-xs'
                   : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
-              }`}
+                }`}
               title="Show only products that exist in a Main Category and have NOT been assigned to any Subcategory or Nested Subcategory"
             >
               <FolderTree className="w-3 h-3" />
@@ -757,11 +756,10 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             <select
               value={filterPlacement}
               onChange={e => setFilterPlacement(e.target.value as any)}
-              className={`w-full rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-all ${
-                filterPlacement === 'main_only'
+              className={`w-full rounded-xl px-2 py-1.5 text-xs font-semibold outline-none transition-all ${filterPlacement === 'main_only'
                   ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
                   : 'bg-gray-50 border border-gray-200 focus:border-primary focus:bg-white'
-              }`}
+                }`}
             >
               <option value="all">All Placements</option>
               <option value="main_only">Main Category Only ({mainCategoryOnlyCount})</option>
@@ -921,13 +919,13 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                   </button>
                 </th>
                 <th className="px-2 py-3 w-8"></th>
-                <th className="px-4 py-3 min-w-[280px]">Product Info & Category Assignments</th>
-                <th className="px-4 py-3 min-w-[140px]">Product Code</th>
-                <th className="px-4 py-3 min-w-[80px]">Total Stock</th>
-                <th className="px-4 py-3 min-w-[70px]">Variants</th>
-                <th className="px-4 py-3 min-w-[95px]">GST Tax</th>
-                <th className="px-4 py-3 min-w-[100px]">Delivery</th>
-                <th className="px-4 py-3 min-w-[140px]">Status & Visibility</th>
+                <th className="px-3 py-3 w-[34%] min-w-[240px]">Product Info & Category Assignments</th>
+                <th className="px-3 py-3 w-[15%] min-w-[130px]">Product Code</th>
+                <th className="px-3 py-3 w-[9%] min-w-[75px]">Total Stock</th>
+                <th className="px-3 py-3 w-[8%] min-w-[65px]">Variants</th>
+                <th className="px-3 py-3 w-[10%] min-w-[90px]">GST Tax</th>
+                <th className="px-3 py-3 w-[9%] min-w-[85px]">Delivery</th>
+                <th className="px-3 py-3 w-[15%] min-w-[135px]">Status & Visibility</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -943,9 +941,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                 return (
                   <React.Fragment key={product.id}>
                     <tr
-                      className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-primary/5 hover:bg-primary/10' : (isExpanded ? 'bg-gray-50/50' : '')
-                      }`}
+                      className={`hover:bg-gray-50 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5 hover:bg-primary/10' : (isExpanded ? 'bg-gray-50/50' : '')
+                        }`}
                       onClick={() => toggleExpand(product.id)}
                     >
                       {/* Checkbox */}
@@ -968,7 +965,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Product Info & Category Assignments: Strictly single-line horizontal with ellipsis */}
-                      <td className="px-4 py-2.5 whitespace-nowrap min-w-0 max-w-sm">
+                      <td className="px-3 py-2.5 whitespace-nowrap min-w-0 max-w-sm">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={product.images[0] || 'https://via.placeholder.com/80'}
@@ -1008,10 +1005,10 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                     const badgeClass = isVisual
                                       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                       : isNested
-                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                      : isSub
-                                      ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
-                                      : 'bg-blue-50 text-blue-800 border-blue-200';
+                                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                        : isSub
+                                          ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                          : 'bg-blue-50 text-blue-800 border-blue-200';
 
                                     return (
                                       <span
@@ -1063,11 +1060,10 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                                       setIsBrandAssignmentModalOpen(true);
                                     }}
                                     title={`Internal Section: ${sec ? sec.name : 'Unassigned'} (Click to change)`}
-                                    className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
-                                      sec
+                                    className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${sec
                                         ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
                                         : 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100'
-                                    }`}
+                                      }`}
                                   >
                                     <Tag className="w-2.5 h-2.5" />
                                     <span>{sec ? sec.name : 'Unassigned'}</span>
@@ -1080,7 +1076,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Product Code */}
-                      <td className="px-4 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         {product.productCode ? (
                           <div className="flex items-center gap-1.5">
                             <span className="font-mono font-bold text-xs bg-emerald-50 text-emerald-900 px-2 py-0.5 rounded-lg border border-emerald-200/80">
@@ -1119,29 +1115,28 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Total Stock */}
-                      <td className="px-4 py-2.5 whitespace-nowrap text-xs font-semibold">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs font-semibold">
                         <span className={product.stock <= 5 ? "text-red-500 font-bold" : "text-gray-700"}>
                           {product.stock}
                         </span>
                       </td>
 
                       {/* Variants Count */}
-                      <td className="px-4 py-2.5 whitespace-nowrap text-xs">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs">
                         <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
                           {product.variants?.length || 0}
                         </span>
                       </td>
 
                       {/* GST Tax */}
-                      <td className="px-4 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleGst(e, product)}
                           title={`Click to ${product.enableGst !== false && (product.gst || 0) > 0 ? 'Disable' : 'Enable'} GST`}
-                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
-                            product.enableGst !== false && (product.gst || 0) > 0
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.enableGst !== false && (product.gst || 0) > 0
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
-                          }`}
+                            }`}
                         >
                           {product.enableGst !== false && (product.gst || 0) > 0 ? (
                             <><span>✅</span> GST {product.gst}%</>
@@ -1152,15 +1147,14 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Delivery */}
-                      <td className="px-4 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <button
                           onClick={(e) => handleToggleFreeDelivery(e, product)}
                           title={`Click to ${product.isFreeDelivery !== false ? 'Disable' : 'Enable'} Free Delivery`}
-                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
-                            product.isFreeDelivery !== false
+                          className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.isFreeDelivery !== false
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                               : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200'
-                          }`}
+                            }`}
                         >
                           {product.isFreeDelivery !== false ? (
                             <><span>🚚</span> Free</>
@@ -1171,16 +1165,15 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                       </td>
 
                       {/* Status & Visibility */}
-                      <td className="px-4 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
-                            className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
-                              product.isVisible !== false
+                            className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs cursor-pointer ${product.isVisible !== false
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                            }`}
+                              }`}
                           >
                             {product.isVisible !== false ? (
                               <>
