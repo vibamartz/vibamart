@@ -364,8 +364,8 @@ export default function AddEditProductForm({
     const cleanUrl = targetUrl.trim();
     if (!cleanUrl) return;
 
-    setIsImportingProduct(true);
-    const toastId = toast.loading('Extracting product details & images with AI...');
+      setIsImportingProduct(true);
+    const toastId = toast.loading('Extracting product description & specifications with AI...');
     try {
       const response = await axios.post('/api/products/ai-import', { url: cleanUrl }, { timeout: 15000 });
       const data = response.data;
@@ -380,18 +380,9 @@ export default function AddEditProductForm({
       setFormData((prev) => {
         const updated = { ...prev };
 
-        // 1. Images: Merge extracted images with existing images up to 10
-        if (Array.isArray(ext.images) && ext.images.length > 0) {
-          const currentImages = prev.images || [];
-          const combined = Array.from(new Set([...currentImages, ...ext.images])).slice(0, 10);
-          updated.images = combined;
-          if (!updated.primaryImage && combined.length > 0) {
-            updated.primaryImage = combined[0];
-          }
-          filledFieldsCount++;
-        }
+        // Note: Images are explicitly omitted per user requirement (only description, specifications & product info)
 
-        // 2. Name & Brand
+        // 1. Name & Brand
         if (ext.name && (!prev.name || prev.name.trim() === '')) {
           updated.name = ext.name;
           filledFieldsCount++;
@@ -401,7 +392,7 @@ export default function AddEditProductForm({
           filledFieldsCount++;
         }
 
-        // 3. Description & Full Description
+        // 2. Description (Short Digest) & Full Technical Description
         if (ext.description && (!prev.description || prev.description.trim() === '')) {
           updated.description = ext.description;
           filledFieldsCount++;
@@ -411,31 +402,7 @@ export default function AddEditProductForm({
           filledFieldsCount++;
         }
 
-        // 4. Pricing (MRP & Selling Price)
-        if (typeof ext.price === 'number' && ext.price > 0 && (!prev.price || prev.price === 0)) {
-          updated.price = ext.price;
-          filledFieldsCount++;
-        }
-        if (typeof ext.mrp === 'number' && ext.mrp > 0 && (!prev.mrp || prev.mrp === 0)) {
-          updated.mrp = ext.mrp;
-          filledFieldsCount++;
-        }
-
-        // 5. Stock: ONLY when reliably available, never guessed
-        if (typeof ext.stock === 'number' && !isNaN(ext.stock) && ext.stock >= 0) {
-          updated.stock = ext.stock;
-          filledFieldsCount++;
-        }
-
-        // 6. Color & Size if present
-        if (ext.color && (!prev.color || prev.color.trim() === '')) {
-          updated.color = ext.color;
-        }
-        if (ext.size && (!prev.size || prev.size.trim() === '')) {
-          updated.size = ext.size;
-        }
-
-        // 7. Specifications: Merge extracted specifications
+        // 3. Specifications: Merge extracted specifications into specifications array
         if (Array.isArray(ext.specifications) && ext.specifications.length > 0) {
           const existingSpecs = prev.specifications || [];
           const existingKeys = new Set(existingSpecs.map((s) => s.key.toLowerCase()));
@@ -446,7 +413,7 @@ export default function AddEditProductForm({
           }
         }
 
-        // 8. Features
+        // 4. Features: Merge extracted features
         if (Array.isArray(ext.features) && ext.features.length > 0) {
           const existingFeats = prev.features || [];
           const newFeats = ext.features.filter((f) => !existingFeats.includes(f));
@@ -456,7 +423,31 @@ export default function AddEditProductForm({
           }
         }
 
-        // 9. Category suggestion matching
+        // 5. Pricing (MRP & Selling Price)
+        if (typeof ext.price === 'number' && ext.price > 0 && (!prev.price || prev.price === 0)) {
+          updated.price = ext.price;
+          filledFieldsCount++;
+        }
+        if (typeof ext.mrp === 'number' && ext.mrp > 0 && (!prev.mrp || prev.mrp === 0)) {
+          updated.mrp = ext.mrp;
+          filledFieldsCount++;
+        }
+
+        // 6. Stock: ONLY when reliably available, never guessed
+        if (typeof ext.stock === 'number' && !isNaN(ext.stock) && ext.stock >= 0) {
+          updated.stock = ext.stock;
+          filledFieldsCount++;
+        }
+
+        // 7. Color & Size if present
+        if (ext.color && (!prev.color || prev.color.trim() === '')) {
+          updated.color = ext.color;
+        }
+        if (ext.size && (!prev.size || prev.size.trim() === '')) {
+          updated.size = ext.size;
+        }
+
+        // 8. Category suggestion matching
         if (ext.categorySuggestion && (!prev.categoryId || prev.categoryId === '')) {
           const matchedCategory = categories.find((c) =>
             c.name.toLowerCase().includes(ext.categorySuggestion!.toLowerCase()) ||
@@ -474,10 +465,11 @@ export default function AddEditProductForm({
       setImportUrlInput('');
       toast.success(
         filledFieldsCount > 0
-          ? `AI Import Complete! Extracted product details filled in. Review and edit below.`
-          : `Images and metadata extracted. Review and refine any fields manually before saving.`,
+          ? `AI Import Complete! Extracted description and specifications filled in. Review and edit below.`
+          : `Processed link. Review and refine any fields manually before saving.`,
         { id: toastId, duration: 5000 }
       );
+
     } catch (err: any) {
       console.warn('[AddEditProductForm] AI Import error:', err);
       toast.error(
@@ -1113,11 +1105,11 @@ export default function AddEditProductForm({
                   <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
                     <span>AI Product Import</span>
                     <span className="text-[9px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full border border-blue-200">
-                      Gemini Auto-Fill
+                      Description & Specs
                     </span>
                   </h4>
                   <p className="text-[11px] text-gray-500 font-medium">
-                    Paste a product image URL or public product page URL to extract images, description, specifications, and verified stock.
+                    Paste a product image URL or public product page link to automatically extract and fill product descriptions and specifications.
                   </p>
                 </div>
               </div>
@@ -1147,11 +1139,12 @@ export default function AddEditProductForm({
                         }
                       }
                     }}
-                    placeholder="Paste product image URL or public source link (e.g. https://...)..."
+                    placeholder="Paste product link or image URL (e.g. https://...)..."
                     className="w-full bg-white border border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl pl-8 pr-3 py-2 text-xs font-medium outline-none transition-all"
                     disabled={isImportingProduct}
                   />
                 </div>
+
                 <button
                   type="button"
                   disabled={!importUrlInput.trim() || isImportingProduct}
