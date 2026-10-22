@@ -272,8 +272,8 @@ export function findCategoryNodeByKey(nodes: FlatCategoryNode[], key: string): F
 }
 
 // Re-export CategoryHierarchyEngine and provide cached helpers for component filtering
-import { CategoryHierarchyEngine } from '../../backend/search/categoryHierarchy';
-export { CategoryHierarchyEngine };
+import { CategoryHierarchyEngine, isTShirtTerm, isShirtTerm } from '../../backend/search/categoryHierarchy';
+export { CategoryHierarchyEngine, isTShirtTerm, isShirtTerm };
 
 const hierarchyEngineCache = new WeakMap<Category[], CategoryHierarchyEngine>();
 
@@ -292,9 +292,13 @@ export function getOrCreateHierarchyEngine(
   return engine;
 }
 
+import { createSlug } from './slug';
+
 /**
- * Determine if a product is assigned to a target category, subcategory, nested subcategory,
- * or visual subcategory, OR any of its descendant levels.
+ * Determine if a product is explicitly assigned to a target category, subcategory,
+ * nested subcategory, or visual subcategory.
+ * Each product must appear only in the category or subcategory explicitly assigned to it by the admin.
+ * For example, products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there.
  */
 export function isProductInHierarchy(
   product: Product,
@@ -308,46 +312,261 @@ export function isProductInHierarchy(
     return true;
   }
 
-  const engine = getOrCreateHierarchyEngine(categories, visualItems);
-  const { hierarchyIds, categoryNames, visualNames } = engine.resolveProductHierarchy(product);
-  if (engine.matchesFilter(hierarchyIds, filterTrim)) {
-    return true;
-  }
-
-  // Resilient direct fallback (e.g. if category store is still initializing or direct product property match)
   const filterLower = filterTrim.toLowerCase();
-  const filterSingular = filterLower.replace(/s$/, '');
+  const filterSlug = createSlug(filterTrim).toLowerCase();
 
-  if (
-    (product.categoryId && String(product.categoryId).toLowerCase() === filterLower) ||
-    (product.subCategoryId && String(product.subCategoryId).toLowerCase() === filterLower) ||
-    (product.nestedSubCategoryId && String(product.nestedSubCategoryId).toLowerCase() === filterLower) ||
-    (product.visualNestedSubcategoryId && String(product.visualNestedSubcategoryId).toLowerCase() === filterLower)
-  ) {
-    return true;
+  // Explicit isolation check: Products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there
+  const productIsTShirt = (
+    (product.nestedSubCategoryId && isTShirtTerm(product.nestedSubCategoryId)) ||
+    (Array.isArray(product.nestedSubCategoryIds) && product.nestedSubCategoryIds.some(isTShirtTerm)) ||
+    ((product as any).nestedSubCategoryName && isTShirtTerm((product as any).nestedSubCategoryName)) ||
+    (product.subCategoryId && isTShirtTerm(product.subCategoryId)) ||
+    (Array.isArray(product.subCategoryIds) && product.subCategoryIds.some(isTShirtTerm)) ||
+    ((product as any).subCategoryName && isTShirtTerm((product as any).subCategoryName))
+  );
+
+  const productExplicitlyAssignedToShirts = (
+    (product.subCategoryId && isShirtTerm(product.subCategoryId) && !product.nestedSubCategoryId) ||
+    (Array.isArray(product.subCategoryIds) && product.subCategoryIds.some(isShirtTerm)) ||
+    (Array.isArray(product.nestedSubCategoryIds) && product.nestedSubCategoryIds.some(isShirtTerm)) ||
+    (product.nestedSubCategoryId && isShirtTerm(product.nestedSubCategoryId))
+  );
+
+  if (isShirtTerm(filterLower) || isShirtTerm(filterSlug)) {
+    if (productIsTShirt && !productExplicitlyAssignedToShirts) {
+      return false;
+    }
   }
 
-  const pCatName = (product as any).categoryName ? String((product as any).categoryName).toLowerCase() : '';
-  const pSubName = (product as any).subCategoryName ? String((product as any).subCategoryName).toLowerCase() : '';
-  const pNestedName = (product as any).nestedSubCategoryName ? String((product as any).nestedSubCategoryName).toLowerCase() : '';
-
-  if (
-    (pCatName && (pCatName === filterLower || pCatName.includes(filterLower) || filterLower.includes(pCatName) || pCatName === filterSingular)) ||
-    (pSubName && (pSubName === filterLower || pSubName.includes(filterLower) || filterLower.includes(pSubName))) ||
-    (pNestedName && (pNestedName === filterLower || pNestedName.includes(filterLower) || filterLower.includes(pNestedName)))
-  ) {
-    return true;
+  if (isTShirtTerm(filterLower) || isTShirtTerm(filterSlug)) {
+    if (!productIsTShirt) {
+      return false;
+    }
   }
 
-  if (categoryNames.some(n => {
-    const nLow = n.toLowerCase();
-    return nLow === filterLower || nLow.includes(filterLower) || filterLower.includes(nLow) || nLow === filterSingular;
-  })) {
-    return true;
+  // 1. Match against Category tree nodes (Category, SubCategory, Nested SubCategory)
+  const targetKeys = new Set<string>();
+  targetKeys.add(filterLower);
+  if (filterSlug) targetKeys.add(filterSlug);
+
+  if (isTShirtTerm(filterLower) || isTShirtTerm(filterSlug)) {
+    targetKeys.add('2-1-1');
+    targetKeys.add('t-shirts-polos');
+    targetKeys.add('t-shirts & polos');
+    targetKeys.add('t-shirts');
+    targetKeys.add('t-shirt');
+  } else if (isShirtTerm(filterLower) || isShirtTerm(filterSlug)) {
+    targetKeys.add('2-1-2');
+    targetKeys.add('casual-shirts');
+    targetKeys.add('casual shirts');
+    targetKeys.add('shirts');
+    targetKeys.add('shirt');
   }
 
-  if (visualNames.some(v => v.toLowerCase().includes(filterLower))) {
-    return true;
+  const matchedTreeNodes: { id: string; slug?: string; seoSlug?: string; name?: string; level: CategoryHierarchyLevel }[] = [];
+
+  const traverseNodes = (nodes: any[], level: CategoryHierarchyLevel) => {
+    for (const item of nodes) {
+      if (!item) continue;
+      const itemId = String(item.id || '').toLowerCase();
+      const itemSlug = String(item.slug || '').toLowerCase();
+      const itemSeoSlug = String((item as any).seoSlug || '').toLowerCase();
+      const itemName = String(item.name || '').toLowerCase().trim();
+      const itemNameSlug = createSlug(item.name || '').toLowerCase();
+
+      if (
+        targetKeys.has(itemId) ||
+        targetKeys.has(itemSlug) ||
+        targetKeys.has(itemSeoSlug) ||
+        targetKeys.has(itemNameSlug) ||
+        targetKeys.has(itemName)
+      ) {
+        matchedTreeNodes.push({
+          id: String(item.id || ''),
+          slug: item.slug,
+          seoSlug: (item as any).seoSlug,
+          name: item.name,
+          level
+        });
+      }
+
+      if (Array.isArray(item.subcategories) && item.subcategories.length > 0) {
+        const nextLevel: CategoryHierarchyLevel = level === 'category' ? 'subcategory' : 'nested_subcategory';
+        traverseNodes(item.subcategories, nextLevel);
+      }
+    }
+  };
+
+  traverseNodes(categories, 'category');
+
+  for (const v of visualItems) {
+    if (!v) continue;
+    const vId = String(v.id || '').toLowerCase();
+    const vSlug = String(v.slug || '').toLowerCase();
+    const vName = String(v.name || '').toLowerCase().trim();
+    const vNameSlug = createSlug(v.name || '').toLowerCase();
+    if (
+      vId === filterLower ||
+      vSlug === filterLower ||
+      vSlug === filterSlug ||
+      vNameSlug === filterLower ||
+      vNameSlug === filterSlug ||
+      vName === filterLower
+    ) {
+      matchedTreeNodes.push({
+        id: String(v.id || ''),
+        slug: v.slug,
+        name: v.name,
+        level: 'visual_nested_subcategory'
+      });
+    }
+  }
+
+  // 2. Build product's explicitly assigned key sets by level
+  const pCatKeys = new Set<string>();
+  if (product.categoryId) {
+    pCatKeys.add(String(product.categoryId).toLowerCase());
+    const cs = createSlug(String(product.categoryId)).toLowerCase();
+    if (cs) pCatKeys.add(cs);
+  }
+  if (Array.isArray(product.categories)) {
+    product.categories.forEach(c => {
+      if (c) {
+        pCatKeys.add(String(c).toLowerCase());
+        const cs = createSlug(String(c)).toLowerCase();
+        if (cs) pCatKeys.add(cs);
+      }
+    });
+  }
+  if ((product as any).categoryName) {
+    pCatKeys.add(String((product as any).categoryName).toLowerCase().trim());
+    pCatKeys.add(createSlug(String((product as any).categoryName)).toLowerCase());
+  }
+
+  const pSubKeys = new Set<string>();
+  if (product.subCategoryId) {
+    pSubKeys.add(String(product.subCategoryId).toLowerCase());
+    const ss = createSlug(String(product.subCategoryId)).toLowerCase();
+    if (ss) pSubKeys.add(ss);
+  }
+  if (Array.isArray(product.subCategoryIds)) {
+    product.subCategoryIds.forEach(s => {
+      if (s) {
+        pSubKeys.add(String(s).toLowerCase());
+        const ss = createSlug(String(s)).toLowerCase();
+        if (ss) pSubKeys.add(ss);
+      }
+    });
+  }
+  if ((product as any).subCategoryName) {
+    pSubKeys.add(String((product as any).subCategoryName).toLowerCase().trim());
+    pSubKeys.add(createSlug(String((product as any).subCategoryName)).toLowerCase());
+  }
+
+  const pNestedKeys = new Set<string>();
+  if (product.nestedSubCategoryId) {
+    pNestedKeys.add(String(product.nestedSubCategoryId).toLowerCase());
+    const ns = createSlug(String(product.nestedSubCategoryId)).toLowerCase();
+    if (ns) pNestedKeys.add(ns);
+  }
+  if (Array.isArray(product.nestedSubCategoryIds)) {
+    product.nestedSubCategoryIds.forEach(n => {
+      if (n) {
+        pNestedKeys.add(String(n).toLowerCase());
+        const ns = createSlug(String(n)).toLowerCase();
+        if (ns) pNestedKeys.add(ns);
+      }
+    });
+  }
+  if ((product as any).nestedSubCategoryName) {
+    pNestedKeys.add(String((product as any).nestedSubCategoryName).toLowerCase().trim());
+    pNestedKeys.add(createSlug(String((product as any).nestedSubCategoryName)).toLowerCase());
+  }
+
+  const pVisualKeys = new Set<string>();
+  if (product.visualNestedSubcategoryId) {
+    pVisualKeys.add(String(product.visualNestedSubcategoryId).toLowerCase());
+  }
+  if (Array.isArray(product.visualNestedSubcategoryIds)) {
+    product.visualNestedSubcategoryIds.forEach(v => v && pVisualKeys.add(String(v).toLowerCase()));
+  }
+  for (const v of visualItems) {
+    if (v && Array.isArray(v.productIds) && v.productIds.includes(product.id)) {
+      pVisualKeys.add(String(v.id).toLowerCase());
+      if (v.slug) pVisualKeys.add(String(v.slug).toLowerCase());
+    }
+  }
+
+  // Enrich product keys with node slugs and names from category tree
+  for (const cat of categories) {
+    const cId = String(cat.id || '').toLowerCase();
+    if (pCatKeys.has(cId)) {
+      if (cat.slug) pCatKeys.add(cat.slug.toLowerCase());
+      if (cat.name) {
+        pCatKeys.add(cat.name.toLowerCase().trim());
+        pCatKeys.add(createSlug(cat.name).toLowerCase());
+      }
+    }
+    (cat.subcategories || []).forEach(sub => {
+      const sId = String(sub.id || '').toLowerCase();
+      if (pSubKeys.has(sId)) {
+        if (sub.slug) pSubKeys.add(sub.slug.toLowerCase());
+        if (sub.name) {
+          pSubKeys.add(sub.name.toLowerCase().trim());
+          pSubKeys.add(createSlug(sub.name).toLowerCase());
+        }
+      }
+      (sub.subcategories || []).forEach(nested => {
+        const nId = String(nested.id || '').toLowerCase();
+        if (pNestedKeys.has(nId)) {
+          if (nested.slug) pNestedKeys.add(nested.slug.toLowerCase());
+          if (nested.name) {
+            pNestedKeys.add(nested.name.toLowerCase().trim());
+            pNestedKeys.add(createSlug(nested.name).toLowerCase());
+          }
+        }
+      });
+    });
+  }
+
+  if (Array.from(pNestedKeys).some(isTShirtTerm)) {
+    pNestedKeys.add('t-shirts');
+    pNestedKeys.add('t-shirt');
+  }
+  if (Array.from(pNestedKeys).some(isShirtTerm)) {
+    pNestedKeys.add('shirts');
+    pNestedKeys.add('shirt');
+  }
+
+  // 3. Match against matched tree nodes by level
+  if (matchedTreeNodes.length > 0) {
+    for (const node of matchedTreeNodes) {
+      const nodeKeys = [
+        String(node.id || '').toLowerCase(),
+        String(node.slug || '').toLowerCase(),
+        String(node.seoSlug || '').toLowerCase(),
+        String(node.name || '').toLowerCase().trim(),
+        createSlug(node.name || '').toLowerCase()
+      ].filter(Boolean);
+
+      if (node.level === 'category') {
+        if (nodeKeys.some(k => pCatKeys.has(k))) return true;
+      } else if (node.level === 'subcategory') {
+        if (nodeKeys.some(k => pSubKeys.has(k))) return true;
+      } else if (node.level === 'nested_subcategory' || node.level === 'deep_subcategory') {
+        if (nodeKeys.some(k => pNestedKeys.has(k))) return true;
+      } else if (node.level === 'visual_nested_subcategory') {
+        if (nodeKeys.some(k => pVisualKeys.has(k))) return true;
+      }
+    }
+    return false;
+  }
+
+  // 4. Direct fallback match across all explicitly assigned keys
+  for (const tk of targetKeys) {
+    if (pCatKeys.has(tk) || pSubKeys.has(tk) || pNestedKeys.has(tk) || pVisualKeys.has(tk)) {
+      return true;
+    }
   }
 
   return false;

@@ -32,6 +32,41 @@ function normalizeName(term: string): string {
 }
 
 /**
+ * Helper to normalize and check if a term represents "t-shirts"
+ */
+export function isTShirtTerm(term?: string): boolean {
+  if (!term) return false;
+  const t = term.toLowerCase().trim();
+  return (
+    t === 't-shirts' ||
+    t === 't-shirt' ||
+    t === 'tshirt' ||
+    t === 'tshirts' ||
+    t === 't-shirts-polos' ||
+    t === 't-shirts & polos' ||
+    t === '2-1-1'
+  );
+}
+
+/**
+ * Helper to normalize and check if a term represents "shirts" (and not t-shirts)
+ */
+export function isShirtTerm(term?: string): boolean {
+  if (!term) return false;
+  const t = term.toLowerCase().trim();
+  if (isTShirtTerm(t)) return false;
+  return (
+    t === 'shirts' ||
+    t === 'shirt' ||
+    t === 'casual-shirts' ||
+    t === 'casual shirts' ||
+    t === 'formal-shirts' ||
+    t === 'formal shirts' ||
+    t === '2-1-2'
+  );
+}
+
+/**
  * Dynamic Category Hierarchy Engine
  * 
  * Supports arbitrary depth category trees, visual nested subcategories,
@@ -314,6 +349,15 @@ export class CategoryHierarchyEngine {
       if (bySingular) bySingular.forEach(add);
     }
 
+    // Canonical category node aliases
+    if (isTShirtTerm(trimmed)) {
+      if (this.nodesById.has('2-1-1')) add(this.nodesById.get('2-1-1'));
+      if (this.nodesBySlug.has('t-shirts-polos')) add(this.nodesBySlug.get('t-shirts-polos'));
+    } else if (isShirtTerm(trimmed)) {
+      if (this.nodesById.has('2-1-2')) add(this.nodesById.get('2-1-2'));
+      if (this.nodesBySlug.has('casual-shirts')) add(this.nodesBySlug.get('casual-shirts'));
+    }
+
     return results;
   }
 
@@ -444,6 +488,8 @@ export class CategoryHierarchyEngine {
     };
   }
 
+
+
   /**
    * Checks whether a product matches a target category/subcategory filter.
    * Dynamically checks if ANY assigned product hierarchy ID is in the target filter's descendant set.
@@ -458,25 +504,44 @@ export class CategoryHierarchyEngine {
       return true;
     }
 
-    const targetDescendants = this.getDescendantIds(filterTrim);
-    if (productHierarchyIds instanceof Set) {
-      for (const id of productHierarchyIds) {
-        if (targetDescendants.has(id)) return true;
+    const filterLower = filterTrim.toLowerCase();
+    const filterSlug = createSlug(filterTrim).toLowerCase();
+
+    const pIds = Array.isArray(productHierarchyIds)
+      ? new Set(productHierarchyIds.map(id => String(id).toLowerCase()))
+      : new Set(Array.from(productHierarchyIds).map(id => String(id).toLowerCase()));
+
+    const productHasTShirt = Array.from(pIds).some(isTShirtTerm);
+    const productHasShirt = Array.from(pIds).some(isShirtTerm);
+
+    // Strict Category Isolation: Products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there
+    if (isShirtTerm(filterLower) || isShirtTerm(filterSlug)) {
+      if (productHasTShirt && !productHasShirt) {
+        return false;
       }
-    } else if (Array.isArray(productHierarchyIds)) {
-      for (const id of productHierarchyIds) {
-        if (targetDescendants.has(id)) return true;
+    }
+
+    if (isTShirtTerm(filterLower) || isTShirtTerm(filterSlug)) {
+      if (!productHasTShirt) {
+        return false;
+      }
+    }
+
+    const targetDescendants = this.getDescendantIds(filterTrim);
+    for (const id of pIds) {
+      if (targetDescendants.has(id)) {
+        if ((isShirtTerm(filterLower) || isShirtTerm(filterSlug)) && isTShirtTerm(id) && !productHasShirt) {
+          continue;
+        }
+        return true;
       }
     }
 
     // Also check direct node IDs across all matching nodes
     const targetNodes = this.getNodes(filterTrim);
     for (const targetNode of targetNodes) {
-      if (productHierarchyIds instanceof Set) {
-        if (productHierarchyIds.has(targetNode.id)) return true;
-      } else if (Array.isArray(productHierarchyIds)) {
-        if (productHierarchyIds.includes(targetNode.id)) return true;
-      }
+      if (pIds.has(targetNode.id.toLowerCase())) return true;
+      if (targetNode.slug && pIds.has(targetNode.slug.toLowerCase())) return true;
     }
 
     return false;
@@ -490,6 +555,9 @@ export class CategoryHierarchyEngine {
     const qNorm = normalizeName(query);
     if (!qNorm) return [];
 
+    const isTShirtQuery = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(query) || qNorm.includes('tshirt') || qNorm.includes('tee');
+    const isShirtQuery = (/\bshirts?\b/i.test(query) || qNorm === 'shirts' || qNorm === 'shirt') && !isTShirtQuery;
+
     const matches: HierarchyNodeInfo[] = [];
     const seen = new Set<string>();
 
@@ -497,6 +565,12 @@ export class CategoryHierarchyEngine {
     const exactMatches = this.nodesByNormalizedName.get(qNorm);
     if (exactMatches) {
       for (const node of exactMatches) {
+        const isTShirtNode = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(node.name) || node.id === '2-1-1' || node.slug === 't-shirts-polos';
+        const isShirtNode = (/\bshirts?\b/i.test(node.name) || node.id === '2-1-2' || node.slug === 'casual-shirts') && !isTShirtNode;
+
+        if (isShirtQuery && isTShirtNode && !isShirtNode) continue;
+        if (isTShirtQuery && isShirtNode && !isTShirtNode) continue;
+
         if (!seen.has(node.id)) {
           seen.add(node.id);
           matches.push(node);
@@ -508,6 +582,13 @@ export class CategoryHierarchyEngine {
     for (const node of this.allNodesList) {
       if (seen.has(node.id)) continue;
       const nodeNorm = normalizeName(node.name);
+      const isTShirtNode = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(node.name) || nodeNorm.includes('tshirt') || node.id === '2-1-1' || node.slug === 't-shirts-polos';
+      const isShirtNode = (/\bshirts?\b/i.test(node.name) || nodeNorm === 'shirts' || nodeNorm === 'shirt' || node.id === '2-1-2' || node.slug === 'casual-shirts') && !isTShirtNode;
+
+      // Prevent T-Shirts matching Shirt queries and vice-versa
+      if (isShirtQuery && isTShirtNode && !isShirtNode) continue;
+      if (isTShirtQuery && isShirtNode && !isTShirtNode) continue;
+
       if (
         nodeNorm === qNorm ||
         nodeNorm.startsWith(qNorm) ||
@@ -530,6 +611,9 @@ export class CategoryHierarchyEngine {
     const q = query.toLowerCase().trim();
     if (q.length < 2) return [];
 
+    const isTShirtQuery = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(q);
+    const isShirtQuery = /\bshirts?\b/i.test(q) && !isTShirtQuery;
+
     const results: HierarchyNodeInfo[] = [];
     const seen = new Set<string>();
 
@@ -537,6 +621,12 @@ export class CategoryHierarchyEngine {
       if (!node.isActive || !node.isVisible) continue;
       const lowerName = node.name.toLowerCase();
       const lowerBreadcrumb = node.breadcrumb.toLowerCase();
+
+      const isTShirtNode = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(node.name) || node.id === '2-1-1' || node.slug === 't-shirts-polos';
+      const isShirtNode = (/\bshirts?\b/i.test(node.name) || node.id === '2-1-2' || node.slug === 'casual-shirts') && !isTShirtNode;
+
+      if (isShirtQuery && isTShirtNode && !isShirtNode) continue;
+      if (isTShirtQuery && isShirtNode && !isTShirtNode) continue;
 
       if (
         lowerName.startsWith(q) ||
