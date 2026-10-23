@@ -192,7 +192,7 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
   return (
     <div className="min-h-screen bg-gray-50/50 py-4 sm:py-8 px-3 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-        
+
         {/* Top Header Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -272,21 +272,19 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
           <div className="flex gap-2 mt-5">
             <button
               onClick={() => handleTabChange('history')}
-              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
-                activeTab === 'history'
+              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'history'
                   ? 'bg-white text-emerald-900 shadow-md'
                   : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
+                }`}
             >
               Cashback History
             </button>
             <button
               onClick={() => handleTabChange('payout_settings')}
-              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                activeTab === 'payout_settings'
+              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${activeTab === 'payout_settings'
                   ? 'bg-white text-emerald-900 shadow-md'
                   : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
+                }`}
             >
               <CreditCard className="w-4 h-4" />
               Payout Account {payoutInfo?.upiId || payoutInfo?.accountNumber ? '✓' : ''}
@@ -466,11 +464,10 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
                   <button
                     type="button"
                     onClick={() => setPayoutType('upi')}
-                    className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${
-                      payoutType === 'upi'
+                    className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${payoutType === 'upi'
                         ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
                         : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${payoutType === 'upi' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                       UPI
@@ -484,11 +481,10 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
                   <button
                     type="button"
                     onClick={() => setPayoutType('bank')}
-                    className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${
-                      payoutType === 'bank'
+                    className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${payoutType === 'bank'
                         ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
                         : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${payoutType === 'bank' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                       <Building2 className="w-5 h-5" />

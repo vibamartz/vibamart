@@ -443,7 +443,7 @@ function AdminDashboardContent() {
   // Automated backend database cleanup invocation on admin login/mount
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'super_admin') {
-      fetch('/api/admin/notifications/cleanup', { method: 'POST' }).catch(() => {});
+      fetch('/api/admin/notifications/cleanup', { method: 'POST' }).catch(() => { });
     }
   }, [user]);
 
@@ -559,7 +559,7 @@ function AdminDashboardContent() {
       await Promise.all(deletePromises);
       try {
         await fetch('/api/admin/notifications/purge-all', { method: 'POST' });
-      } catch (e) {}
+      } catch (e) { }
       toast.success('All admin notifications permanently deleted.', { id: toastId });
     } catch (err: any) {
       toast.error('Failed to delete notifications: ' + err.message, { id: toastId });
@@ -1083,11 +1083,10 @@ function AdminDashboardContent() {
                             <div
                               key={notif.id}
                               onClick={() => handleNotificationClick(notif)}
-                              className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group text-left ${
-                                !isRead
-                                  ? 'bg-rose-50/50 border-rose-200/70 hover:bg-rose-50/80 shadow-sm'
-                                  : 'bg-gray-50 border-gray-100 hover:border-gray-200'
-                              }`}
+                              className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group text-left ${!isRead
+                                ? 'bg-rose-50/50 border-rose-200/70 hover:bg-rose-50/80 shadow-sm'
+                                : 'bg-gray-50 border-gray-100 hover:border-gray-200'
+                                }`}
                             >
                               <div className="flex justify-between items-start gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -1481,9 +1480,109 @@ function ActionButton({ icon: Icon, label, color, onClick }: { icon: any, label:
   );
 }
 
+const STATE_REGION_MAP: Record<string, string> = {
+  // North
+  'delhi': 'North',
+  'new delhi': 'North',
+  'haryana': 'North',
+  'punjab': 'North',
+  'himachal pradesh': 'North',
+  'jammu and kashmir': 'North',
+  'jammu & kashmir': 'North',
+  'ladakh': 'North',
+  'rajasthan': 'North',
+  'uttar pradesh': 'North',
+  'uttarakhand': 'North',
+  'chandigarh': 'North',
+  // South
+  'karnataka': 'South',
+  'tamil nadu': 'South',
+  'kerala': 'South',
+  'andhra pradesh': 'South',
+  'telangana': 'South',
+  'puducherry': 'South',
+  'pondicherry': 'South',
+  'lakshadweep': 'South',
+  'goa': 'South',
+  // West
+  'maharashtra': 'West',
+  'gujarat': 'West',
+  'dadra and nagar haveli': 'West',
+  'daman and diu': 'West',
+  'dadra and nagar haveli and daman and diu': 'West',
+  // East
+  'west bengal': 'East',
+  'odisha': 'East',
+  'orissa': 'East',
+  'bihar': 'East',
+  'jharkhand': 'East',
+  'andaman and nicobar islands': 'East',
+  // Central
+  'madhya pradesh': 'Central',
+  'chhattisgarh': 'Central',
+  // North-East
+  'assam': 'North-East',
+  'sikkim': 'North-East',
+  'nagaland': 'North-East',
+  'meghalaya': 'North-East',
+  'manipur': 'North-East',
+  'mizoram': 'North-East',
+  'tripura': 'North-East',
+  'arunachal pradesh': 'North-East',
+};
+
+const CITY_REGION_MAP: Record<string, string> = {
+  'bangalore': 'South',
+  'bengaluru': 'South',
+  'chennai': 'South',
+  'hyderabad': 'South',
+  'kochi': 'South',
+  'coimbatore': 'South',
+  'mysuru': 'South',
+  'mysore': 'South',
+  'visakhapatnam': 'South',
+  'mumbai': 'West',
+  'pune': 'West',
+  'ahmedabad': 'West',
+  'surat': 'West',
+  'nagpur': 'West',
+  'nashik': 'West',
+  'vadodara': 'West',
+  'delhi': 'North',
+  'new delhi': 'North',
+  'noida': 'North',
+  'gurgaon': 'North',
+  'gurugram': 'North',
+  'jaipur': 'North',
+  'lucknow': 'North',
+  'chandigarh': 'North',
+  'kanpur': 'North',
+  'kolkata': 'East',
+  'bhubaneswar': 'East',
+  'patna': 'East',
+  'ranchi': 'East',
+  'cuttack': 'East',
+  'bhopal': 'Central',
+  'indore': 'Central',
+  'raipur': 'Central',
+  'guwahati': 'North-East',
+};
+
+function formatCsvCell(val: any): string {
+  if (val === null || val === undefined) return '';
+  const str = String(val).trim();
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   const { isDateInRange, selectedPreset, setPreset, dateRange, resetFilter } = useAdminDateFilter();
+  const { categories } = useCategoryStore();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [vendors, setVendors] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1502,9 +1601,38 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const qProds = query(collection(db, 'products'));
+    const unsubProds = onSnapshot(qProds, (snapshot) => {
+      const prodsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
+      setProducts(prodsData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'products', false);
+    });
+
+    const qVendors = query(collection(db, 'users'), where('role', '==', 'vendor'));
+    const unsubVendors = onSnapshot(qVendors, (snapshot) => {
+      const vendorsData = snapshot.docs.map(doc => ({
+        uid: doc.id,
+        ...doc.data()
+      } as UserProfile));
+      setVendors(vendorsData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'users', false);
+    });
+
+    return () => {
+      unsubProds();
+      unsubVendors();
+    };
+  }, []);
+
   // Filter orders by active date range
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => isDateInRange(o.createdAt));
+    return orders.filter(o => isDateInRange((o as any).orderDate || (o as any).order_date || (o as any).date || o.createdAt));
   }, [orders, isDateInRange]);
 
   // Aggregate real orders by date for salesData
@@ -1512,14 +1640,16 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     const salesMap: Record<string, { date: string; amount: number; orders: number; items: number }> = {};
 
     filteredOrders.forEach(order => {
-      if (!order.createdAt) return;
-      const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', {
+      const rawDate = (order as any).orderDate || (order as any).order_date || (order as any).date || order.createdAt;
+      if (!rawDate) return;
+      const d = new Date(rawDate?.toDate ? rawDate.toDate() : rawDate);
+      const dateStr = !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
-      });
+      }) : String(rawDate);
 
-      const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || Number((order as any).unitsSold || (order as any).units_sold || 1) || 0;
 
       if (salesMap[dateStr]) {
         salesMap[dateStr].amount += order.total || 0;
@@ -1540,13 +1670,15 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
 
   const paymentData = useMemo(() => {
     return filteredOrders.map(order => {
-      const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+      const rawDate = (order as any).orderDate || (order as any).order_date || (order as any).date || order.createdAt;
+      const d = rawDate ? new Date(rawDate?.toDate ? rawDate.toDate() : rawDate) : null;
+      const formattedDate = d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      }) : 'N/A';
+      }) : (rawDate ? String(rawDate) : 'N/A');
 
       return {
         id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
@@ -1582,25 +1714,356 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   }, [filteredOrders]);
 
   const exportToCSV = () => {
-    const data = type === 'sales' ? salesData : paymentData;
-    if (data.length === 0) {
+    if (type === 'payment') {
+      if (paymentData.length === 0) {
+        toast.error('No transactions available to export for this period');
+        return;
+      }
+      const headers = Object.keys(paymentData[0]).join(',');
+      const rows = paymentData.map(obj => Object.values(obj).join(',')).join('\n');
+      const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${type}_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      logAdminAction(
+        AdminAction.EXPORT_REPORT,
+        `Exported ${type} report for ${dateRange.label} (${dateRange.formattedRange}).`
+      );
+      return;
+    }
+
+    // ViBa Mart Sales Report CSV export
+    if (filteredOrders.length === 0) {
       toast.error('No transactions available to export for this period');
       return;
     }
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(obj => Object.values(obj).join(',')).join('\n');
-    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
+
+    const headers = [
+      'Order_ID',
+      'Order_Date',
+      'Region',
+      'City',
+      'Category',
+      'Product',
+      'Salesperson',
+      'Units_Sold',
+      'Unit_Price',
+      'Revenue',
+      'Cost',
+      'Profit',
+      'Payment_Method',
+      'Customer_Type'
+    ].join(',');
+
+    const productsMap = new Map<string, Product>();
+    products.forEach(p => {
+      if (p.id) productsMap.set(p.id, p);
+    });
+
+    const vendorsMap = new Map<string, UserProfile>();
+    vendors.forEach(v => {
+      if (v.uid) vendorsMap.set(v.uid, v);
+    });
+
+    const resolveRegion = (order: Order, item?: any): string => {
+      const explicit = (item && (item.region || item.Region)) ||
+        (order as any).Region ||
+        (order as any).region ||
+        (order.address as any)?.region ||
+        (order.address as any)?.Region;
+      if (explicit && String(explicit).trim()) return String(explicit).trim();
+
+      const state = order.address?.state?.trim();
+      if (state) {
+        const lower = state.toLowerCase();
+        if (STATE_REGION_MAP[lower]) return STATE_REGION_MAP[lower];
+        const titleCase = state.charAt(0).toUpperCase() + state.slice(1);
+        if (['North', 'South', 'East', 'West', 'Central', 'North-East'].includes(titleCase)) {
+          return titleCase;
+        }
+        return state;
+      }
+
+      const city = order.address?.city?.trim().toLowerCase();
+      if (city && CITY_REGION_MAP[city]) {
+        return CITY_REGION_MAP[city];
+      }
+
+      return order.address?.country?.trim() || 'South';
+    };
+
+    const resolveCity = (order: Order, item?: any): string => {
+      const city = (item && (item.city || item.City)) ||
+        (order as any).City ||
+        (order as any).city ||
+        order.address?.city ||
+        (order.address as any)?.City ||
+        '';
+      return String(city).trim() || 'Bangalore';
+    };
+
+    const resolveCategory = (item?: any, product?: Product, order?: Order): string => {
+      const explicit = (item && (item.category || item.Category || item.categoryName)) ||
+        (order && ((order as any).Category || (order as any).category)) ||
+        (product && ((product as any).category || (product as any).categoryName));
+      if (explicit && String(explicit).trim()) return String(explicit).trim();
+
+      const catId = item?.categoryId || product?.categoryId || (order as any)?.categoryId;
+      if (catId) {
+        const allCategories = [...(categories || []), ...(CATEGORIES || [])];
+        const match = allCategories.find(c => c.id === catId || c.slug === catId || (c as any).name?.toLowerCase() === String(catId).toLowerCase());
+        if (match?.name) return match.name;
+      }
+
+      if (product?.categories && product.categories.length > 0) {
+        const allCategories = [...(categories || []), ...(CATEGORIES || [])];
+        const match = allCategories.find(c => product.categories?.includes(c.id) || product.categories?.includes(c.slug));
+        if (match?.name) return match.name;
+      }
+
+      const name = (item?.name || product?.name || (order as any)?.product || (order as any)?.Product || '').toLowerCase();
+      if (/phone|mobile|iphone|samsung|pixel|oneplus|smartphone/i.test(name)) return 'Mobiles';
+      if (/laptop|tv|audio|headphone|earbud|watch|camera|electronic|speaker/i.test(name)) return 'Electronics';
+      if (/shirt|pant|dress|shoe|sneaker|wear|kurta|t-shirt|saree|fashion|hoodie|jacket/i.test(name)) return 'Fashion';
+      if (/kitchen|pan|cooker|bottle|home|decor|furniture|bed|sofa|chair|table/i.test(name)) return 'Home & Kitchen';
+      if (/cream|serum|lipstick|perfume|beauty|shampoo|soap|makeup|lotion/i.test(name)) return 'Beauty';
+      if (/snack|tea|coffee|food|oil|rice|spice|grocery/i.test(name)) return 'Food & Health';
+
+      return catId || 'General';
+    };
+
+    const resolveProduct = (item?: any, product?: Product, order?: Order): string => {
+      const name = item?.name ||
+        product?.name ||
+        (item && (item.product || item.Product)) ||
+        (order && ((order as any).Product || (order as any).product || (order as any).productName)) ||
+        'General Sales';
+      return String(name).trim();
+    };
+
+    const resolveSalesperson = (order: Order, item?: any, product?: Product): string => {
+      const explicit = (item && (item.salesperson || item.Salesperson || item.salesPerson)) ||
+        (order as any).Salesperson ||
+        (order as any).salesperson ||
+        (order as any).salesPerson ||
+        (order as any).sales_person ||
+        (order as any).salesRep ||
+        (order as any).representative ||
+        (product as any)?.salesperson ||
+        (product as any)?.Salesperson;
+      if (explicit && String(explicit).trim()) return String(explicit).trim();
+
+      const vendorId = product?.vendorId || (order as any).vendorId;
+      if (vendorId && vendorId !== 'admin') {
+        const vendor = vendorsMap.get(vendorId) || vendors.find(v => v.email === vendorId);
+        if (vendor?.displayName) return vendor.displayName;
+        return vendorId;
+      }
+
+      return 'Direct Sales';
+    };
+
+    const resolvePaymentMethod = (order: Order, item?: any): string => {
+      const raw = (item && (item.paymentMethod || item.payment_method || item.Payment_Method)) ||
+        (order as any).Payment_Method ||
+        (order as any).payment_method ||
+        order.paymentMethod ||
+        '';
+      const str = String(raw).trim();
+      if (!str) return 'Unknown';
+      const lower = str.toLowerCase();
+      if (lower === 'cod') return 'Cash on Delivery';
+      if (lower === 'razorpay') return 'Razorpay';
+      if (lower === 'upi') return 'UPI';
+      if (lower === 'wallet') return 'Wallet';
+      if (lower === 'card' || lower === 'credit_card' || lower === 'debit_card') return 'Credit Card';
+      if (lower === 'netbanking' || lower === 'net_banking') return 'Net Banking';
+      return str;
+    };
+
+    const resolveCustomerType = (order: Order, item?: any): string => {
+      const explicit = (item && (item.customerType || item.customer_type || item.Customer_Type)) ||
+        (order as any).Customer_Type ||
+        (order as any).customer_type ||
+        (order as any).customerType ||
+        (order as any).CustomerType;
+      if (explicit && String(explicit).trim()) return String(explicit).trim();
+
+      if ((order as any).isCorporate || (order as any).corporate) return 'Corporate';
+      if ((order as any).isWholesale || (order as any).wholesale) return 'Wholesale';
+
+      if (order.customerId === 'guest' || (!order.customerId && !order.contactEmail)) {
+        return 'Guest';
+      }
+      return 'Retail';
+    };
+
+    const rows: string[] = [];
+
+    filteredOrders.forEach((order) => {
+      const orderId = order.customOrderId || (order as any).orderId || (order as any).order_id || order.id || '';
+
+      const rawDate = (order as any).orderDate || (order as any).order_date || (order as any).date || order.createdAt;
+      let orderDate = '';
+      if (rawDate) {
+        const d = new Date(rawDate?.toDate ? rawDate.toDate() : rawDate);
+        orderDate = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : String(rawDate);
+      }
+
+      const region = resolveRegion(order);
+      const city = resolveCity(order);
+      const paymentMethod = resolvePaymentMethod(order);
+      const customerType = resolveCustomerType(order);
+
+      const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : null;
+
+      if (items) {
+        items.forEach((item) => {
+          const product = productsMap.get(item.productId);
+          const category = resolveCategory(item, product, order);
+          const productName = resolveProduct(item, product, order);
+          const salesperson = resolveSalesperson(order, item, product);
+
+          const unitsSold = Number(
+            (item && (item.quantity ?? item.unitsSold ?? item.Units_Sold ?? (item as any).units_sold)) ??
+            (order as any).Units_Sold ??
+            (order as any).unitsSold ??
+            (order as any).units_sold ??
+            (order as any).quantity ??
+            1
+          ) || 1;
+
+          const unitPrice = Number(
+            (item && (item.price ?? item.unitPrice ?? item.Unit_Price ?? (item as any).unit_price)) ??
+            (product?.discountPrice ?? product?.price) ??
+            (order as any).Unit_Price ??
+            (order as any).unitPrice ??
+            (order as any).unit_price ??
+            (order as any).price ??
+            ((order.total && unitsSold) ? Math.round((order.total / unitsSold) * 100) / 100 : 0)
+          ) || 0;
+
+          const explicitRevenue = (item && (item.revenue ?? item.Revenue)) ??
+            (order as any).Revenue ??
+            (order as any).revenue;
+          const revenue = explicitRevenue !== undefined && explicitRevenue !== null && !isNaN(Number(explicitRevenue))
+            ? Number(explicitRevenue)
+            : Math.round(unitsSold * unitPrice * 100) / 100;
+
+          const unitCost = Number(
+            (item && (item.cost ?? item.unitCost ?? (item as any).costPrice)) ??
+            (product as any)?.cost ??
+            (product as any)?.costPrice ??
+            (unitPrice > 0 ? Math.round(unitPrice * 0.70 * 100) / 100 : 0)
+          );
+          const explicitCost = (item && ((item as any).totalCost ?? item.Cost)) ??
+            (order as any).Cost ??
+            (order as any).cost;
+          const cost = explicitCost !== undefined && explicitCost !== null && !isNaN(Number(explicitCost))
+            ? Number(explicitCost)
+            : Math.round(unitCost * unitsSold * 100) / 100;
+
+          const explicitProfit = (item && (item.profit ?? item.Profit)) ??
+            (order as any).Profit ??
+            (order as any).profit;
+          const profit = explicitProfit !== undefined && explicitProfit !== null && !isNaN(Number(explicitProfit))
+            ? Number(explicitProfit)
+            : Math.round((revenue - cost) * 100) / 100;
+
+          const itemRegion = (item as any).region || (item as any).Region ? String((item as any).region || (item as any).Region) : region;
+          const itemCity = (item as any).city || (item as any).City ? String((item as any).city || (item as any).City) : city;
+          const itemPaymentMethod = (item as any).paymentMethod || (item as any).Payment_Method ? resolvePaymentMethod({ ...order, paymentMethod: (item as any).paymentMethod || (item as any).Payment_Method }) : paymentMethod;
+          const itemCustomerType = (item as any).customerType || (item as any).Customer_Type ? String((item as any).customerType || (item as any).Customer_Type) : customerType;
+
+          rows.push([
+            formatCsvCell(orderId),
+            formatCsvCell(orderDate),
+            formatCsvCell(itemRegion),
+            formatCsvCell(itemCity),
+            formatCsvCell(category),
+            formatCsvCell(productName),
+            formatCsvCell(salesperson),
+            unitsSold,
+            unitPrice,
+            revenue,
+            cost,
+            profit,
+            formatCsvCell(itemPaymentMethod),
+            formatCsvCell(itemCustomerType),
+          ].join(','));
+        });
+      } else {
+        const productName = resolveProduct(undefined, undefined, order);
+        const category = resolveCategory(undefined, undefined, order);
+        const salesperson = resolveSalesperson(order);
+
+        const unitsSold = Number(
+          (order as any).Units_Sold ??
+          (order as any).unitsSold ??
+          (order as any).units_sold ??
+          (order as any).quantity ??
+          1
+        ) || 1;
+
+        const unitPrice = Number(
+          (order as any).Unit_Price ??
+          (order as any).unitPrice ??
+          (order as any).unit_price ??
+          (order as any).price ??
+          ((order.total && unitsSold) ? Math.round((order.total / unitsSold) * 100) / 100 : 0)
+        ) || 0;
+
+        const explicitRevenue = (order as any).Revenue ?? (order as any).revenue ?? order.total;
+        const revenue = explicitRevenue !== undefined && explicitRevenue !== null && !isNaN(Number(explicitRevenue))
+          ? Number(explicitRevenue)
+          : Math.round(unitsSold * unitPrice * 100) / 100;
+
+        const explicitCost = (order as any).Cost ?? (order as any).cost;
+        const cost = explicitCost !== undefined && explicitCost !== null && !isNaN(Number(explicitCost))
+          ? Number(explicitCost)
+          : Math.round(revenue * 0.70 * 100) / 100;
+
+        const explicitProfit = (order as any).Profit ?? (order as any).profit;
+        const profit = explicitProfit !== undefined && explicitProfit !== null && !isNaN(Number(explicitProfit))
+          ? Number(explicitProfit)
+          : Math.round((revenue - cost) * 100) / 100;
+
+        rows.push([
+          formatCsvCell(orderId),
+          formatCsvCell(orderDate),
+          formatCsvCell(region),
+          formatCsvCell(city),
+          formatCsvCell(category),
+          formatCsvCell(productName),
+          formatCsvCell(salesperson),
+          unitsSold,
+          unitPrice,
+          revenue,
+          cost,
+          profit,
+          formatCsvCell(paymentMethod),
+          formatCsvCell(customerType),
+        ].join(','));
+      }
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers + "\n" + rows.join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${type}_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `sales_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     logAdminAction(
       AdminAction.EXPORT_REPORT,
-      `Exported ${type} report for ${dateRange.label} (${dateRange.formattedRange}).`
+      `Exported sales report for ${dateRange.label} (${dateRange.formattedRange}).`
     );
   };
 
@@ -2755,8 +3218,8 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                             onClick={(e) => handleToggleVisibility(e, product)}
                             title={product.isVisible !== false ? 'Customer Visibility: Visible (Click to Hide)' : 'Customer Visibility: Hidden (Click to Show)'}
                             className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${product.isVisible !== false
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
                               }`}
                           >
                             {product.isVisible !== false ? (
