@@ -19,6 +19,7 @@ export default function AdminInvoicesView({ orders, loading }: AdminInvoicesView
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   // Filter delivered orders or orders with invoiceNumber within date range
   const deliveredOrders = orders.filter(
@@ -60,6 +61,20 @@ export default function AdminInvoicesView({ orders, loading }: AdminInvoicesView
       toast.error('Failed to re-generate invoice.', { id: toastId });
     } finally {
       setRegeneratingId(null);
+    }
+  };
+
+  const handleDownloadPDF = async (order: Order) => {
+    setDownloadingPdfId(order.id);
+    const toastId = toast.loading(`Generating PDF invoice...`);
+    try {
+      await downloadInvoicePDF(order);
+      toast.success('Invoice downloaded successfully!', { id: toastId });
+    } catch (error: any) {
+      console.error('Error downloading invoice:', error);
+      toast.error(error?.message || 'Failed to download PDF invoice.', { id: toastId });
+    } finally {
+      setDownloadingPdfId(null);
     }
   };
 
@@ -173,13 +188,11 @@ export default function AdminInvoicesView({ orders, loading }: AdminInvoicesView
                           <Eye className="w-3 h-3" /> View
                         </button>
                         <button
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setShowInvoiceModal(true);
-                          }}
-                          className="px-3 py-1.5 bg-[#22C55E] hover:bg-emerald-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-sm"
+                          onClick={() => handleDownloadPDF(order)}
+                          disabled={downloadingPdfId === order.id}
+                          className="px-3 py-1.5 bg-[#22C55E] hover:bg-emerald-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                         >
-                          <Download className="w-3 h-3" /> PDF
+                          <Download className={`w-3 h-3 ${downloadingPdfId === order.id ? 'animate-spin' : ''}`} /> {downloadingPdfId === order.id ? 'Exporting...' : 'PDF'}
                         </button>
                         <button
                           onClick={() => handleRegenerateInvoice(order)}

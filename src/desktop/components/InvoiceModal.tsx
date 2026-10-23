@@ -107,7 +107,7 @@ export default function InvoiceModal({ order, isOpen, onClose }: InvoiceModalPro
               <div>
                 <div className="mb-2">
                   {/* Website Exact Logo */}
-                  <Logo className="scale-90 origin-left" iconOnly={false} variant="light" />
+                  <Logo className="scale-90 origin-left" iconOnly={false} variant="light" showTextOnMobile={true} />
                 </div>
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-widest mt-1">ViBa Mart Retail Pvt. Ltd.</p>
                 <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
