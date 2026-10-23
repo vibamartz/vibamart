@@ -1584,6 +1584,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [vendors, setVendors] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salesViewMode, setSalesViewMode] = useState<'detailed' | 'daily'>('detailed');
 
   useEffect(() => {
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
@@ -1668,98 +1669,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
     return Object.values(salesMap);
   }, [filteredOrders]);
 
-  const paymentData = useMemo(() => {
-    return filteredOrders.map(order => {
-      const rawDate = (order as any).orderDate || (order as any).order_date || (order as any).date || order.createdAt;
-      const d = rawDate ? new Date(rawDate?.toDate ? rawDate.toDate() : rawDate) : null;
-      const formattedDate = d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }) : (rawDate ? String(rawDate) : 'N/A');
-
-      return {
-        id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
-        customer: order.contactName || order.contactEmail || 'Guest Customer',
-        method: order.paymentMethod ? (order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.toUpperCase()) : 'Unknown',
-        status: order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'failed' ? 'failed' : 'pending',
-        amount: `₹${(order.total || 0).toLocaleString()}`,
-        date: formattedDate
-      };
-    });
-  }, [filteredOrders]);
-
-  const totalVolume = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-  }, [filteredOrders]);
-
-  const totalPaid = useMemo(() => {
-    return filteredOrders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + (o.total || 0), 0);
-  }, [filteredOrders]);
-
-  const avgBasketSize = useMemo(() => {
-    return filteredOrders.length > 0 ? Math.round(totalVolume / filteredOrders.length) : 0;
-  }, [filteredOrders, totalVolume]);
-
-  const successRate = useMemo(() => {
-    if (filteredOrders.length === 0) return '0%';
-    const paidCount = filteredOrders.filter(o => o.paymentStatus === 'paid').length;
-    return `${Math.round((paidCount / filteredOrders.length) * 100)}%`;
-  }, [filteredOrders]);
-
-  const pendingApprovals = useMemo(() => {
-    return filteredOrders.filter(o => o.paymentStatus === 'pending' || o.status === 'pending').length;
-  }, [filteredOrders]);
-
-  const exportToCSV = () => {
-    if (type === 'payment') {
-      if (paymentData.length === 0) {
-        toast.error('No transactions available to export for this period');
-        return;
-      }
-      const headers = Object.keys(paymentData[0]).join(',');
-      const rows = paymentData.map(obj => Object.values(obj).join(',')).join('\n');
-      const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `${type}_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      logAdminAction(
-        AdminAction.EXPORT_REPORT,
-        `Exported ${type} report for ${dateRange.label} (${dateRange.formattedRange}).`
-      );
-      return;
-    }
-
-    // ViBa Mart Sales Report CSV export
-    if (filteredOrders.length === 0) {
-      toast.error('No transactions available to export for this period');
-      return;
-    }
-
-    const headers = [
-      'Order_ID',
-      'Order_Date',
-      'Region',
-      'City',
-      'Category',
-      'Product',
-      'Salesperson',
-      'Units_Sold',
-      'Unit_Price',
-      'Revenue',
-      'Cost',
-      'Profit',
-      'Payment_Method',
-      'Customer_Type'
-    ].join(',');
-
+  const salesDetails = useMemo(() => {
     const productsMap = new Map<string, Product>();
     products.forEach(p => {
       if (p.id) productsMap.set(p.id, p);
@@ -1903,7 +1813,22 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       return 'Retail';
     };
 
-    const rows: string[] = [];
+    const list: Array<{
+      orderId: string;
+      orderDate: string;
+      region: string;
+      city: string;
+      category: string;
+      product: string;
+      salesperson: string;
+      unitsSold: number;
+      unitPrice: number;
+      revenue: number;
+      cost: number;
+      profit: number;
+      paymentMethod: string;
+      customerType: string;
+    }> = [];
 
     filteredOrders.forEach((order) => {
       const orderId = order.customOrderId || (order as any).orderId || (order as any).order_id || order.id || '';
@@ -1980,22 +1905,22 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
           const itemPaymentMethod = (item as any).paymentMethod || (item as any).Payment_Method ? resolvePaymentMethod({ ...order, paymentMethod: (item as any).paymentMethod || (item as any).Payment_Method }) : paymentMethod;
           const itemCustomerType = (item as any).customerType || (item as any).Customer_Type ? String((item as any).customerType || (item as any).Customer_Type) : customerType;
 
-          rows.push([
-            formatCsvCell(orderId),
-            formatCsvCell(orderDate),
-            formatCsvCell(itemRegion),
-            formatCsvCell(itemCity),
-            formatCsvCell(category),
-            formatCsvCell(productName),
-            formatCsvCell(salesperson),
+          list.push({
+            orderId,
+            orderDate,
+            region: itemRegion,
+            city: itemCity,
+            category,
+            product: productName,
+            salesperson,
             unitsSold,
             unitPrice,
             revenue,
             cost,
             profit,
-            formatCsvCell(itemPaymentMethod),
-            formatCsvCell(itemCustomerType),
-          ].join(','));
+            paymentMethod: itemPaymentMethod,
+            customerType: itemCustomerType
+          });
         });
       } else {
         const productName = resolveProduct(undefined, undefined, order);
@@ -2033,24 +1958,136 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
           ? Number(explicitProfit)
           : Math.round((revenue - cost) * 100) / 100;
 
-        rows.push([
-          formatCsvCell(orderId),
-          formatCsvCell(orderDate),
-          formatCsvCell(region),
-          formatCsvCell(city),
-          formatCsvCell(category),
-          formatCsvCell(productName),
-          formatCsvCell(salesperson),
+        list.push({
+          orderId,
+          orderDate,
+          region,
+          city,
+          category,
+          product: productName,
+          salesperson,
           unitsSold,
           unitPrice,
           revenue,
           cost,
           profit,
-          formatCsvCell(paymentMethod),
-          formatCsvCell(customerType),
-        ].join(','));
+          paymentMethod,
+          customerType
+        });
       }
     });
+
+    return list;
+  }, [filteredOrders, products, vendors, categories]);
+
+  const paymentData = useMemo(() => {
+    return filteredOrders.map(order => {
+      const rawDate = (order as any).orderDate || (order as any).order_date || (order as any).date || order.createdAt;
+      const d = rawDate ? new Date(rawDate?.toDate ? rawDate.toDate() : rawDate) : null;
+      const formattedDate = d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) : (rawDate ? String(rawDate) : 'N/A');
+
+      return {
+        id: order.id ? (order.id.startsWith('ORD-') ? order.id : `PAY-${order.id.slice(-6).toUpperCase()}`) : 'N/A',
+        customer: order.contactName || order.contactEmail || 'Guest Customer',
+        method: order.paymentMethod ? (order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod.toUpperCase()) : 'Unknown',
+        status: order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'failed' ? 'failed' : 'pending',
+        amount: `₹${(order.total || 0).toLocaleString()}`,
+        date: formattedDate
+      };
+    });
+  }, [filteredOrders]);
+
+  const totalVolume = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [filteredOrders]);
+
+  const totalPaid = useMemo(() => {
+    return filteredOrders.filter(o => o.paymentStatus === 'paid').reduce((sum, o) => sum + (o.total || 0), 0);
+  }, [filteredOrders]);
+
+  const avgBasketSize = useMemo(() => {
+    return filteredOrders.length > 0 ? Math.round(totalVolume / filteredOrders.length) : 0;
+  }, [filteredOrders, totalVolume]);
+
+  const successRate = useMemo(() => {
+    if (filteredOrders.length === 0) return '0%';
+    const paidCount = filteredOrders.filter(o => o.paymentStatus === 'paid').length;
+    return `${Math.round((paidCount / filteredOrders.length) * 100)}%`;
+  }, [filteredOrders]);
+
+  const pendingApprovals = useMemo(() => {
+    return filteredOrders.filter(o => o.paymentStatus === 'pending' || o.status === 'pending').length;
+  }, [filteredOrders]);
+
+  const exportToCSV = () => {
+    if (type === 'payment') {
+      if (paymentData.length === 0) {
+        toast.error('No transactions available to export for this period');
+        return;
+      }
+      const headers = Object.keys(paymentData[0]).join(',');
+      const rows = paymentData.map(obj => Object.values(obj).join(',')).join('\n');
+      const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${type}_report_${selectedPreset}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      logAdminAction(
+        AdminAction.EXPORT_REPORT,
+        `Exported ${type} report for ${dateRange.label} (${dateRange.formattedRange}).`
+      );
+      return;
+    }
+
+    // ViBa Mart Sales Report CSV export
+    if (salesDetails.length === 0) {
+      toast.error('No transactions available to export for this period');
+      return;
+    }
+
+    const headers = [
+      'Order_ID',
+      'Order_Date',
+      'Region',
+      'City',
+      'Category',
+      'Product',
+      'Salesperson',
+      'Units_Sold',
+      'Unit_Price',
+      'Revenue',
+      'Cost',
+      'Profit',
+      'Payment_Method',
+      'Customer_Type'
+    ].join(',');
+
+    const rows = salesDetails.map(item => [
+      formatCsvCell(item.orderId),
+      formatCsvCell(item.orderDate),
+      formatCsvCell(item.region),
+      formatCsvCell(item.city),
+      formatCsvCell(item.category),
+      formatCsvCell(item.product),
+      formatCsvCell(item.salesperson),
+      item.unitsSold,
+      item.unitPrice,
+      item.revenue,
+      item.cost,
+      item.profit,
+      formatCsvCell(item.paymentMethod),
+      formatCsvCell(item.customerType),
+    ].join(','));
 
     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers + "\n" + rows.join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -2124,46 +2161,132 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-bold">Detailed Data View</h3>
+        <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold">Detailed Data View</h3>
+            {type === 'sales' && (
+              <div className="flex bg-gray-100 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setSalesViewMode('detailed')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${salesViewMode === 'detailed' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  All 14 Headings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSalesViewMode('daily')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${salesViewMode === 'daily' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Daily Summary
+                </button>
+              </div>
+            )}
+          </div>
           <span className="text-xs font-bold text-gray-400">
-            {type === 'sales' ? `${salesData.length} active date groups` : `${paymentData.length} records`}
+            {type === 'sales'
+              ? (salesViewMode === 'detailed' ? `${salesDetails.length} sales details records` : `${salesData.length} active date groups`)
+              : `${paymentData.length} records`}
           </span>
         </div>
         <div className="overflow-x-auto">
           {type === 'sales' ? (
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Revenue</th>
-                  <th className="px-6 py-4">Orders</th>
-                  <th className="px-6 py-4">Items Sold</th>
-                  <th className="px-6 py-4">Avg / Order</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
+            salesViewMode === 'detailed' ? (
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">Loading sales data...</td>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Order_ID</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Order_Date</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Region</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">City</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Category</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Product</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Salesperson</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap text-center">Units_Sold</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Unit_Price</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Revenue</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Cost</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Profit</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Payment_Method</th>
+                    <th className="px-4 py-3.5 whitespace-nowrap">Customer_Type</th>
                   </tr>
-                ) : salesData.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded in this date range.</td>
-                  </tr>
-                ) : (
-                  salesData.map((row, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium">{row.date}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{row.amount.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm font-semibold">{row.orders}</td>
-                      <td className="px-6 py-4 text-sm">{row.items}</td>
-                      <td className="px-6 py-4 text-xs font-bold text-emerald-600">₹{Math.round(row.amount / (row.orders || 1)).toLocaleString()}</td>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={14} className="px-6 py-10 text-center text-gray-500 font-medium">Loading sales data...</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : salesDetails.length === 0 ? (
+                    <tr>
+                      <td colSpan={14} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded in this date range.</td>
+                    </tr>
+                  ) : (
+                    salesDetails.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-xs font-mono font-bold text-gray-900 whitespace-nowrap">{row.orderId}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{row.orderDate}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-gray-700 whitespace-nowrap">{row.region}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">{row.city}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold text-[11px]">{row.category}</span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-medium text-gray-900 max-w-xs truncate" title={row.product}>{row.product}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">{row.salesperson}</td>
+                        <td className="px-4 py-3 text-xs font-semibold text-center whitespace-nowrap">{row.unitsSold}</td>
+                        <td className="px-4 py-3 text-xs font-medium text-gray-900 whitespace-nowrap">₹{row.unitPrice.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-xs font-bold text-gray-900 whitespace-nowrap">₹{row.revenue.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">₹{row.cost.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-xs font-bold text-emerald-600 whitespace-nowrap">₹{row.profit.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">{row.paymentMethod}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${
+                            row.customerType.toLowerCase() === 'corporate' ? 'bg-purple-100 text-purple-700' :
+                            row.customerType.toLowerCase() === 'wholesale' ? 'bg-amber-100 text-amber-700' :
+                            row.customerType.toLowerCase() === 'guest' ? 'bg-gray-100 text-gray-600' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {row.customerType}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Revenue</th>
+                    <th className="px-6 py-4">Orders</th>
+                    <th className="px-6 py-4">Items Sold</th>
+                    <th className="px-6 py-4">Avg / Order</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500 font-medium">Loading sales data...</td>
+                    </tr>
+                  ) : salesData.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-400 font-medium">No sales transactions recorded in this date range.</td>
+                    </tr>
+                  ) : (
+                    salesData.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium">{row.date}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900">₹{row.amount.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-sm font-semibold">{row.orders}</td>
+                        <td className="px-6 py-4 text-sm">{row.items}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-emerald-600">₹{Math.round(row.amount / (row.orders || 1)).toLocaleString()}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )
           ) : (
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-wider">

@@ -273,8 +273,8 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
             <button
               onClick={() => handleTabChange('history')}
               className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'history'
-                  ? 'bg-white text-emerald-900 shadow-md'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                ? 'bg-white text-emerald-900 shadow-md'
+                : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
             >
               Cashback History
@@ -282,8 +282,8 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
             <button
               onClick={() => handleTabChange('payout_settings')}
               className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${activeTab === 'payout_settings'
-                  ? 'bg-white text-emerald-900 shadow-md'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                ? 'bg-white text-emerald-900 shadow-md'
+                : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
             >
               <CreditCard className="w-4 h-4" />
@@ -465,8 +465,8 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
                     type="button"
                     onClick={() => setPayoutType('upi')}
                     className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${payoutType === 'upi'
-                        ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
+                      ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
                       }`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${payoutType === 'upi' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
@@ -482,8 +482,8 @@ export default function CashbackHistoryPage({ defaultTab = 'history' }: Cashback
                     type="button"
                     onClick={() => setPayoutType('bank')}
                     className={`p-4 rounded-2xl border text-left flex items-center gap-3.5 transition-all ${payoutType === 'bank'
-                        ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
+                      ? 'bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
                       }`}
                   >
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${payoutType === 'bank' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
