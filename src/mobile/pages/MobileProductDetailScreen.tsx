@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw,
-  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle, Ruler, X
+  ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle, Ruler, X, ChevronLeft
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -38,6 +38,7 @@ export default function MobileProductDetailScreen() {
   const [fetchError, setFetchError] = useState(false);
   const [retryTrigger, setRetryTrigger] = useState(0);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
@@ -61,6 +62,17 @@ export default function MobileProductDetailScreen() {
       mobileGalleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    if (!isImageModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsImageModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImageModalOpen]);
 
   const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
     setSelectedVariantId(variantId);
@@ -550,22 +562,27 @@ export default function MobileProductDetailScreen() {
     : availableTabs[0]?.id;
 
   return (
-    <div className="min-h-screen bg-white pb-32 font-sans select-none space-y-2.5">
+    <div className="min-h-screen bg-white pb-32 font-sans select-none">
       {/* Top Gallery */}
       <div className="bg-white relative">
         <div className="aspect-square w-full relative overflow-hidden bg-white">
           <div
             ref={mobileGalleryRef}
             onScroll={handleMobileGalleryScroll}
-            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x"
+            className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x cursor-pointer"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {images.map((img, idx) => (
-              <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1 bg-white">
+              <div
+                key={idx}
+                onClick={() => setIsImageModalOpen(true)}
+                title="Tap to view larger image"
+                className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1 bg-white cursor-zoom-in"
+              >
                 <img
                   src={img}
                   alt={`${product.name} - ${idx + 1}`}
-                  className="w-full h-full object-contain bg-white"
+                  className="w-full h-full object-contain bg-white select-none"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600?text=Image+Unavailable';
                   }}
@@ -574,16 +591,29 @@ export default function MobileProductDetailScreen() {
             ))}
           </div>
 
+          {/* Image Counter Badge if multiple images */}
+          {images.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[11px] font-bold text-white tracking-wider pointer-events-none">
+              {activeImageIndex + 1} / {images.length}
+            </div>
+          )}
+
           <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
             <button
-              onClick={handleToggleWishlist}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleWishlist();
+              }}
               aria-label="Add to wishlist"
               className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-md text-gray-700 hover:text-rose-500"
             >
               <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
             </button>
             <button
-              onClick={handleShare}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShare();
+              }}
               aria-label="Share product"
               className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-md text-gray-700 hover:text-emerald-700"
             >
@@ -591,35 +621,11 @@ export default function MobileProductDetailScreen() {
             </button>
           </div>
         </div>
-
-        {images.length > 1 && (
-          <div className="flex justify-center gap-2 py-2 px-3 overflow-x-auto scrollbar-none snap-x touch-pan-x">
-            {images.map((img, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => scrollToMobileImage(idx)}
-                className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start ${
-                  activeImageIndex === idx ? 'border-emerald-600 scale-105 shadow' : 'border-gray-200'
-                }`}
-              >
-                <img
-                  src={img}
-                  alt=""
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=No+Image';
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Main Info Box */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-xs space-y-3.5">
-        <div className="space-y-2 pb-3 border-b border-gray-100">
+      {/* Main Info Box - removed unnecessary gaps to price */}
+      <div className="bg-white rounded-2xl px-3.5 pt-2 pb-3.5 shadow-xs space-y-2.5">
+        <div className="space-y-1.5 pb-2.5 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
               {product.brand || 'ViBa Select'}
@@ -630,7 +636,7 @@ export default function MobileProductDetailScreen() {
             {product.name}
           </h1>
 
-          <div className="flex items-baseline gap-2 pt-1.5 border-t border-gray-100 flex-wrap">
+          <div className="flex items-baseline gap-2 pt-1 border-t border-gray-100 flex-wrap">
             <span className="text-2xl font-black text-gray-900">
               ₹{finalPrice.toLocaleString()}
             </span>
@@ -878,6 +884,85 @@ export default function MobileProductDetailScreen() {
         isOpen={showLocationPickerModal}
         onClose={() => setShowLocationPickerModal(false)}
       />
+
+      {/* Enlarged Image Lightbox Modal */}
+      <AnimatePresence>
+        {isImageModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 select-none"
+            onClick={() => setIsImageModalOpen(false)}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsImageModalOpen(false)}
+              aria-label="Close enlarged view"
+              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Previous Button in Modal */}
+            {images.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const prevIdx = (activeImageIndex - 1 + images.length) % images.length;
+                  scrollToMobileImage(prevIdx);
+                }}
+                aria-label="Previous image"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Enlarged Image Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="relative max-w-full max-h-[85vh] w-full h-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={images[activeImageIndex] || activeImageSrc}
+                alt={product.name}
+                className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl shadow-2xl"
+              />
+
+              {/* Image Counter in Modal */}
+              {images.length > 1 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-xs text-xs font-semibold text-white tracking-wider">
+                  {activeImageIndex + 1} / {images.length}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Next Button in Modal */}
+            {images.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const nextIdx = (activeImageIndex + 1) % images.length;
+                  scrollToMobileImage(nextIdx);
+                }}
+                aria-label="Next image"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
