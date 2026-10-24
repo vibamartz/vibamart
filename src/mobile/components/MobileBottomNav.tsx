@@ -94,7 +94,7 @@ export default function MobileBottomNav() {
                   />
                 ) : null}
 
-                {/* Icon styling: ViBa Green + Yellow for active */}
+                {/* Icon styling: ViBa Green for active */}
                 <div className="relative z-10 flex items-center justify-center">
                   <Icon
                     className={`w-5 h-5 sm:w-5.5 sm:h-5.5 transition-all duration-200 ${active
@@ -102,9 +102,6 @@ export default function MobileBottomNav() {
                       : 'text-gray-400 stroke-[1.8px] group-hover:text-gray-600'
                       }`}
                   />
-                  {active && (
-                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping" />
-                  )}
                 </div>
 
                 {/* Badge for Cart or item count */}

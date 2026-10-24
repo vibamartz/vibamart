@@ -3,7 +3,7 @@ import { useAuthStore, useCategoryStore, useSettingsStore } from '../../backend/
 import { Navigate, Link } from 'react-router-dom';
 import {
   BarChart3, Users, Package, ShoppingBag,
-  Settings, LogOut, ChevronRight, TrendingUp,
+  Settings, LogOut, ChevronLeft, ChevronRight, TrendingUp,
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, EyeOff, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
@@ -110,6 +110,31 @@ function AdminDashboardContent() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [adminNotifications, setAdminNotifications] = useState<any[]>([]);
+  const [isDesktopSidebarHidden, setIsDesktopSidebarHidden] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('viba_admin_sidebar_hidden');
+        return saved === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const toggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setShowMobileSidebar(prev => !prev);
+    } else {
+      setIsDesktopSidebarHidden(prev => {
+        const next = !prev;
+        try {
+          localStorage.setItem('viba_admin_sidebar_hidden', String(next));
+        } catch (e) { }
+        return next;
+      });
+    }
+  };
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
   // Parent shared states for live orders and returns
@@ -665,7 +690,7 @@ function AdminDashboardContent() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
+    <div className="flex min-h-screen w-full max-w-full bg-gray-50 overflow-x-hidden">
       <AnimatePresence>
         {showMobileSidebar && (
           <motion.div
@@ -679,71 +704,110 @@ function AdminDashboardContent() {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col transition-transform transform ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 overflow-y-auto`}>
-        <div className="p-6 border-b border-gray-100 italic flex items-center justify-between">
-          <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2">
-            <Logo />
-            <span className="font-bold text-gray-800">{user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
-          </Link>
-          <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden p-2 -mr-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={FileText} label="Invoices" active={activeTab === 'invoices'} onClick={() => { setActiveTab('invoices'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
-          <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Smartphone} label="App Capabilities" active={activeTab === 'app-capabilities'} onClick={() => { setActiveTab('app-capabilities'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Wallet} label="Monthly Cashback" active={activeTab === 'cashback-management'} onClick={() => { setActiveTab('cashback-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out ${
+          showMobileSidebar ? 'translate-x-0 w-64' : '-translate-x-full w-64'
+        } lg:relative lg:translate-x-0 ${
+          isDesktopSidebarHidden
+            ? 'lg:w-0 lg:opacity-0 lg:border-r-0 lg:overflow-hidden pointer-events-none'
+            : 'lg:w-64 lg:opacity-100 lg:border-r'
+        }`}
+      >
+        <div className="w-64 min-w-[16rem] flex flex-col h-full min-h-0 overflow-y-auto">
+          <div className="p-5 sm:p-6 border-b border-gray-100 italic flex items-center justify-between shrink-0">
+            <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2 min-w-0">
+              <Logo />
+              <span className="font-bold text-gray-800 truncate">{user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
+            </Link>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                  setShowMobileSidebar(false);
+                } else {
+                  setIsDesktopSidebarHidden(true);
+                  try { localStorage.setItem('viba_admin_sidebar_hidden', 'true'); } catch (e) { }
+                }
+              }}
+              className="p-2 -mr-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              title="Hide navigation sidebar"
+              aria-label="Hide navigation sidebar"
+            >
+              <X className="w-5 h-5 lg:hidden" />
+              <ChevronLeft className="w-5 h-5 hidden lg:block" />
+            </button>
+          </div>
+          <nav className="flex-1 p-4 space-y-2">
+            <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={ShoppingBag} label="Orders" active={activeTab === 'orders'} onClick={() => { setActiveTab('orders'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={TrendingUp} label="Returns" active={activeTab === 'returns'} onClick={() => { setActiveTab('returns'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={X} label="Cancellations" active={activeTab === 'cancellations'} onClick={() => { setActiveTab('cancellations'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={CreditCard} label="Refunds" active={activeTab === 'refunds'} onClick={() => { setActiveTab('refunds'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={FileText} label="Invoices" active={activeTab === 'invoices'} onClick={() => { setActiveTab('invoices'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Users} label="Customers" active={activeTab === 'customers'} onClick={() => { setActiveTab('customers'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Shield} label="User Management" active={activeTab === 'user-roles'} onClick={() => { setActiveTab('user-roles'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
+            <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Smartphone} label="App Capabilities" active={activeTab === 'app-capabilities'} onClick={() => { setActiveTab('app-capabilities'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Gift} label="Rewards Management" active={activeTab === 'rewards-management'} onClick={() => { setActiveTab('rewards-management'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Wallet} label="Monthly Cashback" active={activeTab === 'cashback-management'} onClick={() => { setActiveTab('cashback-management'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Image} label="Banners" active={activeTab === 'banners'} onClick={() => { setActiveTab('banners'); setShowMobileSidebar(false); }} />
 
-          <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={ShieldCheck} label="Terms of Service" active={activeTab === 'terms-management'} onClick={() => { setActiveTab('terms-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Lock} label="Privacy Policy" active={activeTab === 'privacy-management'} onClick={() => { setActiveTab('privacy-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Search} label="Search Engine" active={activeTab === 'search-management'} onClick={() => { setActiveTab('search-management'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
-          <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
-        </nav>
-        <div className="p-4 border-t border-gray-100">
-          <button
-            onClick={() => {
-              logAdminAction(AdminAction.USER_ROLE_UPDATE, 'Admin initiated logout.');
-            }}
-            className="flex touch-target min-h-[44px] items-center gap-3 text-gray-500 hover:text-red-600 px-4 py-3 w-full transition-colors font-medium"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
+            <SidebarItem icon={Image} label="Categories" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Sparkles} label="Visual Nested Subcategories" active={activeTab === 'visual-nested-subcategories'} onClick={() => { setActiveTab('visual-nested-subcategories'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={TrendingUp} label="Coupons" active={activeTab === 'coupons'} onClick={() => { setActiveTab('coupons'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Activity} label="Reviews" active={activeTab === 'reviews'} onClick={() => { setActiveTab('reviews'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Users} label="Vendors" active={activeTab === 'vendors'} onClick={() => { setActiveTab('vendors'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Bell} label="Announcements" active={activeTab === 'announcements'} onClick={() => { setActiveTab('announcements'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={ShieldCheck} label="Terms of Service" active={activeTab === 'terms-management'} onClick={() => { setActiveTab('terms-management'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Lock} label="Privacy Policy" active={activeTab === 'privacy-management'} onClick={() => { setActiveTab('privacy-management'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Search} label="Search Engine" active={activeTab === 'search-management'} onClick={() => { setActiveTab('search-management'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
+          </nav>
+          <div className="p-4 border-t border-gray-100 space-y-1 shrink-0">
+            <button
+              onClick={() => {
+                setIsDesktopSidebarHidden(true);
+                try { localStorage.setItem('viba_admin_sidebar_hidden', 'true'); } catch (e) { }
+              }}
+              className="hidden lg:flex touch-target min-h-[38px] items-center gap-3 text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-4 py-2 w-full rounded-xl transition-colors font-medium text-xs cursor-pointer"
+              title="Hide sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Hide Sidebar</span>
+            </button>
+            <button
+              onClick={() => {
+                logAdminAction(AdminAction.USER_ROLE_UPDATE, 'Admin initiated logout.');
+              }}
+              className="flex touch-target min-h-[44px] items-center gap-3 text-gray-500 hover:text-red-600 px-4 py-3 w-full transition-colors font-medium cursor-pointer"
+            >
+              <LogOut className="w-5 h-5" />
+              Logout
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 w-full overflow-hidden">
         <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 lg:px-8 shrink-0 gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button onClick={() => setShowMobileSidebar(true)} className="lg:hidden p-2 touch-target -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+            <button
+              onClick={toggleSidebar}
+              className="p-2 touch-target -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center justify-center shrink-0"
+              title={isDesktopSidebarHidden ? "Show sidebar" : "Hide sidebar"}
+              aria-label="Toggle navigation sidebar"
+            >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[90px] sm:max-w-xs">{activeTab.replace('-', ' ')}</h1>
+            <h1 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800 capitalize truncate max-w-[120px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-none">{activeTab.replace('-', ' ')}</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             {/* Global Admin Date Range Filter */}
@@ -879,11 +943,11 @@ function AdminDashboardContent() {
           </div>
         </header>
 
-        <div className="p-4 lg:p-6 space-y-4 lg:space-y-5 overflow-y-auto flex-1">
+        <div className="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-5 overflow-y-auto flex-1 w-full min-w-0">
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 2xl:grid-cols-6 gap-3.5">
                 {dynamicStats.map((stat, idx) => (
                   <motion.div
                     key={idx}
@@ -3401,7 +3465,8 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                                 {addingVariantTo === product.id ? <><X className="w-3 h-3" /> Cancel</> : <><Plus className="w-3 h-3" /> Quick Add</>}
                               </button>
                             </div>
-                            <table className="w-full text-left bg-white">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left bg-white">
                               <thead className="bg-gray-50/50 text-[9px] uppercase font-bold text-gray-400 tracking-wider">
                                 <tr>
                                   <th className="px-6 py-3">Variant Name</th>
@@ -3573,6 +3638,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                                 )}
                               </tbody>
                             </table>
+                            </div>
                           </div>
                         </td>
                       </tr>
