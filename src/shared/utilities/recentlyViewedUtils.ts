@@ -1,6 +1,7 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../types';
+import { normalizeProductDoc } from './productId';
 import { getRewardProductIds, filterOutRewardProducts } from './rewardUtils';
 import { getProductSlug } from './slug';
 
@@ -40,7 +41,7 @@ export async function fetchRecentlyViewedProducts(excludeProductId?: string, max
     const snap = await getDocs(collection(db, 'products'));
     const rewardIds = await getRewardProductIds();
     const allProds = filterOutRewardProducts(
-      snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)),
+      snap.docs.map(doc => normalizeProductDoc(doc)),
       rewardIds
     );
 

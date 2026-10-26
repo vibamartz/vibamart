@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
@@ -466,7 +467,7 @@ export default function ProductList() {
     setLoadError(false);
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const data = snapshot.docs.map(doc => normalizeProductDoc(doc));
       const rewardIds = await getRewardProductIds();
       setAllProducts(filterOutRewardProducts(data, rewardIds));
       setLoadError(false);

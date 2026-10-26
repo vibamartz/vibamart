@@ -20,6 +20,7 @@ import {
   updateDoc, doc, onSnapshot, deleteDoc, arrayUnion, arrayRemove
 } from 'firebase/firestore';
 import { Order, Address, UserProfile, WaitlistItem, Product } from '../../shared/types';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { lookupZipcode } from '../../backend/services/zipcode';
 import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import toast from 'react-hot-toast';
@@ -277,7 +278,7 @@ export default function Profile() {
       const enrichedWaitlist = await Promise.all(waitlistData.map(async (item) => {
         try {
           const prodSnap = await getDocs(query(collection(db, 'products'), where('id', '==', item.productId)));
-          const product = prodSnap.docs[0]?.data() as Product;
+          const product = prodSnap.docs[0] ? normalizeProductDoc(prodSnap.docs[0]) : undefined;
           return { ...item, product };
         } catch (err) {
           handleFirestoreError(err, OperationType.LIST, 'products', false);
@@ -301,7 +302,7 @@ export default function Profile() {
             where('id', 'in', validWishlist)
           );
           const prodSnap = await getDocs(productsQuery);
-          setWishlistProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+          setWishlistProducts(prodSnap.docs.map(d => normalizeProductDoc(d)));
         } catch (err) {
           handleFirestoreError(err, OperationType.LIST, 'products', false);
           setWishlistProducts([]);

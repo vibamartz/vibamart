@@ -14,6 +14,7 @@ import {
   validateVariantMatrixUniqueness,
   buildFamilyColorMatrix
 } from '../../shared/utilities/variantMatrixUtils';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { createSlug, getProductSlug } from '../../shared/utilities/slug';
 import { VariantMultiImageInput, VariantImageInput } from './VariantImageInput';
 import {
@@ -89,7 +90,7 @@ export default function VariantMatrixManager({
         const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
         const snap = await getDocs(q);
         if (isMounted) {
-          const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+          const prods = snap.docs.map(d => normalizeProductDoc(d));
           setAvailableProducts(prods);
         }
       } catch (err) {

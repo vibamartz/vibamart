@@ -5,6 +5,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product, SubCategory, Banner } from '../../shared/types';
 import { useCategoryStore, useCartStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getProductSlug } from '../../shared/utilities/slug';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -36,7 +37,7 @@ export default function MobileCategoriesScreen() {
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
-      const docs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+      const docs = snapshot.docs.map(docSnap => normalizeProductDoc(docSnap));
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(docs, rewardIds));
       setLoading(false);

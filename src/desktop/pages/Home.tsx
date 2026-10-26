@@ -18,6 +18,7 @@ import { Product, Banner } from '../../shared/types';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
@@ -161,7 +162,7 @@ export default function Home() {
       limit(40)
     );
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const data = snapshot.docs.map(doc => normalizeProductDoc(doc));
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(data, rewardIds));
       setLoading(false);

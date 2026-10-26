@@ -29,6 +29,7 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
 import { generateProductKeywords, hasProductRelevantInfoChanged, isKeywordOutdatedOrMissing } from '../../shared/utilities/productKeywordGenerator';
+import { normalizeProductDoc, generateUniqueProductId, isProductIdUnique } from '../../shared/utilities/productId';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 import AdminInvoicesView from '../components/AdminInvoicesView';
@@ -1669,10 +1670,7 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   useEffect(() => {
     const qProds = query(collection(db, 'products'));
     const unsubProds = onSnapshot(qProds, (snapshot) => {
-      const prodsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product));
+      const prodsData = snapshot.docs.map(doc => normalizeProductDoc(doc));
       setProducts(prodsData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
@@ -3175,7 +3173,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const data = snapshot.docs.map(doc => normalizeProductDoc(doc));
       setProducts(data);
       setLoading(false);
     }, (error) => {
@@ -5487,7 +5485,18 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
-      const pid = product?.id || `prod_${Date.now()}`;
+      // Ensure strictly unique Product ID - never assign the same ID to multiple products
+      let pid = product?.id?.trim();
+      if (!pid) {
+        pid = generateUniqueProductId();
+        let attempts = 0;
+        while (attempts < 5) {
+          const existingDoc = await getDoc(doc(db, 'products', pid));
+          if (!existingDoc.exists()) break;
+          pid = generateUniqueProductId();
+          attempts++;
+        }
+      }
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;

@@ -23,6 +23,7 @@ import {
 
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
+import { generateUniqueProductId, isProductIdUnique, normalizeProductDoc, fixDuplicateProductIds } from '../../shared/utilities/productId';
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
@@ -566,8 +567,9 @@ export default function AddEditProductForm({
     const loadProducts = async () => {
       try {
         const snap = await getDocs(collection(db, 'products'));
-        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
-        setExistingProducts(prods);
+        const prods = snap.docs.map(d => normalizeProductDoc(d));
+        const { fixedProducts } = fixDuplicateProductIds(prods);
+        setExistingProducts(fixedProducts);
 
         // Auto-generate Product Code for new product or if existing product lacks code
         if (!product?.productCode) {
@@ -643,7 +645,11 @@ export default function AddEditProductForm({
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
-      const pid = product?.id || `prod_${Date.now()}`;
+      // Ensure strictly unique Product ID - never assign the same ID to multiple products
+      let pid = product?.id;
+      if (!pid || !isProductIdUnique(pid, existingProducts, product?.id)) {
+        pid = generateUniqueProductId(existingProducts);
+      }
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;

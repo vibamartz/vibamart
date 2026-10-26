@@ -3,6 +3,7 @@ import { useAuthStore, useCartStore } from '../../backend/store';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs, documentId, doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { Product } from '../../shared/types';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { Heart, ShoppingBag, ArrowRight, Trash2, Star, CheckSquare, Square, ShoppingCart, CheckCircle2, Share2 } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -67,7 +68,7 @@ export default function Wishlist() {
         );
 
         const wishlistProducts = snapshots.flatMap(snap =>
-          snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product))
+          snap.docs.map(doc => normalizeProductDoc(doc))
         );
 
         setProducts(wishlistProducts);

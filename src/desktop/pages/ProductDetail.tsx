@@ -28,6 +28,7 @@ import {
 import ProductCard from '../components/ProductCard';
 import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
@@ -127,7 +128,7 @@ export default function ProductDetail() {
           const prodRef = doc(db, 'products', targetSlugOrId);
           const snap = await getDoc(prodRef);
           if (snap.exists()) {
-            foundProduct = { id: snap.id, ...snap.data() } as Product;
+            foundProduct = normalizeProductDoc(snap);
           }
         } catch (_) { }
 
@@ -137,7 +138,7 @@ export default function ProductDetail() {
           const snapSlug = await getDocs(qSlug);
           if (!snapSlug.empty) {
             const firstDoc = snapSlug.docs[0];
-            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+            foundProduct = normalizeProductDoc(firstDoc);
           }
         }
 
@@ -147,7 +148,7 @@ export default function ProductDetail() {
           const snapCode = await getDocs(qCode);
           if (!snapCode.empty) {
             const firstDoc = snapCode.docs[0];
-            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+            foundProduct = normalizeProductDoc(firstDoc);
           }
         }
 
@@ -155,7 +156,7 @@ export default function ProductDetail() {
         if (!foundProduct) {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
-            .map(d => ({ id: d.id, ...d.data() } as Product))
+            .map(d => normalizeProductDoc(d))
             .find(p =>
               getProductSlug(p) === targetSlugOrId ||
               createSlug(p.name) === targetSlugOrId ||
@@ -1120,7 +1121,7 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
         const rewardIds = await getRewardProductIds();
         const fetchedProducts = filterOutRewardProducts(
           snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+            .map(doc => normalizeProductDoc(doc))
             .filter(p => {
               if (!p) return false;
               const pid = p.id;

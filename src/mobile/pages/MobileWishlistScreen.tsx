@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Trash2, ArrowRight, Star, CheckSquare, Square } fr
 import { collection, query, where, getDocs, documentId, doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { useAuthStore, useCartStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
 import { getExpiredRewardProductIds } from '../../shared/utilities/rewardUtils';
@@ -69,7 +70,7 @@ export default function MobileWishlistScreen() {
         );
 
         const wishProds = snapshots.flatMap(snap =>
-          snap.docs.map(d => ({ id: d.id, ...d.data() } as Product))
+          snap.docs.map(d => normalizeProductDoc(d))
         );
 
         setProducts(wishProds);

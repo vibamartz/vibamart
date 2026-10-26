@@ -12,6 +12,7 @@ import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { getProductSlug, createSlug } from '../../shared/utilities/slug';
 import { cleanProductCode, formatProductCode } from '../../shared/utilities/productCode';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
@@ -138,7 +139,7 @@ export default function MobileProductDetailScreen() {
           const docRef = doc(db, 'products', targetSlugOrId);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
-            foundProduct = { id: snap.id, ...snap.data() } as Product;
+            foundProduct = normalizeProductDoc(snap);
           }
         } catch (_) { }
 
@@ -148,7 +149,7 @@ export default function MobileProductDetailScreen() {
           const snapSlug = await getDocs(qSlug);
           if (!snapSlug.empty) {
             const firstDoc = snapSlug.docs[0];
-            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+            foundProduct = normalizeProductDoc(firstDoc);
           }
         }
 
@@ -158,7 +159,7 @@ export default function MobileProductDetailScreen() {
           const snapCode = await getDocs(qCode);
           if (!snapCode.empty) {
             const firstDoc = snapCode.docs[0];
-            foundProduct = { id: firstDoc.id, ...firstDoc.data() } as Product;
+            foundProduct = normalizeProductDoc(firstDoc);
           }
         }
 
@@ -166,7 +167,7 @@ export default function MobileProductDetailScreen() {
         if (!foundProduct) {
           const allSnap = await getDocs(collection(db, 'products'));
           const matches = allSnap.docs
-            .map(d => ({ id: d.id, ...d.data() } as Product))
+            .map(d => normalizeProductDoc(d))
             .find(p =>
               getProductSlug(p) === targetSlugOrId ||
               createSlug(p.name) === targetSlugOrId ||
@@ -1037,7 +1038,7 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
         const rewardIds = await getRewardProductIds();
         const fetchedProducts = filterOutRewardProducts(
           snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+            .map(doc => normalizeProductDoc(doc))
             .filter(p => {
               if (!p) return false;
               const pid = p.id;

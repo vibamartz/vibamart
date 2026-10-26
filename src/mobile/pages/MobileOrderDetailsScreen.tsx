@@ -13,6 +13,7 @@ import InvoiceModal from '../../desktop/components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -123,7 +124,7 @@ export default function MobileOrderDetailsScreen() {
         const q = query(collection(db, 'products'), limit(15));
         const snap = await getDocs(q);
         const rewardIds = await getRewardProductIds();
-        const prods = filterOutRewardProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)), rewardIds).slice(0, 4);
+        const prods = filterOutRewardProducts(snap.docs.map(d => normalizeProductDoc(d)), rewardIds).slice(0, 4);
         setRecommendedProducts(prods);
       } catch (err) {
         console.error("Error fetching recommended products:", err);

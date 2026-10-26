@@ -13,12 +13,13 @@ import { BrandCoupon, RewardsSectionConfig, RewardOrder, Product } from '../../s
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { generateUniqueSlug, createSlug } from '../../shared/utilities/slug';
 import { db } from '../../backend/firebase/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, setDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAdminDateFilter } from './AdminDateFilterContext';
 import { processAllProductImages } from '../../backend/services/productStorageService';
 import { uploadImageFileToStorage } from '../../shared/utilities/cdnImageUtils';
 import { generateProductKeywords } from '../../shared/utilities/productKeywordGenerator';
+import { normalizeProductDoc, generateUniqueProductId } from '../../shared/utilities/productId';
 
 const PRESET_ICONS = ['Gift', 'Sparkles', 'Award', 'Tag', 'Trophy', 'ShieldCheck'];
 
@@ -606,7 +607,7 @@ export default function AdminRewardsManagementView() {
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+      const data = snapshot.docs.map(docSnap => normalizeProductDoc(docSnap));
       setStoreProducts(data);
     }, (err) => console.error("Error fetching store products:", err));
     return () => unsub();
@@ -719,8 +720,9 @@ export default function AdminRewardsManagementView() {
       const generatedTags = await generateProductKeywords(newProd, { minCount: 6 });
       newProd.tags = generatedTags;
 
-      const docRef = await addDoc(collection(db, 'products'), newProd);
-      const newId = docRef.id;
+      const newId = generateUniqueProductId(storeProducts);
+      newProd.id = newId;
+      await setDoc(doc(db, 'products', newId), newProd);
 
       const currentList = managingProductsCoupon.productIds || [];
       const updatedList = [...currentList, newId];

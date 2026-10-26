@@ -2,6 +2,7 @@ import { Product, ProductVariant, VariantAttribute, VariantAttributeValue, Famil
 import { db } from '../../backend/firebase/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { getProductSlug } from './slug';
+import { normalizeProductDoc } from './productId';
 
 /**
  * Normalizes attribute name for canonical matching (e.g. "Color " -> "Color", case-insensitive comparison helper)
@@ -1005,7 +1006,7 @@ export async function fetchFamilyProductMatrix(
     );
     const snap = await getDocs(q);
     const familyProducts = snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as Product))
+      .map(d => normalizeProductDoc(d))
       .filter(p => p && p.isVisible !== false && p.status !== 'inactive');
 
     familyProductsCache.set(cleanFamilyId, {

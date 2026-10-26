@@ -9,6 +9,7 @@ import { Product, Banner } from '../../shared/types';
 import { useCartStore, useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
+import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
@@ -367,7 +368,7 @@ export default function MobileProductListScreen() {
     setLoadError(false);
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const docs = snapshot.docs.map(doc => normalizeProductDoc(doc));
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(docs, rewardIds));
       setLoadError(false);
