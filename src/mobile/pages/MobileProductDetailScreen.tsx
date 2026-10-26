@@ -45,7 +45,12 @@ export default function MobileProductDetailScreen() {
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
+  const isProgrammaticScroll = React.useRef(false);
+  const scrollTimeoutRef = React.useRef<any>(null);
+  const touchStartX = React.useRef<number | null>(null);
+
   const handleMobileGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isImageModalOpen || isProgrammaticScroll.current) return;
     const width = e.currentTarget.clientWidth;
     if (width > 0) {
       const idx = Math.round(e.currentTarget.scrollLeft / width);
@@ -58,16 +63,43 @@ export default function MobileProductDetailScreen() {
   const scrollToMobileImage = (idx: number) => {
     setActiveImageIndex(idx);
     if (mobileGalleryRef.current) {
+      isProgrammaticScroll.current = true;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       const width = mobileGalleryRef.current.clientWidth;
       mobileGalleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+      scrollTimeoutRef.current = setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 400);
     }
   };
+
+  const imagesListRef = React.useRef<string[]>([]);
 
   useEffect(() => {
     if (!isImageModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsImageModalOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const len = imagesListRef.current.length || 1;
+        setActiveImageIndex(prev => {
+          const next = (prev - 1 + len) % len;
+          if (mobileGalleryRef.current) {
+            mobileGalleryRef.current.scrollLeft = next * mobileGalleryRef.current.clientWidth;
+          }
+          return next;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const len = imagesListRef.current.length || 1;
+        setActiveImageIndex(prev => {
+          const next = (prev + 1) % len;
+          if (mobileGalleryRef.current) {
+            mobileGalleryRef.current.scrollLeft = next * mobileGalleryRef.current.clientWidth;
+          }
+          return next;
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -472,8 +504,45 @@ export default function MobileProductDetailScreen() {
   });
 
   const images = combinedImages.length > 0 ? combinedImages : ['https://via.placeholder.com/600?text=No+Image'];
+  imagesListRef.current = images;
   const activeImageSrc = images[activeImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
+
+  const handleModalPrev = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prevIdx = (activeImageIndex - 1 + images.length) % images.length;
+    setActiveImageIndex(prevIdx);
+    if (mobileGalleryRef.current) {
+      mobileGalleryRef.current.scrollLeft = prevIdx * mobileGalleryRef.current.clientWidth;
+    }
+  };
+
+  const handleModalNext = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const nextIdx = (activeImageIndex + 1) % images.length;
+    setActiveImageIndex(nextIdx);
+    if (mobileGalleryRef.current) {
+      mobileGalleryRef.current.scrollLeft = nextIdx * mobileGalleryRef.current.clientWidth;
+    }
+  };
+
+  const handleModalTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleModalTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        handleModalNext();
+      } else {
+        handleModalPrev();
+      }
+    }
+    touchStartX.current = null;
+  };
 
   // Resolve specifications: universal variant/attribute-specific if available, otherwise default
   const rawSpecs = getProductSpecificationsForSelection(
@@ -893,7 +962,7 @@ export default function MobileProductDetailScreen() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 select-none"
+            className="fixed inset-0 z-50 bg-white/95 backdrop-blur-md flex items-center justify-center p-3 select-none"
             onClick={() => setIsImageModalOpen(false)}
           >
             {/* Close Button */}
@@ -901,7 +970,7 @@ export default function MobileProductDetailScreen() {
               type="button"
               onClick={() => setIsImageModalOpen(false)}
               aria-label="Close enlarged view"
-              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <X className="w-6 h-6" />
             </button>
@@ -910,13 +979,9 @@ export default function MobileProductDetailScreen() {
             {images.length > 1 && (
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const prevIdx = (activeImageIndex - 1 + images.length) % images.length;
-                  scrollToMobileImage(prevIdx);
-                }}
+                onClick={handleModalPrev}
                 aria-label="Previous image"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -928,18 +993,20 @@ export default function MobileProductDetailScreen() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="relative max-w-full max-h-[85vh] w-full h-full flex items-center justify-center"
+              className="relative max-w-full max-h-[85vh] w-full h-full flex items-center justify-center bg-white"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleModalTouchStart}
+              onTouchEnd={handleModalTouchEnd}
             >
               <img
                 src={images[activeImageIndex] || activeImageSrc}
                 alt={product.name}
-                className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl shadow-2xl"
+                className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl bg-white select-none"
               />
 
               {/* Image Counter in Modal */}
               {images.length > 1 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-xs text-xs font-semibold text-white tracking-wider">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gray-900/80 backdrop-blur-xs text-xs font-semibold text-white tracking-wider shadow-sm">
                   {activeImageIndex + 1} / {images.length}
                 </div>
               )}
@@ -949,13 +1016,9 @@ export default function MobileProductDetailScreen() {
             {images.length > 1 && (
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const nextIdx = (activeImageIndex + 1) % images.length;
-                  scrollToMobileImage(nextIdx);
-                }}
+                onClick={handleModalNext}
                 aria-label="Next image"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>

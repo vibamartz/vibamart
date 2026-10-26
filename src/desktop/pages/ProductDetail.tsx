@@ -61,7 +61,11 @@ export default function ProductDetail() {
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
+  const isProgrammaticScroll = React.useRef(false);
+  const scrollTimeoutRef = React.useRef<any>(null);
+
   const handleGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isImageModalOpen || isProgrammaticScroll.current) return;
     const width = e.currentTarget.clientWidth;
     if (width > 0) {
       const idx = Math.round(e.currentTarget.scrollLeft / width);
@@ -74,16 +78,43 @@ export default function ProductDetail() {
   const scrollToImage = (idx: number) => {
     setSelectedImage(idx);
     if (galleryRef.current) {
+      isProgrammaticScroll.current = true;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       const width = galleryRef.current.clientWidth;
       galleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+      scrollTimeoutRef.current = setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 400);
     }
   };
+
+  const currentDisplayListRef = React.useRef<string[]>([]);
 
   useEffect(() => {
     if (!isImageModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsImageModalOpen(false);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const len = currentDisplayListRef.current.length || 1;
+        setSelectedImage(prev => {
+          const next = (prev - 1 + len) % len;
+          if (galleryRef.current) {
+            galleryRef.current.scrollLeft = next * galleryRef.current.clientWidth;
+          }
+          return next;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const len = currentDisplayListRef.current.length || 1;
+        setSelectedImage(prev => {
+          const next = (prev + 1) % len;
+          if (galleryRef.current) {
+            galleryRef.current.scrollLeft = next * galleryRef.current.clientWidth;
+          }
+          return next;
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -539,6 +570,33 @@ export default function ProductDetail() {
 
   const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
+  const variantImages = (currentVariant?.images && currentVariant.images.length > 0)
+    ? currentVariant.images
+    : (currentVariant?.image ? [currentVariant.image] : []);
+  const displayImages = variantImages.length > 0
+    ? [...variantImages, ...(product.images || []).filter(img => !variantImages.includes(img))]
+    : (product.images || []);
+  const currentDisplayList = displayImages.length > 0 ? displayImages : [activeImageSrc];
+  currentDisplayListRef.current = currentDisplayList;
+
+  const handleModalPrev = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
+    setSelectedImage(prevIdx);
+    if (galleryRef.current) {
+      galleryRef.current.scrollLeft = prevIdx * galleryRef.current.clientWidth;
+    }
+  };
+
+  const handleModalNext = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const nextIdx = (selectedImage + 1) % currentDisplayList.length;
+    setSelectedImage(nextIdx);
+    if (galleryRef.current) {
+      galleryRef.current.scrollLeft = nextIdx * galleryRef.current.clientWidth;
+    }
+  };
+
   return (
     <div className="bg-gray-50/50 min-h-screen py-4 sm:py-6 pb-10">
 
@@ -549,123 +607,111 @@ export default function ProductDetail() {
             
             {/* Left: Image Gallery */}
             <div className="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-24">
-              {(() => {
-                const variantImages = (currentVariant?.images && currentVariant.images.length > 0)
-                  ? currentVariant.images
-                  : (currentVariant?.image ? [currentVariant.image] : []);
-                const displayImages = variantImages.length > 0
-                  ? [...variantImages, ...(product.images || []).filter(img => !variantImages.includes(img))]
-                  : (product.images || []);
-                const currentDisplayList = displayImages.length > 0 ? displayImages : [activeImageSrc];
-
-                return (
-                  <div className="relative aspect-square w-full max-h-[480px] overflow-hidden rounded-2xl bg-white border border-gray-100 flex items-center justify-center p-2 sm:p-3 shadow-xs group">
+              <div className="relative aspect-square w-full max-h-[480px] overflow-hidden rounded-2xl bg-white border border-gray-100 flex items-center justify-center p-2 sm:p-3 shadow-xs group">
+                <div
+                  ref={galleryRef}
+                  onScroll={handleGalleryScroll}
+                  className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x cursor-pointer"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {currentDisplayList.map((img, idx) => (
                     <div
-                      ref={galleryRef}
-                      onScroll={handleGalleryScroll}
-                      className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x cursor-pointer"
-                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                      key={idx}
+                      onClick={() => setIsImageModalOpen(true)}
+                      title="Click to view larger image"
+                      className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center bg-white cursor-zoom-in"
                     >
-                      {currentDisplayList.map((img, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => setIsImageModalOpen(true)}
-                          title="Click to view larger image"
-                          className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center bg-white cursor-zoom-in"
-                        >
-                          <img
-                            src={img}
-                            alt={`${product.name} - ${idx + 1}`}
-                            className="w-full h-full max-h-full max-w-full object-contain transition-all duration-300 bg-white select-none"
-                          />
-                        </div>
-                      ))}
+                      <img
+                        src={img}
+                        alt={`${product.name} - ${idx + 1}`}
+                        className="w-full h-full max-h-full max-w-full object-contain transition-all duration-300 bg-white select-none"
+                      />
                     </div>
+                  ))}
+                </div>
 
-                    {/* Left and Right Scroll Controls for Desktop */}
-                    {currentDisplayList.length > 1 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
-                            scrollToImage(prevIdx);
-                          }}
-                          aria-label="Previous image"
-                          title="Previous image"
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-gray-950 shadow-md hover:shadow-lg border border-gray-200/80 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
-                        >
-                          <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const nextIdx = (selectedImage + 1) % currentDisplayList.length;
-                            scrollToImage(nextIdx);
-                          }}
-                          aria-label="Next image"
-                          title="Next image"
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-gray-950 shadow-md hover:shadow-lg border border-gray-200/80 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
-                        >
-                          <ChevronRight className="w-5 h-5" />
-                        </button>
+                {/* Left and Right Scroll Controls for Desktop (Hidden on mobile mode) */}
+                {currentDisplayList.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
+                        scrollToImage(prevIdx);
+                      }}
+                      aria-label="Previous image"
+                      title="Previous image"
+                      className="hidden md:flex absolute left-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-gray-950 shadow-md hover:shadow-lg border border-gray-200/80 items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextIdx = (selectedImage + 1) % currentDisplayList.length;
+                        scrollToImage(nextIdx);
+                      }}
+                      aria-label="Next image"
+                      title="Next image"
+                      className="hidden md:flex absolute right-2.5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-gray-700 hover:text-gray-950 shadow-md hover:shadow-lg border border-gray-200/80 items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
 
-                        {/* Image Counter Indicator */}
-                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[11px] font-bold text-white tracking-wider pointer-events-none">
-                          {selectedImage + 1} / {currentDisplayList.length}
-                        </div>
-                      </>
-                    )}
-
-                    {/* Discount Tag on Image */}
-                    {discountPercentage > 0 && (
-                      <div className="absolute top-3 left-3 z-10 pointer-events-none">
-                        <span className="bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-sm tracking-wider uppercase">
-                          {discountPercentage}% OFF
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Top Right Floating Actions: Wishlist & Share */}
-                    <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleWishlist();
-                        }}
-                        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                        title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                        className={`p-2.5 rounded-full border transition-all active:scale-95 flex items-center justify-center shadow-sm cursor-pointer ${
-                          isWishlisted
-                            ? 'bg-rose-50 border-rose-200 text-rose-500'
-                            : 'bg-white/95 backdrop-blur-xs border-gray-100 text-gray-500 hover:text-rose-500 hover:bg-rose-50'
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500' : ''}`} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (product) {
-                            const currentImg = currentDisplayList[selectedImage] || currentDisplayList[0] || (product as any).image;
-                            shareProduct(product, {
-                              specificImage: currentImg,
-                              variantName: currentVariant?.name
-                            });
-                          }
-                        }}
-                        aria-label="Share product"
-                        title="Share product"
-                        className="p-2.5 rounded-full bg-white/95 backdrop-blur-xs border border-gray-100 text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all shadow-sm flex items-center justify-center active:scale-95 cursor-pointer"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
+                    {/* Image Counter Indicator */}
+                    <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[11px] font-bold text-white tracking-wider pointer-events-none">
+                      {selectedImage + 1} / {currentDisplayList.length}
                     </div>
+                  </>
+                )}
+
+                {/* Discount Tag on Image */}
+                {discountPercentage > 0 && (
+                  <div className="absolute top-3 left-3 z-10 pointer-events-none">
+                    <span className="bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-lg shadow-sm tracking-wider uppercase">
+                      {discountPercentage}% OFF
+                    </span>
                   </div>
-                );
-              })()}
+                )}
+
+                {/* Top Right Floating Actions: Wishlist & Share */}
+                <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 pointer-events-auto">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist();
+                    }}
+                    aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    className={`p-2.5 rounded-full border transition-all active:scale-95 flex items-center justify-center shadow-sm cursor-pointer ${
+                      isWishlisted
+                        ? 'bg-rose-50 border-rose-200 text-rose-500'
+                        : 'bg-white/95 backdrop-blur-xs border-gray-100 text-gray-500 hover:text-rose-500 hover:bg-rose-50'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500' : ''}`} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (product) {
+                        const currentImg = currentDisplayList[selectedImage] || currentDisplayList[0] || (product as any).image;
+                        shareProduct(product, {
+                          specificImage: currentImg,
+                          variantName: currentVariant?.name
+                        });
+                      }
+                    }}
+                    aria-label="Share product"
+                    title="Share product"
+                    className="p-2.5 rounded-full bg-white/95 backdrop-blur-xs border border-gray-100 text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all shadow-sm flex items-center justify-center active:scale-95 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Right: Info, Variants, Actions, Delivery */}
@@ -1009,7 +1055,7 @@ export default function ProductDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 select-none"
+            className="fixed inset-0 z-50 bg-white/95 backdrop-blur-md flex items-center justify-center p-4 select-none"
             onClick={() => setIsImageModalOpen(false)}
           >
             {/* Close Button */}
@@ -1017,79 +1063,57 @@ export default function ProductDetail() {
               type="button"
               onClick={() => setIsImageModalOpen(false)}
               aria-label="Close enlarged view"
-              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
             >
               <X className="w-6 h-6" />
             </button>
 
-            {(() => {
-              const variantImages = (currentVariant?.images && currentVariant.images.length > 0)
-                ? currentVariant.images
-                : (currentVariant?.image ? [currentVariant.image] : []);
-              const displayImages = variantImages.length > 0
-                ? [...variantImages, ...(product.images || []).filter(img => !variantImages.includes(img))]
-                : (product.images || []);
-              const currentDisplayList = displayImages.length > 0 ? displayImages : [activeImageSrc];
+            {/* Previous Button in Modal */}
+            {currentDisplayList.length > 1 && (
+              <button
+                type="button"
+                onClick={handleModalPrev}
+                aria-label="Previous image"
+                className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-50 p-2.5 sm:p-3 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer"
+              >
+                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            )}
 
-              return (
-                <>
-                  {/* Previous Button in Modal */}
-                  {currentDisplayList.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
-                        scrollToImage(prevIdx);
-                      }}
-                      aria-label="Previous image"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-110 active:scale-95 cursor-pointer"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-                  )}
+            {/* Enlarged Image Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center bg-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={currentDisplayList[selectedImage] || activeImageSrc}
+                alt={product.name}
+                className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl bg-white select-none"
+              />
 
-                  {/* Enlarged Image Container */}
-                  <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <img
-                      src={currentDisplayList[selectedImage] || activeImageSrc}
-                      alt={product.name}
-                      className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl bg-white/5"
-                    />
+              {/* Image Counter in Modal */}
+              {currentDisplayList.length > 1 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gray-900/80 backdrop-blur-xs text-xs font-semibold text-white tracking-wider shadow-sm">
+                  {selectedImage + 1} / {currentDisplayList.length}
+                </div>
+              )}
+            </motion.div>
 
-                    {/* Image Counter in Modal */}
-                    {currentDisplayList.length > 1 && (
-                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-xs text-xs font-semibold text-white tracking-wider">
-                        {selectedImage + 1} / {currentDisplayList.length}
-                      </div>
-                    )}
-                  </motion.div>
-
-                  {/* Next Button in Modal */}
-                  {currentDisplayList.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const nextIdx = (selectedImage + 1) % currentDisplayList.length;
-                        scrollToImage(nextIdx);
-                      }}
-                      aria-label="Next image"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:scale-110 active:scale-95 cursor-pointer"
-                    >
-                      <ChevronRight className="w-6 h-6" />
-                    </button>
-                  )}
-                </>
-              );
-            })()}
+            {/* Next Button in Modal */}
+            {currentDisplayList.length > 1 && (
+              <button
+                type="button"
+                onClick={handleModalNext}
+                aria-label="Next image"
+                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-50 p-2.5 sm:p-3 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer"
+              >
+                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
