@@ -12,7 +12,6 @@ import { VisualNestedSubcategory, Category, SubCategory, Product } from '../../s
 import { useVisualNestedSubcategoryStore, useCategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
 import { formatProductCode } from '../../shared/utilities/productCode';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { compressDataUrl } from '../../backend/services/categoryStorageService';
 import VisualNestedSubcategoryCard from '../../shared/components/VisualNestedSubcategoryCard';
 import { FRAME_SHAPES, getFrameConfig, VisualFrameDefs } from '../../shared/components/visualFrames';
@@ -122,7 +121,7 @@ export default function VisualNestedSubcategoriesAdminView() {
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => normalizeProductDoc(doc));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setAllCatalogProducts(data);
       setLoadingProducts(false);
     }, (error) => {

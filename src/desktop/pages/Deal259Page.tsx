@@ -3,7 +3,6 @@ import { collection, query, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Deal259PageConfig, Deal259SubDeal } from '../../shared/types';
 import { getDeal259Products, DEFAULT_DEAL259_CONFIG, DEFAULT_DEAL259_SUBDEALS } from '../../shared/utilities/deal259Utils';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { shareDeal259Store } from '../../shared/utilities/shareUtils';
 import ProductCard from '../components/ProductCard';
 import { useCategoryStore } from '../../backend/store';
@@ -49,7 +48,7 @@ export default function Deal259Page() {
 
     // Listen to all products, filter ONLY those specifically assigned to Deal 259
     const unsubProducts = onSnapshot(query(collection(db, 'products')), (snap) => {
-      const allDocs = snap.docs.map(d => normalizeProductDoc(d));
+      const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       const dealProds = getDeal259Products(allDocs);
       setProducts(dealProds);
       setLoading(false);

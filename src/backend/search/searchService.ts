@@ -7,7 +7,6 @@ import { Product, Category, VisualNestedSubcategory } from '../../shared/types';
 import { searchCache } from './searchCache';
 import { parseQueryIntent, getSemanticSearchStatus } from './semanticSearch';
 import { generateProductKeywords, productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../../shared/utilities/productKeywordGenerator';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 
 function getValidProjectId(): string {
   const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
@@ -173,8 +172,8 @@ export class SearchService {
 
       const productDocs = await fetchFirestoreCollectionDocs('products');
       const products: Product[] = productDocs.map(doc => ({
-        ...doc.data,
-        id: doc.id || doc.data?.id
+        id: doc.id,
+        ...doc.data
       } as Product));
 
       this.engine.indexProducts(
@@ -211,7 +210,7 @@ export class SearchService {
       const adminCredentials = hasAdminCredentials();
 
       for (const docItem of productDocs) {
-        const prod = { ...docItem.data, id: docItem.id || docItem.data?.id } as Product;
+        const prod = { id: docItem.id, ...docItem.data } as Product;
         if (!productNeedsKeywordUpgrade(prod, 6)) {
           continue;
         }
@@ -286,7 +285,7 @@ export class SearchService {
     const handleProductSnapshot = (snapshot: any) => {
       let hasChanges = false;
       snapshot.docChanges().forEach((change: any) => {
-        const product = normalizeProductDoc(change.doc);
+        const product = { id: change.doc.id, ...change.doc.data() } as Product;
         const catName = this.categoryNameMap[product.categoryId] || '';
         const subName = product.subCategoryId ? (this.subCategoryNameMap[product.subCategoryId] || '') : '';
         const nestedName = product.nestedSubCategoryId ? (this.nestedSubCategoryNameMap[product.nestedSubCategoryId] || '') : '';

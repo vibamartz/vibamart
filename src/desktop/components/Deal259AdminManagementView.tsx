@@ -4,7 +4,6 @@ import { db, handleFirestoreError, OperationType } from '../../backend/firebase/
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Product, Deal259PageConfig, Deal259SubDeal } from '../../shared/types';
 import { DEFAULT_DEAL259_CONFIG, DEFAULT_DEAL259_SUBDEALS } from '../../shared/utilities/deal259Utils';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { shareDeal259Store } from '../../shared/utilities/shareUtils';
 import AddEditProductForm from './AddEditProductForm';
 import toast from 'react-hot-toast';
@@ -50,7 +49,7 @@ export default function Deal259AdminManagementView() {
   useEffect(() => {
     const qProds = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubProds = onSnapshot(qProds, (snapshot) => {
-      const data = snapshot.docs.map(d => normalizeProductDoc(d));
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       setProducts(data);
       setLoading(false);
     }, (err) => {

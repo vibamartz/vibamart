@@ -23,7 +23,6 @@ import {
 
 import { createSlug } from '../../shared/utilities/slug';
 import { generateUniqueProductCode, formatProductCode, validateProductCode, isProductCodeUnique } from '../../shared/utilities/productCode';
-import { generateUniqueProductId, isProductIdUnique, normalizeProductDoc, fixDuplicateProductIds } from '../../shared/utilities/productId';
 import { query, orderBy, getDocs } from 'firebase/firestore';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
 import { processAllProductImages } from '../../backend/services/productStorageService';
@@ -567,9 +566,8 @@ export default function AddEditProductForm({
     const loadProducts = async () => {
       try {
         const snap = await getDocs(collection(db, 'products'));
-        const prods = snap.docs.map(d => normalizeProductDoc(d));
-        const { fixedProducts } = fixDuplicateProductIds(prods);
-        setExistingProducts(fixedProducts);
+        const prods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        setExistingProducts(prods);
 
         // Auto-generate Product Code for new product or if existing product lacks code
         if (!product?.productCode) {
@@ -645,11 +643,7 @@ export default function AddEditProductForm({
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
-      // Ensure strictly unique Product ID - never assign the same ID to multiple products
-      let pid = product?.id;
-      if (!pid || !isProductIdUnique(pid, existingProducts, product?.id)) {
-        pid = generateUniqueProductId(existingProducts);
-      }
+      const pid = product?.id || `prod_${Date.now()}`;
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
@@ -911,8 +905,8 @@ export default function AddEditProductForm({
           <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight italic">
             {product ? 'EDIT_PRODUCT' : 'NEW_PRODUCT'}
           </h2>
-          <p className="text-[10px] text-gray-500 font-mono font-bold tracking-wider mt-0.5">
-            Product Identification {product?.id ? `(${product.id})` : ''}
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+            Product Identification {product?.id ? `(${product.id.slice(0, 8)})` : ''}
           </p>
         </div>
         <div className="flex gap-2">

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Banner, Product } from '../../shared/types';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Monitor, Smartphone, Save, Calendar, Link as LinkIcon, UploadCloud, Layers, CheckCircle2, AlertCircle, Sparkles, Gift, ShoppingBag, Compass, ExternalLink } from 'lucide-react';
 import { useCategoryStore, useRewardsStore } from '../../backend/store';
 import { getCategorySlug, getProductSlug, getRewardSlug, createSlug } from '../../shared/utilities/slug';
@@ -43,7 +42,7 @@ export default function BannersManagementView() {
 
   useEffect(() => {
     getDocs(collection(db, 'products')).then(snap => {
-      setDbProducts(snap.docs.map(d => normalizeProductDoc(d)));
+      setDbProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
     }).catch(err => console.error("Error loading products for banner validation:", err));
   }, []);
 

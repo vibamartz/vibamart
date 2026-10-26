@@ -12,7 +12,6 @@ import { collection, query, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getValidBrandUrl } from '../../shared/utils/url';
 import { getRewardSlug, getProductSlug, createSlug } from '../../shared/utilities/slug';
 import { shareReward, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import toast from 'react-hot-toast';
 
 import { DEFAULT_BRAND_COUPONS } from '../../shared/constants';
@@ -131,7 +130,7 @@ export default function MobileRewardProductsScreen() {
       try {
         const prodColRef = collection(db, 'products');
         const snap = await getDocs(query(prodColRef));
-        const allProds = snap.docs.map(d => normalizeProductDoc(d));
+        const allProds = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
 
         let resultProds: Product[] = [];
 

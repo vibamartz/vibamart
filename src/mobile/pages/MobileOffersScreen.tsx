@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getProductSlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { motion } from 'motion/react';
@@ -14,7 +13,7 @@ export default function MobileOffersScreen() {
 
   useEffect(() => {
     const unsubProducts = onSnapshot(query(collection(db, 'products')), async (snap) => {
-      const docs = snap.docs.map(d => normalizeProductDoc(d));
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       const rewardIds = await getRewardProductIds();
       const filtered = filterOutRewardProducts(docs, rewardIds);
       setDealProducts(filtered.filter(p => (p.discountPrice && p.discountPrice < p.price) || (p.discountPercentage || 0) > 10));

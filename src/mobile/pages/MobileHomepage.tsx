@@ -18,7 +18,6 @@ import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewa
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { getProductSlug, getCategorySlug, getSubcategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
@@ -219,7 +218,7 @@ export default function MobileHomepage() {
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, async (snapshot) => {
-      const productData = snapshot.docs.map(doc => normalizeProductDoc(doc));
+      const productData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(productData, rewardIds));
       setLoading(false);

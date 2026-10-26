@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
-import { normalizeProductDoc, fixDuplicateProductIds, repairDuplicateProductIdsInFirestore } from '../../shared/utilities/productId';
 import { useCategoryStore, useVisualNestedSubcategoryStore, useInventoryBrandSectionStore } from '../../backend/store';
 import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
 import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
@@ -58,26 +57,12 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     return () => unsubscribe();
   }, [initSections]);
 
-  const hasRepairedDuplicatesRef = useRef(false);
-
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const normalized = snapshot.docs.map(doc => normalizeProductDoc(doc));
-      const { fixedProducts, duplicatesFound } = fixDuplicateProductIds(normalized);
-      setProducts(fixedProducts);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(data);
       setLoading(false);
-
-      if (duplicatesFound > 0 && !hasRepairedDuplicatesRef.current) {
-        hasRepairedDuplicatesRef.current = true;
-        repairDuplicateProductIdsInFirestore(db).then((res) => {
-          if (res.fixed > 0) {
-            toast.success(`Identified and fixed ${res.fixed} duplicate product ID(s) without affecting product data.`);
-          }
-        }).catch((err) => {
-          console.error('[ProductManagementView] Duplicate product ID repair error:', err);
-        });
-      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
     });
@@ -154,26 +139,6 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       toast.error(err.message || 'Failed to complete keyword upgrade', { id: toastId });
     } finally {
       setIsUpgradingKeywords(false);
-    }
-  };
-
-  const [isFixingProductIds, setIsFixingProductIds] = useState(false);
-
-  const handleAuditAndFixProductIds = async () => {
-    setIsFixingProductIds(true);
-    const toastId = toast.loading('Auditing product IDs across catalog...');
-    try {
-      const res = await repairDuplicateProductIdsInFirestore(db);
-      if (res.fixed > 0) {
-        toast.success(`Identified and fixed ${res.fixed} duplicate product ID(s) without affecting product data.`, { id: toastId });
-      } else {
-        toast.success(`All ${res.scanned} product IDs are strictly unique. No duplicates found.`, { id: toastId });
-      }
-    } catch (err) {
-      console.error('Failed to audit/fix product IDs:', err);
-      toast.error('Failed to audit product IDs', { id: toastId });
-    } finally {
-      setIsFixingProductIds(false);
     }
   };
 
@@ -716,16 +681,6 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           </button>
 
           <button
-            onClick={handleAuditAndFixProductIds}
-            disabled={isFixingProductIds}
-            className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-emerald-100 hover:scale-[1.02] active:scale-95 transition-all shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
-            title="Scan catalog to ensure every product has a unique ID and fix any duplicate IDs"
-          >
-            <CheckCircle2 className={`w-3.5 h-3.5 text-emerald-600 ${isFixingProductIds ? 'animate-spin' : ''}`} />
-            <span>{isFixingProductIds ? 'Verifying...' : 'Verify Product IDs'}</span>
-          </button>
-
-          <button
             onClick={() => onAddProduct?.()}
             className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
           >
@@ -1033,8 +988,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                               )}
                             </div>
 
-                            <p className="text-[11px] text-gray-500 font-mono truncate mt-0.5" title={`Product ID: ${product.id}`}>
-                              <span className="font-bold text-gray-400 font-sans">ID:</span> <span className="select-all font-semibold text-gray-700">{product.id}</span> {product.sku ? <span className="font-sans text-gray-400">• SKU: {product.sku}</span> : ''}
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                              ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}
                             </p>
 
                             {/* Live Category Assignment Badges: Compact horizontal single line */}

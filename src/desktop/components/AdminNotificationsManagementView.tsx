@@ -26,7 +26,6 @@ import {
   ABTestExperiment
 } from '../../shared/types/notifications';
 import { Product, Order, UserProfile } from '../../shared/types';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { EngagementMLEngine, CustomerBehaviorProfile } from '../../backend/services/mlEngine';
 import { NotificationEngine, sanitizeFirestoreData } from '../../backend/services/notificationEngine';
 import { useAdminDateFilter } from './AdminDateFilterContext';
@@ -153,7 +152,7 @@ export default function AdminNotificationsManagementView() {
     // 7. Products
     const qProds = query(collection(db, 'products'), limit(200));
     const unsubProds = onSnapshot(qProds, snap => {
-      setProducts(snap.docs.map(d => normalizeProductDoc(d)));
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
     }, () => { });
 
     // 8. Events

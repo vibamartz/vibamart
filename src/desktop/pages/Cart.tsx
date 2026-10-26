@@ -8,7 +8,6 @@ import { getFormattedDeliveryDate } from '../../shared/utilities/dateUtils';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { doc, updateDoc, arrayUnion, collection, query, where, getDocs, documentId } from 'firebase/firestore';
 import { Product } from '../../shared/types';
-import { normalizeProductDoc } from '../../shared/utilities/productId';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import ProductCard from '../components/ProductCard';
 import LocationPickerModal from '../components/LocationPickerModal';
@@ -97,7 +96,7 @@ function WishlistCartSection() {
         const q = query(collection(db, 'products'), where(documentId(), 'in', targetIds));
         const snapshot = await getDocs(q);
         const rewardIds = await getRewardProductIds();
-        const fetched = filterOutRewardProducts(snapshot.docs.map(doc => normalizeProductDoc(doc)), rewardIds);
+        const fetched = filterOutRewardProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), rewardIds);
         setProducts(fetched);
       } catch (err) {
         console.error('Error fetching wishlist:', err);

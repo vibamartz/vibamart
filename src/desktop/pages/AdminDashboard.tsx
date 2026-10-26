@@ -29,7 +29,6 @@ import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
 import { generateProductKeywords, hasProductRelevantInfoChanged, isKeywordOutdatedOrMissing } from '../../shared/utilities/productKeywordGenerator';
-import { normalizeProductDoc, generateUniqueProductId, isProductIdUnique } from '../../shared/utilities/productId';
 import NewBannersManagementView from '../components/BannersManagementView';
 import AdminReturnsManagementView from '../components/AdminReturnsManagementView';
 import AdminInvoicesView from '../components/AdminInvoicesView';
@@ -1670,7 +1669,10 @@ function ReportsView({ type }: { type: 'sales' | 'payment' }) {
   useEffect(() => {
     const qProds = query(collection(db, 'products'));
     const unsubProds = onSnapshot(qProds, (snapshot) => {
-      const prodsData = snapshot.docs.map(doc => normalizeProductDoc(doc));
+      const prodsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
       setProducts(prodsData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
@@ -3173,7 +3175,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
   useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => normalizeProductDoc(doc));
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(data);
       setLoading(false);
     }, (error) => {
@@ -3383,7 +3385,7 @@ function ProductManagementView({ onAddProduct, onEditProduct, onDeleteProduct }:
                           <img src={product.images[0]} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-100" alt="" />
                           <div>
                             <p className="text-sm font-bold text-gray-900">{product.name}</p>
-                            <p className="text-xs text-gray-500 font-mono" title={`Product ID: ${product.id}`}>ID: <span className="select-all font-semibold text-gray-700">{product.id}</span></p>
+                            <p className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</p>
                           </div>
                         </div>
                       </td>
@@ -5485,18 +5487,7 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
     const toastId = toast.loading(product ? 'Synchronizing product update...' : 'Uploading images and deploying product...');
 
     try {
-      // Ensure strictly unique Product ID - never assign the same ID to multiple products
-      let pid = product?.id?.trim();
-      if (!pid) {
-        pid = generateUniqueProductId();
-        let attempts = 0;
-        while (attempts < 5) {
-          const existingDoc = await getDoc(doc(db, 'products', pid));
-          if (!existingDoc.exists()) break;
-          pid = generateUniqueProductId();
-          attempts++;
-        }
-      }
+      const pid = product?.id || `prod_${Date.now()}`;
       const mrp = formData.mrp || 0;
       const price = formData.price || 0;
       const isDiscounted = mrp > 0 && price > 0 && mrp > price;
@@ -5577,8 +5568,8 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
           <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic">
             {product ? 'EDIT_NODE' : 'NEW_ENTITY'}
           </h2>
-          <p className="text-sm text-gray-500 font-mono font-bold tracking-wider mt-2">
-            Product Identification {product?.id ? `(${product.id})` : ''}
+          <p className="text-sm text-gray-500 font-bold uppercase tracking-[0.2em] mt-2">
+            Product Identification {product?.id ? `(${product.id.slice(0, 8)})` : ''}
           </p>
         </div>
         <div className="flex gap-4">
