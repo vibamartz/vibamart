@@ -485,38 +485,33 @@ export default function ProductDetail() {
     currentVariant
   );
 
-  // Build specifications list from added specifications (preserving exact order and format as entered in admin)
+  // Build specifications list excluding empty fields
   const specsList: { key: string; value: string }[] = [];
   if (rawSpecs && Array.isArray(rawSpecs)) {
     rawSpecs.forEach(s => {
-      if (s && s.key && s.key.trim()) {
-        const val = s.value !== undefined && s.value !== null ? String(s.value).trim() : '';
-        if (val) {
-          specsList.push({ key: s.key.trim(), value: val });
-        }
+      if (s.key && s.value && s.key.trim() && s.value.trim()) {
+        specsList.push({ key: s.key.trim(), value: s.value.trim() });
       }
     });
   }
 
-  // Only if no specifications were added in admin, fallback to product attributes
-  if (specsList.length === 0) {
-    if (product.brand) {
-      specsList.push({ key: 'Brand', value: product.brand });
-    }
-    if (product.color) {
-      specsList.push({ key: 'Color', value: product.color });
-    }
-    if (selectedAttributes) {
-      Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
-        if (attrVal) {
-          specsList.push({ key: attrKey, value: String(attrVal) });
-        }
-      });
-    } else {
-      const currentSize = currentVariant?.size || currentVariant?.shoeSize || product.size;
-      if (currentSize) {
-        specsList.push({ key: 'Size', value: String(currentSize) });
+  // Fallback specs from top-level fields / selected attributes if not in specsList
+  if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
+    specsList.unshift({ key: 'Brand', value: product.brand });
+  }
+  if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
+    specsList.push({ key: 'Color', value: product.color });
+  }
+  if (selectedAttributes) {
+    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
+      if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
+        specsList.push({ key: attrKey, value: String(attrVal) });
       }
+    });
+  } else {
+    const currentSize = currentVariant?.size || currentVariant?.shoeSize || product.size;
+    if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+      specsList.push({ key: 'Size', value: String(currentSize) });
     }
   }
 
@@ -982,9 +977,9 @@ export default function ProductDetail() {
               <div>
                 <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
                   {specsList.map((spec, i) => (
-                    <div key={i} className="flex flex-col sm:flex-row p-3 sm:p-3.5 hover:bg-white transition-colors">
-                      <span className="text-xs sm:text-sm font-bold text-gray-600 sm:w-1/3 mb-1 sm:mb-0 break-words">{spec.key}</span>
-                      <span className="text-xs sm:text-sm font-bold text-gray-900 sm:flex-1 whitespace-pre-line break-words">{spec.value}</span>
+                    <div key={i} className="flex flex-col sm:flex-row p-2.5 sm:p-3 hover:bg-white transition-colors">
+                      <span className="text-xs font-black text-gray-400 uppercase tracking-widest sm:w-1/3 mb-0.5 sm:mb-0">{spec.key}</span>
+                      <span className="text-sm font-bold text-gray-900 sm:flex-1">{spec.value}</span>
                     </div>
                   ))}
                 </div>

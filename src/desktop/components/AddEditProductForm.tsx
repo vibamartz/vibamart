@@ -321,21 +321,6 @@ export default function AddEditProductForm({
   const [currentTag, setCurrentTag] = useState('');
   const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const latestKeywordRequestIdRef = useRef(0);
-  const specKeyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const specValueInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const pendingSpecFocusRef = useRef<{ index: number; field: 'key' | 'value' } | null>(null);
-
-  useEffect(() => {
-    if (pendingSpecFocusRef.current) {
-      const { index, field } = pendingSpecFocusRef.current;
-      pendingSpecFocusRef.current = null;
-      if (field === 'key') {
-        specKeyInputRefs.current[index]?.focus();
-      } else {
-        specValueInputRefs.current[index]?.focus();
-      }
-    }
-  });
   const [currentPincodeInput, setCurrentPincodeInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
@@ -876,15 +861,9 @@ export default function AddEditProductForm({
     setFormData(prev => ({ ...prev, variantAttributes: updatedAttrs }));
   };
 
-  const addSpecification = (key = '', value = '', insertIndex?: number) => {
+  const addSpecification = (key = '', value = '') => {
     const currentSpecs = getActiveTabSpecs();
-    const targetIdx = typeof insertIndex === 'number' && insertIndex >= 0 && insertIndex <= currentSpecs.length
-      ? insertIndex
-      : currentSpecs.length;
-    const next = [...currentSpecs];
-    next.splice(targetIdx, 0, { key, value });
-    pendingSpecFocusRef.current = { index: targetIdx, field: key ? 'value' : 'key' };
-    updateActiveTabSpecs(next);
+    updateActiveTabSpecs([...currentSpecs, { key, value }]);
   };
 
   const updateSpecification = (index: number, key: string, value: string) => {
@@ -910,42 +889,8 @@ export default function AddEditProductForm({
 
   const addQuickSpecTemplate = (keyName: string) => {
     const currentSpecs = getActiveTabSpecs();
-    const existingIdx = currentSpecs.findIndex(s => s.key.toLowerCase() === keyName.toLowerCase());
-    if (existingIdx >= 0) {
-      specValueInputRefs.current[existingIdx]?.focus();
-    } else {
-      const targetIdx = currentSpecs.length;
-      const next = [...currentSpecs, { key: keyName, value: '' }];
-      pendingSpecFocusRef.current = { index: targetIdx, field: 'value' };
-      updateActiveTabSpecs(next);
-    }
-  };
-
-  const handleSpecKeyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === 'Enter' || e.keyCode === 13) {
-      e.preventDefault();
-      const currentKey = e.currentTarget.value;
-      const currentSpecs = [...getActiveTabSpecs()];
-      if (currentSpecs[idx]) {
-        currentSpecs[idx] = { ...currentSpecs[idx], key: currentKey };
-        updateActiveTabSpecs(currentSpecs);
-      }
-      specValueInputRefs.current[idx]?.focus();
-    }
-  };
-
-  const handleSpecValueKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === 'Enter' || e.keyCode === 13) {
-      e.preventDefault();
-      const currentVal = e.currentTarget.value;
-      const currentSpecs = [...getActiveTabSpecs()];
-      if (currentSpecs[idx]) {
-        currentSpecs[idx] = { ...currentSpecs[idx], value: currentVal };
-      }
-      const nextIdx = idx + 1;
-      currentSpecs.splice(nextIdx, 0, { key: '', value: '' });
-      pendingSpecFocusRef.current = { index: nextIdx, field: 'key' };
-      updateActiveTabSpecs(currentSpecs);
+    if (!currentSpecs.some(s => s.key.toLowerCase() === keyName.toLowerCase())) {
+      updateActiveTabSpecs([...currentSpecs, { key: keyName, value: '' }]);
     }
   };
 
@@ -1445,24 +1390,16 @@ export default function AddEditProductForm({
                 <div key={idx} className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                   <input
                     type="text"
-                    ref={el => {
-                      specKeyInputRefs.current[idx] = el;
-                    }}
                     placeholder="Attribute Name (e.g. Chest, Length, Fabric)"
                     value={spec.key}
                     onChange={e => updateSpecification(idx, e.target.value, spec.value)}
-                    onKeyDown={e => handleSpecKeyKeyDown(e, idx)}
                     className="w-full sm:w-1/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
                   />
                   <input
                     type="text"
-                    ref={el => {
-                      specValueInputRefs.current[idx] = el;
-                    }}
                     placeholder="Specification Value (e.g. 42, 100% Cotton)"
                     value={spec.value}
                     onChange={e => updateSpecification(idx, spec.key, e.target.value)}
-                    onKeyDown={e => handleSpecValueKeyDown(e, idx)}
                     className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
                   />
                   <div className="flex items-center justify-end gap-1 shrink-0 pt-1 sm:pt-0">
