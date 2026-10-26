@@ -74,36 +74,31 @@ export default function MobileProductDetailScreen() {
   };
 
   const imagesListRef = React.useRef<string[]>([]);
+  const touchStartY = React.useRef<number | null>(null);
 
   useEffect(() => {
     if (!isImageModalOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsImageModalOpen(false);
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const len = imagesListRef.current.length || 1;
-        setActiveImageIndex(prev => {
-          const next = (prev - 1 + len) % len;
-          if (mobileGalleryRef.current) {
-            mobileGalleryRef.current.scrollLeft = next * mobileGalleryRef.current.clientWidth;
-          }
-          return next;
-        });
+        setActiveImageIndex(prev => (prev - 1 + len) % len);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const len = imagesListRef.current.length || 1;
-        setActiveImageIndex(prev => {
-          const next = (prev + 1) % len;
-          if (mobileGalleryRef.current) {
-            mobileGalleryRef.current.scrollLeft = next * mobileGalleryRef.current.clientWidth;
-          }
-          return next;
-        });
+        setActiveImageIndex(prev => (prev + 1) % len);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
   }, [isImageModalOpen]);
 
   const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
@@ -510,38 +505,41 @@ export default function MobileProductDetailScreen() {
 
   const handleModalPrev = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const prevIdx = (activeImageIndex - 1 + images.length) % images.length;
-    setActiveImageIndex(prevIdx);
-    if (mobileGalleryRef.current) {
-      mobileGalleryRef.current.scrollLeft = prevIdx * mobileGalleryRef.current.clientWidth;
-    }
+    setActiveImageIndex(prev => (prev - 1 + images.length) % images.length);
   };
 
   const handleModalNext = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const nextIdx = (activeImageIndex + 1) % images.length;
-    setActiveImageIndex(nextIdx);
+    setActiveImageIndex(prev => (prev + 1) % images.length);
+  };
+
+  const handleCloseModal = () => {
+    setIsImageModalOpen(false);
     if (mobileGalleryRef.current) {
-      mobileGalleryRef.current.scrollLeft = nextIdx * mobileGalleryRef.current.clientWidth;
+      mobileGalleryRef.current.scrollLeft = activeImageIndex * mobileGalleryRef.current.clientWidth;
     }
   };
 
   const handleModalTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
   };
 
   const handleModalTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX.current - touchEndX;
-    if (Math.abs(diff) > 40) {
-      if (diff > 0) {
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchStartX.current - touchEndX;
+    const diffY = (touchStartY.current || 0) - touchEndY;
+    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 0) {
         handleModalNext();
       } else {
         handleModalPrev();
       }
     }
     touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   // Resolve specifications: universal variant/attribute-specific if available, otherwise default
@@ -962,32 +960,20 @@ export default function MobileProductDetailScreen() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-white/95 backdrop-blur-md flex items-center justify-center p-3 select-none"
-            onClick={() => setIsImageModalOpen(false)}
+            className="fixed inset-0 z-50 bg-white flex items-center justify-center p-3 select-none"
+            onClick={handleCloseModal}
           >
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setIsImageModalOpen(false)}
+              onClick={handleCloseModal}
               aria-label="Close enlarged view"
               className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <X className="w-6 h-6" />
             </button>
 
-            {/* Previous Button in Modal */}
-            {images.length > 1 && (
-              <button
-                type="button"
-                onClick={handleModalPrev}
-                aria-label="Previous image"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all active:scale-95 cursor-pointer"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-            )}
-
-            {/* Enlarged Image Container */}
+            {/* Enlarged Image Container with Touch Swipe (No left/right buttons on mobile) */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1011,18 +997,6 @@ export default function MobileProductDetailScreen() {
                 </div>
               )}
             </motion.div>
-
-            {/* Next Button in Modal */}
-            {images.length > 1 && (
-              <button
-                type="button"
-                onClick={handleModalNext}
-                aria-label="Next image"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-50 p-2.5 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all active:scale-95 cursor-pointer"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -89,36 +89,32 @@ export default function ProductDetail() {
   };
 
   const currentDisplayListRef = React.useRef<string[]>([]);
+  const touchStartX = React.useRef<number | null>(null);
+  const touchStartY = React.useRef<number | null>(null);
 
   useEffect(() => {
     if (!isImageModalOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsImageModalOpen(false);
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const len = currentDisplayListRef.current.length || 1;
-        setSelectedImage(prev => {
-          const next = (prev - 1 + len) % len;
-          if (galleryRef.current) {
-            galleryRef.current.scrollLeft = next * galleryRef.current.clientWidth;
-          }
-          return next;
-        });
+        setSelectedImage(prev => (prev - 1 + len) % len);
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         const len = currentDisplayListRef.current.length || 1;
-        setSelectedImage(prev => {
-          const next = (prev + 1) % len;
-          if (galleryRef.current) {
-            galleryRef.current.scrollLeft = next * galleryRef.current.clientWidth;
-          }
-          return next;
-        });
+        setSelectedImage(prev => (prev + 1) % len);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
   }, [isImageModalOpen]);
 
   const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
@@ -581,20 +577,42 @@ export default function ProductDetail() {
 
   const handleModalPrev = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
-    setSelectedImage(prevIdx);
-    if (galleryRef.current) {
-      galleryRef.current.scrollLeft = prevIdx * galleryRef.current.clientWidth;
-    }
+    setSelectedImage(prev => (prev - 1 + currentDisplayList.length) % currentDisplayList.length);
   };
 
   const handleModalNext = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const nextIdx = (selectedImage + 1) % currentDisplayList.length;
-    setSelectedImage(nextIdx);
+    setSelectedImage(prev => (prev + 1) % currentDisplayList.length);
+  };
+
+  const handleCloseModal = () => {
+    setIsImageModalOpen(false);
     if (galleryRef.current) {
-      galleryRef.current.scrollLeft = nextIdx * galleryRef.current.clientWidth;
+      galleryRef.current.scrollLeft = selectedImage * galleryRef.current.clientWidth;
     }
+  };
+
+  const handleModalTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleModalTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchStartX.current - touchEndX;
+    const diffY = (touchStartY.current || 0) - touchEndY;
+    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+      const len = currentDisplayListRef.current.length || 1;
+      if (diffX > 0) {
+        setSelectedImage(prev => (prev + 1) % len);
+      } else {
+        setSelectedImage(prev => (prev - 1 + len) % len);
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   return (
@@ -1055,28 +1073,28 @@ export default function ProductDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-white/95 backdrop-blur-md flex items-center justify-center p-4 select-none"
-            onClick={() => setIsImageModalOpen(false)}
+            className="fixed inset-0 z-50 bg-white flex items-center justify-center p-4 select-none"
+            onClick={handleCloseModal}
           >
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setIsImageModalOpen(false)}
+              onClick={handleCloseModal}
               aria-label="Close enlarged view"
               className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
             >
               <X className="w-6 h-6" />
             </button>
 
-            {/* Previous Button in Modal */}
+            {/* Previous Button in Modal (Desktop only) */}
             {currentDisplayList.length > 1 && (
               <button
                 type="button"
                 onClick={handleModalPrev}
                 aria-label="Previous image"
-                className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-50 p-2.5 sm:p-3 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer"
+                className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer items-center justify-center"
               >
-                <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                <ChevronLeft className="w-6 h-6" />
               </button>
             )}
 
@@ -1088,6 +1106,8 @@ export default function ProductDetail() {
               transition={{ duration: 0.15 }}
               className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center bg-white"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleModalTouchStart}
+              onTouchEnd={handleModalTouchEnd}
             >
               <img
                 src={currentDisplayList[selectedImage] || activeImageSrc}
@@ -1103,15 +1123,15 @@ export default function ProductDetail() {
               )}
             </motion.div>
 
-            {/* Next Button in Modal */}
+            {/* Next Button in Modal (Desktop only) */}
             {currentDisplayList.length > 1 && (
               <button
                 type="button"
                 onClick={handleModalNext}
                 aria-label="Next image"
-                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-50 p-2.5 sm:p-3 rounded-full bg-gray-100/90 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer"
+                className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-950 border border-gray-200 shadow-md transition-all hover:scale-110 active:scale-95 cursor-pointer items-center justify-center"
               >
-                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                <ChevronRight className="w-6 h-6" />
               </button>
             )}
           </motion.div>
