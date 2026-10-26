@@ -550,32 +550,38 @@ export default function MobileProductDetailScreen() {
     selectedVariant
   );
 
-  // Build specifications list excluding empty fields
+  // Build specifications list from added specifications (preserving exact order and format as entered in admin)
   const specsList: { key: string; value: string }[] = [];
   if (rawSpecs && Array.isArray(rawSpecs)) {
     rawSpecs.forEach(s => {
-      if (s.key && s.value && s.key.trim() && s.value.trim()) {
-        specsList.push({ key: s.key.trim(), value: s.value.trim() });
+      if (s && s.key && s.key.trim()) {
+        const val = s.value !== undefined && s.value !== null ? String(s.value).trim() : '';
+        if (val) {
+          specsList.push({ key: s.key.trim(), value: val });
+        }
       }
     });
   }
 
-  if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
-    specsList.unshift({ key: 'Brand', value: product.brand });
-  }
-  if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
-    specsList.push({ key: 'Color', value: product.color });
-  }
-  if (selectedAttributes) {
-    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
-      if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
-        specsList.push({ key: attrKey, value: String(attrVal) });
+  // Only if no specifications were added in admin, fallback to product attributes
+  if (specsList.length === 0) {
+    if (product.brand) {
+      specsList.push({ key: 'Brand', value: product.brand });
+    }
+    if (product.color) {
+      specsList.push({ key: 'Color', value: product.color });
+    }
+    if (selectedAttributes) {
+      Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
+        if (attrVal) {
+          specsList.push({ key: attrKey, value: String(attrVal) });
+        }
+      });
+    } else {
+      const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
+      if (currentSize) {
+        specsList.push({ key: 'Size', value: String(currentSize) });
       }
-    });
-  } else {
-    const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
-    if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-      specsList.push({ key: 'Size', value: String(currentSize) });
     }
   }
 
@@ -845,11 +851,11 @@ export default function MobileProductDetailScreen() {
             {/* Selected Tab Content */}
             {activeTabId === 'specifications' && (
               <div>
-                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5 border border-gray-100">
                   {specsList.map((spec, i) => (
-                    <div key={i} className="py-1.5 flex justify-between text-xs">
-                      <span className="font-bold text-gray-500">{spec.key}</span>
-                      <span className="font-extrabold text-gray-900 text-right ml-2">{spec.value}</span>
+                    <div key={i} className="py-2 px-1 flex justify-between text-xs gap-3">
+                      <span className="font-bold text-gray-600 shrink-0 max-w-[45%] break-words">{spec.key}</span>
+                      <span className="font-extrabold text-gray-900 text-right flex-1 whitespace-pre-line break-words">{spec.value}</span>
                     </div>
                   ))}
                 </div>
