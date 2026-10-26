@@ -208,8 +208,7 @@ export default function ProductDetail() {
             `${origin}/products/${canonicalSlug}`
           );
 
-          if (targetSlugOrId !== canonicalSlug && (
-            targetSlugOrId === foundProduct.id ||
+          if (targetSlugOrId !== canonicalSlug && targetSlugOrId !== foundProduct.id && (
             /^\d+$/.test(targetSlugOrId) ||
             (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
           )) {

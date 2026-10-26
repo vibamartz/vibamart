@@ -911,8 +911,8 @@ export default function AddEditProductForm({
           <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight italic">
             {product ? 'EDIT_PRODUCT' : 'NEW_PRODUCT'}
           </h2>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-            Product Identification {product?.id ? `(${product.id.slice(0, 8)})` : ''}
+          <p className="text-[10px] text-gray-500 font-mono font-bold tracking-wider mt-0.5">
+            Product Identification {product?.id ? `(${product.id})` : ''}
           </p>
         </div>
         <div className="flex gap-2">

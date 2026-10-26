@@ -1033,8 +1033,8 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                               )}
                             </div>
 
-                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                              ID: {product.id.slice(0, 8)}... {product.sku ? `• SKU: ${product.sku}` : ''}
+                            <p className="text-[11px] text-gray-500 font-mono truncate mt-0.5" title={`Product ID: ${product.id}`}>
+                              <span className="font-bold text-gray-400 font-sans">ID:</span> <span className="select-all font-semibold text-gray-700">{product.id}</span> {product.sku ? <span className="font-sans text-gray-400">• SKU: {product.sku}</span> : ''}
                             </p>
 
                             {/* Live Category Assignment Badges: Compact horizontal single line */}

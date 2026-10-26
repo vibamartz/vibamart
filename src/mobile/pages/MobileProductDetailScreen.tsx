@@ -228,8 +228,7 @@ export default function MobileProductDetailScreen() {
             setSelectedAttributes(initialSelection.selectedAttributes);
           }
 
-          if (targetSlugOrId !== canonicalSlug && (
-            targetSlugOrId === foundProduct.id ||
+          if (targetSlugOrId !== canonicalSlug && targetSlugOrId !== foundProduct.id && (
             /^\d+$/.test(targetSlugOrId) ||
             (cleanTargetCode && foundProduct.productCode && cleanProductCode(foundProduct.productCode) === cleanTargetCode)
           )) {
