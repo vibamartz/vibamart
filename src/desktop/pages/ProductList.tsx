@@ -933,7 +933,10 @@ export default function ProductList() {
                   {matchedCategory.name}
                 </span>
               </div>
-              <div className="flex gap-4 overflow-x-auto no-scrollbar py-1">
+              <div
+                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {matchedCategory.subcategories.map(sub => {
                   const isSubActive = matchedSubcategory?.id === sub.id || selectedSubCategories.includes(sub.id);
                   const catSlug = getCategorySlug(matchedCategory);
@@ -995,7 +998,10 @@ export default function ProductList() {
                 )}
               </div>
 
-              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+              <div
+                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {matchedNestedSubcategory.subcategories.map(child => {
                   const isChildActive = matchedDeepChildSubcategory?.id === child.id;
                   const catSlug = getCategorySlug(matchedCategory!);
@@ -1062,7 +1068,10 @@ export default function ProductList() {
                 )}
               </div>
 
-              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+              <div
+                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {matchedSubcategory.subcategories.map(nested => {
                   const isNestedActive = matchedNestedSubcategory?.id === nested.id || selectedNestedSubCategories.includes(nested.id);
                   const catSlug = getCategorySlug(matchedCategory!);

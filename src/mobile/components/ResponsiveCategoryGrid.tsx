@@ -105,7 +105,10 @@ export default function ResponsiveCategoryGrid<T extends CategoryGridItem = Cate
   const row2 = items.slice(cols);
 
   return (
-    <div className={`overflow-x-auto no-scrollbar py-0.5 w-full ${className}`}>
+    <div
+      className={`overflow-x-auto hide-scrollbar no-scrollbar py-0.5 w-full ${className}`}
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+    >
       <div
         className={`grid ${actualGapX} ${actualGapY}`}
         style={{

@@ -278,7 +278,8 @@ export default function Home() {
 
             <div
               ref={categoryScrollRef}
-              className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
+              className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {activeCategoryObj.subcategories.map((sub) => {
                 const catSlug = getCategorySlug(activeCategoryObj);
