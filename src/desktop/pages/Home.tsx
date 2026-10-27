@@ -15,10 +15,9 @@ import Logo from '../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
-import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
+import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
-import { isProductInHierarchy } from '../../shared/utilities/categoryHierarchyUtils';
 import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
@@ -28,7 +27,6 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
-  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { settings } = useSettingsStore();
   const { user, orderedProductIds } = useAuthStore();
   const { addItem, items } = useCartStore();
@@ -71,7 +69,6 @@ export default function Home() {
 
   const bannerScrollRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
-  const trendingScrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingBanner = useRef(false);
 
   // Active Category filter from URL route
@@ -87,23 +84,11 @@ export default function Home() {
     return CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug || c.seoSlug === activeCategorySlug || getCategorySlug(c) === activeCategorySlug) || null;
   }, [activeCategorySlug, CATEGORIES]);
 
-  // Reset subcategory selections when active category changes or when any main category / active main category is clicked
+  // Reset subcategory selections when active category changes
   useEffect(() => {
     setSelectedSubCatId(null);
     setSelectedNestedSubCatId(null);
   }, [activeCategorySlug]);
-
-  useEffect(() => {
-    const handleMainCatClick = () => {
-      setSelectedSubCatId(null);
-      setSelectedNestedSubCatId(null);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-    window.addEventListener('viba_main_category_clicked', handleMainCatClick);
-    return () => {
-      window.removeEventListener('viba_main_category_clicked', handleMainCatClick);
-    };
-  }, []);
 
   // Category-Specific Banners for Desktop (Strict Isolation)
   const activeBanners = useMemo(() => {
@@ -117,16 +102,15 @@ export default function Home() {
 
   // Filter products by active category, subcategory, and nested subcategory hierarchy
   const filteredProducts = useMemo(() => {
-    const activeProds = products.filter(p => p.isVisible !== false && p.status !== 'inactive');
-    if (activeCategorySlug === 'for-you') return activeProds;
+    if (activeCategorySlug === 'for-you') return products.filter(p => p.isVisible !== false && p.status !== 'inactive');
+    return products.filter(p => {
+      if (p.isVisible === false || p.status === 'inactive') return false;
 
-    return activeProds.filter(p => {
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
         return (
           p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId)) ||
-          isProductInHierarchy(p, selectedNestedSubCatId, CATEGORIES, visualNestedItems)
+          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId))
         );
       }
 
@@ -134,34 +118,21 @@ export default function Home() {
       if (selectedSubCatId) {
         return (
           p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId)) ||
-          isProductInHierarchy(p, selectedSubCatId, CATEGORIES, visualNestedItems)
+          Boolean(p.subCategoryIds?.includes(selectedSubCatId))
         );
       }
 
       // 3. Category Filter
       const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
       const targetSlug = activeCategorySlug.toLowerCase();
-      const targetName = (activeCategoryObj?.name || '').toLowerCase();
       const catId = (p.categoryId || '').toLowerCase();
       const inCats = Array.isArray(p.categories) && p.categories.some(c => {
         const cl = String(c).toLowerCase();
-        return cl === targetId || cl === targetSlug || (targetName && cl === targetName);
+        return cl === targetId || cl === targetSlug;
       });
-      return (
-        catId === targetId ||
-        catId === targetSlug ||
-        (targetName && catId === targetName) ||
-        inCats ||
-        isProductInHierarchy(p, activeCategorySlug, CATEGORIES, visualNestedItems)
-      );
+      return catId === targetId || catId === targetSlug || inCats;
     });
-  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId, CATEGORIES, visualNestedItems]);
-
-  // All products across all categories for "More Products for You"
-  const allProductsForYou = useMemo(() => {
-    return products.filter(p => p.isVisible !== false && p.status !== 'inactive');
-  }, [products]);
+  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
 
   const displayStillLooking = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));
@@ -181,22 +152,13 @@ export default function Home() {
     }
   };
 
-  const scrollTrendingLeft = () => {
-    if (trendingScrollRef.current) {
-      trendingScrollRef.current.scrollBy({ left: -460, behavior: 'smooth' });
-    }
-  };
 
-  const scrollTrendingRight = () => {
-    if (trendingScrollRef.current) {
-      trendingScrollRef.current.scrollBy({ left: 460, behavior: 'smooth' });
-    }
-  };
 
   useEffect(() => {
     const q = query(
       collection(db, 'products'),
-      orderBy('createdAt', 'desc')
+      where('status', '==', 'active'),
+      limit(40)
     );
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
@@ -493,102 +455,14 @@ export default function Home() {
         </section>
       )}
 
-      {/* Trending Products (Displayed in two rows with horizontal scrolling and no visible scrollbars) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      {/* Trending / Recommended Products Grid */}
+      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
               <Flame className="w-6 h-6 text-yellow-500 fill-yellow-500" /> Trending Products
             </h2>
-            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-              {activeCategoryObj ? `Top demand items in ${activeCategoryObj.name}` : 'High demand items with top customer ratings'}
-            </p>
-          </div>
-          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-            Explore All <ChevronRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className="overflow-x-auto hide-scrollbar no-scrollbar scrollbar-none py-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <div
-              className="grid gap-4"
-              style={{
-                display: 'grid',
-                gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
-                gridAutoFlow: 'column',
-                gridAutoColumns: 'clamp(200px, 18vw, 230px)'
-              }}
-            >
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3 w-[210px] sm:w-[230px]">
-                  <div className="w-full aspect-square bg-gray-100 rounded-2xl" />
-                  <div className="h-4 bg-gray-100 rounded w-3/4" />
-                  <div className="h-4 bg-gray-100 rounded w-1/2" />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
-            <p className="text-gray-500 text-sm font-medium">No products found in this category yet.</p>
-          </div>
-        ) : (
-          <div className="relative group/trending">
-            {/* Scroll Navigation Buttons for Desktop */}
-            <button
-              type="button"
-              onClick={scrollTrendingLeft}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-700 hover:text-emerald-600 transition-opacity opacity-0 group-hover/trending:opacity-100 hidden md:flex items-center justify-center -translate-x-3 cursor-pointer"
-              title="Scroll Left"
-              aria-label="Scroll Left"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            <div
-              ref={trendingScrollRef}
-              className="overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar scrollbar-none py-2 px-1 min-w-0 w-full"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              <div 
-                className="grid gap-4 sm:gap-5"
-                style={{
-                  display: 'grid',
-                  gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
-                  gridAutoFlow: 'column',
-                  gridAutoColumns: 'clamp(195px, 18vw, 225px)'
-                }}
-              >
-                {filteredProducts.map((product) => (
-                  <div key={`trending-${product.id}`} className="h-full flex flex-col">
-                    <ProductCard product={product} />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={scrollTrendingRight}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-white/95 shadow-md border border-gray-200 text-gray-700 hover:text-emerald-600 transition-opacity opacity-0 group-hover/trending:opacity-100 hidden md:flex items-center justify-center translate-x-3 cursor-pointer"
-              title="Scroll Right"
-              aria-label="Scroll Right"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* More Products for You Section (Below Trending Products, displaying products from all categories) */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6 pt-2">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-emerald-600 fill-emerald-600" /> More Products for You
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">Explore top picks and favorites across all categories</p>
+            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">High demand items with top customer ratings</p>
           </div>
           <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
             Explore All <ChevronRightIcon className="w-4 h-4" />
@@ -607,8 +481,8 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {allProductsForYou.map((product) => (
-              <ProductCard key={`more-${product.id}`} product={product} />
+            {filteredProducts.slice(0, 15).map((product) => (
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         )}
