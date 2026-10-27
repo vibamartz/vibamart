@@ -14,10 +14,11 @@ import Logo from '../../desktop/components/Logo';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
-import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
+import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { getProductSlug, getCategorySlug, getSubcategorySlug, getBannerSlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { isProductInHierarchy } from '../../shared/utilities/categoryHierarchyUtils';
 import toast from 'react-hot-toast';
 import PermissionPromptModal from '../../shared/components/PermissionPromptModal';
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
@@ -29,6 +30,7 @@ import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
+  const { items: visualNestedItems } = useVisualNestedSubcategoryStore();
   const { settings } = useSettingsStore();
   const { user } = useAuthStore();
   const { addItem, items } = useCartStore();
@@ -143,11 +145,23 @@ export default function MobileHomepage() {
   const [selectedSubCatId, setSelectedSubCatId] = useState<string | null>(null);
   const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
 
-  // Reset subcategory selection when active category changes
+  // Reset subcategory selection when active category changes or when any main category is clicked
   useEffect(() => {
     setSelectedSubCatId(null);
     setSelectedNestedSubCatId(null);
   }, [activeCategorySlug]);
+
+  useEffect(() => {
+    const handleMainCatClick = () => {
+      setSelectedSubCatId(null);
+      setSelectedNestedSubCatId(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('viba_main_category_clicked', handleMainCatClick);
+    return () => {
+      window.removeEventListener('viba_main_category_clicked', handleMainCatClick);
+    };
+  }, []);
 
   // Initialize location store on mount/user change
   useEffect(() => {
@@ -214,8 +228,7 @@ export default function MobileHomepage() {
 
     const productsQuery = query(
       collection(db, 'products'),
-      orderBy('createdAt', 'desc'),
-      limit(50)
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, async (snapshot) => {
@@ -409,17 +422,17 @@ export default function MobileHomepage() {
 
   // Filter products by selected category hierarchy
   const filteredProducts = useMemo(() => {
+    const activeProds = products.filter(p => p.status !== 'inactive' && p.isVisible !== false);
     if (activeCategorySlug === 'for-you') {
-      return products;
+      return activeProds;
     }
-    return products.filter(p => {
-      if (p.status === 'inactive') return false;
-
+    return activeProds.filter(p => {
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
         return (
           p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId))
+          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId)) ||
+          isProductInHierarchy(p, selectedNestedSubCatId, CATEGORIES, visualNestedItems)
         );
       }
 
@@ -427,21 +440,34 @@ export default function MobileHomepage() {
       if (selectedSubCatId) {
         return (
           p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId))
+          Boolean(p.subCategoryIds?.includes(selectedSubCatId)) ||
+          isProductInHierarchy(p, selectedSubCatId, CATEGORIES, visualNestedItems)
         );
       }
 
       // 3. Category Filter
       const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
       const targetSlug = activeCategorySlug.toLowerCase();
+      const targetName = (activeCategoryObj?.name || '').toLowerCase();
       const catId = (p.categoryId || '').toLowerCase();
       const inCats = Array.isArray(p.categories) && p.categories.some(c => {
         const cl = String(c).toLowerCase();
-        return cl === targetId || cl === targetSlug;
+        return cl === targetId || cl === targetSlug || (targetName && cl === targetName);
       });
-      return catId === targetId || catId === targetSlug || inCats;
+      return (
+        catId === targetId ||
+        catId === targetSlug ||
+        (targetName && catId === targetName) ||
+        inCats ||
+        isProductInHierarchy(p, activeCategorySlug, CATEGORIES, visualNestedItems)
+      );
     });
-  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
+  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId, CATEGORIES, visualNestedItems]);
+
+  // All products across all categories for "More Products for You"
+  const allProductsForYou = useMemo(() => {
+    return products.filter(p => p.status !== 'inactive' && p.isVisible !== false);
+  }, [products]);
 
   const displayRecentAndPopular = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));
@@ -745,11 +771,14 @@ export default function MobileHomepage() {
                   <button
                     key={cat.id}
                     onClick={() => {
+                      setSelectedSubCatId(null);
+                      setSelectedNestedSubCatId(null);
                       if (cat.slug === 'for-you' || cat.id === 'for-you' || catSlug === 'for-you') {
                         navigate('/for-you');
                       } else {
                         navigate(`/category/${catSlug}`);
                       }
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 cursor-pointer border-0 py-1.5 px-0.5 rounded-2xl focus:outline-none overflow-hidden select-none ${isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
                       }`}
@@ -954,7 +983,7 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
+      {/* 8. TRENDING PRODUCTS & DEALS (Two rows with horizontal scrolling, no visible scrollbars) */}
       {/* ========================================================================= */}
       <section ref={trendingSectionRef} className="w-full min-w-0 space-y-2.5">
         <div className="flex items-center justify-between px-0.5">
@@ -962,37 +991,112 @@ export default function MobileHomepage() {
             <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
               <Flame className="w-3.5 h-3.5 fill-rose-500" />
             </div>
-            <h3 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">Trending Products & Deals</h3>
+            <h3 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">
+              {activeCategoryObj ? `Trending in ${activeCategoryObj.name}` : 'Trending Products & Deals'}
+            </h3>
           </div>
           <Link to="/products" className="text-xs font-black text-emerald-700 uppercase tracking-wider shrink-0 ml-2">
             View All
           </Link>
         </div>
 
-        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
+        <div
+          className="overflow-x-auto hide-scrollbar no-scrollbar scrollbar-none scroll-smooth py-1 min-w-0 w-full"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {loading ? (
-            Array(3).fill(0).map((_, i) => (
+            <div
+              className="grid gap-2"
+              style={{
+                display: 'grid',
+                gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
+                gridAutoFlow: 'column',
+                gridAutoColumns: '135px'
+              }}
+            >
+              {Array(6).fill(0).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-[135px] bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5"
+                >
+                  <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
+                  <div className="h-2.5 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <p className="text-gray-500 text-xs font-medium">No products found in this category yet.</p>
+            </div>
+          ) : (
+            <div
+              className="grid gap-2"
+              style={{
+                display: 'grid',
+                gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
+                gridAutoFlow: 'column',
+                gridAutoColumns: '135px'
+              }}
+            >
+              {filteredProducts.map((product) => (
+                <div key={`trending-${product.id}`} className="w-[135px] shrink-0">
+                  <MobileProductCardItem
+                    product={product}
+                    is3CardLayout={false}
+                    cardRadius="rounded-[16px]"
+                    onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* MORE PRODUCTS FOR YOU (Below Trending Products, displaying products from all categories) */}
+      {/* ========================================================================= */}
+      <section className="w-full min-w-0 space-y-2.5">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <Sparkles className="w-3.5 h-3.5 fill-emerald-600" />
+            </div>
+            <h3 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">More Products for You</h3>
+          </div>
+          <Link to="/products" className="text-xs font-black text-emerald-700 uppercase tracking-wider shrink-0 ml-2">
+            View All
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            {Array(4).fill(0).map((_, i) => (
               <div
                 key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5`}
+                className="bg-white rounded-[16px] p-2 animate-pulse border border-gray-100 space-y-2"
               >
-                <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
+                <div className="w-full aspect-square bg-gray-100 rounded-[10px]" />
                 <div className="h-2.5 bg-gray-100 rounded w-3/4" />
                 <div className="h-3 bg-gray-100 rounded w-1/2" />
               </div>
-            ))
-          ) : (
-            filteredProducts.slice(0, 10).map((product) => (
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            {allProductsForYou.map((product) => (
               <MobileProductCardItem
-                key={`trending-${product.id}`}
+                key={`more-for-you-${product.id}`}
                 product={product}
-                is3CardLayout={activeCategorySlug === 'for-you'}
+                is3CardLayout={false}
+                isFullWidth={true}
                 cardRadius="rounded-[16px]"
                 onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
               />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ========================================================================= */}
@@ -1071,6 +1175,7 @@ interface MobileProductCardItemProps {
   product: Product;
   cardRadius?: string;
   is3CardLayout?: boolean;
+  isFullWidth?: boolean;
   hideButtons?: boolean;
   onAddToCart?: (e: React.MouseEvent) => void;
   onBuyNow?: (e: React.MouseEvent) => void;
@@ -1081,6 +1186,7 @@ function MobileProductCardItem({
   product,
   cardRadius = "rounded-[16px]",
   is3CardLayout = false,
+  isFullWidth = false,
   onCardClick
 }: MobileProductCardItemProps) {
   const discountAmount = product.discountPrice && product.price ? product.price - product.discountPrice : 0;
@@ -1142,7 +1248,7 @@ function MobileProductCardItem({
     <motion.div
       whileTap={{ scale: 0.97 }}
       onClick={onCardClick}
-      className={`w-[135px] sm:w-[155px] bg-white ${cardRadius} p-1.5 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
+      className={`${isFullWidth ? 'w-full' : 'w-[135px] sm:w-[155px]'} bg-white ${cardRadius} p-1.5 shadow-sm border border-orange-100 flex flex-col snap-start shrink-0 flex-none cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
     >
       {/* Product Image (Clear object-contain) */}
       <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-white p-1 flex items-center justify-center mb-1 shrink-0">

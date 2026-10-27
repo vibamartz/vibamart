@@ -1028,6 +1028,11 @@ export default function Navbar() {
                 <Link
                   key={cat.id}
                   to={cat.id === 'for-you' ? '/for-you' : `/category/${catSlug}`}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('viba_main_category_clicked', {
+                      detail: { categorySlug: catSlug, categoryId: cat.id }
+                    }));
+                  }}
                   className={`transition-colors h-full flex items-center gap-2 border-b-2 pt-0.5 group shrink-0 ${
                     isActive
                       ? 'text-emerald-600 border-emerald-600 font-black'
