@@ -149,6 +149,7 @@ function AdminDashboardContent() {
 
   // Track initial snapshot load to avoid toaster spamming
   const isInitialLoad = useRef(true);
+  const sidebarNavRef = useRef<HTMLElement>(null);
 
   // Helper to parse date formats safely
   const safeNewDate = useCallback((val: any) => {
@@ -690,7 +691,7 @@ function AdminDashboardContent() {
   };
 
   return (
-    <div className="flex min-h-screen w-full max-w-full bg-gray-50 overflow-x-hidden">
+    <div className="flex h-screen max-h-screen w-full max-w-full bg-gray-50 overflow-hidden">
       <AnimatePresence>
         {showMobileSidebar && (
           <motion.div
@@ -705,7 +706,7 @@ function AdminDashboardContent() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out h-full min-h-0 ${
           showMobileSidebar ? 'translate-x-0 w-64' : '-translate-x-full w-64'
         } lg:relative lg:translate-x-0 ${
           isDesktopSidebarHidden
@@ -713,8 +714,15 @@ function AdminDashboardContent() {
             : 'lg:w-64 lg:opacity-100 lg:border-r'
         }`}
       >
-        <div className="w-64 min-w-[16rem] flex flex-col h-full min-h-0 overflow-y-auto">
-          <div className="p-5 sm:p-6 border-b border-gray-100 italic flex items-center justify-between shrink-0">
+        <div className="w-64 min-w-[16rem] flex flex-col h-full min-h-0 overflow-hidden">
+          <div
+            className="p-5 sm:p-6 border-b border-gray-100 italic flex items-center justify-between shrink-0"
+            onWheel={(e) => {
+              if (sidebarNavRef.current) {
+                sidebarNavRef.current.scrollTop += e.deltaY;
+              }
+            }}
+          >
             <Link to="/" className="hover:opacity-80 transition-opacity flex items-center gap-2 min-w-0">
               <Logo />
               <span className="font-bold text-gray-800 truncate">{user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span>
@@ -736,7 +744,7 @@ function AdminDashboardContent() {
               <ChevronLeft className="w-5 h-5 hidden lg:block" />
             </button>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
+          <nav ref={sidebarNavRef} className="flex-1 p-4 space-y-2 overflow-y-auto overscroll-contain min-h-0">
             <SidebarItem icon={BarChart3} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Package} label="Products" active={activeTab === 'products'} onClick={() => { setActiveTab('products'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Tag} label="Deal 259" active={activeTab === 'deal-259'} onClick={() => { setActiveTab('deal-259'); setShowMobileSidebar(false); }} />
@@ -770,7 +778,14 @@ function AdminDashboardContent() {
             <SidebarItem icon={BarChart3} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Settings} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setShowMobileSidebar(false); }} />
           </nav>
-          <div className="p-4 border-t border-gray-100 space-y-1 shrink-0">
+          <div
+            className="p-4 border-t border-gray-100 space-y-1 shrink-0"
+            onWheel={(e) => {
+              if (sidebarNavRef.current) {
+                sidebarNavRef.current.scrollTop += e.deltaY;
+              }
+            }}
+          >
             <button
               onClick={() => {
                 setIsDesktopSidebarHidden(true);
@@ -796,7 +811,7 @@ function AdminDashboardContent() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 w-full overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 w-full h-full min-h-0 overflow-hidden">
         <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 lg:px-8 shrink-0 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
             <button
@@ -943,7 +958,7 @@ function AdminDashboardContent() {
           </div>
         </header>
 
-        <div className="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-5 overflow-y-auto flex-1 w-full min-w-0">
+        <div className="p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-5 overflow-y-auto overscroll-contain flex-1 w-full min-w-0">
           {activeTab === 'dashboard' && (
             <>
               {/* Stats Grid */}

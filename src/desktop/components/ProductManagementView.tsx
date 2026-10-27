@@ -20,6 +20,33 @@ import { useCategoryStore, useVisualNestedSubcategoryStore, useInventoryBrandSec
 import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
 import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
 
+// Persistent filter state cache to preserve filters across product editing and component lifecycle
+interface InventoryFilterState {
+  searchQuery: string;
+  filterCategory: string;
+  filterSubCategory: string;
+  filterNestedSubCategory: string;
+  filterVisual: string;
+  filterBrand: string;
+  filterStatus: string;
+  filterPlacement: 'all' | 'main_only';
+  activeBrandSectionId: string;
+}
+
+const initialInventoryFilterState: InventoryFilterState = {
+  searchQuery: '',
+  filterCategory: 'all',
+  filterSubCategory: 'all',
+  filterNestedSubCategory: 'all',
+  filterVisual: 'all',
+  filterBrand: 'all',
+  filterStatus: 'all',
+  filterPlacement: 'all',
+  activeBrandSectionId: 'all',
+};
+
+let persistedInventoryFilterState: InventoryFilterState = { ...initialInventoryFilterState };
+
 function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   onAddProduct?: (sectionId?: string) => void,
   onEditProduct?: (p: Product) => void,
@@ -30,7 +57,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(persistedInventoryFilterState.searchQuery);
   const [editingVariant, setEditingVariant] = useState<{ productId: string, variantId: string, name: string, material: string, price: number, stock: number } | null>(null);
   const [addingVariantTo, setAddingVariantTo] = useState<string | null>(null);
   const [newVariant, setNewVariant] = useState({ name: '', material: '', price: 0, stock: 0 });
@@ -38,19 +65,44 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   // Category Assignment & Bulk Selection state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterSubCategory, setFilterSubCategory] = useState('all');
-  const [filterNestedSubCategory, setFilterNestedSubCategory] = useState('all');
-  const [filterVisual, setFilterVisual] = useState('all');
-  const [filterBrand, setFilterBrand] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPlacement, setFilterPlacement] = useState<'all' | 'main_only'>('all');
+  const [filterCategory, setFilterCategory] = useState(persistedInventoryFilterState.filterCategory);
+  const [filterSubCategory, setFilterSubCategory] = useState(persistedInventoryFilterState.filterSubCategory);
+  const [filterNestedSubCategory, setFilterNestedSubCategory] = useState(persistedInventoryFilterState.filterNestedSubCategory);
+  const [filterVisual, setFilterVisual] = useState(persistedInventoryFilterState.filterVisual);
+  const [filterBrand, setFilterBrand] = useState(persistedInventoryFilterState.filterBrand);
+  const [filterStatus, setFilterStatus] = useState(persistedInventoryFilterState.filterStatus);
+  const [filterPlacement, setFilterPlacement] = useState<'all' | 'main_only'>(persistedInventoryFilterState.filterPlacement);
 
   // Internal Brand Section state (Admin Dashboard Inventory only)
   const { sections: brandSections, initSections } = useInventoryBrandSectionStore();
-  const [activeBrandSectionId, setActiveBrandSectionId] = useState<string>('all');
+  const [activeBrandSectionId, setActiveBrandSectionId] = useState<string>(persistedInventoryFilterState.activeBrandSectionId);
   const [isBrandAssignmentModalOpen, setIsBrandAssignmentModalOpen] = useState(false);
   const [productsForBrandModal, setProductsForBrandModal] = useState<Product[]>([]);
+
+  // Synchronize applied filters to persistent cache so selecting a product and saving or canceling never resets them
+  useEffect(() => {
+    persistedInventoryFilterState = {
+      searchQuery,
+      filterCategory,
+      filterSubCategory,
+      filterNestedSubCategory,
+      filterVisual,
+      filterBrand,
+      filterStatus,
+      filterPlacement,
+      activeBrandSectionId,
+    };
+  }, [
+    searchQuery,
+    filterCategory,
+    filterSubCategory,
+    filterNestedSubCategory,
+    filterVisual,
+    filterBrand,
+    filterStatus,
+    filterPlacement,
+    activeBrandSectionId,
+  ]);
 
   useEffect(() => {
     const unsubscribe = initSections();
@@ -394,13 +446,71 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     return buildFlatCategoryHierarchy(categories, visualNestedItems, products);
   }, [categories, visualNestedItems, products]);
 
-  // Extract unique brands for filter dropdown
+  // Extract unique brands for filter dropdown (automatically detect duplicates case-insensitively)
   const uniqueBrands = useMemo(() => {
-    const bSet = new Set<string>();
+    // Group variants by lowercased brand name: lowerKey -> Map<exactVariant, count>
+    const brandGroups = new Map<string, Map<string, number>>();
+
     products.forEach(p => {
-      if (p.brand && p.brand.trim()) bSet.add(p.brand.trim());
+      const rawBrand = p.brand?.trim();
+      if (!rawBrand) return;
+
+      const normalized = rawBrand.toLowerCase();
+      let variantMap = brandGroups.get(normalized);
+      if (!variantMap) {
+        variantMap = new Map<string, number>();
+        brandGroups.set(normalized, variantMap);
+      }
+      variantMap.set(rawBrand, (variantMap.get(rawBrand) || 0) + 1);
     });
-    return Array.from(bSet).sort();
+
+    const result: string[] = [];
+
+    brandGroups.forEach((variants) => {
+      // Pick the best casing variant for this brand:
+      // 1. Highest frequency count across products
+      // 2. Internal uppercase/camelCase (e.g. "boAt", "iPhone", "PlayStation")
+      // 3. Mixed case / Capitalized (e.g. "Boat") over all-lowercase ("boat") or all-uppercase ("BOAT")
+      // 4. Alphabetical / first seen
+      let bestBrand = '';
+      let highestCount = -1;
+
+      variants.forEach((count, variant) => {
+        if (count > highestCount) {
+          highestCount = count;
+          bestBrand = variant;
+        } else if (count === highestCount) {
+          const hasInternalUpper = (s: string) => /[a-z][A-Z]/.test(s);
+          const isMixed = (s: string) => /[a-z]/.test(s) && /[A-Z]/.test(s);
+          const isCapitalized = (s: string) => /^[A-Z]/.test(s);
+
+          const bestInternal = hasInternalUpper(bestBrand);
+          const currInternal = hasInternalUpper(variant);
+
+          if (!bestInternal && currInternal) {
+            bestBrand = variant;
+          } else if (bestInternal === currInternal) {
+            const bestMixed = isMixed(bestBrand);
+            const currMixed = isMixed(variant);
+            if (!bestMixed && currMixed) {
+              bestBrand = variant;
+            } else if (bestMixed === currMixed) {
+              const bestCap = isCapitalized(bestBrand);
+              const currCap = isCapitalized(variant);
+              if (!bestCap && currCap) {
+                bestBrand = variant;
+              }
+            }
+          }
+        }
+      });
+
+      if (bestBrand) {
+        result.push(bestBrand);
+      }
+    });
+
+    return result.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [products]);
 
   // Subcategories available based on selected category filter
@@ -511,7 +621,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
 
       // 6. Brand Filter
       if (filterBrand !== 'all') {
-        if (!p.brand || p.brand.trim().toLowerCase() !== filterBrand.toLowerCase()) {
+        if (!p.brand || p.brand.trim().toLowerCase() !== filterBrand.trim().toLowerCase()) {
           return false;
         }
       }
@@ -573,6 +683,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
     setFilterStatus('all');
     setFilterPlacement('all');
     setActiveBrandSectionId('all');
+    persistedInventoryFilterState = { ...initialInventoryFilterState };
   };
 
   // Selection handlers
@@ -836,7 +947,11 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           <div>
             <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider block mb-1">Brand</label>
             <select
-              value={filterBrand}
+              value={
+                filterBrand === 'all'
+                  ? 'all'
+                  : (uniqueBrands.find(b => b.toLowerCase() === filterBrand.trim().toLowerCase()) || filterBrand)
+              }
               onChange={e => setFilterBrand(e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-primary focus:bg-white transition-all"
             >
@@ -1481,6 +1596,7 @@ export default function ProductManagementView() {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [initialSectionId, setInitialSectionId] = useState<string | null>(null);
+  const savedScrollYRef = useRef<number>(0);
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
     if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE "${productName}"? This cannot be undone.`)) return false;
@@ -1495,34 +1611,45 @@ export default function ProductManagementView() {
     }
   };
 
-  if (showAddProduct) {
-    return (
-      <AddEditProductForm
-        product={editingProduct}
-        initialInventorySectionId={initialSectionId}
-        onDelete={handleDeleteProduct}
-        onClose={() => {
-          setShowAddProduct(false);
-          setEditingProduct(null);
-          setInitialSectionId(null);
-        }}
-      />
-    );
-  }
+  const handleCloseForm = () => {
+    setShowAddProduct(false);
+    setEditingProduct(null);
+    setInitialSectionId(null);
+    const scrollY = savedScrollYRef.current;
+    setTimeout(() => {
+      window.scrollTo({ top: scrollY, behavior: 'auto' });
+    }, 50);
+  };
 
   return (
-    <ProductListView
-      onAddProduct={(secId?: string) => {
-        setEditingProduct(null);
-        setInitialSectionId(secId || null);
-        setShowAddProduct(true);
-      }}
-      onEditProduct={(p) => {
-        setEditingProduct(p);
-        setInitialSectionId(null);
-        setShowAddProduct(true);
-      }}
-      onDeleteProduct={handleDeleteProduct}
-    />
+    <>
+      {showAddProduct && (
+        <AddEditProductForm
+          product={editingProduct}
+          initialInventorySectionId={initialSectionId}
+          onDelete={handleDeleteProduct}
+          onClose={handleCloseForm}
+        />
+      )}
+      <div className={showAddProduct ? 'hidden' : 'block'} style={{ display: showAddProduct ? 'none' : undefined }}>
+        <ProductListView
+          onAddProduct={(secId?: string) => {
+            savedScrollYRef.current = window.scrollY;
+            setEditingProduct(null);
+            setInitialSectionId(secId || null);
+            setShowAddProduct(true);
+            window.scrollTo({ top: 0, behavior: 'auto' });
+          }}
+          onEditProduct={(p) => {
+            savedScrollYRef.current = window.scrollY;
+            setEditingProduct(p);
+            setInitialSectionId(null);
+            setShowAddProduct(true);
+            window.scrollTo({ top: 0, behavior: 'auto' });
+          }}
+          onDeleteProduct={handleDeleteProduct}
+        />
+      </div>
+    </>
   );
 }

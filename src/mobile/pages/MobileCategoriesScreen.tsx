@@ -157,9 +157,9 @@ export default function MobileCategoriesScreen() {
   };
 
   return (
-    <div className="min-h-0 bg-white pb-2 font-sans select-none flex flex-col">
+    <div className="fixed inset-x-0 top-0 bottom-[calc(60px+env(safe-area-inset-bottom,0px))] max-w-[768px] mx-auto bg-white font-sans select-none flex flex-col z-10 overflow-hidden">
       {/* Top Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 p-4 text-white shadow-md">
+      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-yellow-500 p-4 text-white shadow-md shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200 bg-white/10 px-2 py-0.5 rounded-full">
@@ -176,9 +176,9 @@ export default function MobileCategoriesScreen() {
       </div>
 
       {/* Main Split Layout: Left Sidebar + Right Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar (Categories with Unified Logo Style) */}
-        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto hide-scrollbar py-2 pb-4 space-y-1.5 shrink-0">
+        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1.5 shrink-0 min-h-0">
           {categories.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -214,7 +214,7 @@ export default function MobileCategoriesScreen() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 overflow-y-auto p-3 pb-4 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-8 space-y-4 min-h-0">
           {selectedCategory && (
             <AnimatePresence mode="wait">
               <motion.div
