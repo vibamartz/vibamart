@@ -234,20 +234,20 @@ export default function VisualNestedSubcategoriesSection({
   );
 
   return (
-    <section className={`my-4 sm:my-8 ${className}`}>
-      <div className="bg-gradient-to-b from-emerald-50/40 via-white to-white p-3 sm:p-6 lg:p-7 rounded-2xl sm:rounded-3xl border border-emerald-100/70 shadow-sm">
+    <section className={`${isMobile ? 'my-2.5' : 'my-4'} sm:my-8 ${className}`}>
+      <div className={`bg-gradient-to-b from-emerald-50/40 via-white to-white ${isMobile ? 'p-2.5 sm:p-6' : 'p-3 sm:p-6 lg:p-7'} rounded-2xl sm:rounded-3xl border border-emerald-100/70 shadow-sm`}>
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-6 pb-2.5 sm:pb-3 border-b border-emerald-100/60">
+        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 ${isMobile ? 'mb-2 sm:mb-6 pb-1.5 sm:pb-3' : 'mb-3 sm:mb-6 pb-2.5 sm:pb-3'} border-b border-emerald-100/60`}>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-emerald-600 text-white shadow-sm flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="p-1 sm:p-1.5 rounded-xl bg-emerald-600 text-white shadow-sm flex items-center justify-center">
+                <Sparkles className={`${isMobile ? 'w-3 h-3 sm:w-4 sm:h-4' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'}`} />
               </span>
-              <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-900 tracking-tight">
+              <h2 className={`${isMobile ? 'text-sm sm:text-xl' : 'text-base sm:text-xl'} md:text-2xl font-black text-gray-900 tracking-tight`}>
                 {dynamicTitle}
               </h2>
             </div>
-            <p className="text-[11px] sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1">
+            <p className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1`}>
               {dynamicSubtitle}
             </p>
           </div>
@@ -263,8 +263,8 @@ export default function VisualNestedSubcategoriesSection({
           )}
         </div>
 
-        {/* Responsive Grid: Minimum 3 cards in a single row on mobile */}
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4 lg:gap-5">
+        {/* Responsive Grid: Minimum 3 cards in a single row on mobile with minimized horizontal gap */}
+        <div className={`grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 ${isMobile ? 'gap-1.5' : 'gap-2'} sm:gap-4 lg:gap-5`}>
           {displayedItems.map((item, index) => (
             <VisualNestedSubcategoryCard
               key={item.id || index}
@@ -273,6 +273,7 @@ export default function VisualNestedSubcategoriesSection({
               subCategorySlug={activeSubCategory?.slug}
               nestedSubCategorySlug={activeNestedSubCategory?.slug}
               priority={index < 4}
+              isMobile={isMobile}
             />
           ))}
         </div>

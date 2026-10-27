@@ -16,6 +16,7 @@ export interface VisualNestedSubcategoryCardProps {
   size?: 'sm' | 'md' | 'lg';
   priority?: boolean;
   onClick?: () => void;
+  isMobile?: boolean;
 }
 
 export default function VisualNestedSubcategoryCard({
@@ -26,7 +27,8 @@ export default function VisualNestedSubcategoryCard({
   className = '',
   size = 'md',
   priority = false,
-  onClick
+  onClick,
+  isMobile = false
 }: VisualNestedSubcategoryCardProps) {
   const navigate = useNavigate();
   const { categories } = useCategoryStore();
@@ -161,8 +163,8 @@ export default function VisualNestedSubcategoryCard({
                   style={{ imageRendering: 'auto' }}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 text-emerald-700">
-                  <Layers className="w-8 h-8 sm:w-10 sm:h-10 mb-1.5 opacity-60" />
+                <div className={`w-full h-full flex flex-col items-center justify-center ${isMobile ? 'p-2' : 'p-4'} bg-gradient-to-br from-emerald-50 via-teal-50 to-indigo-50 text-emerald-700`}>
+                  <Layers className={`${isMobile ? 'w-5 h-5 sm:w-10 sm:h-10 mb-0.5' : 'w-8 h-8 sm:w-10 sm:h-10 mb-1.5'} opacity-60`} />
                 </div>
               )}
             </div>
@@ -170,14 +172,14 @@ export default function VisualNestedSubcategoryCard({
             {/* Optional Offer / Price Strip at the bottom of the card */}
             {isOfferEnabled && (
               <div
-                className="relative z-10 w-full py-1 sm:py-1.5 px-1 sm:px-2 text-center transition-colors shadow-xs"
+                className={`relative z-10 w-full ${isMobile ? 'py-0.5 sm:py-1.5 px-0.5 sm:px-2' : 'py-1 sm:py-1.5 px-1 sm:px-2'} text-center transition-colors shadow-xs`}
                 style={{
                   backgroundColor: offerBgColor,
                   color: offerTextColor
                 }}
               >
                 <span
-                  className="block tracking-tight leading-tight uppercase truncate text-[8px] xs:text-[9px] sm:text-[11px]"
+                  className={`block tracking-tight leading-tight uppercase truncate ${isMobile ? 'text-[7px] xs:text-[8px] sm:text-[11px]' : 'text-[8px] xs:text-[9px] sm:text-[11px]'}`}
                   style={{
                     fontSize: offerFontSize && parseFloat(offerFontSize) <= 10 ? offerFontSize : undefined,
                     fontWeight: offerFontWeight || '900'
@@ -192,8 +194,8 @@ export default function VisualNestedSubcategoryCard({
 
         {/* Category / Brand Name displayed below the card (Optional) */}
         {Boolean(item.name && item.name.trim()) && (
-          <div className="pt-1.5 sm:pt-2 pb-0.5 sm:pb-1 px-0.5 text-center">
-            <h4 className="text-[10px] xs:text-[11px] sm:text-sm font-bold text-gray-800 tracking-tight leading-tight line-clamp-2 group-hover:text-emerald-700 transition-colors">
+          <div className={`${isMobile ? 'pt-1 sm:pt-2 pb-0.5 px-0.5' : 'pt-1.5 sm:pt-2 pb-0.5 sm:pb-1 px-0.5'} text-center`}>
+            <h4 className={`${isMobile ? 'text-[9px] xs:text-[10px] sm:text-sm' : 'text-[10px] xs:text-[11px] sm:text-sm'} font-bold text-gray-800 tracking-tight leading-tight line-clamp-1 group-hover:text-emerald-700 transition-colors`}>
               {item.name}
             </h4>
           </div>

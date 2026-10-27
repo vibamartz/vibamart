@@ -24,6 +24,7 @@ import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 
 export default function MobileHomepage() {
@@ -877,43 +878,23 @@ export default function MobileHomepage() {
       {/* 6. SUBCATEGORIES (Directly below Banners)                                  */}
       {/* ========================================================================= */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
-        <section className="w-full min-w-0 space-y-2">
-          <div className="bg-white rounded-[24px] p-3.5 shadow-sm border border-yellow-100 space-y-2.5">
+        <section className="w-full min-w-0 space-y-1.5">
+          <div className="bg-white rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-yellow-100 space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-black text-gray-900 tracking-tight">
                 {activeCategoryObj.name}
               </span>
             </div>
 
-            {/* Subcategories Horizontal Bar with enlarged cards & touch targets */}
-            <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-              {activeCategoryObj.subcategories.map(sub => {
+            {/* Subcategories Responsive 2-Row Grid (Max 5 items per row, auto adjusting) */}
+            <ResponsiveCategoryGrid
+              items={activeCategoryObj.subcategories}
+              onItemClick={(sub) => {
                 const catSlug = getCategorySlug(activeCategoryObj);
                 const subSlug = getSubcategorySlug(sub);
-                return (
-                  <button
-                    key={sub.id}
-                    onClick={() => {
-                      navigate(`/categories/${catSlug}/${subSlug}`);
-                    }}
-                    className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-all w-20 cursor-pointer"
-                  >
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50">
-                      {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
-                        <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
-                          {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7 sm:w-8 sm:h-8", false)}
-                        </div>
-                      )}
-                    </div>
-                    <span className="text-xs font-extrabold text-center max-w-[80px] leading-tight line-clamp-1 text-gray-800">
-                      {sub.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                navigate(`/categories/${catSlug}/${subSlug}`);
+              }}
+            />
           </div>
         </section>
       )}

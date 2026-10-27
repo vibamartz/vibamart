@@ -12,6 +12,7 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { searchApiClient } from '../../services/searchApiClient';
@@ -794,47 +795,23 @@ export default function MobileProductListScreen() {
 
       {/* Collections Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
       {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
-        <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 space-y-2.5">
+        <div className="bg-white rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-yellow-100 space-y-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
               {currentCategoryObj.name}
             </span>
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-            {currentCategoryObj.subcategories.map(sub => {
-              const isSelected = selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory;
-              return (
-                <button
-                  key={sub.id}
-                  onClick={() => handleSubCategorySelect(sub.id)}
-                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
-                >
-                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
-                    isSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
-                  }`}>
-                    {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
-                      <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${isSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {renderCategoryFallbackIcon(sub.name, sub.icon, "w-7 h-7", isSelected)}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
-                    isSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                  }`}>
-                    {sub.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <ResponsiveCategoryGrid
+            items={currentCategoryObj.subcategories}
+            isSelected={(sub) => selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory}
+            onItemClick={(sub) => handleSubCategorySelect(sub.id)}
+          />
         </div>
       )}
 
       {/* Dedicated Level 3 Deep Collections Showcase (if currentNestedSubCategoryObj has children) */}
       {currentNestedSubCategoryObj && currentNestedSubCategoryObj.subcategories && currentNestedSubCategoryObj.subcategories.length > 0 && (
-        <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
+        <div className="bg-emerald-50/60 rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-emerald-100 space-y-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -856,51 +833,28 @@ export default function MobileProductListScreen() {
               </button>
             )}
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-            {currentNestedSubCategoryObj.subcategories.map(child => {
+          <ResponsiveCategoryGrid
+            items={currentNestedSubCategoryObj.subcategories}
+            isSelected={(child) => currentDeepChildSubCategoryObj?.id === child.id || rawVisual === child.id || rawVisual === child.slug || createSlug(child.name) === rawVisual}
+            onItemClick={(child) => {
+              const catSlug = getCategorySlug(currentCategoryObj!);
+              const subSlug = getSubcategorySlug(currentSubCategoryObj!);
+              const nestedSlug = getNestedSubcategorySlug(currentNestedSubCategoryObj);
+              const childSlug = getNestedSubcategorySlug(child);
               const isChildSelected = currentDeepChildSubCategoryObj?.id === child.id || rawVisual === child.id || rawVisual === child.slug || createSlug(child.name) === rawVisual;
-              return (
-                <button
-                  key={child.id}
-                  onClick={() => {
-                    const catSlug = getCategorySlug(currentCategoryObj!);
-                    const subSlug = getSubcategorySlug(currentSubCategoryObj!);
-                    const nestedSlug = getNestedSubcategorySlug(currentNestedSubCategoryObj);
-                    const childSlug = getNestedSubcategorySlug(child);
-                    if (isChildSelected) {
-                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
-                    } else {
-                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${childSlug}`);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
-                >
-                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
-                    isChildSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
-                  }`}>
-                    {child.image && (child.image.startsWith('http') || child.image.startsWith('data:') || child.image.startsWith('/')) ? (
-                      <img src={child.image} alt={child.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${isChildSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {renderCategoryFallbackIcon(child.name, child.icon, "w-7 h-7", isChildSelected)}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
-                    isChildSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                  }`}>
-                    {child.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+              if (isChildSelected) {
+                navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+              } else {
+                navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${childSlug}`);
+              }
+            }}
+          />
         </div>
       )}
 
       {/* Dedicated Collections Showcase (Shown ONLY for active Subcategory) */}
       {!currentNestedSubCategoryObj && currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.length > 0 && (
-        <div className="bg-emerald-50/60 rounded-2xl p-3 shadow-sm border border-emerald-100 space-y-2.5">
+        <div className="bg-emerald-50/60 rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-emerald-100 space-y-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -921,35 +875,11 @@ export default function MobileProductListScreen() {
               </button>
             )}
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">
-            {currentSubCategoryObj.subcategories.map(nested => {
-              const isNestedSelected = selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory;
-              return (
-                <button
-                  key={nested.id}
-                  onClick={() => handleNestedSubCategorySelect(nested.id)}
-                  className="flex flex-col items-center gap-1.5 shrink-0 transition-all w-20 cursor-pointer"
-                >
-                  <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center ${
-                    isNestedSelected ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
-                  }`}>
-                    {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
-                      <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className={`w-full h-full flex items-center justify-center ${isNestedSelected ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {renderCategoryFallbackIcon(nested.name, nested.icon, "w-7 h-7", isNestedSelected)}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-extrabold text-center max-w-[76px] leading-tight line-clamp-1 ${
-                    isNestedSelected ? 'text-emerald-900 font-black' : 'text-gray-700'
-                  }`}>
-                    {nested.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <ResponsiveCategoryGrid
+            items={currentSubCategoryObj.subcategories}
+            isSelected={(nested) => selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory}
+            onItemClick={(nested) => handleNestedSubCategorySelect(nested.id)}
+          />
         </div>
       )}
 

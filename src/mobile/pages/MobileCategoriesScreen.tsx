@@ -10,6 +10,7 @@ import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkle
 import { motion, AnimatePresence } from 'motion/react';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import toast from 'react-hot-toast';
 
 export default function MobileCategoriesScreen() {
@@ -178,7 +179,7 @@ export default function MobileCategoriesScreen() {
       {/* Main Split Layout: Left Sidebar + Right Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar (Categories with Unified Logo Style) */}
-        <div className="w-28 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1.5 shrink-0 min-h-0">
+        <div className="w-20 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1 shrink-0 min-h-0">
           {categories.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -186,7 +187,7 @@ export default function MobileCategoriesScreen() {
                 key={cat.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleCategorySelect(cat.id)}
-                className={`w-full p-2.5 flex flex-col items-center justify-center text-center transition-all relative ${isActive
+                className={`w-full p-1.5 flex flex-col items-center justify-center text-center transition-all relative ${isActive
                   ? 'bg-gradient-to-t from-emerald-100/90 via-emerald-50/40 to-transparent text-emerald-900 font-extrabold'
                   : 'text-gray-600 hover:bg-yellow-50/40 font-semibold'
                   }`}
@@ -201,11 +202,11 @@ export default function MobileCategoriesScreen() {
                 <CategoryLogo
                   name={cat.name}
                   icon={cat.icon}
-                  size="md"
+                  size="sm"
                   active={isActive}
                 />
 
-                <span className="text-[10px] leading-tight line-clamp-2 px-1 mt-1 font-bold">
+                <span className="text-[9px] leading-tight line-clamp-2 px-0.5 mt-0.5 font-bold">
                   {cat.name}
                 </span>
               </motion.button>
@@ -214,7 +215,7 @@ export default function MobileCategoriesScreen() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3 pb-8 space-y-4 min-h-0">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 pb-8 space-y-3 min-h-0">
           {selectedCategory && (
             <AnimatePresence mode="wait">
               <motion.div
@@ -222,19 +223,19 @@ export default function MobileCategoriesScreen() {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="space-y-4"
+                className="space-y-3"
               >
                 {/* Category Header Card */}
-                <div className="bg-white rounded-[22px] p-3.5 shadow-sm border border-yellow-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
                     <CategoryLogo
                       name={selectedCategory.name}
                       icon={selectedCategory.icon}
-                      size="md"
+                      size="sm"
                       active={true}
                     />
                     <div>
-                      <h3 className="text-sm font-black text-gray-900">
+                      <h3 className="text-xs font-black text-gray-900">
                         {selectedCategory.name}
                       </h3>
                     </div>
@@ -243,7 +244,7 @@ export default function MobileCategoriesScreen() {
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate(`/categories/${getCategorySlug(selectedCategory)}`)}
-                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 shrink-0"
+                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 shrink-0"
                   >
                     View All <ArrowRight className="w-3 h-3" />
                   </motion.button>
@@ -252,7 +253,7 @@ export default function MobileCategoriesScreen() {
                 {/* Category-Specific Banners Section */}
                 {categoryBanners.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex gap-2.5 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1">
+                    <div className="flex gap-2 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-0.5">
                       {categoryBanners.map(b => (
                         <div
                           key={b.id}
@@ -275,43 +276,23 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 2: Subcategories Grid - Enlarged visual size and easy tap targets */}
+                {/* Level 2: Subcategories Grid - Responsive 2-row layout with decreased size and minimized gaps */}
                 {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-black text-gray-900">
-                        {selectedCategory.name}
+                  <div className="space-y-1.5 bg-yellow-50/20 rounded-2xl p-2 border border-yellow-100/60">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-[11px] font-black text-gray-900">
+                        {selectedCategory.name} Subcategories
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {selectedCategory.subcategories.map((sub) => {
+                    <ResponsiveCategoryGrid
+                      items={selectedCategory.subcategories}
+                      compact={true}
+                      onItemClick={(sub) => {
                         const catSlug = getCategorySlug(selectedCategory);
                         const subSlug = getSubcategorySlug(sub);
-                        return (
-                          <motion.div
-                            key={sub.id}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              navigate(`/categories/${catSlug}/${subSlug}`);
-                            }}
-                            className="flex flex-col items-center justify-center text-center cursor-pointer transition-all active:scale-95 py-1"
-                          >
-                            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 mb-1.5">
-                              {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
-                                <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
-                                  {renderCategoryFallbackIcon(sub.name, sub.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs sm:text-sm font-extrabold leading-tight text-gray-900 line-clamp-1 w-full px-0.5">
-                              {sub.name}
-                            </span>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
+                        navigate(`/categories/${catSlug}/${subSlug}`);
+                      }}
+                    />
                   </div>
                 )}
 
