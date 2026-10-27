@@ -551,31 +551,41 @@ export default function MobileProductDetailScreen() {
   );
 
   // Build specifications list excluding empty fields
-  const specsList: { key: string; value: string }[] = [];
+  const specsList: { key: string; value: string; values?: string[] }[] = [];
   if (rawSpecs && Array.isArray(rawSpecs)) {
     rawSpecs.forEach(s => {
-      if (s.key && s.value && s.key.trim() && s.value.trim()) {
-        specsList.push({ key: s.key.trim(), value: s.value.trim() });
+      const rawVals = Array.isArray(s.values) && s.values.length > 0
+        ? s.values
+        : (s.value ? s.value.split('\n') : []);
+      const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+      const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
+
+      if (s.key && s.key.trim() && (cleanedVals.length > 0 || v)) {
+        specsList.push({
+          key: s.key.trim(),
+          value: v,
+          values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
+        });
       }
     });
   }
 
   if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
-    specsList.unshift({ key: 'Brand', value: product.brand });
+    specsList.unshift({ key: 'Brand', value: product.brand, values: [product.brand] });
   }
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
-    specsList.push({ key: 'Color', value: product.color });
+    specsList.push({ key: 'Color', value: product.color, values: [product.color] });
   }
   if (selectedAttributes) {
     Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
       if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
-        specsList.push({ key: attrKey, value: String(attrVal) });
+        specsList.push({ key: attrKey, value: String(attrVal), values: [String(attrVal)] });
       }
     });
   } else {
     const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
     if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
-      specsList.push({ key: 'Size', value: String(currentSize) });
+      specsList.push({ key: 'Size', value: String(currentSize), values: [String(currentSize)] });
     }
   }
 
@@ -845,13 +855,25 @@ export default function MobileProductDetailScreen() {
             {/* Selected Tab Content */}
             {activeTabId === 'specifications' && (
               <div>
-                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2">
-                  {specsList.map((spec, i) => (
-                    <div key={i} className="py-1.5 flex justify-between text-xs">
-                      <span className="font-bold text-gray-500">{spec.key}</span>
-                      <span className="font-extrabold text-gray-900 text-right ml-2">{spec.value}</span>
-                    </div>
-                  ))}
+                <div className="divide-y divide-gray-100 bg-gray-50 rounded-xl p-2.5">
+                  {specsList.map((spec, i) => {
+                    const valuesToDisplay = Array.isArray(spec.values) && spec.values.length > 0
+                      ? spec.values
+                      : (spec.value ? spec.value.split('\n') : []);
+
+                    return (
+                      <div key={i} className="py-2.5 flex flex-col justify-start text-xs gap-1">
+                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">{spec.key}</span>
+                        <div className="space-y-1 pl-1">
+                          {valuesToDisplay.map((val, vIdx) => (
+                            <div key={vIdx} className="font-extrabold text-gray-900 text-xs leading-snug">
+                              {val}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

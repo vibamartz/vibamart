@@ -1086,7 +1086,7 @@ export function getProductSpecificationsForSelection(
   selectedAttributes?: Record<string, string> | null,
   selectedVariantId?: string | null,
   selectedVariant?: ProductVariant | null
-): { key: string; value: string }[] {
+): { key: string; value: string; values?: string[] }[] {
   if (!product) return [];
 
   const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
@@ -1095,14 +1095,14 @@ export function getProductSpecificationsForSelection(
     product.specificationsByVariant,
     product.sizeSpecifications,
     product.specificationsBySize
-  ].filter(Boolean) as Record<string, { key: string; value: string }[]>[];
+  ].filter(Boolean) as Record<string, { key: string; value: string; values?: string[] }[]>[];
 
   if (specMaps.length === 0) {
     return defaultSpecs;
   }
 
   // Helper to lookup a key across all spec maps
-  const findInMaps = (lookupKey: string | undefined | null): { key: string; value: string }[] | null => {
+  const findInMaps = (lookupKey: string | undefined | null): { key: string; value: string; values?: string[] }[] | null => {
     if (!lookupKey) return null;
     const cleanKey = lookupKey.trim();
     if (!cleanKey) return null;
@@ -1189,7 +1189,7 @@ export function getProductSpecificationsForSelection(
 export function getProductSpecificationsForSize(
   product: Partial<Product> | null | undefined,
   selectedSize?: string | null
-): { key: string; value: string }[] {
+): { key: string; value: string; values?: string[] }[] {
   if (!product) return [];
   if (selectedSize) {
     return getProductSpecificationsForSelection(product, { Size: selectedSize });

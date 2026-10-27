@@ -33,7 +33,7 @@ export interface SpecificationPreset {
   name: string;
   categoryName?: string;
   isSystem?: boolean;
-  specifications: { key: string; value: string }[];
+  specifications: { key: string; value: string; values?: string[] }[];
 }
 
 const DEFAULT_SPEC_PRESETS: SpecificationPreset[] = [
@@ -371,7 +371,7 @@ export default function AddEditProductForm({
   }
 
   // Helper to get currently active specs list depending on active tab
-  const getActiveTabSpecs = (): { key: string; value: string }[] => {
+  const getActiveTabSpecs = (): { key: string; value: string; values?: string[] }[] => {
     if (activeSpecTargetKey === 'default') {
       return formData.specifications || [];
     }
@@ -380,7 +380,7 @@ export default function AddEditProductForm({
   };
 
   // Helper to update currently active specs list
-  const updateActiveTabSpecs = (newSpecs: { key: string; value: string }[]) => {
+  const updateActiveTabSpecs = (newSpecs: { key: string; value: string; values?: string[] }[]) => {
     if (activeSpecTargetKey === 'default') {
       setFormData(prev => ({
         ...prev,
@@ -412,7 +412,16 @@ export default function AddEditProductForm({
     const target = targetKey || activeSpecTargetKey;
     if (target === 'default') return;
     const defaultSpecs = formData.specifications || [];
-    const cloned = defaultSpecs.map(s => ({ key: s.key, value: s.value }));
+    const cloned = defaultSpecs.map(s => {
+      const rawVals = Array.isArray(s.values) && s.values.length > 0
+        ? [...s.values]
+        : (s.value ? s.value.split('\n') : [s.value || '']);
+      return {
+        key: s.key,
+        value: s.value,
+        values: rawVals
+      };
+    });
     setFormData(prev => {
       const nextVariantSpecs = {
         ...(prev.variantSpecifications || prev.specificationsByVariant || prev.sizeSpecifications || prev.specificationsBySize || {}),
@@ -447,25 +456,36 @@ export default function AddEditProductForm({
   };
 
   // Universal helper to apply a list of specifications (from a product or a preset)
-  const applySharedSpecificationsList = (specsList: { key: string; value: string }[], sourceTitle: string) => {
+  const applySharedSpecificationsList = (specsList: { key: string; value: string; values?: string[] }[], sourceTitle: string) => {
     if (!specsList || specsList.length === 0) {
       toast.error('Selected template has no specifications to apply.');
       return;
     }
 
     // Clean, trim, and deduplicate by key (preserving non-empty values)
-    const specMap = new Map<string, string>();
+    const specMap = new Map<string, { value: string; values: string[] }>();
     specsList.forEach(s => {
       const k = (s.key || '').trim();
-      const v = (s.value || '').trim();
+      const rawVals = Array.isArray(s.values) && s.values.length > 0
+        ? s.values
+        : (s.value ? s.value.split('\n') : []);
+      const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+      const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
       if (k) {
-        if (!specMap.has(k) || (v && !specMap.get(k))) {
-          specMap.set(k, v);
+        if (!specMap.has(k) || (v && !specMap.get(k)?.value)) {
+          specMap.set(k, {
+            value: v,
+            values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [''])
+          });
         }
       }
     });
 
-    const clonedSpecs = Array.from(specMap.entries()).map(([key, value]) => ({ key, value }));
+    const clonedSpecs = Array.from(specMap.entries()).map(([key, data]) => ({
+      key,
+      value: data.value,
+      values: data.values
+    }));
 
     if (clonedSpecs.length === 0) {
       toast.error('No valid specification keys found to apply.');
@@ -496,19 +516,30 @@ export default function AddEditProductForm({
       return;
     }
 
-    const specMap = new Map<string, string>();
+    const specMap = new Map<string, { value: string; values: string[] }>();
     currentSpecs.forEach(s => {
       const k = (s.key || '').trim();
-      const v = (s.value || '').trim();
+      const rawVals = Array.isArray(s.values) && s.values.length > 0
+        ? s.values
+        : (s.value ? s.value.split('\n') : []);
+      const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+      const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
       if (k || v) {
         const keyName = k || 'Unspecified Attribute';
-        if (!specMap.has(keyName) || (v && !specMap.get(keyName))) {
-          specMap.set(keyName, v);
+        if (!specMap.has(keyName) || (v && !specMap.get(keyName)?.value)) {
+          specMap.set(keyName, {
+            value: v,
+            values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [''])
+          });
         }
       }
     });
 
-    const cleaned = Array.from(specMap.entries()).map(([key, value]) => ({ key, value }));
+    const cleaned = Array.from(specMap.entries()).map(([key, data]) => ({
+      key,
+      value: data.value,
+      values: data.values
+    }));
     updateActiveTabSpecs(cleaned);
     toast.success(`Cleaned specifications. ${cleaned.length} attributes retained.`);
   };
@@ -517,7 +548,18 @@ export default function AddEditProductForm({
   const handleSaveCustomPreset = () => {
     const currentSpecs = getActiveTabSpecs();
     const validSpecs = currentSpecs
-      .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+      .map(s => {
+        const rawVals = Array.isArray(s.values) && s.values.length > 0
+          ? s.values
+          : (s.value ? s.value.split('\n') : []);
+        const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+        const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
+        return {
+          key: (s.key || '').trim(),
+          value: v,
+          values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [''])
+        };
+      })
       .filter(s => s.key.length > 0);
 
     if (validSpecs.length === 0) {
@@ -669,19 +711,41 @@ export default function AddEditProductForm({
 
       // Clean specifications (remove items with empty keys and trim whitespace)
       const cleanedSpecs = (formData.specifications || [])
-        .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+        .map(s => {
+          const rawVals = Array.isArray(s.values) && s.values.length > 0
+            ? s.values
+            : (s.value ? s.value.split('\n') : []);
+          const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+          const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
+          return {
+            key: (s.key || '').trim(),
+            value: v,
+            values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
+          };
+        })
         .filter(s => s.key.length > 0);
 
       // Clean variant-specific specifications for valid product attributes/variants
       const currentSizes = extractProductSizes(formData);
       const rawVariantSpecs = formData.variantSpecifications || formData.specificationsByVariant || formData.sizeSpecifications || formData.specificationsBySize || {};
-      const cleanedVariantSpecs: Record<string, { key: string; value: string }[]> = {};
+      const cleanedVariantSpecs: Record<string, { key: string; value: string; values?: string[] }[]> = {};
 
       Object.entries(rawVariantSpecs).forEach(([specKey, specs]) => {
         const trimmedKey = specKey.trim();
         if (trimmedKey && Array.isArray(specs)) {
           const cleanedList = specs
-            .map(s => ({ key: (s.key || '').trim(), value: (s.value || '').trim() }))
+            .map(s => {
+              const rawVals = Array.isArray(s.values) && s.values.length > 0
+                ? s.values
+                : (s.value ? s.value.split('\n') : []);
+              const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+              const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
+              return {
+                key: (s.key || '').trim(),
+                value: v,
+                values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
+              };
+            })
             .filter(s => s.key.length > 0);
           if (cleanedList.length > 0) {
             cleanedVariantSpecs[trimmedKey] = cleanedList;
@@ -861,15 +925,106 @@ export default function AddEditProductForm({
     setFormData(prev => ({ ...prev, variantAttributes: updatedAttrs }));
   };
 
-  const addSpecification = (key = '', value = '') => {
+  const addSpecification = (key = '', value = '', values?: string[]) => {
     const currentSpecs = getActiveTabSpecs();
-    updateActiveTabSpecs([...currentSpecs, { key, value }]);
+    const currentVals = Array.isArray(values) && values.length > 0 ? values : (value ? value.split('\n') : ['']);
+    const nextIdx = currentSpecs.length;
+    updateActiveTabSpecs([...currentSpecs, { key, value: currentVals.join('\n'), values: currentVals }]);
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const keyInput = document.getElementById(`spec-key-${nextIdx}`) as HTMLInputElement | null;
+        if (keyInput) {
+          keyInput.focus();
+        }
+      }, 30);
+    });
   };
 
-  const updateSpecification = (index: number, key: string, value: string) => {
+  const updateSpecificationKey = (index: number, key: string) => {
     const currentSpecs = [...getActiveTabSpecs()];
-    currentSpecs[index] = { key, value };
+    const currentSpec = currentSpecs[index];
+    if (!currentSpec) return;
+    const currentVals = Array.isArray(currentSpec.values) && currentSpec.values.length > 0
+      ? currentSpec.values
+      : (currentSpec.value ? currentSpec.value.split('\n') : ['']);
+    currentSpecs[index] = { ...currentSpec, key, values: currentVals, value: currentVals.join('\n') };
     updateActiveTabSpecs(currentSpecs);
+  };
+
+  const updateSpecificationValue = (specIndex: number, valIndex: number, newValue: string) => {
+    const currentSpecs = [...getActiveTabSpecs()];
+    const currentSpec = currentSpecs[specIndex];
+    if (!currentSpec) return;
+    const currentVals = Array.isArray(currentSpec.values) && currentSpec.values.length > 0
+      ? [...currentSpec.values]
+      : (currentSpec.value ? currentSpec.value.split('\n') : ['']);
+    while (currentVals.length <= valIndex) {
+      currentVals.push('');
+    }
+    currentVals[valIndex] = newValue;
+    currentSpecs[specIndex] = {
+      ...currentSpec,
+      values: currentVals,
+      value: currentVals.join('\n')
+    };
+    updateActiveTabSpecs(currentSpecs);
+  };
+
+  const addSpecificationValue = (specIndex: number, afterValIndex: number) => {
+    const currentSpecs = [...getActiveTabSpecs()];
+    const currentSpec = currentSpecs[specIndex];
+    if (!currentSpec) return;
+    const currentVals = Array.isArray(currentSpec.values) && currentSpec.values.length > 0
+      ? [...currentSpec.values]
+      : (currentSpec.value ? currentSpec.value.split('\n') : ['']);
+    const insertIdx = afterValIndex + 1;
+    currentVals.splice(insertIdx, 0, '');
+    currentSpecs[specIndex] = {
+      ...currentSpec,
+      values: currentVals,
+      value: currentVals.join('\n')
+    };
+    updateActiveTabSpecs(currentSpecs);
+
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const nextInput = document.getElementById(`spec-val-${specIndex}-${insertIdx}`) as HTMLInputElement | null;
+        if (nextInput) {
+          nextInput.focus();
+        }
+      }, 30);
+    });
+  };
+
+  const removeSpecificationValue = (specIndex: number, valIndex: number) => {
+    const currentSpecs = [...getActiveTabSpecs()];
+    const currentSpec = currentSpecs[specIndex];
+    if (!currentSpec) return;
+    const currentVals = Array.isArray(currentSpec.values) && currentSpec.values.length > 0
+      ? [...currentSpec.values]
+      : (currentSpec.value ? currentSpec.value.split('\n') : ['']);
+    if (currentVals.length <= 1) {
+      currentVals[0] = '';
+    } else {
+      currentVals.splice(valIndex, 1);
+    }
+    currentSpecs[specIndex] = {
+      ...currentSpec,
+      values: currentVals,
+      value: currentVals.join('\n')
+    };
+    updateActiveTabSpecs(currentSpecs);
+
+    const prevIdx = Math.max(0, valIndex - 1);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const prevInput = document.getElementById(`spec-val-${specIndex}-${prevIdx}`) as HTMLInputElement | null;
+        if (prevInput) {
+          prevInput.focus();
+        }
+      }, 30);
+    });
   };
 
   const removeSpecification = (index: number) => {
@@ -890,7 +1045,7 @@ export default function AddEditProductForm({
   const addQuickSpecTemplate = (keyName: string) => {
     const currentSpecs = getActiveTabSpecs();
     if (!currentSpecs.some(s => s.key.toLowerCase() === keyName.toLowerCase())) {
-      updateActiveTabSpecs([...currentSpecs, { key: keyName, value: '' }]);
+      updateActiveTabSpecs([...currentSpecs, { key: keyName, value: '', values: [''] }]);
     }
   };
 
@@ -1386,52 +1541,140 @@ export default function AddEditProductForm({
             </div>
 
             <div className="space-y-3">
-              {getActiveTabSpecs().map((spec, idx) => (
-                <div key={idx} className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
-                  <input
-                    type="text"
-                    placeholder="Attribute Name (e.g. Chest, Length, Fabric)"
-                    value={spec.key}
-                    onChange={e => updateSpecification(idx, e.target.value, spec.value)}
-                    className="w-full sm:w-1/3 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Specification Value (e.g. 42, 100% Cotton)"
-                    value={spec.value}
-                    onChange={e => updateSpecification(idx, spec.key, e.target.value)}
-                    className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
-                  />
-                  <div className="flex items-center justify-end gap-1 shrink-0 pt-1 sm:pt-0">
-                    <button
-                      type="button"
-                      onClick={() => moveSpecification(idx, 'up')}
-                      disabled={idx === 0}
-                      className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
-                      title="Move Up"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSpecification(idx, 'down')}
-                      disabled={idx === getActiveTabSpecs().length - 1}
-                      className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
-                      title="Move Down"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeSpecification(idx)}
-                      className="p-2 text-rose-500 hover:text-rose-700 cursor-pointer ml-1"
-                      title="Delete Field"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {getActiveTabSpecs().map((spec, idx) => {
+                const values = Array.isArray(spec.values) && spec.values.length > 0
+                  ? spec.values
+                  : (spec.value ? spec.value.split('\n') : ['']);
+
+                return (
+                  <div key={idx} className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-start bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+                    <div className="w-full sm:w-1/3 space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 ml-1">
+                        Attribute Name
+                      </label>
+                      <input
+                        id={`spec-key-${idx}`}
+                        type="text"
+                        placeholder="Attribute Name (e.g. Chest, Fabric)"
+                        value={spec.key}
+                        onChange={e => updateSpecificationKey(idx, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.getElementById(`spec-val-${idx}-0`)?.focus();
+                          }
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all"
+                      />
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center justify-between ml-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                          Specification Value{values.length > 1 ? `s (${values.length})` : ''}
+                        </label>
+                        <span className="text-[9px] font-medium text-gray-400 hidden sm:inline-block">
+                          Press <kbd className="px-1 py-0.5 bg-gray-200 text-gray-700 rounded text-[9px] font-mono font-bold">Enter</kbd> to add value below
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {values.map((val, valIdx) => (
+                          <div key={valIdx} className="flex items-center gap-1.5">
+                            <input
+                              id={`spec-val-${idx}-${valIdx}`}
+                              type="text"
+                              placeholder={valIdx === 0 ? "Specification Value (e.g. 42, 100% Cotton)" : "Add more specification value..."}
+                              value={val}
+                              onChange={e => updateSpecificationValue(idx, valIdx, e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  addSpecificationValue(idx, valIdx);
+                                } else if (e.key === 'Backspace' && val === '' && values.length > 1) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeSpecificationValue(idx, valIdx);
+                                }
+                              }}
+                              onPaste={e => {
+                                const pasteText = e.clipboardData.getData('text');
+                                if (pasteText && pasteText.includes('\n')) {
+                                  e.preventDefault();
+                                  const lines = pasteText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                                  if (lines.length > 0) {
+                                    const nextVals = [...values];
+                                    nextVals.splice(valIdx, 1, ...lines);
+                                    const currentSpecs = [...getActiveTabSpecs()];
+                                    currentSpecs[idx] = {
+                                      ...spec,
+                                      values: nextVals,
+                                      value: nextVals.join('\n')
+                                    };
+                                    updateActiveTabSpecs(currentSpecs);
+                                  }
+                                }
+                              }}
+                              className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:border-emerald-600 transition-all shadow-2xs"
+                            />
+                            {values.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSpecificationValue(idx, valIdx)}
+                                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                                title="Remove this specification value"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => addSpecificationValue(idx, values.length - 1)}
+                          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer hover:underline"
+                        >
+                          <Plus className="w-3 h-3" /> Add Value (or press Enter)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1 shrink-0 pt-1 sm:pt-6">
+                      <button
+                        type="button"
+                        onClick={() => moveSpecification(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
+                        title="Move Up"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSpecification(idx, 'down')}
+                        disabled={idx === getActiveTabSpecs().length - 1}
+                        className="p-2 text-gray-400 hover:text-gray-900 disabled:opacity-30 cursor-pointer"
+                        title="Move Down"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeSpecification(idx)}
+                        className="p-2 text-rose-500 hover:text-rose-700 cursor-pointer ml-1"
+                        title="Delete Field"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {getActiveTabSpecs().length === 0 && (
                 <div className="py-4 text-center text-gray-400 font-bold italic border-2 border-dashed border-gray-200 rounded-xl space-y-1 text-xs">
@@ -2492,7 +2735,7 @@ export default function AddEditProductForm({
               </span>
               {getActiveTabSpecs().map((s, idx) => (
                 <div key={idx} className="text-[10px] font-bold text-gray-700">
-                  • <strong className="font-extrabold text-gray-900">{s.key || 'Empty Key'}:</strong> {s.value || 'Empty Value'}
+                  • <strong className="font-extrabold text-gray-900">{s.key || 'Empty Key'}:</strong> {s.value ? s.value.replace(/\n/g, ', ') : 'Empty Value'}
                 </div>
               ))}
             </div>

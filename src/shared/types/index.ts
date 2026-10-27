@@ -63,6 +63,12 @@ export interface InventoryBrandSection {
   updatedAt: string;
 }
 
+export interface ProductSpecification {
+  key: string;
+  value: string;
+  values?: string[];
+}
+
 export interface Product {
   id: string;
   slug?: string;
@@ -112,11 +118,11 @@ export interface Product {
   sizes?: string[]; // Available sizes for this product
   sizeChart?: string; // Size Chart image URL or matrix
   variantAttributes?: string[]; // Enabled variant attribute types e.g. ['color', 'size', 'ram', 'storage', 'shade', 'material', 'volume', 'model']
-  specifications?: { key: string; value: string }[];
-  variantSpecifications?: Record<string, { key: string; value: string }[]>; // Universal: keyed by attribute value (e.g. '128GB', 'M', '1kg'), combinationKey, or variantId
-  specificationsByVariant?: Record<string, { key: string; value: string }[]>; // Alias for variantSpecifications
-  sizeSpecifications?: Record<string, { key: string; value: string }[]>; // Size-specific specifications (e.g. { 'M': [{ key: 'Chest', value: '40' }] })
-  specificationsBySize?: Record<string, { key: string; value: string }[]>; // Alias for sizeSpecifications
+  specifications?: ProductSpecification[];
+  variantSpecifications?: Record<string, ProductSpecification[]>; // Universal: keyed by attribute value (e.g. '128GB', 'M', '1kg'), combinationKey, or variantId
+  specificationsByVariant?: Record<string, ProductSpecification[]>; // Alias for variantSpecifications
+  sizeSpecifications?: Record<string, ProductSpecification[]>; // Size-specific specifications (e.g. { 'M': [{ key: 'Chest', value: '40' }] })
+  specificationsBySize?: Record<string, ProductSpecification[]>; // Alias for sizeSpecifications
   taxInclusive?: boolean;
   serviceablePincodes?: string[]; // List of pincodes where product is available. Empty means nationwide.
   availabilityRules?: LocationAvailabilityRule[]; // Configured location availability rules (State, City, District, PIN Codes)
