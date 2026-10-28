@@ -467,10 +467,12 @@ export default function Home() {
         products={products}
       />
 
-      {/* Recently Viewed (Scrollable, Two-Row Section on the Home Page without visible scrollbars) */}
-      <RecentlyViewedTwoRowSection
-        fallbackProducts={products}
-      />
+      {/* Recently Viewed (Scrollable, Two-Row Section on the Home Page without visible scrollbars - Home page ONLY) */}
+      {activeCategorySlug === 'for-you' && (
+        <RecentlyViewedTwoRowSection
+          fallbackProducts={products}
+        />
+      )}
 
       {/* More Products for You (LAST SECTION ON EVERY PAGE: all categories on For You, respective category on category page) */}
       <MoreProductsForYouSection

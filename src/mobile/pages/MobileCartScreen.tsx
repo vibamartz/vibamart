@@ -13,6 +13,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../shared/utilities/shippingUtils';
+import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
@@ -419,6 +420,9 @@ export default function MobileCartScreen() {
           </div>
         </>
       )}
+
+      {/* 2. RECENTLY VIEWED SECTION (Scrollable, Two-Row Section on Cart Page without visible scrollbars) */}
+      <RecentlyViewedTwoRowSection isMobile={true} />
 
       {/* 3. YOUR WISHLIST PRODUCTS SECTION */}
       <MobileWishlistSection />

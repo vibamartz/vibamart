@@ -974,12 +974,14 @@ export default function MobileHomepage() {
       />
 
       {/* ========================================================================= */}
-      {/* 9. RECENTLY VIEWED & POPULAR (Scrollable, Two-Row Section without visible scrollbars) */}
+      {/* 9. RECENTLY VIEWED & POPULAR (Scrollable, Two-Row Section without visible scrollbars - Home page ONLY) */}
       {/* ========================================================================= */}
-      <RecentlyViewedTwoRowSection
-        isMobile={true}
-        fallbackProducts={products}
-      />
+      {activeCategorySlug === 'for-you' && (
+        <RecentlyViewedTwoRowSection
+          isMobile={true}
+          fallbackProducts={products}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* 10. MORE PRODUCTS FOR YOU (LAST SECTION ON PAGE)                           */}

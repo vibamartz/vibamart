@@ -13,6 +13,7 @@ import ProductCard from '../components/ProductCard';
 import LocationPickerModal from '../components/LocationPickerModal';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
+import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
@@ -340,6 +341,9 @@ export default function Cart() {
             </div>
           </div>
         )}
+
+        {/* Recently Viewed (Scrollable, Two-Row Section on Cart Page without visible scrollbars) */}
+        <RecentlyViewedTwoRowSection />
 
         {/* Requirement 1: Your Wishlist Products Section */}
         <WishlistCartSection />
