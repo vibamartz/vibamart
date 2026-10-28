@@ -11,6 +11,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import toast from 'react-hot-toast';
 
 export default function MobileCategoriesScreen() {
@@ -135,7 +138,7 @@ export default function MobileCategoriesScreen() {
         return true;
       }
 
-      return p.categoryId === selectedCategory.id || Boolean(p.categories?.includes(selectedCategory.id));
+      return isProductAssignedToCategory(p, selectedCategory.id, categories);
     });
   }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId]);
 
@@ -403,6 +406,21 @@ export default function MobileCategoriesScreen() {
                     </div>
                   )}
                 </div>
+
+                {/* Trending Products (Scrollable, Two-Row Section without visible scrollbars) */}
+                <TrendingProductsTwoRowSection
+                  isMobile={true}
+                  categoryId={selectedCategory.id}
+                  products={categoryProducts}
+                />
+
+                {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+                <MoreProductsForYouSection
+                  isMobile={true}
+                  categoryId={selectedCategory.id}
+                  categorySlug={getCategorySlug(selectedCategory)}
+                  products={products}
+                />
               </motion.div>
             </AnimatePresence>
           )}

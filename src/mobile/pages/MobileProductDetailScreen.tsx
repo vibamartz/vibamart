@@ -22,6 +22,8 @@ import { getBestInitialSelection, getProductVariantAttributes, normalizeAttribut
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 export default function MobileProductDetailScreen() {
   const params = useParams<{ id?: string; slug?: string }>();
@@ -1022,6 +1024,18 @@ export default function MobileProductDetailScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection
+        isMobile={true}
+        categoryId={product.categoryId}
+      />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection
+        isMobile={true}
+        categoryId={product.categoryId}
+      />
     </div>
   );
 }

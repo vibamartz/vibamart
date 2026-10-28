@@ -9,6 +9,8 @@ import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
 import { getExpiredRewardProductIds } from '../../shared/utilities/rewardUtils';
 import { shareProduct } from '../../shared/utilities/shareUtils';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
 
 export default function Wishlist() {
@@ -407,6 +409,12 @@ export default function Wishlist() {
             </Link>
           </motion.div>
         )}
+
+        {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+        <TrendingProductsTwoRowSection />
+
+        {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+        <MoreProductsForYouSection />
       </div>
     </div>
   );

@@ -9,6 +9,8 @@ import { getProductSlug } from '../../shared/utilities/slug';
 import { getExpiredRewardProductIds } from '../../shared/utilities/rewardUtils';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 export default function MobileWishlistScreen() {
   const { user } = useAuthStore();
@@ -368,6 +370,12 @@ export default function MobileWishlistScreen() {
           );
         })}
       </div>
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection isMobile={true} />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection isMobile={true} />
     </div>
   );
 }

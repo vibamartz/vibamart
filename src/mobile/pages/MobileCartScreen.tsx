@@ -14,6 +14,8 @@ import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../shared/utilities/shippingUtils';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -513,6 +515,12 @@ export default function MobileCartScreen() {
 
       {/* 3. YOUR WISHLIST PRODUCTS SECTION */}
       <MobileWishlistSection />
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection isMobile={true} />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection isMobile={true} />
 
       {/* Sticky Bottom Checkout Bar (only if items present) */}
       {items.length > 0 && (

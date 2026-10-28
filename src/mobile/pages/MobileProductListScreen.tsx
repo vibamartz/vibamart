@@ -12,6 +12,8 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1180,6 +1182,20 @@ export default function MobileProductListScreen() {
           </button>
         </div>
       )}
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection
+        isMobile={true}
+        categorySlug={rawCat}
+        categoryId={currentCategoryObj?.id}
+      />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection
+        isMobile={true}
+        categorySlug={rawCat}
+        categoryId={currentCategoryObj?.id}
+      />
 
       {/* Mobile Filter Drawer (Slide-Up Sheet) */}
       <AnimatePresence>

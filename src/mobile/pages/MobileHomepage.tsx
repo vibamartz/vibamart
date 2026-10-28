@@ -26,6 +26,9 @@ import CashbackScheduleSection from '../../shared/components/CashbackScheduleSec
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
@@ -143,11 +146,20 @@ export default function MobileHomepage() {
   const [selectedSubCatId, setSelectedSubCatId] = useState<string | null>(null);
   const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
 
-  // Reset subcategory selection when active category changes
+  // Reset subcategory selection when active category changes or main category clicked (including when active)
   useEffect(() => {
     setSelectedSubCatId(null);
     setSelectedNestedSubCatId(null);
   }, [activeCategorySlug]);
+
+  useEffect(() => {
+    const handleCategoryClick = () => {
+      setSelectedSubCatId(null);
+      setSelectedNestedSubCatId(null);
+    };
+    window.addEventListener('viba_main_category_clicked', handleCategoryClick);
+    return () => window.removeEventListener('viba_main_category_clicked', handleCategoryClick);
+  }, []);
 
   // Initialize location store on mount/user change
   useEffect(() => {
@@ -214,14 +226,13 @@ export default function MobileHomepage() {
 
     const productsQuery = query(
       collection(db, 'products'),
-      orderBy('createdAt', 'desc'),
-      limit(50)
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribeProducts = onSnapshot(productsQuery, async (snapshot) => {
       const productData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      setProducts(filterOutRewardProducts(productData, rewardIds));
+      setProducts(filterOutRewardProducts(productData, rewardIds).filter(p => p.status !== 'inactive'));
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
@@ -745,11 +756,16 @@ export default function MobileHomepage() {
                   <button
                     key={cat.id}
                     onClick={() => {
+                      setSelectedSubCatId(null);
+                      setSelectedNestedSubCatId(null);
                       if (cat.slug === 'for-you' || cat.id === 'for-you' || catSlug === 'for-you') {
                         navigate('/for-you');
                       } else {
                         navigate(`/category/${catSlug}`);
                       }
+                      window.dispatchEvent(new CustomEvent('viba_main_category_clicked', {
+                        detail: { categorySlug: catSlug, categoryId: cat.id }
+                      }));
                     }}
                     className={`relative flex flex-col items-center justify-start gap-1 flex-none shrink-0 w-16 cursor-pointer border-0 py-1.5 px-0.5 rounded-2xl focus:outline-none overflow-hidden select-none ${isSelected ? 'text-emerald-700' : 'text-gray-700 hover:text-emerald-600'
                       }`}
@@ -954,88 +970,33 @@ export default function MobileHomepage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 8. TRENDING PRODUCTS & DEALS CAROUSEL                                     */}
+      {/* 8. TRENDING PRODUCTS & DEALS (Scrollable, Two-Row Section without visible scrollbars) */}
       {/* ========================================================================= */}
-      <section ref={trendingSectionRef} className="w-full min-w-0 space-y-2.5">
-        <div className="flex items-center justify-between px-0.5">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-              <Flame className="w-3.5 h-3.5 fill-rose-500" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">Trending Products & Deals</h3>
-          </div>
-          <Link to="/products" className="text-xs font-black text-emerald-700 uppercase tracking-wider shrink-0 ml-2">
-            View All
-          </Link>
-        </div>
-
-        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
-          {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div
-                key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5`}
-              >
-                <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
-                <div className="h-2.5 bg-gray-100 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-            ))
-          ) : (
-            filteredProducts.slice(0, 10).map((product) => (
-              <MobileProductCardItem
-                key={`trending-${product.id}`}
-                product={product}
-                is3CardLayout={activeCategorySlug === 'for-you'}
-                cardRadius="rounded-[16px]"
-                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
-              />
-            ))
-          )}
-        </div>
-      </section>
+      <TrendingProductsTwoRowSection
+        isMobile={true}
+        categorySlug={activeCategorySlug}
+        categoryId={activeCategoryObj?.id}
+        products={filteredProducts}
+      />
 
       {/* ========================================================================= */}
-      {/* 9. RECENTLY VIEWED & POPULAR CAROUSEL                                     */}
+      {/* 9. RECENTLY VIEWED & POPULAR (Scrollable, Two-Row Section without visible scrollbars) */}
       {/* ========================================================================= */}
-      <section ref={recentSectionRef} className="w-full min-w-0 space-y-2.5">
-        <div className="flex items-center justify-between px-0.5">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <History className="w-3.5 h-3.5" />
-            </div>
-            <h3 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight truncate">Recently Viewed & Popular</h3>
-          </div>
-          <Link to="/products" className="text-xs font-black text-emerald-700 uppercase tracking-wider shrink-0 ml-2">
-            Explore
-          </Link>
-        </div>
+      <RecentlyViewedTwoRowSection
+        isMobile={true}
+        fallbackProducts={filteredProducts}
+      />
 
-        <div className={`flex overflow-x-auto ${activeCategorySlug === 'for-you' ? 'gap-1.5' : 'gap-[clamp(10px,3vw,16px)]'} hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full`}>
-          {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div
-                key={i}
-                className={`${activeCategorySlug === 'for-you' ? 'w-[calc((100%-12px)/3)]' : 'w-[145px] sm:w-[165px]'} bg-white rounded-[16px] p-1.5 animate-pulse border border-gray-100 shrink-0 space-y-1.5`}
-              >
-                <div className="w-full aspect-[4/5] bg-gray-100 rounded-[10px]" />
-                <div className="h-2.5 bg-gray-100 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-            ))
-          ) : (
-            displayRecentAndPopular.map((product) => (
-              <MobileProductCardItem
-                key={`recent-${product.id}`}
-                product={product}
-                is3CardLayout={activeCategorySlug === 'for-you'}
-                cardRadius="rounded-[16px]"
-                onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
-              />
-            ))
-          )}
-        </div>
-      </section>
+      {/* ========================================================================= */}
+      {/* 10. MORE PRODUCTS FOR YOU (LAST SECTION ON PAGE)                           */}
+      {/* On general For You: all categories. On category page: respective category   */}
+      {/* ========================================================================= */}
+      <MoreProductsForYouSection
+        isMobile={true}
+        categorySlug={activeCategorySlug}
+        categoryId={activeCategoryObj?.id}
+        products={products}
+      />
 
       {/* Modals */}
       <LocationPickerModal

@@ -24,6 +24,9 @@ import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -84,11 +87,20 @@ export default function Home() {
     return CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug || c.seoSlug === activeCategorySlug || getCategorySlug(c) === activeCategorySlug) || null;
   }, [activeCategorySlug, CATEGORIES]);
 
-  // Reset subcategory selections when active category changes
+  // Reset subcategory selections when active category changes or main category is clicked (including when active)
   useEffect(() => {
     setSelectedSubCatId(null);
     setSelectedNestedSubCatId(null);
   }, [activeCategorySlug]);
+
+  useEffect(() => {
+    const handleCategoryClick = () => {
+      setSelectedSubCatId(null);
+      setSelectedNestedSubCatId(null);
+    };
+    window.addEventListener('viba_main_category_clicked', handleCategoryClick);
+    return () => window.removeEventListener('viba_main_category_clicked', handleCategoryClick);
+  }, []);
 
   // Category-Specific Banners for Desktop (Strict Isolation)
   const activeBanners = useMemo(() => {
@@ -157,13 +169,12 @@ export default function Home() {
   useEffect(() => {
     const q = query(
       collection(db, 'products'),
-      where('status', '==', 'active'),
-      limit(40)
+      orderBy('createdAt', 'desc')
     );
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      setProducts(filterOutRewardProducts(data, rewardIds));
+      setProducts(filterOutRewardProducts(data, rewardIds).filter(p => p.status !== 'inactive'));
       setLoading(false);
     }, (error) => {
       console.error("Home products error:", error);
@@ -455,38 +466,24 @@ export default function Home() {
         </section>
       )}
 
-      {/* Trending / Recommended Products Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <Flame className="w-6 h-6 text-yellow-500 fill-yellow-500" /> Trending Products
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">High demand items with top customer ratings</p>
-          </div>
-          <Link to="/products" className="text-xs font-black uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
-            Explore All <ChevronRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection
+        categorySlug={activeCategorySlug}
+        categoryId={activeCategoryObj?.id}
+        products={filteredProducts}
+      />
 
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl p-4 border border-gray-100 animate-pulse space-y-3">
-                <div className="w-full aspect-square bg-gray-100 rounded-2xl" />
-                <div className="h-4 bg-gray-100 rounded w-3/4" />
-                <div className="h-4 bg-gray-100 rounded w-1/2" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {filteredProducts.slice(0, 15).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Recently Viewed (Scrollable, Two-Row Section on the Home Page without visible scrollbars) */}
+      <RecentlyViewedTwoRowSection
+        fallbackProducts={products}
+      />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE: all categories on For You, respective category on category page) */}
+      <MoreProductsForYouSection
+        categorySlug={activeCategorySlug}
+        categoryId={activeCategoryObj?.id}
+        products={products}
+      />
     </div>
   );
 }

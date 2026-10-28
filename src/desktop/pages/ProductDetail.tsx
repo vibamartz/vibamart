@@ -33,6 +33,8 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 export default function ProductDetail() {
   const params = useParams();
@@ -1159,6 +1161,16 @@ export default function ProductDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection
+        categoryId={product?.categoryId}
+      />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection
+        categoryId={product?.categoryId}
+      />
     </div>
   );
 }

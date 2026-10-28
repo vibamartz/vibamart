@@ -15,6 +15,8 @@ import { cleanProductCode } from '../../shared/utilities/productCode';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
+import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
+import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 import { searchApiClient } from '../../services/searchApiClient';
@@ -1411,6 +1413,18 @@ export default function ProductList() {
           </div>
         </div>
       </div>
+
+      {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
+      <TrendingProductsTwoRowSection
+        categorySlug={rawCat}
+        categoryId={matchedCategory?.id}
+      />
+
+      {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
+      <MoreProductsForYouSection
+        categorySlug={rawCat}
+        categoryId={matchedCategory?.id}
+      />
 
       {/* Mobile Filters Modal */}
       <AnimatePresence>
