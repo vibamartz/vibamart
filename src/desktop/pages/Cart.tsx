@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCartStore, useAuthStore } from '../../backend/store';
-import { Trash2, Plus, Minus, ShoppingCart, ShoppingBag, ArrowRight, Heart, Clock, Truck, Zap, MapPin } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, ShoppingBag, ArrowRight, Heart, Truck, Zap, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -13,68 +13,9 @@ import ProductCard from '../components/ProductCard';
 import LocationPickerModal from '../components/LocationPickerModal';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
-import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
-
-function RecentlyViewedCartSection() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchRecent = async () => {
-      setLoading(true);
-      const fetched = await fetchRecentlyViewedProducts('', 4);
-      if (isMounted) {
-        setProducts(fetched);
-        setLoading(false);
-      }
-    };
-    fetchRecent();
-
-    const handleUpdate = () => {
-      fetchRecent();
-    };
-    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
-    };
-  }, []);
-
-  return (
-    <div className="mt-8 py-4 border-t border-gray-200/60">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-emerald-50 rounded-xl text-primary">
-          <Clock className="w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="text-xl font-black text-gray-900">Recently Viewed</h3>
-          <p className="text-xs text-gray-500 font-medium">Items you recently checked out</p>
-        </div>
-      </div>
-      {loading ? (
-        <div className="flex overflow-x-auto gap-4 hide-scrollbar py-1 min-w-0 w-full">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 bg-white rounded-2xl border border-gray-100 p-3 flex flex-col animate-pulse" />
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <p className="text-xs text-gray-400 font-medium py-4 text-center">No recently viewed items yet.</p>
-      ) : (
-        <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-          {products.map(product => (
-            <div key={product.id} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 snap-start flex flex-col">
-              <ProductCard product={product} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function WishlistCartSection() {
   const { user } = useAuthStore();
@@ -399,9 +340,6 @@ export default function Cart() {
             </div>
           </div>
         )}
-
-        {/* Requirement 1: Recently Viewed Section */}
-        <RecentlyViewedCartSection />
 
         {/* Requirement 1: Your Wishlist Products Section */}
         <WishlistCartSection />

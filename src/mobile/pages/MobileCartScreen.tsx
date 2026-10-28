@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Trash2, Plus, Minus, ShoppingCart, ArrowRight, ShieldCheck, Heart, Clock, Truck, Zap, MapPin
+  Trash2, Plus, Minus, ShoppingCart, ArrowRight, ShieldCheck, Heart, Truck, Zap, MapPin
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -13,101 +13,11 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../shared/utilities/shippingUtils';
-import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
-
-function MobileRecentlyViewedSection() {
-  const { addItem, items: cartItems } = useCartStore();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchRecent = async () => {
-      setLoading(true);
-      const fetched = await fetchRecentlyViewedProducts('', 4);
-      if (isMounted) {
-        setProducts(fetched);
-        setLoading(false);
-      }
-    };
-    fetchRecent();
-
-    const handleUpdate = () => {
-      fetchRecent();
-    };
-    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
-    };
-  }, []);
-
-  return (
-    <div className="py-3 border-t border-gray-200/60 space-y-3">
-      <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-emerald-600" />
-        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">Recently Viewed</h3>
-      </div>
-      {loading ? (
-        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar py-1 min-w-0 w-full">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="w-[135px] sm:w-[155px] h-[225px] sm:h-[245px] shrink-0 bg-gray-50 rounded-xl p-2 border border-gray-100 animate-pulse flex flex-col justify-between">
-              <div className="w-full aspect-square bg-gray-200 rounded-lg" />
-              <div className="h-3 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
-              <div className="h-6 bg-gray-200 rounded w-full" />
-            </div>
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <p className="text-[11px] text-gray-400 font-medium py-2 text-center">No recently viewed items yet.</p>
-      ) : (
-        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-          {products.map((product) => {
-            const isInCart = cartItems.some(i => i.productId === product.id);
-            return (
-              <div
-                key={product.id}
-                onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                className="w-[135px] sm:w-[155px] h-[225px] sm:h-[245px] shrink-0 snap-start bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer flex flex-col justify-between"
-              >
-                <div className="min-w-0 flex flex-col flex-1">
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center shrink-0">
-                    <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
-                  </div>
-                  <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>
-                  <p className="text-xs font-black text-emerald-700 mt-auto pt-0.5">₹{(product.discountPrice || product.price).toLocaleString()}</p>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isInCart) {
-                      toast.success("Item is in cart");
-                    } else {
-                      const res = addItem(product, 1);
-                      if (res.success) toast.success("Added to Cart", { icon: '🛒' });
-                      else toast.error("Could not add to cart");
-                    }
-                  }}
-                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shrink-0 mt-1.5 ${isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
-                    }`}
-                >
-                  {isInCart ? 'In Cart' : 'Add to Cart'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function MobileWishlistSection() {
   const { user } = useAuthStore();
@@ -509,9 +419,6 @@ export default function MobileCartScreen() {
           </div>
         </>
       )}
-
-      {/* 2. RECENTLY VIEWED SECTION */}
-      <MobileRecentlyViewedSection />
 
       {/* 3. YOUR WISHLIST PRODUCTS SECTION */}
       <MobileWishlistSection />

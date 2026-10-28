@@ -78,17 +78,7 @@ export default function TrendingProductsTwoRowSection({
     if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
       const catFiltered = allAvailable.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
       catFiltered.sort(sortByTrending);
-
-      if (catFiltered.length >= 8) {
-        return catFiltered.slice(0, 24);
-      } else {
-        // When there are few products in this category,
-        // place category products first, then fill remaining slots with other top trending products
-        // so that both rows are full, scrollable, and never show a broken 1-product layout.
-        const catProductIds = new Set(catFiltered.map(p => p.id));
-        const otherTrending = allAvailable.filter(p => !catProductIds.has(p.id)).sort(sortByTrending);
-        return [...catFiltered, ...otherTrending].slice(0, 24);
-      }
+      return catFiltered.slice(0, 24);
     }
 
     const list = [...allAvailable];
@@ -117,7 +107,7 @@ export default function TrendingProductsTwoRowSection({
     }
   };
 
-  if (!loading && (isMobile ? displayProducts.length < 2 : displayProducts.length === 0)) {
+  if (!loading && displayProducts.length === 0) {
     return null;
   }
 

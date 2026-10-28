@@ -22,7 +22,7 @@ import UniversalVariantSelector from '../../shared/components/UniversalVariantSe
 import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix, getProductSpecificationsForSelection, getProductSpecificationsForSize } from '../../shared/utilities/variantMatrixUtils';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
@@ -923,11 +923,6 @@ export default function MobileProductDetailScreen() {
           </div>
         )}
 
-        {/* Recently Viewed */}
-        <div className="space-y-2 pt-1 pb-2">
-          <MobileRecentlyViewed currentProductId={product.id} />
-        </div>
-
       </div>
 
       {/* Fixed Mobile Bottom Action Bar */}
@@ -1037,57 +1032,6 @@ export default function MobileProductDetailScreen() {
         isMobile={true}
         categoryId={product.categoryId}
       />
-    </div>
-  );
-}
-
-function MobileRecentlyViewed({ currentProductId }: { currentProductId: string }) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchRecent = async () => {
-      setLoading(true);
-      const fetched = await fetchRecentlyViewedProducts(currentProductId, 4);
-      if (isMounted) {
-        setProducts(fetched);
-        setLoading(false);
-      }
-    };
-
-    fetchRecent();
-
-    const handleUpdate = () => {
-      fetchRecent();
-    };
-    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
-    };
-  }, [currentProductId]);
-
-  if (!loading && products.length === 0) return null;
-
-  return (
-    <div className="space-y-2.5 pt-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
-          Recently Viewed
-        </span>
-      </div>
-      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {products.map(p => (
-          <div key={`recent-${p.id}`} className="w-[135px] sm:w-[155px] h-[215px] sm:h-[235px] shrink-0 snap-start flex flex-col">
-            <MobileProductCardItem
-              product={p}
-              onCardClick={() => navigate(`/products/${getProductSlug(p)}`)}
-            />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

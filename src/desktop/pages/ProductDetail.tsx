@@ -32,7 +32,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
-import { addRecentlyViewedId, fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
@@ -1055,11 +1055,6 @@ export default function ProductDetail() {
         </div>
       )}
 
-      {/* Recently Viewed Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-        <RecentlyViewed currentProductId={product.id} />
-      </div>
-
       {/* Size Chart Modal */}
       {showSizeChartModal && product.sizeChart && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -1249,60 +1244,6 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
         ) : (
           products.map(p => (
             <div key={p.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
-              <ProductCard product={p} />
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchRecent = async () => {
-      setLoading(true);
-      const fetched = await fetchRecentlyViewedProducts(currentProductId, 8);
-      if (isMounted) {
-        setProducts(fetched);
-        setLoading(false);
-      }
-    };
-
-    fetchRecent();
-
-    const handleUpdate = () => {
-      fetchRecent();
-    };
-    window.addEventListener('viba_recently_viewed_updated', handleUpdate);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
-    };
-  }, [currentProductId]);
-
-  if (!loading && products.length === 0) return null;
-
-  return (
-    <div className="pt-8 border-t border-gray-100">
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Recently Viewed</h2>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Products you looked at recently</p>
-        </div>
-      </div>
-      <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 animate-pulse bg-white rounded-2xl border border-gray-100" />
-          ))
-        ) : (
-          products.map(p => (
-            <div key={p.id} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 snap-start flex flex-col">
               <ProductCard product={p} />
             </div>
           ))
