@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { History, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../../mobile/components/MobileProductCardItem';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -17,6 +20,7 @@ export default function RecentlyViewedTwoRowSection({
   fallbackProducts = []
 }: RecentlyViewedTwoRowSectionProps) {
   const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -34,17 +38,44 @@ export default function RecentlyViewedTwoRowSection({
     loadRecent();
     const handleUpdate = () => loadRecent();
     window.addEventListener('viba_recently_viewed_updated', handleUpdate);
+
+    // Fetch catalog products to ensure fallback is always rich and both rows are filled
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (!isMounted) return;
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const rewardIds = await getRewardProductIds();
+      const valid = filterOutRewardProducts(data, rewardIds).filter(
+        p => p.status !== 'inactive' && p.isVisible !== false
+      );
+      setCatalogProducts(valid);
+      setLoading(false);
+    }, (error) => {
+      console.error("Recently viewed catalog fallback fetch error:", error);
+      if (isMounted) setLoading(false);
+    });
+
     return () => {
       isMounted = false;
       window.removeEventListener('viba_recently_viewed_updated', handleUpdate);
+      unsubscribe();
     };
   }, []);
 
   const displayProducts = useMemo(() => {
     const recentIds = new Set(recentlyViewed.map(p => p.id));
     const extra = (fallbackProducts || []).filter(p => !recentIds.has(p.id));
-    return [...recentlyViewed, ...extra].slice(0, 20);
-  }, [recentlyViewed, fallbackProducts]);
+    const combined = [...recentlyViewed, ...extra];
+    
+    // If combined has fewer than 8 items, fill with catalog products to avoid broken 1-product rows
+    if (combined.length < 8 && catalogProducts.length > 0) {
+      const combinedIds = new Set(combined.map(p => p.id));
+      const more = catalogProducts.filter(p => !combinedIds.has(p.id));
+      return [...combined, ...more].slice(0, 20);
+    }
+    
+    return combined.slice(0, 20);
+  }, [recentlyViewed, fallbackProducts, catalogProducts]);
 
   // Group into columns of 2 for 2-row layout
   const columns = useMemo(() => {
@@ -67,7 +98,7 @@ export default function RecentlyViewedTwoRowSection({
     }
   };
 
-  if (!loading && displayProducts.length === 0) {
+  if (!loading && displayProducts.length < 2) {
     return null;
   }
 

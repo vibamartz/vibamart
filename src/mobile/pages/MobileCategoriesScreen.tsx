@@ -118,23 +118,19 @@ export default function MobileCategoriesScreen() {
 
       // 1. Nested Subcategory Selected -> Show ONLY assigned products
       if (selectedNestedSubCatId) {
-        const nestedMatches = (
+        return (
           p.nestedSubCategoryId === selectedNestedSubCatId ||
           Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId))
         );
-        if (!nestedMatches) return false;
-        return isProductAssignedToCategory(p, selectedCategory.id, categories);
       }
 
       // 2. Subcategory Selected -> Show products assigned to Subcategory
       if (selectedSubCatId) {
-        const subMatches = (
+        return (
           p.subCategoryId === selectedSubCatId ||
           Boolean(p.subCategoryIds?.includes(selectedSubCatId)) ||
-          Boolean(selectedSubCategory?.subcategories?.some(n => n.id === p.nestedSubCategoryId || p.nestedSubCategoryIds?.includes(n.id)))
+          (p.categoryId === selectedCategory.id && p.subCategoryId === selectedSubCatId)
         );
-        if (!subMatches) return false;
-        return isProductAssignedToCategory(p, selectedCategory.id, categories);
       }
 
       // 3. Category Selected -> Show products assigned to Category
@@ -144,7 +140,7 @@ export default function MobileCategoriesScreen() {
 
       return isProductAssignedToCategory(p, selectedCategory.id, categories);
     });
-  }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId, selectedSubCategory, categories]);
+  }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId]);
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();

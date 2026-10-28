@@ -49,6 +49,8 @@ export default function TrendingProductsTwoRowSection({
       }
     }
 
+    // Always fetch full catalog products so we have fallback trending products
+    // to fill both rows whenever a category has few (or only 1) products
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));

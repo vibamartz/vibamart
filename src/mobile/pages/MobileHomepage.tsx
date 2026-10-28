@@ -976,7 +976,7 @@ export default function MobileHomepage() {
         isMobile={true}
         categorySlug={activeCategorySlug}
         categoryId={activeCategoryObj?.id}
-        products={filteredProducts}
+        products={products}
       />
 
       {/* ========================================================================= */}
@@ -984,7 +984,7 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       <RecentlyViewedTwoRowSection
         isMobile={true}
-        fallbackProducts={filteredProducts}
+        fallbackProducts={products}
       />
 
       {/* ========================================================================= */}
