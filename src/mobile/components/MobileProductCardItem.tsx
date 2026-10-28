@@ -5,6 +5,7 @@ import { getProductSlug } from '../../shared/utilities/slug';
 import { useNavigate } from 'react-router-dom';
 
 export interface MobileProductCardItemProps {
+  key?: React.Key;
   product: Product;
   cardRadius?: string;
   is3CardLayout?: boolean;
