@@ -868,9 +868,13 @@ export class ViBaSearchEngine {
           .map(n => n.trim().toLowerCase())
           .filter(Boolean);
 
+        const parentScope = (params.subCategory && params.subCategory !== 'all')
+          ? String(params.subCategory).split(',')[0].trim()
+          : ((params.category && params.category !== 'all' && params.category !== 'all-deals') ? String(params.category).split(',')[0].trim() : undefined);
+
         let matchesAnyNested = false;
         for (const nf of nestedFilters) {
-          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, nf)) {
+          if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, nf, parentScope)) {
             matchesAnyNested = true;
             break;
           }

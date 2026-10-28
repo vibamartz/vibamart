@@ -483,6 +483,7 @@ export default function MobileProductListScreen() {
 
         // 1. Category Filter across entire hierarchy
         const parentCat = effectiveCat || baseCatId || undefined;
+        const parentSub = effectiveSub || baseSubId || undefined;
         if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') {
           if (!isProductInHierarchy(product, effectiveCat, categories, visualNestedItems)) return false;
         }
@@ -492,7 +493,7 @@ export default function MobileProductListScreen() {
         }
         // 3. Nested SubCategory Filter across entire hierarchy
         if (effectiveNested && effectiveNested !== 'all') {
-          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems, parentCat)) return false;
+          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems, parentCat, parentSub)) return false;
         }
       }
 

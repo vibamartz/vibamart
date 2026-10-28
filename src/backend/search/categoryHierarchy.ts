@@ -504,7 +504,8 @@ export class CategoryHierarchyEngine {
    */
   public matchesFilter(
     productHierarchyIds: Set<string> | string[] | undefined,
-    filterValue: string
+    filterValue: string,
+    parentScopeId?: string
   ): boolean {
     if (!filterValue || !productHierarchyIds) return false;
     const filterTrim = filterValue.trim();
@@ -513,7 +514,6 @@ export class CategoryHierarchyEngine {
     }
 
     const filterLower = filterTrim.toLowerCase();
-    const filterSlug = createSlug(filterTrim).toLowerCase();
 
     const pIds = Array.isArray(productHierarchyIds)
       ? new Set(productHierarchyIds.map(id => String(id).toLowerCase()))
@@ -523,6 +523,20 @@ export class CategoryHierarchyEngine {
     const candidateNodes = this.getNodes(filterTrim);
     if (candidateNodes.length > 0) {
       for (const node of candidateNodes) {
+        if (parentScopeId) {
+          const pScopeLower = parentScopeId.trim().toLowerCase();
+          const pScopeSlug = createSlug(parentScopeId).toLowerCase();
+          const nodeAncestors = this.ancestorIdsMap.get(node.id) || new Set<string>();
+          const matchesParentScope =
+            nodeAncestors.has(pScopeLower) ||
+            nodeAncestors.has(pScopeSlug) ||
+            Array.from(nodeAncestors).some(aId => {
+              const aNode = this.nodesById.get(aId);
+              return aNode && (aNode.slug?.toLowerCase() === pScopeLower || aNode.slug?.toLowerCase() === pScopeSlug);
+            });
+          if (!matchesParentScope) continue;
+        }
+
         if (pIds.has(node.id.toLowerCase())) return true;
         const descendants = this.descendantIdsMap.get(node.id);
         if (descendants) {

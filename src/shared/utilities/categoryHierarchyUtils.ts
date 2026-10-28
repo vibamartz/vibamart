@@ -306,7 +306,8 @@ export function isProductInHierarchy(
   targetFilter: string,
   categories: Category[],
   visualItems: VisualNestedSubcategory[] = [],
-  parentCategoryFilter?: string
+  parentCategoryFilter?: string,
+  parentSubCategoryFilter?: string
 ): boolean {
   if (!product || !targetFilter) return false;
   const filterTrim = targetFilter.trim();
@@ -318,6 +319,8 @@ export function isProductInHierarchy(
   const filterSlug = createSlug(filterTrim).toLowerCase();
   const parentFilterTrim = parentCategoryFilter ? parentCategoryFilter.trim().toLowerCase() : '';
   const parentFilterSlug = parentCategoryFilter ? createSlug(parentCategoryFilter).toLowerCase() : '';
+  const parentSubFilterTrim = parentSubCategoryFilter ? parentSubCategoryFilter.trim().toLowerCase() : '';
+  const parentSubFilterSlug = parentSubCategoryFilter ? createSlug(parentSubCategoryFilter).toLowerCase() : '';
 
   // 1. Visual Showcase Match: Check if targetFilter corresponds to a Visual Nested Subcategory
   for (const v of visualItems) {
@@ -325,6 +328,16 @@ export function isProductInHierarchy(
     const vId = String(v.id || '').toLowerCase();
     const vSlug = String(v.slug || '').toLowerCase();
     if (vId === filterLower || (vSlug && (vSlug === filterLower || vSlug === filterSlug))) {
+      // Scope to parent category/subcategory if active
+      if (parentFilterTrim && parentFilterTrim !== 'all' && parentFilterTrim !== 'all-deals') {
+        const vCat = String(v.categoryId || '').toLowerCase();
+        if (vCat && vCat !== parentFilterTrim && vCat !== parentFilterSlug) continue;
+      }
+      if (parentSubFilterTrim && parentSubFilterTrim !== 'all') {
+        const vSub = String(v.subCategoryId || '').toLowerCase();
+        if (vSub && vSub !== parentSubFilterTrim && vSub !== parentSubFilterSlug) continue;
+      }
+
       if (product.visualNestedSubcategoryId && String(product.visualNestedSubcategoryId).toLowerCase() === vId) return true;
       if (Array.isArray(product.visualNestedSubcategoryIds) && product.visualNestedSubcategoryIds.some(id => id && String(id).toLowerCase() === vId)) return true;
       if (Array.isArray(v.productIds) && v.productIds.includes(product.id)) return true;
@@ -372,6 +385,13 @@ export function isProductInHierarchy(
         const subNameSlug = sub.name ? createSlug(sub.name).toLowerCase() : '';
         catSubIds.add(subId);
 
+        const isParentSubScope = !parentSubFilterTrim ||
+          parentSubFilterTrim === 'all' ||
+          subId === parentSubFilterTrim ||
+          subSlug === parentSubFilterTrim ||
+          (subSeoSlug && subSeoSlug === parentSubFilterTrim) ||
+          (subNameSlug && subNameSlug === parentSubFilterSlug);
+
         const subNestedIds = new Set<string>();
         if (Array.isArray(sub.subcategories)) {
           for (const nested of sub.subcategories) {
@@ -383,7 +403,7 @@ export function isProductInHierarchy(
             catNestedIds.add(nestedId);
             subNestedIds.add(nestedId);
 
-            if (isParentCatScope) {
+            if (isParentCatScope && isParentSubScope) {
               const isNestedMatch = nestedId === filterLower || nestedSlug === filterLower || (nestedSeoSlug && nestedSeoSlug === filterLower) || (nestedNameSlug && nestedNameSlug === filterSlug);
               if (isNestedMatch) {
                 matchedNodes.push({

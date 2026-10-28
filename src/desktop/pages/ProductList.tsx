@@ -400,6 +400,10 @@ export default function ProductList() {
         const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
         const parentCat = selectedCategories.length > 0 ? selectedCategories[0] : (baseCatId || undefined);
         if (effectiveSubs.length > 0 && !effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat))) return false;
+
+        const effectiveNested = filterType !== 'nestedSubCategory' && selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (filterType !== 'nestedSubCategory' && baseNestedId ? [baseNestedId] : []);
+        const parentSub = effectiveSubs.length > 0 ? effectiveSubs[0] : (baseSubId || undefined);
+        if (effectiveNested.length > 0 && !effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat, parentSub))) return false;
       }
 
       // Brand filter
@@ -599,6 +603,7 @@ export default function ProductList() {
           ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
           : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
         const parentCat = effectiveCats.length > 0 ? effectiveCats[0] : (baseCatId || undefined);
+        const parentSub = effectiveSubs.length > 0 ? effectiveSubs[0] : (baseSubId || undefined);
 
         if (effectiveSubs.length > 0) {
           const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat));
@@ -607,7 +612,7 @@ export default function ProductList() {
 
         // Nested SubCategory filter across entire hierarchy
         if (effectiveNested.length > 0) {
-          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat));
+          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat, parentSub));
           if (!hasNestedMatch) return false;
         }
       }
