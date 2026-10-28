@@ -235,7 +235,7 @@ export default function VisualNestedSubcategoriesSection({
 
   return (
     <section className={`${isMobile ? 'my-2.5' : 'my-4'} sm:my-8 ${className}`}>
-      <div className={`bg-gradient-to-b from-emerald-50/40 via-white to-white ${isMobile ? 'p-2.5 sm:p-6' : 'p-3 sm:p-6 lg:p-7'} rounded-2xl sm:rounded-3xl border border-emerald-100/70 shadow-sm`}>
+      <div className="w-full">
         {/* Section Header */}
         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 ${isMobile ? 'mb-2 sm:mb-6 pb-1.5 sm:pb-3' : 'mb-3 sm:mb-6 pb-2.5 sm:pb-3'} border-b border-emerald-100/60`}>
           <div>
@@ -263,8 +263,8 @@ export default function VisualNestedSubcategoriesSection({
           )}
         </div>
 
-        {/* Responsive Grid: Minimum 3 cards in a single row on mobile with minimized horizontal gap */}
-        <div className={`grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 ${isMobile ? 'gap-1.5' : 'gap-2'} sm:gap-4 lg:gap-5`}>
+        {/* Responsive Grid: Cards with zero horizontal spacing and gaps */}
+        <div className={`grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-0 ${isMobile ? 'gap-y-2' : 'gap-y-4'}`}>
           {displayedItems.map((item, index) => (
             <VisualNestedSubcategoryCard
               key={item.id || index}

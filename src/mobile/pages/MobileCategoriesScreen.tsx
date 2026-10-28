@@ -179,7 +179,7 @@ export default function MobileCategoriesScreen() {
       {/* Main Split Layout: Left Sidebar + Right Content Area */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar (Categories with Unified Logo Style) */}
-        <div className="w-20 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1 shrink-0 min-h-0">
+        <div className="w-22 sm:w-24 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1 shrink-0 min-h-0">
           {categories.map((cat) => {
             const isActive = cat.id === activeCategoryId;
             return (
@@ -202,11 +202,11 @@ export default function MobileCategoriesScreen() {
                 <CategoryLogo
                   name={cat.name}
                   icon={cat.icon}
-                  size="sm"
+                  size="md"
                   active={isActive}
                 />
 
-                <span className="text-[9px] leading-tight line-clamp-2 px-0.5 mt-0.5 font-bold">
+                <span className="text-[10.5px] sm:text-xs leading-tight line-clamp-2 px-0.5 mt-1 font-bold">
                   {cat.name}
                 </span>
               </motion.button>
@@ -231,11 +231,11 @@ export default function MobileCategoriesScreen() {
                     <CategoryLogo
                       name={selectedCategory.name}
                       icon={selectedCategory.icon}
-                      size="sm"
+                      size="md"
                       active={true}
                     />
                     <div>
-                      <h3 className="text-xs font-black text-gray-900">
+                      <h3 className="text-sm font-black text-gray-900">
                         {selectedCategory.name}
                       </h3>
                     </div>
@@ -276,17 +276,19 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 2: Subcategories Grid - Responsive 2-row layout with decreased size and minimized gaps */}
+                {/* Level 2: Subcategories Grid - Increased size, zero horizontal gap, container removed */}
                 {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
-                  <div className="space-y-1.5 bg-yellow-50/20 rounded-2xl p-2 border border-yellow-100/60">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between px-0.5">
-                      <span className="text-[11px] font-black text-gray-900">
+                      <span className="text-xs font-black text-gray-900">
                         {selectedCategory.name} Subcategories
                       </span>
                     </div>
                     <ResponsiveCategoryGrid
                       items={selectedCategory.subcategories}
-                      compact={true}
+                      boxSizeClass="w-12 h-12 sm:w-14 sm:h-14"
+                      iconSizeClass="w-6.5 h-6.5 sm:w-7 sm:h-7"
+                      textSizeClass="text-[10.5px] sm:text-xs"
                       onItemClick={(sub) => {
                         const catSlug = getCategorySlug(selectedCategory);
                         const subSlug = getSubcategorySlug(sub);

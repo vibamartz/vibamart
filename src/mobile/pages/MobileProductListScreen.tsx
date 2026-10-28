@@ -795,7 +795,7 @@ export default function MobileProductListScreen() {
 
       {/* Collections Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
       {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
-        <div className="bg-white rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-yellow-100 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
               {currentCategoryObj.name}
@@ -811,7 +811,7 @@ export default function MobileProductListScreen() {
 
       {/* Dedicated Level 3 Deep Collections Showcase (if currentNestedSubCategoryObj has children) */}
       {currentNestedSubCategoryObj && currentNestedSubCategoryObj.subcategories && currentNestedSubCategoryObj.subcategories.length > 0 && (
-        <div className="bg-emerald-50/60 rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-emerald-100 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -854,7 +854,7 @@ export default function MobileProductListScreen() {
 
       {/* Dedicated Collections Showcase (Shown ONLY for active Subcategory) */}
       {!currentNestedSubCategoryObj && currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.length > 0 && (
-        <div className="bg-emerald-50/60 rounded-[22px] p-2.5 sm:p-3 shadow-sm border border-emerald-100 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />

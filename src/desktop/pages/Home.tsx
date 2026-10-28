@@ -278,7 +278,7 @@ export default function Home() {
 
             <div
               ref={categoryScrollRef}
-              className="flex gap-3.5 overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
+              className="flex gap-0 overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {activeCategoryObj.subcategories.map((sub) => {
@@ -288,18 +288,18 @@ export default function Home() {
                   <Link
                     key={sub.id}
                     to={`/categories/${catSlug}/${subSlug}`}
-                    className="group/item flex flex-col items-center text-center shrink-0 w-24 sm:w-28 snap-start cursor-pointer transition-all"
+                    className="group/item flex flex-col items-center text-center shrink-0 w-28 sm:w-32 snap-start cursor-pointer transition-all"
                   >
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center bg-gray-50/80">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden mb-2 group-hover/item:scale-105 transition-transform flex items-center justify-center bg-gray-50/80">
                       {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                         <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
-                          {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", false)}
+                          {renderCategoryFallbackIcon(sub.name, sub.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}
                         </div>
                       )}
                     </div>
-                    <h3 className="text-xs font-bold text-gray-800 group-hover/item:text-emerald-700 transition-colors line-clamp-1 w-full px-0.5 text-center">
+                    <h3 className="text-sm font-bold text-gray-800 group-hover/item:text-emerald-700 transition-colors line-clamp-1 w-full px-0.5 text-center">
                       {sub.name}
                     </h3>
                   </Link>

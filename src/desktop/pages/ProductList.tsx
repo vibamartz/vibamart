@@ -927,14 +927,14 @@ export default function ProductList() {
 
           {/* Categories/Collections Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
           {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
-            <div className="py-4 mb-4 border-t border-b border-gray-100 space-y-2.5">
+            <div className="py-2 mb-4 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">
                   {matchedCategory.name}
                 </span>
               </div>
               <div
-                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-1"
+                className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-1"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {matchedCategory.subcategories.map(sub => {
@@ -947,20 +947,20 @@ export default function ProductList() {
                       onClick={() => {
                         navigate(`/categories/${catSlug}/${subSlug}`);
                       }}
-                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
                     >
-                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                      <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
                         isSubActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                           <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isSubActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {renderCategoryFallbackIcon(sub.name, sub.icon, "w-8 h-8 sm:w-10 sm:h-10", isSubActive)}
+                            {renderCategoryFallbackIcon(sub.name, sub.icon, "w-10 h-10 sm:w-12 sm:h-12", isSubActive)}
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
+                      <span className={`text-sm sm:text-base font-extrabold text-center max-w-[120px] leading-tight transition-colors line-clamp-1 ${
                         isSubActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
                         {sub.name}
@@ -974,7 +974,7 @@ export default function ProductList() {
 
           {/* Deep Collections Showcase (if matchedNestedSubcategory has children) */}
           {matchedNestedSubcategory && matchedNestedSubcategory.subcategories && matchedNestedSubcategory.subcategories.length > 0 && (
-            <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
+            <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
@@ -999,7 +999,7 @@ export default function ProductList() {
               </div>
 
               <div
-                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-2"
+                className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {matchedNestedSubcategory.subcategories.map(child => {
@@ -1018,20 +1018,20 @@ export default function ProductList() {
                           navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}/${childSlug}`);
                         }
                       }}
-                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
                     >
-                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                      <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
                         isChildActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {child.image && (child.image.startsWith('http') || child.image.startsWith('data:') || child.image.startsWith('/')) ? (
                           <img src={child.image} alt={child.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isChildActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {renderCategoryFallbackIcon(child.name, child.icon, "w-8 h-8 sm:w-10 sm:h-10", isChildActive)}
+                            {renderCategoryFallbackIcon(child.name, child.icon, "w-10 h-10 sm:w-12 sm:h-12", isChildActive)}
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
+                      <span className={`text-sm sm:text-base font-extrabold text-center max-w-[120px] leading-tight transition-colors line-clamp-1 ${
                         isChildActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
                         {child.name}
@@ -1045,7 +1045,7 @@ export default function ProductList() {
 
           {/* Dedicated Collections Showcase for the active Subcategory (Level 2) */}
           {!matchedNestedSubcategory && matchedSubcategory && matchedSubcategory.subcategories && matchedSubcategory.subcategories.length > 0 && (
-            <div className="p-5 mb-6 rounded-3xl bg-emerald-50/40 border border-emerald-100 space-y-3">
+            <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
@@ -1069,7 +1069,7 @@ export default function ProductList() {
               </div>
 
               <div
-                className="flex gap-4 overflow-x-auto hide-scrollbar no-scrollbar py-2"
+                className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {matchedSubcategory.subcategories.map(nested => {
@@ -1087,20 +1087,20 @@ export default function ProductList() {
                           navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
                         }
                       }}
-                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-24 sm:w-28 cursor-pointer"
+                      className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
                     >
-                      <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
+                      <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
                         isNestedActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
                           <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className={`w-full h-full flex items-center justify-center ${isNestedActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {renderCategoryFallbackIcon(nested.name, nested.icon, "w-8 h-8 sm:w-10 sm:h-10", isNestedActive)}
+                            {renderCategoryFallbackIcon(nested.name, nested.icon, "w-10 h-10 sm:w-12 sm:h-12", isNestedActive)}
                           </div>
                         )}
                       </div>
-                      <span className={`text-xs sm:text-sm font-extrabold text-center max-w-[100px] leading-tight transition-colors line-clamp-1 ${
+                      <span className={`text-sm sm:text-base font-extrabold text-center max-w-[120px] leading-tight transition-colors line-clamp-1 ${
                         isNestedActive ? 'text-emerald-900 font-black' : 'text-gray-700 group-hover:text-emerald-700'
                       }`}>
                         {nested.name}

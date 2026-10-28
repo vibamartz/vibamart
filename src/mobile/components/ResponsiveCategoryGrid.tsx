@@ -37,13 +37,13 @@ export default function ResponsiveCategoryGrid<T extends CategoryGridItem = Cate
 }: ResponsiveCategoryGridProps<T>) {
   if (!items || items.length === 0) return null;
 
-  // Determine styling based on compactness
-  const actualBoxSize = boxSizeClass || (compact ? 'w-10 h-10' : 'w-11 h-11 sm:w-12 sm:h-12');
-  const actualIconSize = iconSizeClass || (compact ? 'w-5 h-5' : 'w-5 h-5 sm:w-6 sm:h-6');
-  const actualTextSize = textSizeClass || (compact ? 'text-[9px]' : 'text-[10px]');
-  const actualGapX = gapXClass || (compact ? 'gap-x-1' : 'gap-x-1.5');
+  // Increased size for subcategories and nested subcategories everywhere
+  const actualBoxSize = boxSizeClass || (compact ? 'w-13 h-13 sm:w-14 sm:h-14' : 'w-15 h-15 sm:w-16 sm:h-16');
+  const actualIconSize = iconSizeClass || (compact ? 'w-6 h-6 sm:w-7 sm:h-7' : 'w-7 h-7 sm:w-8 sm:h-8');
+  const actualTextSize = textSizeClass || (compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm');
+  const actualGapX = gapXClass || 'gap-x-0';
   const actualGapY = gapYClass || (compact ? 'gap-y-1.5' : 'gap-y-2');
-  const gapPx = compact ? 4 : 6;
+  const gapPx = 0;
 
   const renderItemNode = (item: T, idx: number | string) => {
     const selected = isSelected ? Boolean(isSelected(item)) : false;
@@ -53,7 +53,7 @@ export default function ResponsiveCategoryGrid<T extends CategoryGridItem = Cate
       <button
         key={item.id || item.slug || idx}
         onClick={() => onItemClick(item)}
-        className="flex flex-col items-center justify-start gap-1 shrink-0 w-full min-w-0 cursor-pointer active:scale-95 transition-all text-center select-none group"
+        className="flex flex-col items-center justify-start gap-1 shrink-0 w-full min-w-0 cursor-pointer active:scale-95 transition-all text-center select-none group px-0"
       >
         <div
           className={`${actualBoxSize} rounded-xl overflow-hidden flex items-center justify-center shrink-0 transition-all ${
