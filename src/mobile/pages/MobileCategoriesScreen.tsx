@@ -415,7 +415,7 @@ export default function MobileCategoriesScreen() {
                 <TrendingProductsTwoRowSection
                   isMobile={true}
                   categoryId={selectedCategory.id}
-                  products={categoryProducts}
+                  products={products}
                 />
 
                 {/* More Products for You (LAST SECTION ON EVERY PAGE) */}

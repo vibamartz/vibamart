@@ -33,10 +33,20 @@ export default function TrendingProductsTwoRowSection({
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (initialProducts && initialProducts.length > 0) {
-      setProducts(initialProducts);
-      setLoading(false);
-      return;
+    // On desktop, preserve original behavior exactly
+    if (!isMobile) {
+      if (initialProducts && initialProducts.length > 0) {
+        setProducts(initialProducts);
+        setLoading(false);
+        return;
+      }
+    } else {
+      // On mobile, if caller provided a rich set of products (at least 20), use it directly
+      if (initialProducts && initialProducts.length >= 20) {
+        setProducts(initialProducts);
+        setLoading(false);
+        return;
+      }
     }
 
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -54,30 +64,66 @@ export default function TrendingProductsTwoRowSection({
     });
 
     return () => unsubscribe();
-  }, [initialProducts]);
+  }, [initialProducts, isMobile]);
 
   // Filter or prioritize products
   const displayProducts = useMemo(() => {
     const targetFilter = categorySlug || categoryId;
-    let list = [...products];
 
-    if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
-      const catFiltered = list.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
-      if (catFiltered.length > 0) {
-        list = catFiltered;
+    // Desktop Mode: Keep 100% original behavior unchanged
+    if (!isMobile) {
+      let list = [...products];
+
+      if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
+        const catFiltered = list.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
+        if (catFiltered.length > 0) {
+          list = catFiltered;
+        }
       }
+
+      list.sort((a, b) => {
+        const rateA = a.rating || 0;
+        const rateB = b.rating || 0;
+        if (rateB !== rateA) return rateB - rateA;
+        return (b.discountPercentage || 0) - (a.discountPercentage || 0);
+      });
+
+      return list.slice(0, 24);
     }
 
-    // Sort by rating or discounts for trending feel
-    list.sort((a, b) => {
+    // Mobile Mode: Ensure both rows are populated and never show 1 product in both rows
+    const productMap = new Map<string, Product>();
+    (initialProducts || []).forEach(p => { if (p && p.id) productMap.set(p.id, p); });
+    products.forEach(p => { if (p && p.id && !productMap.has(p.id)) productMap.set(p.id, p); });
+    const allAvailable = Array.from(productMap.values());
+
+    const sortByTrending = (a: Product, b: Product) => {
       const rateA = a.rating || 0;
       const rateB = b.rating || 0;
       if (rateB !== rateA) return rateB - rateA;
       return (b.discountPercentage || 0) - (a.discountPercentage || 0);
-    });
+    };
 
+    if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
+      const catFiltered = allAvailable.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
+      catFiltered.sort(sortByTrending);
+
+      if (catFiltered.length >= 8) {
+        return catFiltered.slice(0, 24);
+      } else {
+        // When there are few products in this category on mobile (e.g. 1 or 2 products),
+        // place category products first, then fill remaining slots with other top trending products
+        // so that both rows are full, scrollable, and never show a broken 1-product layout.
+        const catProductIds = new Set(catFiltered.map(p => p.id));
+        const otherTrending = allAvailable.filter(p => !catProductIds.has(p.id)).sort(sortByTrending);
+        return [...catFiltered, ...otherTrending].slice(0, 24);
+      }
+    }
+
+    const list = [...allAvailable];
+    list.sort(sortByTrending);
     return list.slice(0, 24);
-  }, [products, categoryId, categorySlug, categories]);
+  }, [products, initialProducts, categoryId, categorySlug, categories, isMobile]);
 
   // Group into columns of 2 for the 2-row layout
   const columns = useMemo(() => {
@@ -100,7 +146,7 @@ export default function TrendingProductsTwoRowSection({
     }
   };
 
-  if (!loading && displayProducts.length === 0) {
+  if (!loading && (isMobile ? displayProducts.length < 2 : displayProducts.length === 0)) {
     return null;
   }
 
