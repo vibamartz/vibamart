@@ -16,6 +16,7 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import ProductCard from '../../desktop/components/ProductCard';
+import MobileProductCardItem from '../components/MobileProductCardItem';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
 import UniversalVariantSelector from '../../shared/components/UniversalVariantSelector';
 import { getBestInitialSelection, getProductVariantAttributes, normalizeAttributeKey, fetchFamilyColorMatrix, getProductSpecificationsForSelection, getProductSpecificationsForSize } from '../../shared/utilities/variantMatrixUtils';
@@ -1043,6 +1044,7 @@ export default function MobileProductDetailScreen() {
 function MobileRecentlyViewed({ currentProductId }: { currentProductId: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -1078,8 +1080,11 @@ function MobileRecentlyViewed({ currentProductId }: { currentProductId: string }
       </div>
       <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {products.map(p => (
-          <div key={`recent-${p.id}`} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
-            <ProductCard product={p} />
+          <div key={`recent-${p.id}`} className="w-[135px] sm:w-[155px] h-[215px] sm:h-[235px] shrink-0 snap-start flex flex-col">
+            <MobileProductCardItem
+              product={p}
+              onCardClick={() => navigate(`/products/${getProductSlug(p)}`)}
+            />
           </div>
         ))}
       </div>

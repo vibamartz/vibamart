@@ -57,7 +57,7 @@ function MobileRecentlyViewedSection() {
       {loading ? (
         <div className="flex overflow-x-auto gap-2.5 hide-scrollbar py-1 min-w-0 w-full">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="w-[135px] sm:w-[150px] shrink-0 bg-gray-50 rounded-xl p-2 border border-gray-100 animate-pulse space-y-2">
+            <div key={i} className="w-[135px] sm:w-[155px] h-[225px] sm:h-[245px] shrink-0 bg-gray-50 rounded-xl p-2 border border-gray-100 animate-pulse flex flex-col justify-between">
               <div className="w-full aspect-square bg-gray-200 rounded-lg" />
               <div className="h-3 bg-gray-200 rounded w-3/4" />
               <div className="h-3 bg-gray-200 rounded w-1/2" />
@@ -75,14 +75,14 @@ function MobileRecentlyViewedSection() {
               <div
                 key={product.id}
                 onClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                className="w-[135px] sm:w-[150px] shrink-0 snap-start bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer space-y-1 flex flex-col justify-between"
+                className="w-[135px] sm:w-[155px] h-[225px] sm:h-[245px] shrink-0 snap-start bg-gray-50 rounded-xl p-2 border border-gray-100 cursor-pointer flex flex-col justify-between"
               >
-                <div>
-                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center">
+                <div className="min-w-0 flex flex-col flex-1">
+                  <div className="w-full aspect-square rounded-lg overflow-hidden bg-white p-1 flex items-center justify-center shrink-0">
                     <img src={product.images?.[0]} alt={product.name} className="w-full h-full object-contain" />
                   </div>
                   <p className="text-[11px] font-bold text-gray-900 line-clamp-1 truncate mt-1">{product.name}</p>
-                  <p className="text-xs font-black text-emerald-700">₹{(product.discountPrice || product.price).toLocaleString()}</p>
+                  <p className="text-xs font-black text-emerald-700 mt-auto pt-0.5">₹{(product.discountPrice || product.price).toLocaleString()}</p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -95,7 +95,7 @@ function MobileRecentlyViewedSection() {
                       else toast.error("Could not add to cart");
                     }
                   }}
-                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
+                  className={`w-full py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shrink-0 mt-1.5 ${isInCart ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-emerald-600 text-white shadow-xs'
                     }`}
                 >
                   {isInCart ? 'In Cart' : 'Add to Cart'}

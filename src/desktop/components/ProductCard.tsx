@@ -11,9 +11,10 @@ interface ProductCardProps {
   key?: any;
   showActionsAlways?: boolean;
   hideButtons?: boolean;
+  className?: string;
 }
 
-export default function ProductCard({ product, showActionsAlways = false, hideButtons = false }: ProductCardProps) {
+export default function ProductCard({ product, showActionsAlways = false, hideButtons = false, className = '' }: ProductCardProps) {
   const { addItem, items } = useCartStore();
   const isInCart = items.some(item => item.productId === product.id);
 
@@ -59,7 +60,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
   return (
     <Link 
       to={`/products/${getProductSlug(product)}`}
-      className="block h-full no-underline text-inherit"
+      className={`block h-full no-underline text-inherit ${className}`}
     >
       <motion.div
         whileHover={{ y: -5, scale: 1.02 }}
@@ -94,7 +95,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
                   <span className="text-[11px] text-gray-400 line-through">₹{(product.mrp || product.price).toLocaleString()}</span>
                 )}
               </div>
-              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+              <div className="flex items-center gap-1 mt-0.5 flex-wrap min-h-[16px]">
                 {product.isFreeDelivery !== false && (
                   <p className="text-[9px] text-green-600 font-bold uppercase tracking-wider">Free Delivery</p>
                 )}

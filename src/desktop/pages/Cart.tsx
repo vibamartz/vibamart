@@ -58,12 +58,7 @@ function RecentlyViewedCartSection() {
       {loading ? (
         <div className="flex overflow-x-auto gap-4 hide-scrollbar py-1 min-w-0 w-full">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 bg-white rounded-2xl border border-gray-100 p-3 flex flex-col animate-pulse">
-              <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3" />
-              <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-100 rounded w-1/2 mb-3" />
-              <div className="h-5 bg-gray-100 rounded w-1/3 mt-auto" />
-            </div>
+            <div key={i} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 bg-white rounded-2xl border border-gray-100 p-3 flex flex-col animate-pulse" />
           ))}
         </div>
       ) : products.length === 0 ? (
@@ -71,7 +66,7 @@ function RecentlyViewedCartSection() {
       ) : (
         <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
           {products.map(product => (
-            <div key={product.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+            <div key={product.id} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 snap-start flex flex-col">
               <ProductCard product={product} />
             </div>
           ))}

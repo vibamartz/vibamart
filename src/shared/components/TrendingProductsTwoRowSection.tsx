@@ -33,20 +33,11 @@ export default function TrendingProductsTwoRowSection({
   const navigate = useNavigate();
 
   useEffect(() => {
-    // On desktop, preserve original behavior exactly
-    if (!isMobile) {
-      if (initialProducts && initialProducts.length > 0) {
-        setProducts(initialProducts);
-        setLoading(false);
-        return;
-      }
-    } else {
-      // On mobile, if caller provided a rich set of products (at least 20), use it directly
-      if (initialProducts && initialProducts.length >= 20) {
-        setProducts(initialProducts);
-        setLoading(false);
-        return;
-      }
+    // If caller provided a rich set of products (at least 20), use it directly
+    if (initialProducts && initialProducts.length >= 20) {
+      setProducts(initialProducts);
+      setLoading(false);
+      return;
     }
 
     // Always fetch full catalog products so we have fallback trending products
@@ -66,34 +57,12 @@ export default function TrendingProductsTwoRowSection({
     });
 
     return () => unsubscribe();
-  }, [initialProducts, isMobile]);
+  }, [initialProducts]);
 
   // Filter or prioritize products
   const displayProducts = useMemo(() => {
     const targetFilter = categorySlug || categoryId;
 
-    // Desktop Mode: Keep 100% original behavior unchanged
-    if (!isMobile) {
-      let list = [...products];
-
-      if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
-        const catFiltered = list.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
-        if (catFiltered.length > 0) {
-          list = catFiltered;
-        }
-      }
-
-      list.sort((a, b) => {
-        const rateA = a.rating || 0;
-        const rateB = b.rating || 0;
-        if (rateB !== rateA) return rateB - rateA;
-        return (b.discountPercentage || 0) - (a.discountPercentage || 0);
-      });
-
-      return list.slice(0, 24);
-    }
-
-    // Mobile Mode: Ensure both rows are populated and never show 1 product in both rows
     const productMap = new Map<string, Product>();
     (initialProducts || []).forEach(p => { if (p && p.id) productMap.set(p.id, p); });
     products.forEach(p => { if (p && p.id && !productMap.has(p.id)) productMap.set(p.id, p); });
@@ -113,7 +82,7 @@ export default function TrendingProductsTwoRowSection({
       if (catFiltered.length >= 8) {
         return catFiltered.slice(0, 24);
       } else {
-        // When there are few products in this category on mobile (e.g. 1 or 2 products),
+        // When there are few products in this category,
         // place category products first, then fill remaining slots with other top trending products
         // so that both rows are full, scrollable, and never show a broken 1-product layout.
         const catProductIds = new Set(catFiltered.map(p => p.id));
@@ -125,7 +94,7 @@ export default function TrendingProductsTwoRowSection({
     const list = [...allAvailable];
     list.sort(sortByTrending);
     return list.slice(0, 24);
-  }, [products, initialProducts, categoryId, categorySlug, categories, isMobile]);
+  }, [products, initialProducts, categoryId, categorySlug, categories]);
 
   // Group into columns of 2 for the 2-row layout
   const columns = useMemo(() => {
@@ -179,8 +148,8 @@ export default function TrendingProductsTwoRowSection({
           {loading ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="flex flex-col gap-2 shrink-0 w-[135px] sm:w-[155px]">
-                <div className="w-full h-[180px] bg-gray-100 rounded-[16px] animate-pulse" />
-                <div className="w-full h-[180px] bg-gray-100 rounded-[16px] animate-pulse" />
+                <div className="w-full h-[215px] sm:h-[235px] bg-gray-100 rounded-[16px] animate-pulse" />
+                <div className="w-full h-[215px] sm:h-[235px] bg-gray-100 rounded-[16px] animate-pulse" />
               </div>
             ))
           ) : (
@@ -190,11 +159,12 @@ export default function TrendingProductsTwoRowSection({
                 className="flex flex-col gap-2 shrink-0 w-[135px] sm:w-[155px] snap-start"
               >
                 {col.map(product => (
-                  <MobileProductCardItem
-                    key={`trending-${product.id}`}
-                    product={product}
-                    onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                  />
+                  <div key={`trending-${product.id}`} className="w-full h-[215px] sm:h-[235px] flex flex-col shrink-0">
+                    <MobileProductCardItem
+                      product={product}
+                      onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                    />
+                  </div>
                 ))}
               </div>
             ))
@@ -245,9 +215,9 @@ export default function TrendingProductsTwoRowSection({
         >
           {loading ? (
             Array(5).fill(0).map((_, i) => (
-              <div key={i} className="flex flex-col gap-4 shrink-0 w-[185px]">
-                <div className="w-full h-[230px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
-                <div className="w-full h-[230px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
+              <div key={i} className="flex flex-col gap-4 shrink-0 w-[175px] sm:w-[190px] md:w-[210px]">
+                <div className="w-full h-[285px] sm:h-[300px] md:h-[320px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
+                <div className="w-full h-[285px] sm:h-[300px] md:h-[320px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
               </div>
             ))
           ) : (
@@ -257,7 +227,7 @@ export default function TrendingProductsTwoRowSection({
                 className="flex flex-col gap-4 shrink-0 w-[175px] sm:w-[190px] md:w-[210px] snap-start"
               >
                 {col.map(product => (
-                  <div key={`trending-${product.id}`} className="h-full flex flex-col">
+                  <div key={`trending-${product.id}`} className="w-full h-[285px] sm:h-[300px] md:h-[320px] flex flex-col shrink-0">
                     <ProductCard product={product} />
                   </div>
                 ))}

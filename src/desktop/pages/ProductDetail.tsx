@@ -1298,11 +1298,11 @@ function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
       <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
-            <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
+            <div key={i} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 animate-pulse bg-white rounded-2xl border border-gray-100" />
           ))
         ) : (
           products.map(p => (
-            <div key={p.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+            <div key={p.id} className="w-[175px] sm:w-[190px] md:w-[210px] h-[285px] sm:h-[300px] md:h-[320px] shrink-0 snap-start flex flex-col">
               <ProductCard product={p} />
             </div>
           ))

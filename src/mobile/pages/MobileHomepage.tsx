@@ -29,6 +29,7 @@ import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
@@ -442,17 +443,10 @@ export default function MobileHomepage() {
         );
       }
 
-      // 3. Category Filter
-      const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
-      const targetSlug = activeCategorySlug.toLowerCase();
-      const catId = (p.categoryId || '').toLowerCase();
-      const inCats = Array.isArray(p.categories) && p.categories.some(c => {
-        const cl = String(c).toLowerCase();
-        return cl === targetId || cl === targetSlug;
-      });
-      return catId === targetId || catId === targetSlug || inCats;
+      // 3. Category Filter: display all products assigned to that category
+      return isProductAssignedToCategory(p, activeCategorySlug, CATEGORIES);
     });
-  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
+  }, [products, activeCategorySlug, CATEGORIES, selectedSubCatId, selectedNestedSubCatId]);
 
   const displayRecentAndPopular = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));

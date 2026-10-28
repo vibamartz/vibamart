@@ -10,6 +10,7 @@ export interface MobileProductCardItemProps {
   cardRadius?: string;
   is3CardLayout?: boolean;
   hideButtons?: boolean;
+  className?: string;
   onAddToCart?: (e: React.MouseEvent) => void;
   onBuyNow?: (e: React.MouseEvent) => void;
   onCardClick?: () => void | Promise<void>;
@@ -19,6 +20,7 @@ export default function MobileProductCardItem({
   product,
   cardRadius = "rounded-[16px]",
   is3CardLayout = false,
+  className = '',
   onCardClick
 }: MobileProductCardItemProps) {
   const navigate = useNavigate();
@@ -90,7 +92,7 @@ export default function MobileProductCardItem({
     <motion.div
       whileTap={{ scale: 0.97 }}
       onClick={handleClick}
-      className={`w-full bg-white ${cardRadius} p-1.5 shadow-xs border border-orange-100/80 flex flex-col snap-start shrink-0 cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0`}
+      className={`w-full h-full bg-white ${cardRadius} p-1.5 shadow-xs border border-orange-100/80 flex flex-col snap-start shrink-0 cursor-pointer relative overflow-hidden group hover:shadow-md transition-all text-gray-900 min-w-0 ${className}`}
     >
       {/* Product Image */}
       <div className="relative w-full aspect-square rounded-[10px] overflow-hidden bg-white p-1 flex items-center justify-center mb-1 shrink-0">
@@ -109,7 +111,7 @@ export default function MobileProductCardItem({
       </div>
 
       {/* Brand & Name (Max 1 line) */}
-      <div className="flex flex-col flex-1 min-w-0 mb-0.5">
+      <div className="flex flex-col min-w-0 mb-0.5">
         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest truncate leading-none">
           {product.brand || 'ViBa Select'}
         </span>
@@ -120,7 +122,7 @@ export default function MobileProductCardItem({
 
       {/* Pricing */}
       <div className="mt-auto pt-0.5 border-t border-gray-100 min-w-0">
-        <div className="flex items-baseline justify-between gap-1 flex-wrap">
+        <div className="flex items-baseline justify-between gap-1 flex-wrap min-h-[26px]">
           <div className="flex items-baseline gap-1">
             <span className="text-xs sm:text-sm font-black text-gray-900">
               ₹{(product.discountPrice || product.price || 0).toLocaleString()}

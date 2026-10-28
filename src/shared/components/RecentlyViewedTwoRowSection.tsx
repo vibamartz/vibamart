@@ -129,8 +129,8 @@ export default function RecentlyViewedTwoRowSection({
           {loading ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="flex flex-col gap-2 shrink-0 w-[135px] sm:w-[155px]">
-                <div className="w-full h-[180px] bg-gray-100 rounded-[16px] animate-pulse" />
-                <div className="w-full h-[180px] bg-gray-100 rounded-[16px] animate-pulse" />
+                <div className="w-full h-[215px] sm:h-[235px] bg-gray-100 rounded-[16px] animate-pulse" />
+                <div className="w-full h-[215px] sm:h-[235px] bg-gray-100 rounded-[16px] animate-pulse" />
               </div>
             ))
           ) : (
@@ -140,11 +140,12 @@ export default function RecentlyViewedTwoRowSection({
                 className="flex flex-col gap-2 shrink-0 w-[135px] sm:w-[155px] snap-start"
               >
                 {col.map(product => (
-                  <MobileProductCardItem
-                    key={`recent-${product.id}`}
-                    product={product}
-                    onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
-                  />
+                  <div key={`recent-${product.id}`} className="w-full h-[215px] sm:h-[235px] flex flex-col shrink-0">
+                    <MobileProductCardItem
+                      product={product}
+                      onCardClick={() => navigate(`/products/${getProductSlug(product)}`)}
+                    />
+                  </div>
                 ))}
               </div>
             ))
@@ -195,9 +196,9 @@ export default function RecentlyViewedTwoRowSection({
         >
           {loading ? (
             Array(5).fill(0).map((_, i) => (
-              <div key={i} className="flex flex-col gap-4 shrink-0 w-[185px]">
-                <div className="w-full h-[230px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
-                <div className="w-full h-[230px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
+              <div key={i} className="flex flex-col gap-4 shrink-0 w-[175px] sm:w-[190px] md:w-[210px]">
+                <div className="w-full h-[285px] sm:h-[300px] md:h-[320px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
+                <div className="w-full h-[285px] sm:h-[300px] md:h-[320px] bg-white rounded-2xl p-3 border border-gray-100 animate-pulse" />
               </div>
             ))
           ) : (
@@ -207,7 +208,7 @@ export default function RecentlyViewedTwoRowSection({
                 className="flex flex-col gap-4 shrink-0 w-[175px] sm:w-[190px] md:w-[210px] snap-start"
               >
                 {col.map(product => (
-                  <div key={`recent-${product.id}`} className="h-full flex flex-col">
+                  <div key={`recent-${product.id}`} className="w-full h-[285px] sm:h-[300px] md:h-[320px] flex flex-col shrink-0">
                     <ProductCard product={product} />
                   </div>
                 ))}

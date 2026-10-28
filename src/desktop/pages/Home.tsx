@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
+import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
@@ -134,17 +135,10 @@ export default function Home() {
         );
       }
 
-      // 3. Category Filter
-      const targetId = (activeCategoryObj?.id || activeCategorySlug).toLowerCase();
-      const targetSlug = activeCategorySlug.toLowerCase();
-      const catId = (p.categoryId || '').toLowerCase();
-      const inCats = Array.isArray(p.categories) && p.categories.some(c => {
-        const cl = String(c).toLowerCase();
-        return cl === targetId || cl === targetSlug;
-      });
-      return catId === targetId || catId === targetSlug || inCats;
+      // 3. Category Filter: display all products assigned to that category
+      return isProductAssignedToCategory(p, activeCategorySlug, CATEGORIES);
     });
-  }, [products, activeCategorySlug, activeCategoryObj, selectedSubCatId, selectedNestedSubCatId]);
+  }, [products, activeCategorySlug, CATEGORIES, selectedSubCatId, selectedNestedSubCatId]);
 
   const displayStillLooking = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));
@@ -470,7 +464,7 @@ export default function Home() {
       <TrendingProductsTwoRowSection
         categorySlug={activeCategorySlug}
         categoryId={activeCategoryObj?.id}
-        products={filteredProducts}
+        products={products}
       />
 
       {/* Recently Viewed (Scrollable, Two-Row Section on the Home Page without visible scrollbars) */}

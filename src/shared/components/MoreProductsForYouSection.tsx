@@ -8,7 +8,7 @@ import { isProductAssignedToCategory } from '../../shared/utilities/productCateg
 import { useCategoryStore } from '../../backend/store';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../../mobile/components/MobileProductCardItem';
-import { getProductSlug } from '../../shared/utilities/slug';
+import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
 import { useNavigate } from 'react-router-dom';
 
 interface MoreProductsForYouSectionProps {
@@ -71,6 +71,7 @@ export default function MoreProductsForYouSection({
         String(c.id || '').toLowerCase() === lower ||
         String(c.slug || '').toLowerCase() === lower ||
         String((c as any).seoSlug || '').toLowerCase() === lower ||
+        String(getCategorySlug(c) || '').toLowerCase() === lower ||
         String(c.name || '').toLowerCase() === lower
       );
     }) || null;
