@@ -519,25 +519,19 @@ export class CategoryHierarchyEngine {
       ? new Set(productHierarchyIds.map(id => String(id).toLowerCase()))
       : new Set(Array.from(productHierarchyIds).map(id => String(id).toLowerCase()));
 
-    // Target node lookup prioritizing exact ID or slug
-    let targetNode = this.nodesById.get(filterTrim) || this.nodesBySlug.get(filterLower) || this.nodesBySlug.get(filterSlug);
-    if (!targetNode) {
-      for (const [id, node] of this.nodesById.entries()) {
-        if (id.toLowerCase() === filterLower) {
-          targetNode = node;
-          break;
+    // Target nodes lookup: check all candidate nodes matching ID, slug, or normalized name
+    const candidateNodes = this.getNodes(filterTrim);
+    if (candidateNodes.length > 0) {
+      for (const node of candidateNodes) {
+        if (pIds.has(node.id.toLowerCase())) return true;
+        const descendants = this.descendantIdsMap.get(node.id);
+        if (descendants) {
+          for (const dId of descendants) {
+            if (pIds.has(dId.toLowerCase())) return true;
+          }
         }
       }
-    }
-
-    if (targetNode) {
-      const descendants = this.descendantIdsMap.get(targetNode.id);
-      if (descendants) {
-        for (const dId of descendants) {
-          if (pIds.has(dId.toLowerCase())) return true;
-        }
-      }
-      return pIds.has(targetNode.id.toLowerCase());
+      return false;
     }
 
     // Direct ID check fallback

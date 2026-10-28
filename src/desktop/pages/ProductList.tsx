@@ -398,7 +398,8 @@ export default function ProductList() {
       // SubCategory filter across entire hierarchy
       if (!hasVisualExplicit) {
         const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
-        if (effectiveSubs.length > 0 && !effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems))) return false;
+        const parentCat = selectedCategories.length > 0 ? selectedCategories[0] : (baseCatId || undefined);
+        if (effectiveSubs.length > 0 && !effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat))) return false;
       }
 
       // Brand filter
@@ -572,11 +573,12 @@ export default function ProductList() {
         if (!isAssigned) return false;
       }
 
+      const effectiveCats = isSearchQuery
+        ? (searchParams.get('category') ? [searchParams.get('category')!] : selectedCategories)
+        : (selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []));
+
       // Category filter across entire hierarchy (Skip category filter if viewing explicit banner or explicit visual subcategory)
       if (!matchedBanner && !hasVisualExplicit) {
-        const effectiveCats = isSearchQuery
-          ? (searchParams.get('category') ? [searchParams.get('category')!] : selectedCategories)
-          : (selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []));
         if (effectiveCats.length > 0) {
           if (effectiveCats.includes('all-deals')) {
             const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
@@ -593,17 +595,19 @@ export default function ProductList() {
         const effectiveSubs = isSearchQuery
           ? (searchParams.get('subCategory') ? [searchParams.get('subCategory')!] : selectedSubCategories)
           : (selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []));
+        const effectiveNested = isSearchQuery
+          ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
+          : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
+        const parentCat = effectiveCats.length > 0 ? effectiveCats[0] : (baseCatId || undefined);
+
         if (effectiveSubs.length > 0) {
-          const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems));
+          const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat));
           if (!hasSubMatch) return false;
         }
 
         // Nested SubCategory filter across entire hierarchy
-        const effectiveNested = isSearchQuery
-          ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
-          : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
         if (effectiveNested.length > 0) {
-          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems));
+          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat));
           if (!hasNestedMatch) return false;
         }
       }
@@ -1417,13 +1421,19 @@ export default function ProductList() {
       {/* Trending Products (Scrollable, Two-Row Section on every page without visible scrollbars) */}
       <TrendingProductsTwoRowSection
         categorySlug={rawCat}
-        categoryId={matchedCategory?.id}
+        categoryId={matchedCategory?.id || baseCatId}
+        subCategoryId={selectedSubCategories[0] || baseSubId}
+        subCategorySlug={rawSubCat}
+        nestedSubCategoryId={selectedNestedSubCategories[0] || baseNestedId}
       />
 
       {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
       <MoreProductsForYouSection
         categorySlug={rawCat}
-        categoryId={matchedCategory?.id}
+        categoryId={matchedCategory?.id || baseCatId}
+        subCategoryId={selectedSubCategories[0] || baseSubId}
+        subCategorySlug={rawSubCat}
+        nestedSubCategoryId={selectedNestedSubCategories[0] || baseNestedId}
       />
 
       {/* Mobile Filters Modal */}

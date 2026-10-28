@@ -14,6 +14,9 @@ import { useNavigate } from 'react-router-dom';
 interface MoreProductsForYouSectionProps {
   categoryId?: string;
   categorySlug?: string;
+  subCategoryId?: string;
+  subCategorySlug?: string;
+  nestedSubCategoryId?: string;
   isMobile?: boolean;
   products?: Product[];
 }
@@ -21,6 +24,9 @@ interface MoreProductsForYouSectionProps {
 export default function MoreProductsForYouSection({
   categoryId,
   categorySlug,
+  subCategoryId,
+  subCategorySlug,
+  nestedSubCategoryId,
   isMobile = false,
   products: initialProducts
 }: MoreProductsForYouSectionProps) {
@@ -55,11 +61,16 @@ export default function MoreProductsForYouSection({
 
   // Determine category target and matching category object
   const targetCategorySlug = (categorySlug || categoryId || '').trim();
+  const effectiveSub = (subCategoryId || subCategorySlug || '').trim();
+  const effectiveNested = (nestedSubCategoryId || '').trim();
+
   const isGeneralForYou = (
-    !targetCategorySlug ||
+    (!targetCategorySlug ||
     targetCategorySlug === 'for-you' ||
     targetCategorySlug === 'all' ||
-    targetCategorySlug === 'all-deals'
+    targetCategorySlug === 'all-deals') &&
+    (!effectiveSub || effectiveSub === 'all') &&
+    (!effectiveNested || effectiveNested === 'all')
   );
 
   const matchedCategoryObj = useMemo(() => {
@@ -84,8 +95,14 @@ export default function MoreProductsForYouSection({
     if (isGeneralForYou) {
       return products;
     }
-    return products.filter(p => isProductAssignedToCategory(p, targetCategorySlug, categories));
-  }, [products, isGeneralForYou, targetCategorySlug, categories]);
+    return products.filter(p => isProductAssignedToCategory(
+      p,
+      targetCategorySlug,
+      categories,
+      effectiveSub,
+      effectiveNested
+    ));
+  }, [products, isGeneralForYou, targetCategorySlug, effectiveSub, effectiveNested, categories]);
 
   const categoryDisplayName = matchedCategoryObj?.name || (targetCategorySlug !== 'for-you' ? targetCategorySlug : '');
 

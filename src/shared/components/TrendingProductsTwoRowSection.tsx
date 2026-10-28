@@ -14,6 +14,9 @@ import { getProductSlug } from '../../shared/utilities/slug';
 interface TrendingProductsTwoRowSectionProps {
   categoryId?: string;
   categorySlug?: string;
+  subCategoryId?: string;
+  subCategorySlug?: string;
+  nestedSubCategoryId?: string;
   isMobile?: boolean;
   title?: string;
   products?: Product[];
@@ -22,6 +25,9 @@ interface TrendingProductsTwoRowSectionProps {
 export default function TrendingProductsTwoRowSection({
   categoryId,
   categorySlug,
+  subCategoryId,
+  subCategorySlug,
+  nestedSubCategoryId,
   isMobile = false,
   title = "Trending Products",
   products: initialProducts
@@ -75,8 +81,15 @@ export default function TrendingProductsTwoRowSection({
       return (b.discountPercentage || 0) - (a.discountPercentage || 0);
     };
 
-    if (targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals') {
-      const catFiltered = allAvailable.filter(p => isProductAssignedToCategory(p, targetFilter, categories));
+    const effectiveSub = subCategoryId || subCategorySlug;
+    const hasCatFilter = Boolean(targetFilter && targetFilter !== 'for-you' && targetFilter !== 'all' && targetFilter !== 'all-deals');
+    const hasSubFilter = Boolean(effectiveSub && effectiveSub !== 'all');
+    const hasNestedFilter = Boolean(nestedSubCategoryId && nestedSubCategoryId !== 'all');
+
+    if (hasCatFilter || hasSubFilter || hasNestedFilter) {
+      const catFiltered = allAvailable.filter(p =>
+        isProductAssignedToCategory(p, targetFilter || '', categories, effectiveSub, nestedSubCategoryId)
+      );
       catFiltered.sort(sortByTrending);
       return catFiltered.slice(0, 24);
     }
@@ -84,7 +97,7 @@ export default function TrendingProductsTwoRowSection({
     const list = [...allAvailable];
     list.sort(sortByTrending);
     return list.slice(0, 24);
-  }, [products, initialProducts, categoryId, categorySlug, categories]);
+  }, [products, initialProducts, categoryId, categorySlug, subCategoryId, subCategorySlug, nestedSubCategoryId, categories]);
 
   // Group into columns of 2 for the 2-row layout
   const columns = useMemo(() => {

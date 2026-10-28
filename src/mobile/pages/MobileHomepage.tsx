@@ -429,17 +429,22 @@ export default function MobileHomepage() {
 
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
-        return (
-          p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId))
+        return isProductAssignedToCategory(
+          p,
+          activeCategorySlug,
+          CATEGORIES,
+          selectedSubCatId || undefined,
+          selectedNestedSubCatId
         );
       }
 
       // 2. Subcategory Filter
       if (selectedSubCatId) {
-        return (
-          p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId))
+        return isProductAssignedToCategory(
+          p,
+          activeCategorySlug,
+          CATEGORIES,
+          selectedSubCatId
         );
       }
 
@@ -970,6 +975,8 @@ export default function MobileHomepage() {
         isMobile={true}
         categorySlug={activeCategorySlug}
         categoryId={activeCategoryObj?.id}
+        subCategoryId={selectedSubCatId || undefined}
+        nestedSubCategoryId={selectedNestedSubCatId || undefined}
         products={products}
       />
 
@@ -991,6 +998,8 @@ export default function MobileHomepage() {
         isMobile={true}
         categorySlug={activeCategorySlug}
         categoryId={activeCategoryObj?.id}
+        subCategoryId={selectedSubCatId || undefined}
+        nestedSubCategoryId={selectedNestedSubCatId || undefined}
         products={products}
       />
 

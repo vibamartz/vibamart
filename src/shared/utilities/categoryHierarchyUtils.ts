@@ -305,7 +305,8 @@ export function isProductInHierarchy(
   product: Product,
   targetFilter: string,
   categories: Category[],
-  visualItems: VisualNestedSubcategory[] = []
+  visualItems: VisualNestedSubcategory[] = [],
+  parentCategoryFilter?: string
 ): boolean {
   if (!product || !targetFilter) return false;
   const filterTrim = targetFilter.trim();
@@ -315,6 +316,8 @@ export function isProductInHierarchy(
 
   const filterLower = filterTrim.toLowerCase();
   const filterSlug = createSlug(filterTrim).toLowerCase();
+  const parentFilterTrim = parentCategoryFilter ? parentCategoryFilter.trim().toLowerCase() : '';
+  const parentFilterSlug = parentCategoryFilter ? createSlug(parentCategoryFilter).toLowerCase() : '';
 
   // 1. Visual Showcase Match: Check if targetFilter corresponds to a Visual Nested Subcategory
   for (const v of visualItems) {
@@ -333,6 +336,8 @@ export function isProductInHierarchy(
   interface MatchedHierarchyNode {
     id: string;
     level: CategoryHierarchyLevel;
+    parentCategoryId?: string;
+    parentSubCategoryId?: string;
     descendantSubIds: Set<string>;
     descendantNestedIds: Set<string>;
   }
@@ -344,7 +349,16 @@ export function isProductInHierarchy(
     const catId = String(cat.id || '').toLowerCase();
     const catSlug = String(cat.slug || '').toLowerCase();
     const catSeoSlug = String((cat as any).seoSlug || '').toLowerCase();
-    const isCatMatch = catId === filterLower || catSlug === filterLower || (catSeoSlug && catSeoSlug === filterLower) || catSlug === filterSlug;
+    const catNameSlug = cat.name ? createSlug(cat.name).toLowerCase() : '';
+    const isCatMatch = catId === filterLower || catSlug === filterLower || (catSeoSlug && catSeoSlug === filterLower) || (catNameSlug && catNameSlug === filterSlug);
+
+    const isParentCatScope = !parentFilterTrim ||
+      parentFilterTrim === 'all' ||
+      parentFilterTrim === 'all-deals' ||
+      catId === parentFilterTrim ||
+      catSlug === parentFilterTrim ||
+      (catSeoSlug && catSeoSlug === parentFilterTrim) ||
+      (catNameSlug && catNameSlug === parentFilterSlug);
 
     const catSubIds = new Set<string>();
     const catNestedIds = new Set<string>();
@@ -355,6 +369,7 @@ export function isProductInHierarchy(
         const subId = String(sub.id || '').toLowerCase();
         const subSlug = String(sub.slug || '').toLowerCase();
         const subSeoSlug = String((sub as any).seoSlug || '').toLowerCase();
+        const subNameSlug = sub.name ? createSlug(sub.name).toLowerCase() : '';
         catSubIds.add(subId);
 
         const subNestedIds = new Set<string>();
@@ -364,29 +379,37 @@ export function isProductInHierarchy(
             const nestedId = String(nested.id || '').toLowerCase();
             const nestedSlug = String(nested.slug || '').toLowerCase();
             const nestedSeoSlug = String((nested as any).seoSlug || '').toLowerCase();
+            const nestedNameSlug = nested.name ? createSlug(nested.name).toLowerCase() : '';
             catNestedIds.add(nestedId);
             subNestedIds.add(nestedId);
 
-            const isNestedMatch = nestedId === filterLower || nestedSlug === filterLower || (nestedSeoSlug && nestedSeoSlug === filterLower) || nestedSlug === filterSlug;
-            if (isNestedMatch) {
-              matchedNodes.push({
-                id: String(nested.id || nestedId),
-                level: 'nested_subcategory',
-                descendantSubIds: new Set(),
-                descendantNestedIds: new Set([nestedId])
-              });
+            if (isParentCatScope) {
+              const isNestedMatch = nestedId === filterLower || nestedSlug === filterLower || (nestedSeoSlug && nestedSeoSlug === filterLower) || (nestedNameSlug && nestedNameSlug === filterSlug);
+              if (isNestedMatch) {
+                matchedNodes.push({
+                  id: String(nested.id || nestedId),
+                  level: 'nested_subcategory',
+                  parentCategoryId: String(cat.id || catId),
+                  parentSubCategoryId: String(sub.id || subId),
+                  descendantSubIds: new Set(),
+                  descendantNestedIds: new Set([nestedId])
+                });
+              }
             }
           }
         }
 
-        const isSubMatch = subId === filterLower || subSlug === filterLower || (subSeoSlug && subSeoSlug === filterLower) || subSlug === filterSlug;
-        if (isSubMatch) {
-          matchedNodes.push({
-            id: String(sub.id || subId),
-            level: 'subcategory',
-            descendantSubIds: new Set([subId]),
-            descendantNestedIds: subNestedIds
-          });
+        if (isParentCatScope) {
+          const isSubMatch = subId === filterLower || subSlug === filterLower || (subSeoSlug && subSeoSlug === filterLower) || (subNameSlug && subNameSlug === filterSlug);
+          if (isSubMatch) {
+            matchedNodes.push({
+              id: String(sub.id || subId),
+              level: 'subcategory',
+              parentCategoryId: String(cat.id || catId),
+              descendantSubIds: new Set([subId]),
+              descendantNestedIds: subNestedIds
+            });
+          }
         }
       }
     }
@@ -435,6 +458,10 @@ export function isProductInHierarchy(
           if (node.descendantNestedIds.has(nid)) return true;
         }
       } else if (node.level === 'subcategory') {
+        // Enforce parent branch isolation: Product must belong to the subcategory's parent category
+        if (node.parentCategoryId && pCatIds.size > 0 && !pCatIds.has(node.parentCategoryId.toLowerCase())) {
+          continue;
+        }
         // Product must be assigned to this exact subcategory ID
         if (pSubIds.has(nodeId)) return true;
         // Or product is explicitly assigned to a nested subcategory under this subcategory
@@ -442,6 +469,13 @@ export function isProductInHierarchy(
           if (node.descendantNestedIds.has(nid)) return true;
         }
       } else if (node.level === 'nested_subcategory' || node.level === 'deep_subcategory') {
+        // Enforce parent branch isolation: Product must belong to parent category and parent subcategory
+        if (node.parentCategoryId && pCatIds.size > 0 && !pCatIds.has(node.parentCategoryId.toLowerCase())) {
+          continue;
+        }
+        if (node.parentSubCategoryId && pSubIds.size > 0 && !pSubIds.has(node.parentSubCategoryId.toLowerCase())) {
+          continue;
+        }
         // Product must be assigned to this exact nested subcategory ID
         if (pNestedIds.has(nodeId)) return true;
       }
@@ -457,11 +491,6 @@ export function isProductInHierarchy(
   return false;
 }
 
-
-/**
- * Get all hierarchy IDs (category, subcategory, nested, visual, and all ancestor IDs)
- * for a product.
- */
 export function getProductHierarchyIds(
   product: Product,
   categories: Category[],

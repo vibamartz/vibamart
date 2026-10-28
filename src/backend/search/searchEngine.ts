@@ -38,6 +38,8 @@ function checkGenderMatch(doc: IndexedProductDoc, targetGender: string): boolean
     doc.categoryName + ' ' +
     (doc.subCategoryName || '') + ' ' +
     (doc.nestedSubCategoryName || '') + ' ' +
+    (doc.allCategoryNames || '') + ' ' +
+    (doc.categoryHierarchyIds ? doc.categoryHierarchyIds.join(' ') : '') + ' ' +
     doc.tags + ' ' +
     doc.description + ' ' +
     doc.specifications
@@ -983,42 +985,7 @@ export class ViBaSearchEngine {
         const cat = semanticIntent.detectedFilters.category.toLowerCase();
         const matchesHierarchy = this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, cat);
         if (!matchesHierarchy) {
-          const docCatText = (doc.categoryName + ' ' + (doc.subCategoryName || '') + ' ' + (doc.nestedSubCategoryName || '') + ' ' + doc.name + ' ' + doc.tags).toLowerCase();
-          if (cat === 'kurtis') {
-            if (!docCatText.includes('kurti') && !docCatText.includes('kurta')) continue;
-          } else if (cat === 't-shirts') {
-            if (!docCatText.includes('t-shirt') && !docCatText.includes('tshirt') && !docCatText.includes('tee')) continue;
-          } else if (cat === 'shirts') {
-            const hasShirtWord = /\bshirts?\b/i.test(docCatText);
-            const isTShirt = /\b(?:t-?shirts?|tshrts?|tees?)\b/i.test(docCatText) ||
-              isTShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isTShirtTerm));
-            const isExplicitShirt = isShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isShirtTerm));
-            if (!hasShirtWord || (isTShirt && !isExplicitShirt)) continue;
-          } else if (cat === 'shoes') {
-            if (!docCatText.includes('shoe') && !docCatText.includes('sneaker') && !docCatText.includes('footwear')) continue;
-          } else if (cat === 'mobile phones') {
-            if (!docCatText.includes('phone') && !docCatText.includes('mobile') && !docCatText.includes('smartphone') && !docCatText.includes('redmi') && !docCatText.includes('apple') && !docCatText.includes('samsung')) continue;
-          } else if (cat === 'perfume') {
-            if (!docCatText.includes('perfume') && !docCatText.includes('fragrance') && !docCatText.includes('deo') && !docCatText.includes('cologne')) continue;
-          } else if (cat === 'jeans') {
-            if (!docCatText.includes('jean') && !docCatText.includes('denim') && !docCatText.includes('trouser') && !docCatText.includes('pant')) continue;
-          } else if (cat === 'dresses') {
-            if (!docCatText.includes('dress') && !docCatText.includes('frock') && !docCatText.includes('gown')) continue;
-          } else if (cat === 'watches') {
-            if (!docCatText.includes('watch') && !docCatText.includes('timepiece')) continue;
-          } else if (cat === 'audio') {
-            if (!docCatText.includes('earbud') && !docCatText.includes('headphone') && !docCatText.includes('earphone') && !docCatText.includes('audio') && !docCatText.includes('airdope')) continue;
-          } else if (cat === 'accessories') {
-            if (!docCatText.includes('accessor') && !docCatText.includes('bag') && !docCatText.includes('wallet') && !docCatText.includes('belt') && !docCatText.includes('jewel')) continue;
-          } else if (cat === 'mouse') {
-            if (!docCatText.includes('mouse') && !docCatText.includes('mice')) continue;
-          } else if (cat === 'laptops') {
-            if (!docCatText.includes('laptop') && !docCatText.includes('notebook') && !docCatText.includes('macbook')) continue;
-          } else if (cat === 'keyboards') {
-            if (!docCatText.includes('keyboard')) continue;
-          }
+          continue;
         }
       }
 

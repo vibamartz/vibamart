@@ -482,16 +482,17 @@ export default function MobileProductListScreen() {
           : (selectedCategory || baseCatId);
 
         // 1. Category Filter across entire hierarchy
+        const parentCat = effectiveCat || baseCatId || undefined;
         if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') {
           if (!isProductInHierarchy(product, effectiveCat, categories, visualNestedItems)) return false;
         }
         // 2. SubCategory Filter across entire hierarchy
         if (effectiveSub && effectiveSub !== 'all') {
-          if (!isProductInHierarchy(product, effectiveSub, categories, visualNestedItems)) return false;
+          if (!isProductInHierarchy(product, effectiveSub, categories, visualNestedItems, parentCat)) return false;
         }
         // 3. Nested SubCategory Filter across entire hierarchy
         if (effectiveNested && effectiveNested !== 'all') {
-          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems)) return false;
+          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems, parentCat)) return false;
         }
       }
 
@@ -1187,14 +1188,20 @@ export default function MobileProductListScreen() {
       <TrendingProductsTwoRowSection
         isMobile={true}
         categorySlug={rawCat}
-        categoryId={currentCategoryObj?.id}
+        categoryId={currentCategoryObj?.id || baseCatId}
+        subCategoryId={selectedSubCategory || baseSubId}
+        subCategorySlug={rawSubCat}
+        nestedSubCategoryId={selectedNestedSubCategory || baseNestedId}
       />
 
       {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
       <MoreProductsForYouSection
         isMobile={true}
         categorySlug={rawCat}
-        categoryId={currentCategoryObj?.id}
+        categoryId={currentCategoryObj?.id || baseCatId}
+        subCategoryId={selectedSubCategory || baseSubId}
+        subCategorySlug={rawSubCat}
+        nestedSubCategoryId={selectedNestedSubCategory || baseNestedId}
       />
 
       {/* Mobile Filter Drawer (Slide-Up Sheet) */}

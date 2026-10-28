@@ -118,18 +118,22 @@ export default function MobileCategoriesScreen() {
 
       // 1. Nested Subcategory Selected -> Show ONLY assigned products
       if (selectedNestedSubCatId) {
-        return (
-          p.nestedSubCategoryId === selectedNestedSubCatId ||
-          Boolean(p.nestedSubCategoryIds?.includes(selectedNestedSubCatId))
+        return isProductAssignedToCategory(
+          p,
+          selectedCategory.id,
+          categories,
+          selectedSubCatId || undefined,
+          selectedNestedSubCatId
         );
       }
 
       // 2. Subcategory Selected -> Show products assigned to Subcategory
       if (selectedSubCatId) {
-        return (
-          p.subCategoryId === selectedSubCatId ||
-          Boolean(p.subCategoryIds?.includes(selectedSubCatId)) ||
-          (p.categoryId === selectedCategory.id && p.subCategoryId === selectedSubCatId)
+        return isProductAssignedToCategory(
+          p,
+          selectedCategory.id,
+          categories,
+          selectedSubCatId
         );
       }
 
@@ -140,7 +144,7 @@ export default function MobileCategoriesScreen() {
 
       return isProductAssignedToCategory(p, selectedCategory.id, categories);
     });
-  }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId]);
+  }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId, categories]);
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
@@ -411,7 +415,10 @@ export default function MobileCategoriesScreen() {
                 <TrendingProductsTwoRowSection
                   isMobile={true}
                   categoryId={selectedCategory.id}
-                  products={products}
+                  categorySlug={getCategorySlug(selectedCategory)}
+                  subCategoryId={selectedSubCatId || undefined}
+                  nestedSubCategoryId={selectedNestedSubCatId || undefined}
+                  products={categoryProducts}
                 />
 
                 {/* More Products for You (LAST SECTION ON EVERY PAGE) */}
@@ -419,7 +426,9 @@ export default function MobileCategoriesScreen() {
                   isMobile={true}
                   categoryId={selectedCategory.id}
                   categorySlug={getCategorySlug(selectedCategory)}
-                  products={products}
+                  subCategoryId={selectedSubCatId || undefined}
+                  nestedSubCategoryId={selectedNestedSubCatId || undefined}
+                  products={categoryProducts}
                 />
               </motion.div>
             </AnimatePresence>
