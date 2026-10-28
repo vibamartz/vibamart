@@ -349,15 +349,6 @@ export class CategoryHierarchyEngine {
       if (bySingular) bySingular.forEach(add);
     }
 
-    // Canonical category node aliases
-    if (isTShirtTerm(trimmed)) {
-      if (this.nodesById.has('2-1-1')) add(this.nodesById.get('2-1-1'));
-      if (this.nodesBySlug.has('t-shirts-polos')) add(this.nodesBySlug.get('t-shirts-polos'));
-    } else if (isShirtTerm(trimmed)) {
-      if (this.nodesById.has('2-1-2')) add(this.nodesById.get('2-1-2'));
-      if (this.nodesBySlug.has('casual-shirts')) add(this.nodesBySlug.get('casual-shirts'));
-    }
-
     return results;
   }
 
@@ -365,16 +356,32 @@ export class CategoryHierarchyEngine {
    * Find a hierarchy node by ID, slug, or exact name.
    */
   public getNode(idOrSlugOrName: string): HierarchyNodeInfo | undefined {
+    if (!idOrSlugOrName) return undefined;
+    const trimmed = idOrSlugOrName.trim();
+    const lower = trimmed.toLowerCase();
+    const direct = this.nodesById.get(trimmed) || this.nodesBySlug.get(lower);
+    if (direct) return direct;
     const nodes = this.getNodes(idOrSlugOrName);
     return nodes.length > 0 ? nodes[0] : undefined;
   }
 
   /**
    * Returns all descendant IDs (including the node itself) for a given category/subcategory/nested/visual node.
-   * Aggregates across all matching nodes when names overlap across branches.
+   * Prioritizes exact node ID or slug match to prevent cross-branch contamination (e.g. Men's Shoes vs Women's Shoes).
    */
   public getDescendantIds(idOrSlugOrName: string): Set<string> {
     if (!idOrSlugOrName) return new Set();
+    const trimmed = idOrSlugOrName.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Prioritize exact ID or slug match so we don't mix branches with identical subcategory names
+    const directNode = this.nodesById.get(trimmed) || this.nodesBySlug.get(lower);
+    if (directNode) {
+      const dSet = this.descendantIdsMap.get(directNode.id);
+      if (dSet) return new Set(dSet);
+      return new Set([directNode.id]);
+    }
+
     const nodes = this.getNodes(idOrSlugOrName);
     if (nodes.length > 0) {
       const descendants = new Set<string>();
@@ -389,7 +396,7 @@ export class CategoryHierarchyEngine {
       return descendants;
     }
     // Fallback: If not found in tree, return just the normalized value
-    return new Set([idOrSlugOrName.trim()]);
+    return new Set([trimmed]);
   }
 
   /**
@@ -493,6 +500,7 @@ export class CategoryHierarchyEngine {
   /**
    * Checks whether a product matches a target category/subcategory filter.
    * Dynamically checks if ANY assigned product hierarchy ID is in the target filter's descendant set.
+   * Strictly isolates categories and subcategories based on admin-assigned IDs.
    */
   public matchesFilter(
     productHierarchyIds: Set<string> | string[] | undefined,
@@ -511,40 +519,29 @@ export class CategoryHierarchyEngine {
       ? new Set(productHierarchyIds.map(id => String(id).toLowerCase()))
       : new Set(Array.from(productHierarchyIds).map(id => String(id).toLowerCase()));
 
-    const productHasTShirt = Array.from(pIds).some(isTShirtTerm);
-    const productHasShirt = Array.from(pIds).some(isShirtTerm);
-
-    // Strict Category Isolation: Products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there
-    if (isShirtTerm(filterLower) || isShirtTerm(filterSlug)) {
-      if (productHasTShirt && !productHasShirt) {
-        return false;
-      }
-    }
-
-    if (isTShirtTerm(filterLower) || isTShirtTerm(filterSlug)) {
-      if (!productHasTShirt) {
-        return false;
-      }
-    }
-
-    const targetDescendants = this.getDescendantIds(filterTrim);
-    for (const id of pIds) {
-      if (targetDescendants.has(id)) {
-        if ((isShirtTerm(filterLower) || isShirtTerm(filterSlug)) && isTShirtTerm(id) && !productHasShirt) {
-          continue;
+    // Target node lookup prioritizing exact ID or slug
+    let targetNode = this.nodesById.get(filterTrim) || this.nodesBySlug.get(filterLower) || this.nodesBySlug.get(filterSlug);
+    if (!targetNode) {
+      for (const [id, node] of this.nodesById.entries()) {
+        if (id.toLowerCase() === filterLower) {
+          targetNode = node;
+          break;
         }
-        return true;
       }
     }
 
-    // Also check direct node IDs across all matching nodes
-    const targetNodes = this.getNodes(filterTrim);
-    for (const targetNode of targetNodes) {
-      if (pIds.has(targetNode.id.toLowerCase())) return true;
-      if (targetNode.slug && pIds.has(targetNode.slug.toLowerCase())) return true;
+    if (targetNode) {
+      const descendants = this.descendantIdsMap.get(targetNode.id);
+      if (descendants) {
+        for (const dId of descendants) {
+          if (pIds.has(dId.toLowerCase())) return true;
+        }
+      }
+      return pIds.has(targetNode.id.toLowerCase());
     }
 
-    return false;
+    // Direct ID check fallback
+    return pIds.has(filterLower);
   }
 
   /**

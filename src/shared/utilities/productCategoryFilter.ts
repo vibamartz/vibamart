@@ -2,8 +2,9 @@ import { Product, Category } from '../types';
 
 /**
  * Universal category assignment checker for a product.
- * Returns true if the product belongs to target category either directly (categoryId, categories array)
- * or through any child subcategory of that category.
+ * Returns true if the product belongs to target category explicitly by admin-assigned category ID,
+ * or through child subcategory / nested subcategory IDs explicitly belonging to that category in the hierarchy.
+ * Does NOT match products based on similar names, keywords, brands, or product types.
  */
 export function isProductAssignedToCategory(
   product: Product,
@@ -11,67 +12,72 @@ export function isProductAssignedToCategory(
   categories: Category[] = []
 ): boolean {
   if (!product || !targetCategorySlugOrId) return false;
-  const target = targetCategorySlugOrId.trim().toLowerCase();
+  const target = targetCategorySlugOrId.trim();
+  const targetLower = target.toLowerCase();
 
   // 'for-you', 'all', 'all-deals' or empty means show all categories
-  if (target === 'for-you' || target === 'all' || target === 'all-deals' || target === '') {
+  if (targetLower === 'for-you' || targetLower === 'all' || targetLower === 'all-deals' || targetLower === '') {
     return true;
   }
 
-  // Match category object in category store
+  // Match category object in category store by ID, slug, or seoSlug (strictly NOT by name)
   const categoryObj = categories.find(c => {
     if (!c) return false;
     const cid = String(c.id || '').toLowerCase();
     const cslug = String(c.slug || '').toLowerCase();
     const cseo = String((c as any).seoSlug || '').toLowerCase();
-    const cname = String(c.name || '').toLowerCase();
-    return cid === target || cslug === target || cseo === target || cname === target;
+    return cid === targetLower || cslug === targetLower || cseo === targetLower;
   });
 
-  const targetSet = new Set<string>([target]);
-  if (categoryObj) {
-    if (categoryObj.id) targetSet.add(String(categoryObj.id).toLowerCase());
-    if (categoryObj.slug) targetSet.add(String(categoryObj.slug).toLowerCase());
-    if ((categoryObj as any).seoSlug) targetSet.add(String((categoryObj as any).seoSlug).toLowerCase());
-    if (categoryObj.name) targetSet.add(String(categoryObj.name).toLowerCase());
-  }
+  const targetCatId = categoryObj ? String(categoryObj.id).toLowerCase() : targetLower;
 
-  // 1. Direct match on product.categoryId
-  if (product.categoryId && targetSet.has(String(product.categoryId).toLowerCase())) {
+  // 1. Direct match on product.categoryId (admin-assigned category ID)
+  if (product.categoryId && String(product.categoryId).toLowerCase() === targetCatId) {
     return true;
   }
 
-  // 2. Direct match on product.category name
-  if ((product as any).category && targetSet.has(String((product as any).category).toLowerCase())) {
-    return true;
-  }
-
-  // 3. Match within product.categories array
+  // 2. Match within product.categories array (admin-assigned category IDs)
   if (Array.isArray(product.categories)) {
-    if (product.categories.some(c => targetSet.has(String(c).toLowerCase()))) {
+    if (product.categories.some(c => c && String(c).toLowerCase() === targetCatId)) {
       return true;
     }
   }
 
-  // 4. Subcategory relationship match: if product belongs to a subcategory of this category
+  // 3. Subcategory and Nested Subcategory relationship match:
+  // If product belongs to an explicit child subcategory or nested subcategory under this category
   if (categoryObj && Array.isArray(categoryObj.subcategories) && categoryObj.subcategories.length > 0) {
-    const subIds = new Set(
-      categoryObj.subcategories.map(s => String(s.id || '').toLowerCase()).filter(Boolean)
-    );
-    const subSlugs = new Set(
-      categoryObj.subcategories.map(s => String(s.slug || '').toLowerCase()).filter(Boolean)
-    );
+    const descendantSubIds = new Set<string>();
+    const descendantNestedIds = new Set<string>();
 
-    if (product.subCategoryId) {
-      const pSub = String(product.subCategoryId).toLowerCase();
-      if (subIds.has(pSub) || subSlugs.has(pSub)) return true;
+    for (const sub of categoryObj.subcategories) {
+      if (!sub) continue;
+      if (sub.id) descendantSubIds.add(String(sub.id).toLowerCase());
+
+      if (Array.isArray(sub.subcategories)) {
+        for (const nested of sub.subcategories) {
+          if (nested && nested.id) {
+            descendantNestedIds.add(String(nested.id).toLowerCase());
+          }
+        }
+      }
+    }
+
+    if (product.subCategoryId && descendantSubIds.has(String(product.subCategoryId).toLowerCase())) {
+      return true;
     }
 
     if (Array.isArray(product.subCategoryIds)) {
-      if (product.subCategoryIds.some(sid => {
-        const idLower = String(sid).toLowerCase();
-        return subIds.has(idLower) || subSlugs.has(idLower);
-      })) {
+      if (product.subCategoryIds.some(sid => sid && descendantSubIds.has(String(sid).toLowerCase()))) {
+        return true;
+      }
+    }
+
+    if (product.nestedSubCategoryId && descendantNestedIds.has(String(product.nestedSubCategoryId).toLowerCase())) {
+      return true;
+    }
+
+    if (Array.isArray(product.nestedSubCategoryIds)) {
+      if (product.nestedSubCategoryIds.some(nid => nid && descendantNestedIds.has(String(nid).toLowerCase()))) {
         return true;
       }
     }
@@ -79,3 +85,4 @@ export function isProductAssignedToCategory(
 
   return false;
 }
+

@@ -481,17 +481,17 @@ export default function MobileProductListScreen() {
           ? (searchParams.get('category') || '')
           : (selectedCategory || baseCatId);
 
-        // 1. Nested SubCategory Filter across entire hierarchy
-        if (effectiveNested) {
-          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems)) return false;
+        // 1. Category Filter across entire hierarchy
+        if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') {
+          if (!isProductInHierarchy(product, effectiveCat, categories, visualNestedItems)) return false;
         }
         // 2. SubCategory Filter across entire hierarchy
-        else if (effectiveSub) {
+        if (effectiveSub && effectiveSub !== 'all') {
           if (!isProductInHierarchy(product, effectiveSub, categories, visualNestedItems)) return false;
         }
-        // 3. Category Filter across entire hierarchy
-        else if (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') {
-          if (!isProductInHierarchy(product, effectiveCat, categories, visualNestedItems)) return false;
+        // 3. Nested SubCategory Filter across entire hierarchy
+        if (effectiveNested && effectiveNested !== 'all') {
+          if (!isProductInHierarchy(product, effectiveNested, categories, visualNestedItems)) return false;
         }
       }
 

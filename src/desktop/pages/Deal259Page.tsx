@@ -88,8 +88,9 @@ export default function Deal259Page() {
       }
 
       // Category filter
-      if (selectedCategory !== 'all' && p.categoryId !== selectedCategory) {
-        return false;
+      if (selectedCategory !== 'all') {
+        const matchesCat = p.categoryId === selectedCategory || Boolean(p.categories?.includes(selectedCategory));
+        if (!matchesCat) return false;
       }
 
       // In-stock filter

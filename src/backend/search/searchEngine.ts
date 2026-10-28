@@ -826,22 +826,10 @@ export class ViBaSearchEngine {
             matchesAnyCat = true;
             break;
           }
-          const cfSingular = cf.replace(/s$/, '');
-          const matchAllCat = doc.allCategoryNames
-            ? (Array.isArray(doc.allCategoryNames)
-                ? (doc.allCategoryNames as string[]).some(n => {
-                    const nl = n.toLowerCase();
-                    return nl === cf || nl === cfSingular || createSlug(n).toLowerCase() === cf;
-                  })
-                : (doc.allCategoryNames.toLowerCase() === cf || doc.allCategoryNames.toLowerCase() === cfSingular || createSlug(doc.allCategoryNames).toLowerCase() === cf))
-            : false;
 
           if (
-            doc.categoryId.toLowerCase() === cf ||
-            doc.categoryName.toLowerCase() === cf ||
-            createSlug(doc.categoryName).toLowerCase() === cf ||
-            doc.raw?.categories?.some(c => String(c).toLowerCase() === cf || createSlug(String(c)).toLowerCase() === cf) ||
-            matchAllCat
+            (doc.categoryId && doc.categoryId.toLowerCase() === cf) ||
+            doc.raw?.categories?.some(c => c && String(c).toLowerCase() === cf)
           ) {
             matchesAnyCat = true;
             break;
@@ -857,61 +845,14 @@ export class ViBaSearchEngine {
 
         let matchesAnySub = false;
         for (const sf of subFilters) {
-          // Strict Category Isolation: Products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there
-          if (isShirtTerm(sf)) {
-            const productIsTShirt = (
-              isTShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.nestedSubCategoryName) ||
-              isTShirtTerm(doc.subCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.subCategoryName)
-            );
-            const productExplicitlyAssignedToShirts = (
-              (doc.subCategoryId && isShirtTerm(doc.subCategoryId) && !doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isShirtTerm)) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isShirtTerm)) ||
-              (doc.nestedSubCategoryId && isShirtTerm(doc.nestedSubCategoryId))
-            );
-            if (productIsTShirt && !productExplicitlyAssignedToShirts) {
-              continue;
-            }
-          }
-
-          if (isTShirtTerm(sf)) {
-            const productIsTShirt = (
-              isTShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.nestedSubCategoryName) ||
-              isTShirtTerm(doc.subCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.subCategoryName)
-            );
-            if (!productIsTShirt) {
-              continue;
-            }
-          }
-
           if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, sf)) {
             matchesAnySub = true;
             break;
           }
 
-          const matchAllSub = doc.allCategoryNames
-            ? (Array.isArray(doc.allCategoryNames)
-                ? (doc.allCategoryNames as string[]).some(n => {
-                    const nl = n.toLowerCase();
-                    return nl === sf || createSlug(n).toLowerCase() === sf;
-                  })
-                : (doc.allCategoryNames.toLowerCase() === sf || createSlug(doc.allCategoryNames).toLowerCase() === sf))
-            : false;
-
           if (
             (doc.subCategoryId && doc.subCategoryId.toLowerCase() === sf) ||
-            doc.subCategoryName.toLowerCase() === sf ||
-            createSlug(doc.subCategoryName).toLowerCase() === sf ||
-            doc.raw?.subCategoryIds?.some(s => String(s).toLowerCase() === sf || createSlug(String(s)).toLowerCase() === sf) ||
-            matchAllSub
+            doc.raw?.subCategoryIds?.some(s => s && String(s).toLowerCase() === sf)
           ) {
             matchesAnySub = true;
             break;
@@ -927,61 +868,14 @@ export class ViBaSearchEngine {
 
         let matchesAnyNested = false;
         for (const nf of nestedFilters) {
-          // Strict Category Isolation: Products assigned to T-Shirts must not appear in Shirts unless explicitly assigned there
-          if (isShirtTerm(nf)) {
-            const productIsTShirt = (
-              isTShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.nestedSubCategoryName) ||
-              isTShirtTerm(doc.subCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.subCategoryName)
-            );
-            const productExplicitlyAssignedToShirts = (
-              (doc.subCategoryId && isShirtTerm(doc.subCategoryId) && !doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isShirtTerm)) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isShirtTerm)) ||
-              (doc.nestedSubCategoryId && isShirtTerm(doc.nestedSubCategoryId))
-            );
-            if (productIsTShirt && !productExplicitlyAssignedToShirts) {
-              continue;
-            }
-          }
-
-          if (isTShirtTerm(nf)) {
-            const productIsTShirt = (
-              isTShirtTerm(doc.nestedSubCategoryId) ||
-              (Array.isArray(doc.raw?.nestedSubCategoryIds) && doc.raw.nestedSubCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.nestedSubCategoryName) ||
-              isTShirtTerm(doc.subCategoryId) ||
-              (Array.isArray(doc.raw?.subCategoryIds) && doc.raw.subCategoryIds.some(isTShirtTerm)) ||
-              isTShirtTerm(doc.subCategoryName)
-            );
-            if (!productIsTShirt) {
-              continue;
-            }
-          }
-
           if (this.hierarchyEngine.matchesFilter(doc.categoryHierarchyIds, nf)) {
             matchesAnyNested = true;
             break;
           }
 
-          const matchAllNested = doc.allCategoryNames
-            ? (Array.isArray(doc.allCategoryNames)
-                ? (doc.allCategoryNames as string[]).some(n => {
-                    const nl = n.toLowerCase();
-                    return nl === nf || createSlug(n).toLowerCase() === nf;
-                  })
-                : (doc.allCategoryNames.toLowerCase() === nf || createSlug(doc.allCategoryNames).toLowerCase() === nf))
-            : false;
-
           if (
             (doc.nestedSubCategoryId && doc.nestedSubCategoryId.toLowerCase() === nf) ||
-            doc.nestedSubCategoryName.toLowerCase() === nf ||
-            createSlug(doc.nestedSubCategoryName).toLowerCase() === nf ||
-            doc.raw?.nestedSubCategoryIds?.some(n => String(n).toLowerCase() === nf || createSlug(String(n)).toLowerCase() === nf) ||
-            matchAllNested
+            doc.raw?.nestedSubCategoryIds?.some(n => n && String(n).toLowerCase() === nf)
           ) {
             matchesAnyNested = true;
             break;
