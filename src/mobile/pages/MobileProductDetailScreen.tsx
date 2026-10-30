@@ -26,7 +26,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
-import { fetchSimilarProducts } from '../../shared/utilities/similarProductsUtils';
 
 export default function MobileProductDetailScreen() {
   const params = useParams<{ id?: string; slug?: string }>();
@@ -157,7 +156,6 @@ export default function MobileProductDetailScreen() {
   // Fetch product & reviews
   useEffect(() => {
     if (!targetSlugOrId) return;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLoading(true);
     setFetchError(false);
 
@@ -1055,9 +1053,9 @@ function MobileSimilarProducts({
   currentProductId?: string;
   product?: Product;
 }) {
+  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const effectiveCatId = (product?.categoryId || categoryId || '').trim();
   const effectiveSubId = (product?.subCategoryId || subCategoryId || '').trim();
@@ -1069,14 +1067,8 @@ function MobileSimilarProducts({
   useEffect(() => {
     let isCancelled = false;
 
-    // Reset scroll position and clear stale products when current product changes (Requirement 6)
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = 0;
-    }
-    setLoading(true);
-    setProducts([]);
-
     const fetchSimilar = async () => {
+      setLoading(true);
       try {
         if (!effectiveCatId) {
           if (!isCancelled) {
@@ -1086,17 +1078,138 @@ function MobileSimilarProducts({
           return;
         }
 
-        const finalProducts = await fetchSimilarProducts({
-          product,
-          currentProductId: currentProdId,
-          categoryId: effectiveCatId,
-          subCategoryId: effectiveSubId,
-          nestedSubCategoryId: effectiveNestedId,
-          maxLimit: 8
+        const candidateMap = new Map<string, Product>();
+
+        // Find category object for alias/slug/id resolution
+        const catObj = categories.find(c => {
+          if (!c) return false;
+          const lower = effectiveCatId.toLowerCase();
+          return (
+            String(c.id || '').toLowerCase() === lower ||
+            String(c.slug || '').toLowerCase() === lower ||
+            String((c as any).seoSlug || '').toLowerCase() === lower ||
+            String(getCategorySlug(c) || '').toLowerCase() === lower ||
+            String(c.name || '').toLowerCase() === lower
+          );
         });
 
+        const targetCatIds = new Set<string>([effectiveCatId]);
+        if (catObj?.id) targetCatIds.add(catObj.id);
+        if (catObj?.slug) targetCatIds.add(catObj.slug);
+
+        const subObj = catObj?.subcategories?.find(s => {
+          if (!s || !effectiveSubId) return false;
+          const lower = effectiveSubId.toLowerCase();
+          return (
+            String(s.id || '').toLowerCase() === lower ||
+            String(s.slug || '').toLowerCase() === lower ||
+            String((s as any).seoSlug || '').toLowerCase() === lower ||
+            String(s.name || '').toLowerCase() === lower
+          );
+        });
+
+        const targetSubIds = new Set<string>();
+        if (effectiveSubId) {
+          targetSubIds.add(effectiveSubId);
+          if (subObj?.id) targetSubIds.add(subObj.id);
+          if (subObj?.slug) targetSubIds.add(subObj.slug);
+        }
+
+        // 1. If assigned to a subcategory, query by subCategoryId to directly fetch matching candidates
+        for (const subId of targetSubIds) {
+          try {
+            const subQ = query(
+              collection(db, 'products'),
+              where('subCategoryId', '==', subId)
+            );
+            const subSnap = await getDocs(subQ);
+            subSnap.docs.forEach(doc => {
+              candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+            });
+          } catch (err) {
+            console.warn('Subcategory query warning:', err);
+          }
+        }
+
+        // 2. Query products in category to ensure all candidates are fetched
+        for (const catId of targetCatIds) {
+          try {
+            const catQ = query(
+              collection(db, 'products'),
+              where('categoryId', '==', catId)
+            );
+            const catSnap = await getDocs(catQ);
+            catSnap.docs.forEach(doc => {
+              if (!candidateMap.has(doc.id)) {
+                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+              }
+            });
+          } catch (err) {
+            console.warn('Category query warning:', err);
+          }
+        }
+
+        // 3. Fallback scan if candidateMap is empty
+        if (candidateMap.size === 0) {
+          try {
+            const allQ = query(collection(db, 'products'), limit(100));
+            const allSnap = await getDocs(allQ);
+            allSnap.docs.forEach(doc => {
+              if (!candidateMap.has(doc.id)) {
+                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+              }
+            });
+          } catch (err) {
+            console.warn('Fallback query warning:', err);
+          }
+        }
+
+        const rewardIds = await getRewardProductIds();
+        const rawCandidates = Array.from(candidateMap.values());
+
+        // Filter out: current product, inactive / hidden products, reward products
+        const eligibleCandidates = filterOutRewardProducts(
+          rawCandidates.filter(p => {
+            if (!p) return false;
+            if (p.isVisible === false || p.status === 'inactive') return false;
+            const pid = p.id;
+            const pDocId = (p as any).id;
+            const code = (p as any).productCode;
+            const slug = getProductSlug(p);
+            return (
+              (!currentProdId || (pid !== currentProdId && pDocId !== currentProdId)) &&
+              (!currentCode || !code || cleanProductCode(code) !== cleanProductCode(currentCode)) &&
+              (!currentSlug || !slug || slug !== currentSlug)
+            );
+          }),
+          rewardIds
+        );
+
+        // Strict category and subcategory filtering:
+        // Must match current product's assigned category AND subcategory (if assigned)
+        // Strictly prevents cross-category leaks and unrelated products
+        const matchedProducts = eligibleCandidates.filter(p =>
+          isProductAssignedToCategory(
+            p,
+            effectiveCatId,
+            categories,
+            effectiveSubId || undefined
+          )
+        );
+
+        // Sort: prioritize products matching nestedSubCategoryId if available, then by rating
+        if (effectiveNestedId) {
+          matchedProducts.sort((a, b) => {
+            const aNested = isProductAssignedToCategory(a, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
+            const bNested = isProductAssignedToCategory(b, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
+            if (aNested && !bNested) return -1;
+            if (!aNested && bNested) return 1;
+            return (b.rating || 0) - (a.rating || 0);
+          });
+        }
+
         if (!isCancelled) {
-          setProducts(finalProducts);
+          setProducts(matchedProducts.slice(0, 8));
         }
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -1112,13 +1225,9 @@ function MobileSimilarProducts({
     return () => {
       isCancelled = true;
     };
-  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug]);
+  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug, categories]);
 
   if (!loading && products.length === 0) return null;
-
-  const seeAllLink = effectiveSubId && effectiveCatId
-    ? `/products?category=${encodeURIComponent(effectiveCatId)}&subCategory=${encodeURIComponent(effectiveSubId)}`
-    : (effectiveCatId ? `/products?category=${encodeURIComponent(effectiveCatId)}` : '/products');
 
   return (
     <div className="space-y-2.5">
@@ -1126,22 +1235,16 @@ function MobileSimilarProducts({
         <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
           Similar Products
         </span>
-        <Link to={seeAllLink} className="text-[10px] font-black uppercase text-emerald-700">
+        <Link to="/products" className="text-[10px] font-black uppercase text-emerald-700">
           See All →
         </Link>
       </div>
-      <div ref={scrollRef} className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {loading ? (
-          [...Array(3)].map((_, i) => (
-            <div key={i} className="w-[145px] sm:w-[165px] shrink-0 animate-pulse bg-gray-50 rounded-xl aspect-[4/5] border border-gray-100" />
-          ))
-        ) : (
-          products.map(p => (
-            <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
-              <ProductCard product={p} />
-            </div>
-          ))
-        )}
+      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+        {products.map(p => (
+          <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
+            <ProductCard product={p} />
+          </div>
+        ))}
       </div>
     </div>
   );
