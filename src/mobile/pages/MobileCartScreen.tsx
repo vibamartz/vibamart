@@ -19,6 +19,8 @@ import MoreProductsForYouSection from '../../shared/components/MoreProductsForYo
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
+import { useNetworkStatus } from '../../shared/hooks/useNetworkStatus';
+import CartOfflineBanner from '../../shared/components/offline/CartOfflineBanner';
 
 function MobileWishlistSection() {
   const { user } = useAuthStore();
@@ -116,6 +118,7 @@ function MobileWishlistSection() {
 }
 
 export default function MobileCartScreen() {
+  const { isOnline } = useNetworkStatus();
   const { items, updateQuantity, removeItem, clearCart, total } = useCartStore();
   const { user } = useAuthStore();
   const { selectedAddress } = useLocationStore();
@@ -168,11 +171,27 @@ export default function MobileCartScreen() {
   };
 
   const handleBuyNow = (productId: string, variantId?: string) => {
+    if (!isOnline) {
+      toast.error("Checkout requires an active internet connection. Your cart items are safely saved on this device.");
+      return;
+    }
+    navigate('/checkout');
+  };
+
+  const handleProceedCheckout = () => {
+    if (!isOnline) {
+      toast.error("Checkout requires an active internet connection. Your cart items are safely saved on this device.");
+      return;
+    }
     navigate('/checkout');
   };
 
   return (
     <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-3">
+      {/* Screen 3: Cart Screen (Offline) Banner */}
+      {!isOnline && (
+        <CartOfflineBanner onContinueShopping={() => navigate('/')} />
+      )}
 
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
@@ -442,10 +461,15 @@ export default function MobileCartScreen() {
           </div>
 
           <button
-            onClick={() => navigate('/checkout')}
-            className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2 active:scale-95"
+            onClick={handleProceedCheckout}
+            className={`px-6 py-3.5 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2 active:scale-95 transition-all ${
+              !isOnline
+                ? 'bg-gray-400 opacity-80 cursor-pointer'
+                : 'bg-gradient-to-r from-emerald-600 to-emerald-700 cursor-pointer'
+            }`}
           >
-            Proceed to Checkout <ArrowRight className="w-4 h-4" />
+            <span>{isOnline ? 'Proceed to Checkout' : 'Checkout (Offline)'}</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
