@@ -142,6 +142,7 @@ export default function ProductDetail() {
   // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
     if (!targetSlugOrId) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLoading(true);
     setProduct(null);
     setNotFound(false);
@@ -1187,9 +1188,9 @@ function SimilarProducts({
   currentProductId?: string;
   product?: Product;
 }) {
-  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const effectiveCatId = (product?.categoryId || categoryId || '').trim();
   const effectiveSubId = (product?.subCategoryId || subCategoryId || '').trim();
@@ -1212,9 +1213,9 @@ function SimilarProducts({
           return;
         }
 
-        const candidateMap = new Map<string, Product>();
+        const categories = useCategoryStore.getState().categories || [];
 
-        // Find category object for alias/slug/id resolution
+        // Resolve category object for ID vs slug mapping
         const catObj = categories.find(c => {
           if (!c) return false;
           const lower = effectiveCatId.toLowerCase();
@@ -1227,82 +1228,56 @@ function SimilarProducts({
           );
         });
 
-        const targetCatIds = new Set<string>([effectiveCatId]);
-        if (catObj?.id) targetCatIds.add(catObj.id);
-        if (catObj?.slug) targetCatIds.add(catObj.slug);
+        const targetCat = catObj?.id || effectiveCatId;
+        const targetCatSlug = catObj?.slug || effectiveCatId;
 
-        const subObj = catObj?.subcategories?.find(s => {
-          if (!s || !effectiveSubId) return false;
-          const lower = effectiveSubId.toLowerCase();
-          return (
-            String(s.id || '').toLowerCase() === lower ||
-            String(s.slug || '').toLowerCase() === lower ||
-            String((s as any).seoSlug || '').toLowerCase() === lower ||
-            String(s.name || '').toLowerCase() === lower
+        // Fetch category & subcategory products in parallel
+        const queryPromises: Promise<any>[] = [
+          getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCat), limit(50))).catch(() => null)
+        ];
+
+        if (targetCatSlug && targetCatSlug !== targetCat) {
+          queryPromises.push(
+            getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCatSlug), limit(50))).catch(() => null)
           );
+        }
+
+        if (effectiveSubId) {
+          queryPromises.push(
+            getDocs(query(collection(db, 'products'), where('subCategoryId', '==', effectiveSubId), limit(50))).catch(() => null)
+          );
+        }
+
+        const [snaps, rewardIds] = await Promise.all([
+          Promise.all(queryPromises),
+          getRewardProductIds()
+        ]);
+
+        const candidateMap = new Map<string, Product>();
+        snaps.forEach(snap => {
+          if (snap?.docs) {
+            snap.docs.forEach((d: any) => {
+              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
+            });
+          }
         });
 
-        const targetSubIds = new Set<string>();
-        if (effectiveSubId) {
-          targetSubIds.add(effectiveSubId);
-          if (subObj?.id) targetSubIds.add(subObj.id);
-          if (subObj?.slug) targetSubIds.add(subObj.slug);
-        }
-
-        // 1. If assigned to a subcategory, query by subCategoryId to directly fetch matching candidates
-        for (const subId of targetSubIds) {
-          try {
-            const subQ = query(
-              collection(db, 'products'),
-              where('subCategoryId', '==', subId)
-            );
-            const subSnap = await getDocs(subQ);
-            subSnap.docs.forEach(doc => {
-              candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-            });
-          } catch (err) {
-            console.warn('Subcategory query warning:', err);
-          }
-        }
-
-        // 2. Query products in category to ensure all candidates are fetched
-        for (const catId of targetCatIds) {
-          try {
-            const catQ = query(
-              collection(db, 'products'),
-              where('categoryId', '==', catId)
-            );
-            const catSnap = await getDocs(catQ);
-            catSnap.docs.forEach(doc => {
-              if (!candidateMap.has(doc.id)) {
-                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-              }
-            });
-          } catch (err) {
-            console.warn('Category query warning:', err);
-          }
-        }
-
-        // 3. Fallback scan if candidateMap is empty
+        // Fallback scan if category queries returned empty
         if (candidateMap.size === 0) {
           try {
-            const allQ = query(collection(db, 'products'), limit(100));
-            const allSnap = await getDocs(allQ);
-            allSnap.docs.forEach(doc => {
-              if (!candidateMap.has(doc.id)) {
-                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-              }
+            const allSnap = await getDocs(query(collection(db, 'products'), limit(50)));
+            allSnap.docs.forEach(d => {
+              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
             });
-          } catch (err) {
-            console.warn('Fallback query warning:', err);
+          } catch (e) {
+            console.warn('Fallback similar products query error:', e);
           }
         }
 
-        const rewardIds = await getRewardProductIds();
         const rawCandidates = Array.from(candidateMap.values());
 
-        // Filter out: current product, inactive / hidden products, reward products
-        const eligibleCandidates = filterOutRewardProducts(
+        // Filter out: current product, inactive / invisible, reward products
+        const eligible = filterOutRewardProducts(
           rawCandidates.filter(p => {
             if (!p) return false;
             if (p.isVisible === false || p.status === 'inactive') return false;
@@ -1319,31 +1294,44 @@ function SimilarProducts({
           rewardIds
         );
 
-        // Strict category and subcategory filtering:
-        // Must match current product's assigned category AND subcategory (if assigned)
-        // Strictly prevents cross-category leaks and unrelated products
-        const matchedProducts = eligibleCandidates.filter(p =>
-          isProductAssignedToCategory(
-            p,
-            effectiveCatId,
-            categories,
-            effectiveSubId || undefined
-          )
-        );
+        // Strict category validation: Never show products from outside the assigned category
+        const inCategory = eligible.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories));
 
-        // Sort: prioritize products matching nestedSubCategoryId if available, then by rating
-        if (effectiveNestedId) {
-          matchedProducts.sort((a, b) => {
-            const aNested = isProductAssignedToCategory(a, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
-            const bNested = isProductAssignedToCategory(b, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
-            if (aNested && !bNested) return -1;
-            if (!aNested && bNested) return 1;
-            return (b.rating || 0) - (a.rating || 0);
-          });
+        // Subcategory & Nested Subcategory relevance
+        const sameSub = effectiveSubId
+          ? inCategory.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId))
+          : [];
+
+        const sameNested = (effectiveSubId && effectiveNestedId)
+          ? sameSub.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId, effectiveNestedId))
+          : [];
+
+        // Sort same-subcategory products: nested matches first, then by rating
+        sameSub.sort((a, b) => {
+          const aNested = sameNested.includes(a);
+          const bNested = sameNested.includes(b);
+          if (aNested && !bNested) return -1;
+          if (!aNested && bNested) return 1;
+          return (b.rating || 0) - (a.rating || 0);
+        });
+
+        // If at least 4 items match the subcategory, show only subcategory matches.
+        // Otherwise, prioritize subcategory matches first, supplemented with other items from the same category.
+        let finalProducts: Product[] = [];
+        if (sameSub.length >= 4) {
+          finalProducts = sameSub;
+        } else if (sameSub.length > 0) {
+          const remainingInCat = inCategory.filter(p => !sameSub.includes(p));
+          remainingInCat.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          finalProducts = [...sameSub, ...remainingInCat];
+        } else {
+          const inCatSorted = [...inCategory];
+          inCatSorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          finalProducts = inCatSorted;
         }
 
         if (!isCancelled) {
-          setProducts(matchedProducts.slice(0, 10));
+          setProducts(finalProducts.slice(0, 10));
         }
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -1359,9 +1347,25 @@ function SimilarProducts({
     return () => {
       isCancelled = true;
     };
-  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug, categories]);
+  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug]);
+
+  const handleScrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -360, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 360, behavior: 'smooth' });
+    }
+  };
 
   if (!loading && products.length === 0) return null;
+
+  const seeAllLink = effectiveSubId && effectiveCatId
+    ? `/products?category=${encodeURIComponent(effectiveCatId)}&subCategory=${encodeURIComponent(effectiveSubId)}`
+    : (effectiveCatId ? `/products?category=${encodeURIComponent(effectiveCatId)}` : '/products');
 
   return (
     <div className="pt-8 border-t border-gray-100">
@@ -1370,14 +1374,36 @@ function SimilarProducts({
           <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Recommendations from same category</p>
         </div>
-        <Link to="/products" className="group flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
-          <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </Link>
+        <div className="flex items-center gap-2">
+          {products.length > 4 && (
+            <div className="hidden sm:flex items-center gap-1.5 mr-2">
+              <button
+                type="button"
+                onClick={handleScrollLeft}
+                aria-label="Previous similar products"
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-all shadow-xs cursor-pointer active:scale-95"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleScrollRight}
+                aria-label="Next similar products"
+                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-all shadow-xs cursor-pointer active:scale-95"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <Link to={seeAllLink} className="group flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
+            <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+        </div>
       </div>
-      <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+      <div ref={scrollRef} className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
             <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />

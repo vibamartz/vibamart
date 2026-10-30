@@ -156,6 +156,7 @@ export default function MobileProductDetailScreen() {
   // Fetch product & reviews
   useEffect(() => {
     if (!targetSlugOrId) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLoading(true);
     setFetchError(false);
 
@@ -1053,7 +1054,6 @@ function MobileSimilarProducts({
   currentProductId?: string;
   product?: Product;
 }) {
-  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1078,9 +1078,9 @@ function MobileSimilarProducts({
           return;
         }
 
-        const candidateMap = new Map<string, Product>();
+        const categories = useCategoryStore.getState().categories || [];
 
-        // Find category object for alias/slug/id resolution
+        // Resolve category object for ID vs slug mapping
         const catObj = categories.find(c => {
           if (!c) return false;
           const lower = effectiveCatId.toLowerCase();
@@ -1093,82 +1093,56 @@ function MobileSimilarProducts({
           );
         });
 
-        const targetCatIds = new Set<string>([effectiveCatId]);
-        if (catObj?.id) targetCatIds.add(catObj.id);
-        if (catObj?.slug) targetCatIds.add(catObj.slug);
+        const targetCat = catObj?.id || effectiveCatId;
+        const targetCatSlug = catObj?.slug || effectiveCatId;
 
-        const subObj = catObj?.subcategories?.find(s => {
-          if (!s || !effectiveSubId) return false;
-          const lower = effectiveSubId.toLowerCase();
-          return (
-            String(s.id || '').toLowerCase() === lower ||
-            String(s.slug || '').toLowerCase() === lower ||
-            String((s as any).seoSlug || '').toLowerCase() === lower ||
-            String(s.name || '').toLowerCase() === lower
+        // Fetch category & subcategory products in parallel
+        const queryPromises: Promise<any>[] = [
+          getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCat), limit(50))).catch(() => null)
+        ];
+
+        if (targetCatSlug && targetCatSlug !== targetCat) {
+          queryPromises.push(
+            getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCatSlug), limit(50))).catch(() => null)
           );
+        }
+
+        if (effectiveSubId) {
+          queryPromises.push(
+            getDocs(query(collection(db, 'products'), where('subCategoryId', '==', effectiveSubId), limit(50))).catch(() => null)
+          );
+        }
+
+        const [snaps, rewardIds] = await Promise.all([
+          Promise.all(queryPromises),
+          getRewardProductIds()
+        ]);
+
+        const candidateMap = new Map<string, Product>();
+        snaps.forEach(snap => {
+          if (snap?.docs) {
+            snap.docs.forEach((d: any) => {
+              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
+            });
+          }
         });
 
-        const targetSubIds = new Set<string>();
-        if (effectiveSubId) {
-          targetSubIds.add(effectiveSubId);
-          if (subObj?.id) targetSubIds.add(subObj.id);
-          if (subObj?.slug) targetSubIds.add(subObj.slug);
-        }
-
-        // 1. If assigned to a subcategory, query by subCategoryId to directly fetch matching candidates
-        for (const subId of targetSubIds) {
-          try {
-            const subQ = query(
-              collection(db, 'products'),
-              where('subCategoryId', '==', subId)
-            );
-            const subSnap = await getDocs(subQ);
-            subSnap.docs.forEach(doc => {
-              candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-            });
-          } catch (err) {
-            console.warn('Subcategory query warning:', err);
-          }
-        }
-
-        // 2. Query products in category to ensure all candidates are fetched
-        for (const catId of targetCatIds) {
-          try {
-            const catQ = query(
-              collection(db, 'products'),
-              where('categoryId', '==', catId)
-            );
-            const catSnap = await getDocs(catQ);
-            catSnap.docs.forEach(doc => {
-              if (!candidateMap.has(doc.id)) {
-                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-              }
-            });
-          } catch (err) {
-            console.warn('Category query warning:', err);
-          }
-        }
-
-        // 3. Fallback scan if candidateMap is empty
+        // Fallback scan if category queries returned empty
         if (candidateMap.size === 0) {
           try {
-            const allQ = query(collection(db, 'products'), limit(100));
-            const allSnap = await getDocs(allQ);
-            allSnap.docs.forEach(doc => {
-              if (!candidateMap.has(doc.id)) {
-                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
-              }
+            const allSnap = await getDocs(query(collection(db, 'products'), limit(50)));
+            allSnap.docs.forEach(d => {
+              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
             });
-          } catch (err) {
-            console.warn('Fallback query warning:', err);
+          } catch (e) {
+            console.warn('Fallback similar products query error:', e);
           }
         }
 
-        const rewardIds = await getRewardProductIds();
         const rawCandidates = Array.from(candidateMap.values());
 
-        // Filter out: current product, inactive / hidden products, reward products
-        const eligibleCandidates = filterOutRewardProducts(
+        // Filter out: current product, inactive / invisible, reward products
+        const eligible = filterOutRewardProducts(
           rawCandidates.filter(p => {
             if (!p) return false;
             if (p.isVisible === false || p.status === 'inactive') return false;
@@ -1185,31 +1159,44 @@ function MobileSimilarProducts({
           rewardIds
         );
 
-        // Strict category and subcategory filtering:
-        // Must match current product's assigned category AND subcategory (if assigned)
-        // Strictly prevents cross-category leaks and unrelated products
-        const matchedProducts = eligibleCandidates.filter(p =>
-          isProductAssignedToCategory(
-            p,
-            effectiveCatId,
-            categories,
-            effectiveSubId || undefined
-          )
-        );
+        // Strict category validation: Never show products from outside the assigned category
+        const inCategory = eligible.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories));
 
-        // Sort: prioritize products matching nestedSubCategoryId if available, then by rating
-        if (effectiveNestedId) {
-          matchedProducts.sort((a, b) => {
-            const aNested = isProductAssignedToCategory(a, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
-            const bNested = isProductAssignedToCategory(b, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
-            if (aNested && !bNested) return -1;
-            if (!aNested && bNested) return 1;
-            return (b.rating || 0) - (a.rating || 0);
-          });
+        // Subcategory & Nested Subcategory relevance
+        const sameSub = effectiveSubId
+          ? inCategory.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId))
+          : [];
+
+        const sameNested = (effectiveSubId && effectiveNestedId)
+          ? sameSub.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId, effectiveNestedId))
+          : [];
+
+        // Sort same-subcategory products: nested matches first, then by rating
+        sameSub.sort((a, b) => {
+          const aNested = sameNested.includes(a);
+          const bNested = sameNested.includes(b);
+          if (aNested && !bNested) return -1;
+          if (!aNested && bNested) return 1;
+          return (b.rating || 0) - (a.rating || 0);
+        });
+
+        // If at least 4 items match the subcategory, show only subcategory matches.
+        // Otherwise, prioritize subcategory matches first, supplemented with other items from the same category.
+        let finalProducts: Product[] = [];
+        if (sameSub.length >= 4) {
+          finalProducts = sameSub;
+        } else if (sameSub.length > 0) {
+          const remainingInCat = inCategory.filter(p => !sameSub.includes(p));
+          remainingInCat.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          finalProducts = [...sameSub, ...remainingInCat];
+        } else {
+          const inCatSorted = [...inCategory];
+          inCatSorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          finalProducts = inCatSorted;
         }
 
         if (!isCancelled) {
-          setProducts(matchedProducts.slice(0, 8));
+          setProducts(finalProducts.slice(0, 8));
         }
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -1225,9 +1212,13 @@ function MobileSimilarProducts({
     return () => {
       isCancelled = true;
     };
-  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug, categories]);
+  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug]);
 
   if (!loading && products.length === 0) return null;
+
+  const seeAllLink = effectiveSubId && effectiveCatId
+    ? `/products?category=${encodeURIComponent(effectiveCatId)}&subCategory=${encodeURIComponent(effectiveSubId)}`
+    : (effectiveCatId ? `/products?category=${encodeURIComponent(effectiveCatId)}` : '/products');
 
   return (
     <div className="space-y-2.5">
@@ -1235,7 +1226,7 @@ function MobileSimilarProducts({
         <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
           Similar Products
         </span>
-        <Link to="/products" className="text-[10px] font-black uppercase text-emerald-700">
+        <Link to={seeAllLink} className="text-[10px] font-black uppercase text-emerald-700">
           See All →
         </Link>
       </div>
