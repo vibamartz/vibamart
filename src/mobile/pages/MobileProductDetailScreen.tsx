@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { fetchSimilarProducts } from '../../shared/utilities/similarProductsUtils';
 
 export default function MobileProductDetailScreen() {
   const params = useParams<{ id?: string; slug?: string }>();
@@ -1056,6 +1057,7 @@ function MobileSimilarProducts({
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const effectiveCatId = (product?.categoryId || categoryId || '').trim();
   const effectiveSubId = (product?.subCategoryId || subCategoryId || '').trim();
@@ -1067,8 +1069,14 @@ function MobileSimilarProducts({
   useEffect(() => {
     let isCancelled = false;
 
+    // Reset scroll position and clear stale products when current product changes (Requirement 6)
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = 0;
+    }
+    setLoading(true);
+    setProducts([]);
+
     const fetchSimilar = async () => {
-      setLoading(true);
       try {
         if (!effectiveCatId) {
           if (!isCancelled) {
@@ -1078,125 +1086,17 @@ function MobileSimilarProducts({
           return;
         }
 
-        const categories = useCategoryStore.getState().categories || [];
-
-        // Resolve category object for ID vs slug mapping
-        const catObj = categories.find(c => {
-          if (!c) return false;
-          const lower = effectiveCatId.toLowerCase();
-          return (
-            String(c.id || '').toLowerCase() === lower ||
-            String(c.slug || '').toLowerCase() === lower ||
-            String((c as any).seoSlug || '').toLowerCase() === lower ||
-            String(getCategorySlug(c) || '').toLowerCase() === lower ||
-            String(c.name || '').toLowerCase() === lower
-          );
+        const finalProducts = await fetchSimilarProducts({
+          product,
+          currentProductId: currentProdId,
+          categoryId: effectiveCatId,
+          subCategoryId: effectiveSubId,
+          nestedSubCategoryId: effectiveNestedId,
+          maxLimit: 8
         });
-
-        const targetCat = catObj?.id || effectiveCatId;
-        const targetCatSlug = catObj?.slug || effectiveCatId;
-
-        // Fetch category & subcategory products in parallel
-        const queryPromises: Promise<any>[] = [
-          getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCat), limit(50))).catch(() => null)
-        ];
-
-        if (targetCatSlug && targetCatSlug !== targetCat) {
-          queryPromises.push(
-            getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCatSlug), limit(50))).catch(() => null)
-          );
-        }
-
-        if (effectiveSubId) {
-          queryPromises.push(
-            getDocs(query(collection(db, 'products'), where('subCategoryId', '==', effectiveSubId), limit(50))).catch(() => null)
-          );
-        }
-
-        const [snaps, rewardIds] = await Promise.all([
-          Promise.all(queryPromises),
-          getRewardProductIds()
-        ]);
-
-        const candidateMap = new Map<string, Product>();
-        snaps.forEach(snap => {
-          if (snap?.docs) {
-            snap.docs.forEach((d: any) => {
-              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
-            });
-          }
-        });
-
-        // Fallback scan if category queries returned empty
-        if (candidateMap.size === 0) {
-          try {
-            const allSnap = await getDocs(query(collection(db, 'products'), limit(50)));
-            allSnap.docs.forEach(d => {
-              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
-            });
-          } catch (e) {
-            console.warn('Fallback similar products query error:', e);
-          }
-        }
-
-        const rawCandidates = Array.from(candidateMap.values());
-
-        // Filter out: current product, inactive / invisible, reward products
-        const eligible = filterOutRewardProducts(
-          rawCandidates.filter(p => {
-            if (!p) return false;
-            if (p.isVisible === false || p.status === 'inactive') return false;
-            const pid = p.id;
-            const pDocId = (p as any).id;
-            const code = (p as any).productCode;
-            const slug = getProductSlug(p);
-            return (
-              (!currentProdId || (pid !== currentProdId && pDocId !== currentProdId)) &&
-              (!currentCode || !code || cleanProductCode(code) !== cleanProductCode(currentCode)) &&
-              (!currentSlug || !slug || slug !== currentSlug)
-            );
-          }),
-          rewardIds
-        );
-
-        // Strict category validation: Never show products from outside the assigned category
-        const inCategory = eligible.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories));
-
-        // Subcategory & Nested Subcategory relevance
-        const sameSub = effectiveSubId
-          ? inCategory.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId))
-          : [];
-
-        const sameNested = (effectiveSubId && effectiveNestedId)
-          ? sameSub.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId, effectiveNestedId))
-          : [];
-
-        // Sort same-subcategory products: nested matches first, then by rating
-        sameSub.sort((a, b) => {
-          const aNested = sameNested.includes(a);
-          const bNested = sameNested.includes(b);
-          if (aNested && !bNested) return -1;
-          if (!aNested && bNested) return 1;
-          return (b.rating || 0) - (a.rating || 0);
-        });
-
-        // If at least 4 items match the subcategory, show only subcategory matches.
-        // Otherwise, prioritize subcategory matches first, supplemented with other items from the same category.
-        let finalProducts: Product[] = [];
-        if (sameSub.length >= 4) {
-          finalProducts = sameSub;
-        } else if (sameSub.length > 0) {
-          const remainingInCat = inCategory.filter(p => !sameSub.includes(p));
-          remainingInCat.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          finalProducts = [...sameSub, ...remainingInCat];
-        } else {
-          const inCatSorted = [...inCategory];
-          inCatSorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          finalProducts = inCatSorted;
-        }
 
         if (!isCancelled) {
-          setProducts(finalProducts.slice(0, 8));
+          setProducts(finalProducts);
         }
       } catch (err) {
         console.error('Error fetching similar products:', err);
@@ -1230,12 +1130,18 @@ function MobileSimilarProducts({
           See All →
         </Link>
       </div>
-      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {products.map(p => (
-          <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
-            <ProductCard product={p} />
-          </div>
-        ))}
+      <div ref={scrollRef} className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+        {loading ? (
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="w-[145px] sm:w-[165px] shrink-0 animate-pulse bg-gray-50 rounded-xl aspect-[4/5] border border-gray-100" />
+          ))
+        ) : (
+          products.map(p => (
+            <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
+              <ProductCard product={p} />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
