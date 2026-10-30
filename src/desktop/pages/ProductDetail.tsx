@@ -32,6 +32,7 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
+import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
@@ -957,7 +958,12 @@ export default function ProductDetail() {
 
       {/* Similar Products Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+        <SimilarProducts
+          categoryId={product.categoryId}
+          subCategoryId={product.subCategoryId}
+          currentProductId={product.id}
+          product={product}
+        />
       </div>
 
       {/* Product Information Details Tabs Section */}
@@ -1170,55 +1176,190 @@ export default function ProductDetail() {
   );
 }
 
-function SimilarProducts({ categoryId, currentProductId }: { categoryId: string, currentProductId: string }) {
+function SimilarProducts({
+  categoryId,
+  subCategoryId,
+  currentProductId,
+  product
+}: {
+  categoryId?: string;
+  subCategoryId?: string;
+  currentProductId?: string;
+  product?: Product;
+}) {
+  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const effectiveCatId = (product?.categoryId || categoryId || '').trim();
+  const effectiveSubId = (product?.subCategoryId || subCategoryId || '').trim();
+  const effectiveNestedId = (product?.nestedSubCategoryId || '').trim();
+  const currentProdId = product?.id || currentProductId;
+  const currentCode = product?.productCode;
+  const currentSlug = product ? getProductSlug(product) : '';
+
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchSimilar = async () => {
       setLoading(true);
       try {
-        if (!categoryId) {
-          setProducts([]);
-          setLoading(false);
+        if (!effectiveCatId) {
+          if (!isCancelled) {
+            setProducts([]);
+            setLoading(false);
+          }
           return;
         }
-        const q = query(
-          collection(db, 'products'),
-          where('categoryId', '==', categoryId),
-          where('status', '==', 'active'),
-          limit(10)
-        );
-        const snapshot = await getDocs(q);
+
+        const candidateMap = new Map<string, Product>();
+
+        // Find category object for alias/slug/id resolution
+        const catObj = categories.find(c => {
+          if (!c) return false;
+          const lower = effectiveCatId.toLowerCase();
+          return (
+            String(c.id || '').toLowerCase() === lower ||
+            String(c.slug || '').toLowerCase() === lower ||
+            String((c as any).seoSlug || '').toLowerCase() === lower ||
+            String(getCategorySlug(c) || '').toLowerCase() === lower ||
+            String(c.name || '').toLowerCase() === lower
+          );
+        });
+
+        const targetCatIds = new Set<string>([effectiveCatId]);
+        if (catObj?.id) targetCatIds.add(catObj.id);
+        if (catObj?.slug) targetCatIds.add(catObj.slug);
+
+        const subObj = catObj?.subcategories?.find(s => {
+          if (!s || !effectiveSubId) return false;
+          const lower = effectiveSubId.toLowerCase();
+          return (
+            String(s.id || '').toLowerCase() === lower ||
+            String(s.slug || '').toLowerCase() === lower ||
+            String((s as any).seoSlug || '').toLowerCase() === lower ||
+            String(s.name || '').toLowerCase() === lower
+          );
+        });
+
+        const targetSubIds = new Set<string>();
+        if (effectiveSubId) {
+          targetSubIds.add(effectiveSubId);
+          if (subObj?.id) targetSubIds.add(subObj.id);
+          if (subObj?.slug) targetSubIds.add(subObj.slug);
+        }
+
+        // 1. If assigned to a subcategory, query by subCategoryId to directly fetch matching candidates
+        for (const subId of targetSubIds) {
+          try {
+            const subQ = query(
+              collection(db, 'products'),
+              where('subCategoryId', '==', subId)
+            );
+            const subSnap = await getDocs(subQ);
+            subSnap.docs.forEach(doc => {
+              candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+            });
+          } catch (err) {
+            console.warn('Subcategory query warning:', err);
+          }
+        }
+
+        // 2. Query products in category to ensure all candidates are fetched
+        for (const catId of targetCatIds) {
+          try {
+            const catQ = query(
+              collection(db, 'products'),
+              where('categoryId', '==', catId)
+            );
+            const catSnap = await getDocs(catQ);
+            catSnap.docs.forEach(doc => {
+              if (!candidateMap.has(doc.id)) {
+                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+              }
+            });
+          } catch (err) {
+            console.warn('Category query warning:', err);
+          }
+        }
+
+        // 3. Fallback scan if candidateMap is empty
+        if (candidateMap.size === 0) {
+          try {
+            const allQ = query(collection(db, 'products'), limit(100));
+            const allSnap = await getDocs(allQ);
+            allSnap.docs.forEach(doc => {
+              if (!candidateMap.has(doc.id)) {
+                candidateMap.set(doc.id, { id: doc.id, ...doc.data() } as Product);
+              }
+            });
+          } catch (err) {
+            console.warn('Fallback query warning:', err);
+          }
+        }
+
         const rewardIds = await getRewardProductIds();
-        const fetchedProducts = filterOutRewardProducts(
-          snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-            .filter(p => {
-              if (!p) return false;
-              const pid = p.id;
-              const pDocId = (p as any).id;
-              const code = (p as any).productCode;
-              const slug = getProductSlug(p);
-              return (
-                pid !== currentProductId &&
-                pDocId !== currentProductId &&
-                (!code || code !== currentProductId) &&
-                (!slug || slug !== currentProductId)
-              );
-            }),
+        const rawCandidates = Array.from(candidateMap.values());
+
+        // Filter out: current product, inactive / hidden products, reward products
+        const eligibleCandidates = filterOutRewardProducts(
+          rawCandidates.filter(p => {
+            if (!p) return false;
+            if (p.isVisible === false || p.status === 'inactive') return false;
+            const pid = p.id;
+            const pDocId = (p as any).id;
+            const code = (p as any).productCode;
+            const slug = getProductSlug(p);
+            return (
+              (!currentProdId || (pid !== currentProdId && pDocId !== currentProdId)) &&
+              (!currentCode || !code || cleanProductCode(code) !== cleanProductCode(currentCode)) &&
+              (!currentSlug || !slug || slug !== currentSlug)
+            );
+          }),
           rewardIds
-        ).slice(0, 4);
-        setProducts(fetchedProducts);
+        );
+
+        // Strict category and subcategory filtering:
+        // Must match current product's assigned category AND subcategory (if assigned)
+        // Strictly prevents cross-category leaks and unrelated products
+        const matchedProducts = eligibleCandidates.filter(p =>
+          isProductAssignedToCategory(
+            p,
+            effectiveCatId,
+            categories,
+            effectiveSubId || undefined
+          )
+        );
+
+        // Sort: prioritize products matching nestedSubCategoryId if available, then by rating
+        if (effectiveNestedId) {
+          matchedProducts.sort((a, b) => {
+            const aNested = isProductAssignedToCategory(a, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
+            const bNested = isProductAssignedToCategory(b, effectiveCatId, categories, effectiveSubId, effectiveNestedId);
+            if (aNested && !bNested) return -1;
+            if (!aNested && bNested) return 1;
+            return (b.rating || 0) - (a.rating || 0);
+          });
+        }
+
+        if (!isCancelled) {
+          setProducts(matchedProducts.slice(0, 10));
+        }
       } catch (err) {
         console.error('Error fetching similar products:', err);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchSimilar();
-  }, [categoryId, currentProductId]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug, categories]);
 
   if (!loading && products.length === 0) return null;
 
