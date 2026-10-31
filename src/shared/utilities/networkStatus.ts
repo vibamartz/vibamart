@@ -39,29 +39,41 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-      // Probe lightweight local static resource or ping
-      const probeUrl = `/favicon.svg?_t=${Date.now()}`;
-      const response = await fetch(probeUrl, {
-        method: 'HEAD',
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const isReallyOnline = response.ok || response.status === 304 || response.type === 'opaque';
-      set({ isOnline: isReallyOnline, isChecking: false });
-
-      if (isReallyOnline) {
+      try {
+        // Probe lightweight online connectivity endpoint
+        await fetch('https://www.google.com/generate_204', {
+          mode: 'no-cors',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        set({ isOnline: true, isChecking: false });
         toast.success('Connection restored! You are back online.');
-      } else {
-        toast.error("You're still offline. Check your connection and try again.");
-      }
+        return true;
+      } catch {
+        // Probe lightweight local static resource as fallback
+        const probeUrl = `/favicon.svg?_t=${Date.now()}`;
+        const response = await fetch(probeUrl, {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
 
-      return isReallyOnline;
+        clearTimeout(timeoutId);
+
+        const isReallyOnline = response.ok || response.status === 304 || response.type === 'opaque';
+        set({ isOnline: isReallyOnline, isChecking: false });
+
+        if (isReallyOnline) {
+          toast.success('Connection restored! You are back online.');
+        } else {
+          toast.error("You're still offline. Check your connection and try again.");
+        }
+
+        return isReallyOnline;
+      }
     } catch {
-      // In case probe failed or timed out
-      // As a fallback check navigator.onLine
+      // In case probe failed or timed out, check navigator.onLine as fallback
       const fallbackOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
       set({ isOnline: fallbackOnline, isChecking: false });
 
@@ -88,4 +100,3 @@ if (typeof window !== 'undefined') {
     toast.error('No internet connection. Switched to offline mode.');
   });
 }
-
