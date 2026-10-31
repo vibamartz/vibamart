@@ -16,6 +16,8 @@ import { calculateShippingFee, isCartEligibleForFreeDelivery } from '../../share
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { useNetworkStore } from '../../shared/utilities/networkStatus';
+import { OfflineCartSection } from '../../shared/components/offline';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -118,6 +120,7 @@ function MobileWishlistSection() {
 export default function MobileCartScreen() {
   const { items, updateQuantity, removeItem, clearCart, total } = useCartStore();
   const { user } = useAuthStore();
+  const { isOnline } = useNetworkStore();
   const { selectedAddress } = useLocationStore();
   const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
@@ -168,11 +171,18 @@ export default function MobileCartScreen() {
   };
 
   const handleBuyNow = (productId: string, variantId?: string) => {
+    if (!isOnline) {
+      toast.error("You're offline. Reconnect to purchase items.");
+      return;
+    }
     navigate('/checkout');
   };
 
   return (
     <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-3">
+
+      {/* Offline Cart Banner when offline */}
+      {!isOnline && <OfflineCartSection />}
 
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
@@ -441,12 +451,21 @@ export default function MobileCartScreen() {
             <p className="text-base font-black text-gray-900">₹{grandTotal.toLocaleString()}</p>
           </div>
 
-          <button
-            onClick={() => navigate('/checkout')}
-            className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2 active:scale-95"
-          >
-            Proceed to Checkout <ArrowRight className="w-4 h-4" />
-          </button>
+          {!isOnline ? (
+            <button
+              disabled
+              className="px-4 py-3 bg-gray-200 text-gray-500 rounded-2xl text-[11px] font-bold uppercase tracking-wider cursor-not-allowed opacity-90"
+            >
+              <span>Offline • Reconnect to Checkout</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/checkout')}
+              className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2 active:scale-95"
+            >
+              Proceed to Checkout <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
 

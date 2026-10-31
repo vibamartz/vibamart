@@ -80,6 +80,8 @@ function ScrollToTop() {
 }
 
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
+import { useNetworkStore } from './shared/utilities/networkStatus';
+import { NoInternetScreen, OfflineSplashScreen } from './shared/components/offline';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -125,14 +127,39 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 function MainAppRoutes() {
   const isMobile = useIsMobile();
+  const { isOnline } = useNetworkStore();
+  const location = useLocation();
   useDoubleBackToExit();
 
+  const isHomeRoute = location.pathname === '/' ||
+                      location.pathname === '/for-you' ||
+                      location.pathname === '/mobile' ||
+                      location.pathname === '/mobile-home' ||
+                      location.pathname === '/home-mobile' ||
+                      location.pathname.startsWith('/category/');
+  const isCartRoute = location.pathname === '/cart';
+
+  const shouldShowNoInternet = !isOnline && !isHomeRoute && !isCartRoute;
+
   if (isMobile) {
+    if (shouldShowNoInternet) {
+      return (
+        <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
+          <MobileHeader />
+          <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-20 sm:pb-24">
+            <NoInternetScreen />
+          </main>
+          <MobileBottomNav />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
         <MobileHeader />
         <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-20 sm:pb-24">
           <Routes>
+            <Route path="/offline" element={<NoInternetScreen />} />
             <Route path="/" element={<MobileHomepage />} />
             <Route path="/for-you" element={<MobileHomepage />} />
             <Route path="/mobile" element={<MobileHomepage />} />
@@ -207,11 +234,25 @@ function MainAppRoutes() {
     );
   }
 
+  if (shouldShowNoInternet) {
+    return (
+      <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
+        <Navbar />
+        <main className="flex-1">
+          <NoInternetScreen />
+        </main>
+        <Footer />
+        <DesktopShareModal />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
       <Navbar />
       <main className="flex-1">
         <Routes>
+          <Route path="/offline" element={<NoInternetScreen />} />
           <Route path="/" element={<Home />} />
           <Route path="/for-you" element={<Home />} />
           <Route path="/mobile" element={<MobileHomepage />} />
@@ -285,7 +326,26 @@ function MainAppRoutes() {
   );
 }
 
-function SplashScreen({ isVisible }: { isVisible: boolean }) {
+function SplashScreen({
+  isVisible,
+  isOnline,
+  onRetrySuccess,
+  onContinueOffline,
+}: {
+  isVisible: boolean;
+  isOnline: boolean;
+  onRetrySuccess: () => void;
+  onContinueOffline: () => void;
+}) {
+  if (isVisible && !isOnline) {
+    return (
+      <OfflineSplashScreen
+        onRetrySuccess={onRetrySuccess}
+        onContinueOffline={onContinueOffline}
+      />
+    );
+  }
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -311,11 +371,21 @@ function SplashScreen({ isVisible }: { isVisible: boolean }) {
 }
 
 export default function App() {
+  const { isOnline } = useNetworkStore();
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
   const { initSettings, loading: settingsLoading } = useSettingsStore();
   const [showPermissions, setShowPermissions] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  const reinitializeStores = () => {
+    initAuth();
+    initCategories();
+    useVisualNestedSubcategoryStore.getState().initVisualNestedSubcategories();
+    initSettings();
+    useFeatureStore.getState().initFeatures();
+    useRewardsStore.getState().initRewards();
+  };
 
   useEffect(() => {
     // Immediately hide native Capacitor/Android launch splash screen on app mount
@@ -330,12 +400,7 @@ export default function App() {
       }
     }
 
-    initAuth();
-    initCategories();
-    useVisualNestedSubcategoryStore.getState().initVisualNestedSubcategories();
-    initSettings();
-    useFeatureStore.getState().initFeatures();
-    useRewardsStore.getState().initRewards();
+    reinitializeStores();
     
     const acknowledged = localStorage.getItem('permissionsAcknowledged');
     if (!acknowledged) {
@@ -351,23 +416,25 @@ export default function App() {
       setMinDelayPassed(true);
     }, 500);
 
-    // Hard fallback safety timer (2s) so app never hangs permanently
+    // Hard fallback safety timer (2s) so app never hangs permanently when online
     const maxSafetyTimer = setTimeout(() => {
-      setShowSplash(false);
+      if (isOnline) {
+        setShowSplash(false);
+      }
     }, 2000);
 
     return () => {
       clearTimeout(timer);
       clearTimeout(maxSafetyTimer);
     };
-  }, []);
+  }, [isOnline]);
 
   useEffect(() => {
     const isStoreLoading = loading || catsLoading || settingsLoading;
-    if (minDelayPassed && !isStoreLoading) {
+    if (minDelayPassed && !isStoreLoading && isOnline) {
       setShowSplash(false);
     }
-  }, [minDelayPassed, loading, catsLoading, settingsLoading]);
+  }, [minDelayPassed, loading, catsLoading, settingsLoading, isOnline]);
 
   const handlePermissionsAccept = () => {
     localStorage.setItem('permissionsAcknowledged', 'true');
@@ -376,7 +443,15 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <SplashScreen isVisible={showSplash} />
+      <SplashScreen
+        isVisible={showSplash}
+        isOnline={isOnline}
+        onRetrySuccess={() => {
+          reinitializeStores();
+          setShowSplash(false);
+        }}
+        onContinueOffline={() => setShowSplash(false)}
+      />
       <Router>
         <ScrollToTop />
         <GlobalPushNotificationListener />

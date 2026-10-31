@@ -30,6 +30,8 @@ import TrendingProductsTwoRowSection from '../../shared/components/TrendingProdu
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
+import { useNetworkStore } from '../../shared/utilities/networkStatus';
+import { OfflineHomeScreen } from '../../shared/components/offline';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
@@ -37,6 +39,7 @@ export default function MobileHomepage() {
   const { user } = useAuthStore();
   const { addItem, items } = useCartStore();
   const { config: rewardsConfig } = useRewardsStore();
+  const { isOnline } = useNetworkStore();
   const { selectedAddress, initLocation } = useLocationStore();
   const navigate = useNavigate();
   const routeParams = useParams<{ categorySlug?: string }>();
@@ -467,6 +470,10 @@ export default function MobileHomepage() {
   const personalizedTitle = userName
     ? `${userName}, still looking for these?`
     : 'Recommended For You';
+
+  if (!isOnline) {
+    return <OfflineHomeScreen />;
+  }
 
   return (
     <div

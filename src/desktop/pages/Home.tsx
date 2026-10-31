@@ -28,6 +28,8 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { useNetworkStore } from '../../shared/utilities/networkStatus';
+import { OfflineHomeScreen } from '../../shared/components/offline';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -35,6 +37,7 @@ export default function Home() {
   const { user, orderedProductIds } = useAuthStore();
   const { addItem, items } = useCartStore();
   const { config: rewardsConfig } = useRewardsStore();
+  const { isOnline } = useNetworkStore();
   const navigate = useNavigate();
   const routeParams = useParams<{ categorySlug?: string }>();
   const location = useLocation();
@@ -266,6 +269,10 @@ export default function Home() {
     const prev = (currentSlide - 2 < 0) ? Math.max(0, activeBanners.length - 2) : currentSlide - 2;
     scrollToBannerSlide(prev);
   };
+
+  if (!isOnline) {
+    return <OfflineHomeScreen />;
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-20 pt-2 sm:pt-4">

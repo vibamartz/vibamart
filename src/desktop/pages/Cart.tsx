@@ -16,6 +16,8 @@ import { calculateShippingFee } from '../../shared/utilities/shippingUtils';
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { useNetworkStore } from '../../shared/utilities/networkStatus';
+import { OfflineCartSection } from '../../shared/components/offline';
 import toast from 'react-hot-toast';
 
 function WishlistCartSection() {
@@ -92,6 +94,7 @@ export default function Cart() {
   const { user } = useAuthStore();
   const { selectedAddress } = useLocationStore();
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const { isOnline } = useNetworkStore();
   const navigate = useNavigate();
 
   const handleMoveToWishlist = async (productId: string, variantId?: string) => {
@@ -112,6 +115,10 @@ export default function Cart() {
   };
 
   const handleBuyNow = (productId: string, variantId?: string) => {
+    if (!isOnline) {
+      toast.error("You're offline. Reconnect to purchase items.");
+      return;
+    }
     navigate('/checkout');
   };
 
@@ -128,6 +135,9 @@ export default function Cart() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Offline Cart Banner when offline */}
+        {!isOnline && <OfflineCartSection />}
 
         {/* Cart Top Section */}
         {items.length === 0 ? (
@@ -331,9 +341,18 @@ export default function Cart() {
                   <span>Total Price</span>
                   <span>₹{grandTotal.toLocaleString()}</span>
                 </div>
-                <Link to="/checkout" className="w-full touch-target min-h-[44px] bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
-                  Place Order <ArrowRight className="w-5 h-5" />
-                </Link>
+                {!isOnline ? (
+                  <button
+                    disabled
+                    className="w-full touch-target min-h-[44px] bg-gray-200 text-gray-500 py-4 rounded-2xl font-bold text-center flex items-center justify-center gap-2 cursor-not-allowed uppercase tracking-wider text-xs sm:text-sm"
+                  >
+                    <span>Offline • Reconnect to Place Order</span>
+                  </button>
+                ) : (
+                  <Link to="/checkout" className="w-full touch-target min-h-[44px] bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
+                    Place Order <ArrowRight className="w-5 h-5" />
+                  </Link>
+                )}
                 <p className="mt-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest leading-relaxed">
                   Secure SSL Encrypted Payment <br /> 100% Buyer Protection Guaranteed
                 </p>
