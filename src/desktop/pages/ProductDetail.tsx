@@ -23,7 +23,7 @@ import PincodeChecker from '../components/PincodeChecker';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import {
   doc, getDoc, collection, addDoc, query, where, getDocs, updateDoc,
-  arrayUnion, arrayRemove, limit, documentId
+  arrayUnion, arrayRemove, limit, documentId, onSnapshot, orderBy
 } from 'firebase/firestore';
 import ProductCard from '../components/ProductCard';
 import { getProductSlug, getCategorySlug, createSlug } from '../../shared/utilities/slug';
@@ -33,6 +33,7 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
+import { filterSimilarProducts, getSimilarProductsSeeAllUrl } from '../../shared/utilities/similarProductsUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
@@ -141,6 +142,7 @@ export default function ProductDetail() {
   // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
     if (!targetSlugOrId) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     setLoading(true);
     setProduct(null);
     setNotFound(false);
@@ -957,7 +959,7 @@ export default function ProductDetail() {
 
       {/* Similar Products Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+        <SimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
       </div>
 
       {/* Product Information Details Tabs Section */}
@@ -1170,57 +1172,57 @@ export default function ProductDetail() {
   );
 }
 
-function SimilarProducts({ categoryId, currentProductId }: { categoryId: string, currentProductId: string }) {
+function SimilarProducts({ product, categoryId, currentProductId }: { product?: Product | null; categoryId?: string; currentProductId?: string }) {
+  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSimilar = async () => {
-      setLoading(true);
-      try {
-        if (!categoryId) {
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-        const q = query(
-          collection(db, 'products'),
-          where('categoryId', '==', categoryId),
-          where('status', '==', 'active'),
-          limit(10)
-        );
-        const snapshot = await getDocs(q);
-        const rewardIds = await getRewardProductIds();
-        const fetchedProducts = filterOutRewardProducts(
-          snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-            .filter(p => {
-              if (!p) return false;
-              const pid = p.id;
-              const pDocId = (p as any).id;
-              const code = (p as any).productCode;
-              const slug = getProductSlug(p);
-              return (
-                pid !== currentProductId &&
-                pDocId !== currentProductId &&
-                (!code || code !== currentProductId) &&
-                (!slug || slug !== currentProductId)
-              );
-            }),
-          rewardIds
-        ).slice(0, 4);
-        setProducts(fetchedProducts);
-      } catch (err) {
-        console.error('Error fetching similar products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const currentProd = React.useMemo(() => {
+    if (product) return product;
+    if (categoryId && currentProductId) {
+      return { id: currentProductId, categoryId } as Product;
+    }
+    return null;
+  }, [product, categoryId, currentProductId]);
 
-    fetchSimilar();
-  }, [categoryId, currentProductId]);
+  useEffect(() => {
+    const targetCat = currentProd?.categoryId;
+    if (!currentProd || !targetCat) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const rewardIds = await getRewardProductIds();
+      const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
+      setProducts(filtered);
+      setLoading(false);
+    }, (error) => {
+      console.warn('Similar products onSnapshot error, falling back to getDocs:', error);
+      getDocs(collection(db, 'products')).then(async (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
+        setProducts(filtered);
+        setLoading(false);
+      }).catch(err => {
+        console.error('Error fetching similar products:', err);
+        setLoading(false);
+      });
+    });
+
+    return () => unsubscribe();
+  }, [currentProd?.id, currentProd?.categoryId, currentProd?.subCategoryId, categories]);
 
   if (!loading && products.length === 0) return null;
+
+  const seeAllUrl = currentProd ? getSimilarProductsSeeAllUrl(currentProd, categories) : '/products';
+  const displayedProducts = products.slice(0, 8);
 
   return (
     <div className="pt-8 border-t border-gray-100">
@@ -1229,7 +1231,7 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
           <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Recommendations from same category</p>
         </div>
-        <Link to="/products" className="group flex items-center gap-2">
+        <Link to={seeAllUrl} className="group flex items-center gap-2">
           <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
           <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
             <ChevronRight className="w-4 h-4" />
@@ -1242,8 +1244,12 @@ function SimilarProducts({ categoryId, currentProductId }: { categoryId: string,
             <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
           ))
         ) : (
-          products.map(p => (
-            <div key={p.id} className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col">
+          displayedProducts.map(p => (
+            <div
+              key={p.id}
+              className="w-[170px] sm:w-[190px] shrink-0 snap-start flex flex-col"
+              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+            >
               <ProductCard product={p} />
             </div>
           ))

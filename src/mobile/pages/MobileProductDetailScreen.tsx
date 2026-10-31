@@ -4,10 +4,10 @@ import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw,
   ChevronRight, Check, MapPin, MessageSquare, ThumbsUp, Sparkles, ArrowLeft, HelpCircle, Ruler, X, ChevronLeft
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove, limit, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Review, Address, ProductVariant, FamilyColorVariant } from '../../shared/types';
-import { useCartStore, useAuthStore, useSettingsStore } from '../../backend/store';
+import { useCartStore, useAuthStore, useSettingsStore, useCategoryStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
 import { getProductSlug, createSlug } from '../../shared/utilities/slug';
@@ -15,6 +15,7 @@ import { cleanProductCode, formatProductCode } from '../../shared/utilities/prod
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
+import { filterSimilarProducts, getSimilarProductsSeeAllUrl } from '../../shared/utilities/similarProductsUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../components/MobileProductCardItem';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -155,6 +156,7 @@ export default function MobileProductDetailScreen() {
   // Fetch product & reviews
   useEffect(() => {
     if (!targetSlugOrId) return;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     setLoading(true);
     setFetchError(false);
 
@@ -827,7 +829,7 @@ export default function MobileProductDetailScreen() {
 
         {/* Similar Products Section (Requirement 6) */}
         <div className="pb-3 border-b border-gray-100 space-y-2">
-          <MobileSimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
+          <MobileSimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
         </div>
 
         {/* Product Information Details (Requirements 7 & 8) */}
@@ -1036,57 +1038,57 @@ export default function MobileProductDetailScreen() {
   );
 }
 
-function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: string, currentProductId: string }) {
+function MobileSimilarProducts({ product, categoryId, currentProductId }: { product?: Product | null; categoryId?: string; currentProductId?: string }) {
+  const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSimilar = async () => {
-      setLoading(true);
-      try {
-        if (!categoryId) {
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-        const q = query(
-          collection(db, 'products'),
-          where('categoryId', '==', categoryId),
-          where('status', '==', 'active'),
-          limit(10)
-        );
-        const snapshot = await getDocs(q);
-        const rewardIds = await getRewardProductIds();
-        const fetchedProducts = filterOutRewardProducts(
-          snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
-            .filter(p => {
-              if (!p) return false;
-              const pid = p.id;
-              const pDocId = (p as any).id;
-              const code = (p as any).productCode;
-              const slug = getProductSlug(p);
-              return (
-                pid !== currentProductId &&
-                pDocId !== currentProductId &&
-                (!code || code !== currentProductId) &&
-                (!slug || slug !== currentProductId)
-              );
-            }),
-          rewardIds
-        ).slice(0, 8);
-        setProducts(fetchedProducts);
-      } catch (err) {
-        console.error('Error fetching similar products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const currentProd = React.useMemo(() => {
+    if (product) return product;
+    if (categoryId && currentProductId) {
+      return { id: currentProductId, categoryId } as Product;
+    }
+    return null;
+  }, [product, categoryId, currentProductId]);
 
-    fetchSimilar();
-  }, [categoryId, currentProductId]);
+  useEffect(() => {
+    const targetCat = currentProd?.categoryId;
+    if (!currentProd || !targetCat) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const rewardIds = await getRewardProductIds();
+      const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
+      setProducts(filtered);
+      setLoading(false);
+    }, (error) => {
+      console.warn('Mobile similar products onSnapshot error, falling back to getDocs:', error);
+      getDocs(collection(db, 'products')).then(async (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
+        setProducts(filtered);
+        setLoading(false);
+      }).catch(err => {
+        console.error('Error fetching similar products:', err);
+        setLoading(false);
+      });
+    });
+
+    return () => unsubscribe();
+  }, [currentProd?.id, currentProd?.categoryId, currentProd?.subCategoryId, categories]);
 
   if (!loading && products.length === 0) return null;
+
+  const seeAllUrl = currentProd ? getSimilarProductsSeeAllUrl(currentProd, categories) : '/products';
+  const displayedProducts = products.slice(0, 8);
 
   return (
     <div className="space-y-2.5">
@@ -1094,16 +1096,26 @@ function MobileSimilarProducts({ categoryId, currentProductId }: { categoryId: s
         <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
           Similar Products
         </span>
-        <Link to="/products" className="text-[10px] font-black uppercase text-emerald-700">
+        <Link to={seeAllUrl} className="text-[10px] font-black uppercase text-emerald-700">
           See All →
         </Link>
       </div>
       <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {products.map(p => (
-          <div key={p.id} className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col">
-            <ProductCard product={p} />
-          </div>
-        ))}
+        {loading ? (
+          [...Array(4)].map((_, i) => (
+            <div key={i} className="w-[145px] sm:w-[165px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
+          ))
+        ) : (
+          displayedProducts.map(p => (
+            <div
+              key={p.id}
+              className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col"
+              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+            >
+              <ProductCard product={p} />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
