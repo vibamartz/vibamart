@@ -32,7 +32,6 @@ import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utili
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
-import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
@@ -142,7 +141,6 @@ export default function ProductDetail() {
   // Fetch product by Slug, ID or Product Code & Redirect to Canonical URL
   useEffect(() => {
     if (!targetSlugOrId) return;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     setLoading(true);
     setProduct(null);
     setNotFound(false);
@@ -959,12 +957,7 @@ export default function ProductDetail() {
 
       {/* Similar Products Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <SimilarProducts
-          categoryId={product.categoryId}
-          subCategoryId={product.subCategoryId}
-          currentProductId={product.id}
-          product={product}
-        />
+        <SimilarProducts categoryId={product.categoryId} currentProductId={product.id} />
       </div>
 
       {/* Product Information Details Tabs Section */}
@@ -1177,195 +1170,57 @@ export default function ProductDetail() {
   );
 }
 
-function SimilarProducts({
-  categoryId,
-  subCategoryId,
-  currentProductId,
-  product
-}: {
-  categoryId?: string;
-  subCategoryId?: string;
-  currentProductId?: string;
-  product?: Product;
-}) {
+function SimilarProducts({ categoryId, currentProductId }: { categoryId: string, currentProductId: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  const effectiveCatId = (product?.categoryId || categoryId || '').trim();
-  const effectiveSubId = (product?.subCategoryId || subCategoryId || '').trim();
-  const effectiveNestedId = (product?.nestedSubCategoryId || '').trim();
-  const currentProdId = product?.id || currentProductId;
-  const currentCode = product?.productCode;
-  const currentSlug = product ? getProductSlug(product) : '';
 
   useEffect(() => {
-    let isCancelled = false;
-
     const fetchSimilar = async () => {
       setLoading(true);
       try {
-        if (!effectiveCatId) {
-          if (!isCancelled) {
-            setProducts([]);
-            setLoading(false);
-          }
+        if (!categoryId) {
+          setProducts([]);
+          setLoading(false);
           return;
         }
-
-        const categories = useCategoryStore.getState().categories || [];
-
-        // Resolve category object for ID vs slug mapping
-        const catObj = categories.find(c => {
-          if (!c) return false;
-          const lower = effectiveCatId.toLowerCase();
-          return (
-            String(c.id || '').toLowerCase() === lower ||
-            String(c.slug || '').toLowerCase() === lower ||
-            String((c as any).seoSlug || '').toLowerCase() === lower ||
-            String(getCategorySlug(c) || '').toLowerCase() === lower ||
-            String(c.name || '').toLowerCase() === lower
-          );
-        });
-
-        const targetCat = catObj?.id || effectiveCatId;
-        const targetCatSlug = catObj?.slug || effectiveCatId;
-
-        // Fetch category & subcategory products in parallel
-        const queryPromises: Promise<any>[] = [
-          getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCat), limit(50))).catch(() => null)
-        ];
-
-        if (targetCatSlug && targetCatSlug !== targetCat) {
-          queryPromises.push(
-            getDocs(query(collection(db, 'products'), where('categoryId', '==', targetCatSlug), limit(50))).catch(() => null)
-          );
-        }
-
-        if (effectiveSubId) {
-          queryPromises.push(
-            getDocs(query(collection(db, 'products'), where('subCategoryId', '==', effectiveSubId), limit(50))).catch(() => null)
-          );
-        }
-
-        const [snaps, rewardIds] = await Promise.all([
-          Promise.all(queryPromises),
-          getRewardProductIds()
-        ]);
-
-        const candidateMap = new Map<string, Product>();
-        snaps.forEach(snap => {
-          if (snap?.docs) {
-            snap.docs.forEach((d: any) => {
-              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
-            });
-          }
-        });
-
-        // Fallback scan if category queries returned empty
-        if (candidateMap.size === 0) {
-          try {
-            const allSnap = await getDocs(query(collection(db, 'products'), limit(50)));
-            allSnap.docs.forEach(d => {
-              candidateMap.set(d.id, { id: d.id, ...d.data() } as Product);
-            });
-          } catch (e) {
-            console.warn('Fallback similar products query error:', e);
-          }
-        }
-
-        const rawCandidates = Array.from(candidateMap.values());
-
-        // Filter out: current product, inactive / invisible, reward products
-        const eligible = filterOutRewardProducts(
-          rawCandidates.filter(p => {
-            if (!p) return false;
-            if (p.isVisible === false || p.status === 'inactive') return false;
-            const pid = p.id;
-            const pDocId = (p as any).id;
-            const code = (p as any).productCode;
-            const slug = getProductSlug(p);
-            return (
-              (!currentProdId || (pid !== currentProdId && pDocId !== currentProdId)) &&
-              (!currentCode || !code || cleanProductCode(code) !== cleanProductCode(currentCode)) &&
-              (!currentSlug || !slug || slug !== currentSlug)
-            );
-          }),
-          rewardIds
+        const q = query(
+          collection(db, 'products'),
+          where('categoryId', '==', categoryId),
+          where('status', '==', 'active'),
+          limit(10)
         );
-
-        // Strict category validation: Never show products from outside the assigned category
-        const inCategory = eligible.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories));
-
-        // Subcategory & Nested Subcategory relevance
-        const sameSub = effectiveSubId
-          ? inCategory.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId))
-          : [];
-
-        const sameNested = (effectiveSubId && effectiveNestedId)
-          ? sameSub.filter(p => isProductAssignedToCategory(p, effectiveCatId, categories, effectiveSubId, effectiveNestedId))
-          : [];
-
-        // Sort same-subcategory products: nested matches first, then by rating
-        sameSub.sort((a, b) => {
-          const aNested = sameNested.includes(a);
-          const bNested = sameNested.includes(b);
-          if (aNested && !bNested) return -1;
-          if (!aNested && bNested) return 1;
-          return (b.rating || 0) - (a.rating || 0);
-        });
-
-        // If at least 4 items match the subcategory, show only subcategory matches.
-        // Otherwise, prioritize subcategory matches first, supplemented with other items from the same category.
-        let finalProducts: Product[] = [];
-        if (sameSub.length >= 4) {
-          finalProducts = sameSub;
-        } else if (sameSub.length > 0) {
-          const remainingInCat = inCategory.filter(p => !sameSub.includes(p));
-          remainingInCat.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          finalProducts = [...sameSub, ...remainingInCat];
-        } else {
-          const inCatSorted = [...inCategory];
-          inCatSorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          finalProducts = inCatSorted;
-        }
-
-        if (!isCancelled) {
-          setProducts(finalProducts.slice(0, 10));
-        }
+        const snapshot = await getDocs(q);
+        const rewardIds = await getRewardProductIds();
+        const fetchedProducts = filterOutRewardProducts(
+          snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+            .filter(p => {
+              if (!p) return false;
+              const pid = p.id;
+              const pDocId = (p as any).id;
+              const code = (p as any).productCode;
+              const slug = getProductSlug(p);
+              return (
+                pid !== currentProductId &&
+                pDocId !== currentProductId &&
+                (!code || code !== currentProductId) &&
+                (!slug || slug !== currentProductId)
+              );
+            }),
+          rewardIds
+        ).slice(0, 4);
+        setProducts(fetchedProducts);
       } catch (err) {
         console.error('Error fetching similar products:', err);
       } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchSimilar();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [effectiveCatId, effectiveSubId, effectiveNestedId, currentProdId, currentCode, currentSlug]);
-
-  const handleScrollLeft = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -360, behavior: 'smooth' });
-    }
-  };
-
-  const handleScrollRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 360, behavior: 'smooth' });
-    }
-  };
+  }, [categoryId, currentProductId]);
 
   if (!loading && products.length === 0) return null;
-
-  const seeAllLink = effectiveSubId && effectiveCatId
-    ? `/products?category=${encodeURIComponent(effectiveCatId)}&subCategory=${encodeURIComponent(effectiveSubId)}`
-    : (effectiveCatId ? `/products?category=${encodeURIComponent(effectiveCatId)}` : '/products');
 
   return (
     <div className="pt-8 border-t border-gray-100">
@@ -1374,36 +1229,14 @@ function SimilarProducts({
           <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Recommendations from same category</p>
         </div>
-        <div className="flex items-center gap-2">
-          {products.length > 4 && (
-            <div className="hidden sm:flex items-center gap-1.5 mr-2">
-              <button
-                type="button"
-                onClick={handleScrollLeft}
-                aria-label="Previous similar products"
-                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-all shadow-xs cursor-pointer active:scale-95"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleScrollRight}
-                aria-label="Next similar products"
-                className="w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-700 transition-all shadow-xs cursor-pointer active:scale-95"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-          <Link to={seeAllLink} className="group flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
-            <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </Link>
-        </div>
+        <Link to="/products" className="group flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
+          <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </Link>
       </div>
-      <div ref={scrollRef} className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+      <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
             <div key={i} className="w-[170px] sm:w-[190px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
