@@ -28,11 +28,8 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
-import { useNetworkStatus } from '../../shared/hooks/useNetworkStatus';
-import HomeOfflineSection from '../../shared/components/offline/HomeOfflineSection';
 
 export default function Home() {
-  const { isOnline } = useNetworkStatus();
   const { categories: CATEGORIES } = useCategoryStore();
   const { settings } = useSettingsStore();
   const { user, orderedProductIds } = useAuthStore();
@@ -272,17 +269,9 @@ export default function Home() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-20 pt-2 sm:pt-4">
-      {!isOnline ? (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <HomeOfflineSection />
-          {recentlyViewedProds.length > 0 && (
-            <div className="mt-8">
-              <RecentlyViewedTwoRowSection fallbackProducts={recentlyViewedProds} />
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
+
+
+
       {/* 1. Selected Category's Subcategories (Displays in the space below Search Bar ONLY when a Category is selected) */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
         <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative group/subcat">
@@ -500,8 +489,6 @@ export default function Home() {
         nestedSubCategoryId={selectedNestedSubCatId || undefined}
         products={products}
       />
-      </>
-      )}
     </div>
   );
 }

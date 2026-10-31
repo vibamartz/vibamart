@@ -30,11 +30,8 @@ import TrendingProductsTwoRowSection from '../../shared/components/TrendingProdu
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
-import { useNetworkStatus } from '../../shared/hooks/useNetworkStatus';
-import HomeOfflineSection from '../../shared/components/offline/HomeOfflineSection';
 
 export default function MobileHomepage() {
-  const { isOnline } = useNetworkStatus();
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
   const { settings } = useSettingsStore();
   const { user } = useAuthStore();
@@ -833,21 +830,6 @@ export default function MobileHomepage() {
         <div className="h-0 w-full bg-gradient-to-b from-[#fef08a] via-[#fef08a]/60 to-white pointer-events-none" />
       </div>
 
-      {/* Screen 2: Home Screen (Offline) - Keeps ViBa Mart logo, search bar, cached categories, and bottom nav */}
-      {!isOnline ? (
-        <div className="space-y-4">
-          <HomeOfflineSection />
-          {recentlyViewedProds.length > 0 && (
-            <div className="mt-2">
-              <RecentlyViewedTwoRowSection
-                isMobile={true}
-                fallbackProducts={recentlyViewedProds}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
       {/* ========================================================================= */}
       {/* 5. PROMOTIONAL BANNER (Directly below categories carousel)                */}
       {/* ========================================================================= */}
@@ -1020,8 +1002,6 @@ export default function MobileHomepage() {
         nestedSubCategoryId={selectedNestedSubCatId || undefined}
         products={products}
       />
-      </>
-      )}
 
       {/* Modals */}
       <LocationPickerModal

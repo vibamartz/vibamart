@@ -17,8 +17,6 @@ import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedT
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import toast from 'react-hot-toast';
-import { useNetworkStatus } from '../../shared/hooks/useNetworkStatus';
-import CartOfflineBanner from '../../shared/components/offline/CartOfflineBanner';
 
 function WishlistCartSection() {
   const { user } = useAuthStore();
@@ -90,7 +88,6 @@ function WishlistCartSection() {
 }
 
 export default function Cart() {
-  const { isOnline } = useNetworkStatus();
   const { items, removeItem, updateQuantity, total } = useCartStore();
   const { user } = useAuthStore();
   const { selectedAddress } = useLocationStore();
@@ -115,19 +112,7 @@ export default function Cart() {
   };
 
   const handleBuyNow = (productId: string, variantId?: string) => {
-    if (!isOnline) {
-      toast.error("Checkout requires an active internet connection. Your cart items are safely saved on this device.");
-      return;
-    }
     navigate('/checkout');
-  };
-
-  const handleProceedCheckout = (e: React.MouseEvent) => {
-    if (!isOnline) {
-      e.preventDefault();
-      toast.error("Checkout requires an active internet connection. Your cart items are safely saved on this device.");
-      return;
-    }
   };
 
   const subtotal = total();
@@ -143,10 +128,6 @@ export default function Cart() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Screen 3: Cart Screen (Offline) Banner */}
-        {!isOnline && (
-          <CartOfflineBanner onContinueShopping={() => navigate('/products')} />
-        )}
 
         {/* Cart Top Section */}
         {items.length === 0 ? (
@@ -350,17 +331,8 @@ export default function Cart() {
                   <span>Total Price</span>
                   <span>₹{grandTotal.toLocaleString()}</span>
                 </div>
-                <Link
-                  to={isOnline ? "/checkout" : "#"}
-                  onClick={handleProceedCheckout}
-                  className={`w-full touch-target min-h-[44px] py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 shadow-lg transition-all uppercase tracking-widest ${
-                    !isOnline
-                      ? 'bg-gray-400 text-white cursor-pointer opacity-90'
-                      : 'bg-primary text-white hover:bg-primary-hover shadow-blue-100 cursor-pointer'
-                  }`}
-                >
-                  <span>{isOnline ? 'Place Order' : 'Place Order (Offline)'}</span>
-                  <ArrowRight className="w-5 h-5" />
+                <Link to="/checkout" className="w-full touch-target min-h-[44px] bg-primary text-white py-5 rounded-2xl font-black text-center flex items-center justify-center gap-2 hover:bg-primary-hover shadow-lg shadow-blue-100 transition-all uppercase tracking-widest">
+                  Place Order <ArrowRight className="w-5 h-5" />
                 </Link>
                 <p className="mt-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-widest leading-relaxed">
                   Secure SSL Encrypted Payment <br /> 100% Buyer Protection Guaranteed

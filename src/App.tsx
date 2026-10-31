@@ -80,10 +80,6 @@ function ScrollToTop() {
 }
 
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
-import NoInternetScreen from './shared/components/offline/NoInternetScreen';
-import OfflineSplashScreen from './shared/components/offline/OfflineSplashScreen';
-import OfflinePreviewPage from './shared/components/offline/OfflinePreviewPage';
-import { useNetworkStatus } from './shared/hooks/useNetworkStatus';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -203,10 +199,6 @@ function MainAppRoutes() {
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/contact" element={<ContactUs />} />
-            <Route path="/offline" element={<NoInternetScreen />} />
-            <Route path="/offline-splash" element={<OfflineSplashScreen onContinueOffline={() => { window.location.href = '/'; }} />} />
-            <Route path="/offline-preview" element={<OfflinePreviewPage />} />
-            <Route path="/offline-screens" element={<OfflinePreviewPage />} />
             <Route path="*" element={<MobileHomepage />} />
           </Routes>
         </main>
@@ -284,10 +276,6 @@ function MainAppRoutes() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/product-not-found" element={<ProductNotFound />} />
-          <Route path="/offline" element={<NoInternetScreen />} />
-          <Route path="/offline-splash" element={<OfflineSplashScreen onContinueOffline={() => { window.location.href = '/'; }} />} />
-          <Route path="/offline-preview" element={<OfflinePreviewPage />} />
-          <Route path="/offline-screens" element={<OfflinePreviewPage />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
@@ -323,7 +311,6 @@ function SplashScreen({ isVisible }: { isVisible: boolean }) {
 }
 
 export default function App() {
-  const { isOnline } = useNetworkStatus();
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
   const { initSettings, loading: settingsLoading } = useSettingsStore();
@@ -389,14 +376,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {showSplash && !isOnline ? (
-        <OfflineSplashScreen
-          onRetrySuccess={() => setShowSplash(false)}
-          onContinueOffline={() => setShowSplash(false)}
-        />
-      ) : (
-        <SplashScreen isVisible={showSplash} />
-      )}
+      <SplashScreen isVisible={showSplash} />
       <Router>
         <ScrollToTop />
         <GlobalPushNotificationListener />
