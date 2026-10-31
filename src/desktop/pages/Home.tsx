@@ -28,6 +28,7 @@ import VisualNestedSubcategoriesSection from '../../shared/components/VisualNest
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
+import { useNetworkStore, OfflineHomeScreen } from '../../shared/components/offline';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -266,6 +267,12 @@ export default function Home() {
     const prev = (currentSlide - 2 < 0) ? Math.max(0, activeBanners.length - 2) : currentSlide - 2;
     scrollToBannerSlide(prev);
   };
+
+  const { isOnline } = useNetworkStore();
+
+  if (!isOnline) {
+    return <OfflineHomeScreen showEmbeddedTopNav={false} />;
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-20 pt-2 sm:pt-4">
