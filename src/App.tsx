@@ -36,11 +36,6 @@ import CashbackTermsPage from './desktop/pages/CashbackTermsPage';
 import PrivacyPolicy from './desktop/pages/PrivacyPolicy';
 import ContactUs from './desktop/pages/ContactUs';
 import DesktopShareModal from './desktop/components/DesktopShareModal';
-import {
-  useNetworkStore,
-  NoInternetScreen,
-  OfflineSplashScreen,
-} from './shared/components/offline';
 
 // Mobile UI (Isolated Mobile Frontend)
 import MobileHeader from './mobile/components/MobileHeader';
@@ -130,29 +125,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 function MainAppRoutes() {
   const isMobile = useIsMobile();
-  const { isOnline } = useNetworkStore();
-  const location = useLocation();
   useDoubleBackToExit();
-
-  if (location.pathname === '/offline' || location.pathname === '/no-internet') {
-    return <NoInternetScreen />;
-  }
-  if (location.pathname === '/offline-splash') {
-    return <OfflineSplashScreen onRetry={() => useNetworkStore.getState().checkConnectivity()} />;
-  }
-
-  const isOfflineWhitelisted =
-    location.pathname === '/' ||
-    location.pathname === '/for-you' ||
-    location.pathname === '/mobile' ||
-    location.pathname === '/mobile-home' ||
-    location.pathname === '/home-mobile' ||
-    location.pathname === '/cart' ||
-    location.pathname === '/wishlist';
-
-  if (!isOnline && !isOfflineWhitelisted) {
-    return <NoInternetScreen onRetry={() => useNetworkStore.getState().checkConnectivity()} />;
-  }
 
   if (isMobile) {
     return (
@@ -312,19 +285,7 @@ function MainAppRoutes() {
   );
 }
 
-function SplashScreen({ isVisible, onDismiss }: { isVisible: boolean; onDismiss?: () => void }) {
-  const { isOnline } = useNetworkStore();
-
-  // Screen 4: Offline Splash Screen
-  if (isVisible && !isOnline) {
-    return (
-      <OfflineSplashScreen
-        onRetry={() => useNetworkStore.getState().checkConnectivity()}
-        onDismiss={onDismiss}
-      />
-    );
-  }
-
+function SplashScreen({ isVisible }: { isVisible: boolean }) {
   return (
     <AnimatePresence>
       {isVisible && (
@@ -353,14 +314,8 @@ export default function App() {
   const { initAuth, loading } = useAuthStore();
   const { initCategories, loading: catsLoading } = useCategoryStore();
   const { initSettings, loading: settingsLoading } = useSettingsStore();
-  const { isOnline } = useNetworkStore();
   const [showPermissions, setShowPermissions] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const unsubNetwork = useNetworkStore.getState().initListeners();
-    return () => unsubNetwork();
-  }, []);
 
   useEffect(() => {
     // Immediately hide native Capacitor/Android launch splash screen on app mount
@@ -396,11 +351,9 @@ export default function App() {
       setMinDelayPassed(true);
     }, 500);
 
-    // Hard fallback safety timer (2s) so app never hangs permanently when online
+    // Hard fallback safety timer (2s) so app never hangs permanently
     const maxSafetyTimer = setTimeout(() => {
-      if (useNetworkStore.getState().isOnline) {
-        setShowSplash(false);
-      }
+      setShowSplash(false);
     }, 2000);
 
     return () => {
@@ -411,10 +364,10 @@ export default function App() {
 
   useEffect(() => {
     const isStoreLoading = loading || catsLoading || settingsLoading;
-    if (minDelayPassed && !isStoreLoading && isOnline) {
+    if (minDelayPassed && !isStoreLoading) {
       setShowSplash(false);
     }
-  }, [minDelayPassed, loading, catsLoading, settingsLoading, isOnline]);
+  }, [minDelayPassed, loading, catsLoading, settingsLoading]);
 
   const handlePermissionsAccept = () => {
     localStorage.setItem('permissionsAcknowledged', 'true');
@@ -423,7 +376,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <SplashScreen isVisible={showSplash} onDismiss={() => setShowSplash(false)} />
+      <SplashScreen isVisible={showSplash} />
       <Router>
         <ScrollToTop />
         <GlobalPushNotificationListener />

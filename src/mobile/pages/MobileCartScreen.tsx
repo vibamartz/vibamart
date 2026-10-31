@@ -19,7 +19,6 @@ import MoreProductsForYouSection from '../../shared/components/MoreProductsForYo
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
-import { useNetworkStore, OfflineCartBanner } from '../../shared/components/offline';
 
 function MobileWishlistSection() {
   const { user } = useAuthStore();
@@ -120,7 +119,6 @@ export default function MobileCartScreen() {
   const { items, updateQuantity, removeItem, clearCart, total } = useCartStore();
   const { user } = useAuthStore();
   const { selectedAddress } = useLocationStore();
-  const { isOnline } = useNetworkStore();
   const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
 
@@ -170,18 +168,11 @@ export default function MobileCartScreen() {
   };
 
   const handleBuyNow = (productId: string, variantId?: string) => {
-    if (!isOnline) {
-      toast.error("You're offline. Reconnect to complete checkout.");
-      return;
-    }
     navigate('/checkout');
   };
 
   return (
     <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-3">
-
-      {/* Screen 3: Cart Screen (Offline) Banner */}
-      {!isOnline && <OfflineCartBanner />}
 
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
@@ -451,16 +442,10 @@ export default function MobileCartScreen() {
           </div>
 
           <button
-            onClick={() => {
-              if (!isOnline) {
-                toast.error("You're offline. Please reconnect to proceed to checkout.");
-                return;
-              }
-              navigate('/checkout');
-            }}
-            className={`px-6 py-3.5 ${!isOnline ? 'bg-gray-400 opacity-80 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-600 to-emerald-700 active:scale-95'} text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2`}
+            onClick={() => navigate('/checkout')}
+            className="px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-2 active:scale-95"
           >
-            {isOnline ? 'Proceed to Checkout' : 'Checkout (Offline)'} <ArrowRight className="w-4 h-4" />
+            Proceed to Checkout <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}

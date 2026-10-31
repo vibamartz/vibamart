@@ -30,7 +30,6 @@ import TrendingProductsTwoRowSection from '../../shared/components/TrendingProdu
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
-import { useNetworkStore, OfflineHomeScreen } from '../../shared/components/offline';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
@@ -468,12 +467,6 @@ export default function MobileHomepage() {
   const personalizedTitle = userName
     ? `${userName}, still looking for these?`
     : 'Recommended For You';
-
-  const { isOnline } = useNetworkStore();
-
-  if (!isOnline) {
-    return <OfflineHomeScreen showEmbeddedTopNav={true} />;
-  }
 
   return (
     <div
