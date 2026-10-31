@@ -17,7 +17,7 @@ import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedT
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { useNetworkStore } from '../../shared/utilities/networkStatus';
-import { OfflineCartSection } from '../../shared/components/offline';
+import { OfflineCartSection, OfflineCartScreen } from '../../shared/components/offline';
 import toast from 'react-hot-toast';
 
 function WishlistCartSection() {
@@ -132,12 +132,13 @@ export default function Cart() {
   const shipping = calculateShippingFee(items, subtotal);
   const grandTotal = subtotal + shipping;
 
+  if (!isOnline) {
+    return <OfflineCartScreen />;
+  }
+
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
-
-        {/* Offline Cart Banner when offline */}
-        {!isOnline && <OfflineCartSection />}
 
         {/* Cart Top Section */}
         {items.length === 0 ? (

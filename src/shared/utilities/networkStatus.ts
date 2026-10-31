@@ -34,13 +34,13 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       return false;
     }
 
-    // 2. Network ping probe to verify real connectivity
+    // 2. Real network ping probe to verify real connectivity
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2500);
 
       try {
-        // Probe lightweight online connectivity endpoint
+        // Probe lightweight connectivity endpoint
         await fetch('https://www.google.com/generate_204', {
           mode: 'no-cors',
           cache: 'no-store',
@@ -51,14 +51,13 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         toast.success('Connection restored! You are back online.');
         return true;
       } catch {
-        // Probe lightweight local static resource as fallback
+        // Fallback probe
         const probeUrl = `/favicon.svg?_t=${Date.now()}`;
         const response = await fetch(probeUrl, {
           method: 'HEAD',
           cache: 'no-store',
           signal: controller.signal,
         });
-
         clearTimeout(timeoutId);
 
         const isReallyOnline = response.ok || response.status === 304 || response.type === 'opaque';

@@ -81,7 +81,7 @@ function ScrollToTop() {
 
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
 import { useNetworkStore } from './shared/utilities/networkStatus';
-import { NoInternetScreen, OfflineSplashScreen } from './shared/components/offline';
+import { NoInternetScreen, OfflineSplashScreen, OfflineHomeScreen, OfflineCartScreen } from './shared/components/offline';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -139,20 +139,18 @@ function MainAppRoutes() {
                       location.pathname.startsWith('/category/');
   const isCartRoute = location.pathname === '/cart';
 
-  const shouldShowNoInternet = !isOnline && !isHomeRoute && !isCartRoute;
+  // Standalone offline screens: 1 screen on 1 page without any scrolling
+  if (!isOnline) {
+    if (isHomeRoute) {
+      return <OfflineHomeScreen />;
+    }
+    if (isCartRoute) {
+      return <OfflineCartScreen />;
+    }
+    return <NoInternetScreen />;
+  }
 
   if (isMobile) {
-    if (shouldShowNoInternet) {
-      return (
-        <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
-          <MobileHeader />
-          <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-20 sm:pb-24">
-            <NoInternetScreen />
-          </main>
-          <MobileBottomNav />
-        </div>
-      );
-    }
 
     return (
       <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
@@ -234,18 +232,7 @@ function MainAppRoutes() {
     );
   }
 
-  if (shouldShowNoInternet) {
-    return (
-      <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
-        <Navbar />
-        <main className="flex-1">
-          <NoInternetScreen />
-        </main>
-        <Footer />
-        <DesktopShareModal />
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">

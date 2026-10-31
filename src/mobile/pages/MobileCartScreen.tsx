@@ -17,7 +17,7 @@ import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedT
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { useNetworkStore } from '../../shared/utilities/networkStatus';
-import { OfflineCartSection } from '../../shared/components/offline';
+import { OfflineCartSection, OfflineCartScreen } from '../../shared/components/offline';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import CategoryLogo from '../../shared/components/CategoryLogo';
@@ -178,11 +178,12 @@ export default function MobileCartScreen() {
     navigate('/checkout');
   };
 
+  if (!isOnline) {
+    return <OfflineCartScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-white pb-44 font-sans select-none p-3 space-y-3">
-
-      {/* Offline Cart Banner when offline */}
-      {!isOnline && <OfflineCartSection />}
 
       {/* 1. CART SECTION */}
       {items.length === 0 ? (
