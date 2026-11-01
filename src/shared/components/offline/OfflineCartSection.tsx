@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { ShieldCheck, RotateCw, ShoppingBag } from 'lucide-react';
 import Logo from '../../../desktop/components/Logo';
 import { useNetworkStore } from '../../utilities/networkStatus';
-import { useCartStore } from '../../../backend/store';
 
 export interface OfflineCartSectionProps {
   className?: string;
@@ -40,7 +39,7 @@ function ShoppingCartOfflineIllustration({ className = 'w-40 h-40 sm:w-48 sm:h-4
         {/* Ambient Ground Shadow */}
         <ellipse cx="118" cy="198" rx="80" ry="10" fill="#0f172a" opacity="0.08" />
 
-        {/* Saved Cart items packed in basket */}
+        {/* Cart items packed in basket */}
         {/* Orange Grocery Package */}
         <rect x="74" y="86" width="34" height="42" rx="6" fill="url(#vibaCartOrange)" transform="rotate(-6 74 86)" />
         <line x1="77" y1="103" x2="104" y2="100" stroke="#ffedd5" strokeWidth="2" strokeDasharray="3 2" />
@@ -138,8 +137,12 @@ function ShoppingCartOfflineIllustration({ className = 'w-40 h-40 sm:w-48 sm:h-4
 }
 
 /**
- * 2. Cart Screen (Offline) - Section Component
- * Used inside desktop and mobile cart pages when offline
+ * 2. Cart Screen (Offline)
+ * - Display a shopping cart illustration with a disconnected Wi-Fi icon.
+ * - Heading: “You’re Offline”
+ * - Message: “Your cart is saved. Some features may be limited until you’re back online.”
+ * - Green “Continue Shopping” button.
+ * - Show confirmation message: “Your cart items are safely saved on your device.”
  */
 export function OfflineCartSection({
   className = '',
@@ -147,7 +150,6 @@ export function OfflineCartSection({
   onRetrySuccess,
 }: OfflineCartSectionProps) {
   const { isChecking, checkConnectivity } = useNetworkStore();
-  const { items: cartItems } = useCartStore();
 
   const handleRetry = async () => {
     const isOnline = await checkConnectivity();
@@ -158,41 +160,55 @@ export function OfflineCartSection({
 
   return (
     <div
-      className={`bg-gradient-to-br from-[#FAF7F2] via-[#FFFDF9] to-[#FEF3C7]/40 border border-emerald-200/80 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 sm:mb-8 text-center relative overflow-hidden select-none ${className}`}
+      className={`fixed inset-0 h-[100dvh] max-h-[100dvh] w-full flex flex-col items-center justify-between py-5 px-4 sm:py-8 sm:px-6 bg-[#FAF7F2] relative overflow-hidden text-center select-none z-50 ${className}`}
     >
-      {/* Decorative soft orange & green background blobs */}
-      <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-orange-200/30 blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-12 w-48 h-48 rounded-full bg-emerald-200/30 blur-2xl pointer-events-none" />
+      {/* Cream background with green and orange decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+        <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-gradient-to-br from-orange-200/40 to-amber-100/30 blur-3xl" />
+        <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-gradient-to-br from-emerald-200/35 to-green-100/25 blur-3xl" />
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-gradient-to-tl from-emerald-200/35 to-teal-100/25 blur-3xl" />
+        <div className="absolute -bottom-16 -left-16 w-72 h-72 rounded-full bg-gradient-to-tr from-amber-200/40 to-orange-100/30 blur-3xl" />
 
-      <div className="relative z-10 flex flex-col items-center max-w-xl mx-auto">
+        {/* Decorative soft geometric elements */}
+        <div className="absolute top-12 left-10 w-4 h-4 rounded-full bg-emerald-500/20" />
+        <div className="absolute top-28 right-12 w-6 h-6 rounded-full bg-orange-400/20" />
+        <div className="absolute bottom-24 left-14 w-8 h-8 rounded-full border-2 border-dashed border-orange-400/30" />
+        <div className="absolute bottom-16 right-14 w-5 h-5 rounded-full bg-emerald-500/20" />
+      </div>
+
+      {/* ViBa Mart logo at the top */}
+      <div className="relative z-10 pt-1 sm:pt-3 shrink-0">
+        <Logo showTextOnMobile={true} className="scale-100 sm:scale-110" />
+      </div>
+
+      {/* Center content: Shopping cart illustration, Heading, Message, Confirmation, Action Buttons */}
+      <div className="relative z-10 flex flex-col items-center max-w-md mx-auto my-auto px-4 py-2">
         {/* Shopping cart illustration with a disconnected Wi-Fi icon */}
-        <ShoppingCartOfflineIllustration className="w-36 h-36 xs:w-44 xs:h-44 sm:w-50 sm:h-50 mb-3 sm:mb-4 shrink-0" />
+        <ShoppingCartOfflineIllustration className="w-36 h-36 xs:w-44 xs:h-44 sm:w-50 sm:h-50 max-h-[25vh] mb-3 sm:mb-4 shrink-0" />
 
         {/* Heading: “You’re Offline” */}
-        <h2 className="text-xl xs:text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-2">
+        <h1 className="text-xl xs:text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-2 sm:mb-2.5">
           You’re Offline
-        </h2>
+        </h1>
 
         {/* Message: “Your cart is saved. Some features may be limited until you’re back online.” */}
-        <p className="text-gray-600 font-medium text-xs xs:text-sm sm:text-base leading-relaxed max-w-md mb-3 sm:mb-4 px-2">
+        <p className="text-gray-600 font-medium text-xs xs:text-sm sm:text-base leading-relaxed px-2 mb-3.5 sm:mb-4 max-w-sm">
           Your cart is saved. Some features may be limited until you’re back online.
         </p>
 
         {/* Confirmation message: “Your cart items are safely saved on your device.” */}
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-full text-xs sm:text-sm font-semibold mb-5 sm:mb-6 shadow-xs">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>
-            Your cart items are safely saved on your device.{cartItems.length > 0 ? ` (${cartItems.length} ${cartItems.length === 1 ? 'item' : 'items'})` : ''}
-          </span>
+          <span>Your cart items are safely saved on your device.</span>
         </div>
 
-        {/* Action Buttons: Green “Continue Shopping” button and Try Again check */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        {/* Action Buttons: Green “Continue Shopping” button & Try Again button */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
           {/* Green “Continue Shopping” button */}
           <Link
             to="/"
             onClick={onContinueShopping}
-            className="inline-flex items-center gap-2 px-6 py-2.5 sm:px-7 sm:py-3 bg-[#15803d] hover:bg-[#166534] active:scale-95 text-white font-bold text-xs sm:text-base rounded-full shadow-md shadow-emerald-900/15 transition-all duration-200 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-7 py-3 sm:px-8 sm:py-3.5 bg-[#15803d] hover:bg-[#166534] active:scale-95 text-white font-bold text-xs sm:text-base rounded-full shadow-lg shadow-emerald-900/15 transition-all duration-200 cursor-pointer w-full sm:w-auto"
           >
             <ShoppingBag className="w-4 h-4" />
             <span>Continue Shopping</span>
@@ -202,101 +218,25 @@ export function OfflineCartSection({
           <button
             onClick={handleRetry}
             disabled={isChecking}
-            className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-white hover:bg-emerald-50 active:scale-95 text-emerald-800 font-bold text-xs sm:text-base rounded-full border border-emerald-200 shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 sm:px-7 sm:py-3.5 bg-white hover:bg-emerald-50 active:scale-95 text-emerald-800 font-bold text-xs sm:text-base rounded-full border border-emerald-200 shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             <RotateCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
             <span>{isChecking ? 'Checking...' : 'Try Again'}</span>
           </button>
         </div>
       </div>
+
+      {/* Bottom subtle branding text */}
+      <div className="relative z-10 pb-2 sm:pb-3 shrink-0">
+        <span className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-widest">
+          ViBa Mart Offline Mode
+        </span>
+      </div>
     </div>
   );
 }
 
 /**
- * 2. Standalone Cart Screen (Offline)
- * Full-page implementation with cream background and saved items
+ * Default export as Standalone Offline Cart Screen
  */
-export default function OfflineCartScreen({
-  className = '',
-  onContinueShopping,
-  onRetrySuccess,
-}: OfflineCartSectionProps) {
-  const { items: cartItems } = useCartStore();
-
-  return (
-    <div className={`min-h-screen bg-[#FAF7F2] py-6 px-4 sm:py-10 sm:px-6 relative overflow-hidden select-none ${className}`}>
-      {/* Cream background with green and orange decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
-        <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-gradient-to-br from-orange-200/40 to-amber-100/30 blur-3xl" />
-        <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-gradient-to-br from-emerald-200/35 to-green-100/25 blur-3xl" />
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-gradient-to-tl from-emerald-200/35 to-teal-100/25 blur-3xl" />
-        <div className="absolute -bottom-16 -left-16 w-72 h-72 rounded-full bg-gradient-to-tr from-amber-200/40 to-orange-100/30 blur-3xl" />
-      </div>
-
-      <div className="max-w-4xl mx-auto relative z-10 space-y-6">
-        {/* Top: ViBa Mart Logo */}
-        <div className="flex justify-center pb-2">
-          <Logo showTextOnMobile={true} className="scale-105 sm:scale-110" />
-        </div>
-
-        {/* Offline Cart Banner */}
-        <OfflineCartSection
-          onContinueShopping={onContinueShopping}
-          onRetrySuccess={onRetrySuccess}
-        />
-
-        {/* Preserved Saved Cart Items Section */}
-        {cartItems.length > 0 && (
-          <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-5 sm:p-7 border border-emerald-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
-                Saved Cart Items ({cartItems.length})
-              </h3>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                Safely Saved on Device
-              </span>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {cartItems.map((item, idx) => {
-                const price = item.product?.discountPrice || item.product?.price || 0;
-                const productImage = item.product?.images?.[0] || (item.product as any)?.image;
-                return (
-                  <div key={`${item.productId}-${item.variantId || idx}`} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {productImage ? (
-                        <img
-                          src={productImage}
-                          alt={item.product?.name || 'Product'}
-                          className="w-12 h-12 rounded-xl object-cover bg-gray-50 border border-gray-100 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 text-emerald-700">
-                          <ShoppingBag className="w-5 h-5" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-bold text-gray-900 truncate">
-                          {item.product?.name || 'Product'}
-                        </p>
-                        <p className="text-[11px] sm:text-xs text-gray-500 font-medium">
-                          Qty: {item.quantity}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs sm:text-sm font-black text-gray-900">
-                        ₹{(price * item.quantity).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+export default OfflineCartSection;
