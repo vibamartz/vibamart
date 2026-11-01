@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Heart, Share2, Star, ShoppingCart, Truck, ShieldCheck, RefreshCcw,
@@ -15,7 +15,7 @@ import { cleanProductCode, formatProductCode } from '../../shared/utilities/prod
 import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
-import { filterSimilarProducts, getSimilarProductsSeeAllUrl } from '../../shared/utilities/similarProductsUtils';
+import { isProductEligibleSimilar, getSimilarProductsSeeAllLink } from '../../shared/utilities/similarProductsUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../components/MobileProductCardItem';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -153,10 +153,14 @@ export default function MobileProductDetailScreen() {
   // Check if item is already in cart
   const isInCart = cartItems.some(i => i.productId === productId && i.variantId === selectedVariantId);
 
+  // Always scroll to top when opening a new product
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [targetSlugOrId]);
+
   // Fetch product & reviews
   useEffect(() => {
     if (!targetSlugOrId) return;
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     setLoading(true);
     setFetchError(false);
 
@@ -828,9 +832,7 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {/* Similar Products Section (Requirement 6) */}
-        <div className="pb-3 border-b border-gray-100 space-y-2">
-          <MobileSimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
-        </div>
+        <MobileSimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
 
         {/* Product Information Details (Requirements 7 & 8) */}
         {availableTabs.length > 0 && (
@@ -1038,158 +1040,136 @@ export default function MobileProductDetailScreen() {
   );
 }
 
-function MobileSimilarProducts({ product, categoryId, currentProductId }: { product?: Product | null; categoryId?: string; currentProductId?: string }) {
+function MobileSimilarProducts({
+  product,
+  categoryId,
+  currentProductId
+}: {
+  product?: Product | null;
+  categoryId?: string;
+  currentProductId?: string;
+}) {
   const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isViewAllOpen, setIsViewAllOpen] = useState(false);
 
-  const currentProd = React.useMemo(() => {
-    if (product) return product;
-    if (categoryId && currentProductId) {
-      return { id: currentProductId, categoryId } as Product;
-    }
-    return null;
-  }, [product, categoryId, currentProductId]);
+  const effectiveCatId = product?.categoryId || categoryId || '';
+  const effectiveProductId = product?.id || currentProductId || '';
+
+  const seeAllLink = useMemo(() => {
+    return getSimilarProductsSeeAllLink(product || { categoryId: effectiveCatId, id: effectiveProductId }, categories);
+  }, [product, effectiveCatId, effectiveProductId, categories]);
 
   useEffect(() => {
-    const targetCat = currentProd?.categoryId;
-    if (!currentProd || !targetCat) {
+    let isMounted = true;
+    setLoading(true);
+
+    if (!effectiveCatId && !product) {
       setProducts([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    const currentRef = product || {
+      id: effectiveProductId,
+      categoryId: effectiveCatId,
+      subCategoryId: product?.subCategoryId
+    };
 
-    const q = query(collection(db, 'products'));
+    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      const rewardIds = await getRewardProductIds();
-      const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
-      setProducts(filtered);
-      setLoading(false);
-    }, (error) => {
-      console.warn('Mobile similar products onSnapshot error, falling back to getDocs:', error);
-      getDocs(collection(db, 'products')).then(async (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      if (!isMounted) return;
+      try {
+        const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         const rewardIds = await getRewardProductIds();
-        const filtered = filterSimilarProducts(data, currentProd, categories, rewardIds);
-        setProducts(filtered);
-        setLoading(false);
-      }).catch(err => {
-        console.error('Error fetching similar products:', err);
-        setLoading(false);
-      });
+        const rewardSet = new Set(rewardIds);
+
+        const eligible = rawDocs.filter(p => isProductEligibleSimilar(p, currentRef, categories, rewardSet));
+
+        // Exclude duplicate products
+        const seenIds = new Set<string>();
+        const unique = eligible.filter(p => {
+          if (!p || !p.id || seenIds.has(p.id)) return false;
+          seenIds.add(p.id);
+          return true;
+        });
+
+        if (isMounted) {
+          setProducts(unique.slice(0, 10));
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error filtering similar products in mobile snapshot:', err);
+        if (isMounted) setLoading(false);
+      }
+    }, async (error) => {
+      console.warn('Mobile similar products listener fallback to getDocs:', error);
+      try {
+        const snapshot = await getDocs(collection(db, 'products'));
+        const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        const rewardIds = await getRewardProductIds();
+        const rewardSet = new Set(rewardIds);
+
+        const eligible = rawDocs.filter(p => isProductEligibleSimilar(p, currentRef, categories, rewardSet));
+
+        const seenIds = new Set<string>();
+        const unique = eligible.filter(p => {
+          if (!p || !p.id || seenIds.has(p.id)) return false;
+          seenIds.add(p.id);
+          return true;
+        });
+
+        if (isMounted) {
+          setProducts(unique.slice(0, 10));
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching mobile similar products in fallback:', err);
+        if (isMounted) setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
-  }, [currentProd?.id, currentProd?.categoryId, currentProd?.subCategoryId, categories]);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [product, effectiveCatId, effectiveProductId, categories]);
 
   if (!loading && products.length === 0) return null;
 
-  const seeAllUrl = currentProd ? getSimilarProductsSeeAllUrl(currentProd, categories) : '/products';
-  const displayedProducts = products.slice(0, 8);
-
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
-          Similar Products
-        </span>
-        <button
-          type="button"
-          onClick={() => setIsViewAllOpen(true)}
-          className="text-[10px] font-black uppercase text-emerald-700 cursor-pointer active:scale-95 transition-transform"
-        >
-          See All ({products.length}) →
-        </button>
+    <div className="pb-3 border-b border-gray-100 space-y-2">
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
+            Similar Products
+          </span>
+          <Link
+            to={seeAllLink}
+            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+            className="text-[10px] font-black uppercase text-emerald-700"
+          >
+            See All →
+          </Link>
+        </div>
+        <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="w-[145px] sm:w-[165px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
+            ))
+          ) : (
+            products.map(p => (
+              <div
+                key={p.id}
+                className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col"
+                onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+              >
+                <ProductCard product={p} />
+              </div>
+            ))
+          )}
+        </div>
       </div>
-
-      <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
-        {loading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="w-[145px] sm:w-[165px] shrink-0 animate-pulse bg-gray-50 rounded-2xl aspect-[4/5] border border-gray-100" />
-          ))
-        ) : (
-          displayedProducts.map(p => (
-            <div
-              key={p.id}
-              className="w-[145px] sm:w-[165px] shrink-0 snap-start flex flex-col"
-              onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
-            >
-              <ProductCard product={p} />
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Mobile View All Similar Products Modal */}
-      <AnimatePresence>
-        {isViewAllOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
-                    Similar Products ({products.length})
-                  </h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Same category & subcategory recommendations
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsViewAllOpen(false)}
-                  className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
-                  aria-label="Close modal"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-3">
-                <div className="grid grid-cols-2 gap-2.5">
-                  {products.map(p => (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        setIsViewAllOpen(false);
-                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-                      }}
-                      className="flex flex-col"
-                    >
-                      <ProductCard product={p} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-gray-500">
-                  {products.length} eligible product{products.length === 1 ? '' : 's'}
-                </span>
-                <Link
-                  to={seeAllUrl}
-                  onClick={() => {
-                    setIsViewAllOpen(false);
-                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-                  }}
-                  className="text-[11px] font-black uppercase text-emerald-700 hover:text-emerald-800 tracking-wider"
-                >
-                  Full Category Catalog →
-                </Link>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
