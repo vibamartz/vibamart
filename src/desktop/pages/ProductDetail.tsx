@@ -1189,10 +1189,14 @@ function SimilarProducts({
 
   const effectiveCatId = product?.categoryId || categoryId || '';
   const effectiveProductId = product?.id || currentProductId || '';
+  const effectiveSubCatId = product?.subCategoryId || '';
 
   const seeAllLink = useMemo(() => {
-    return getSimilarProductsSeeAllLink(product || { categoryId: effectiveCatId, id: effectiveProductId }, categories);
-  }, [product, effectiveCatId, effectiveProductId, categories]);
+    return getSimilarProductsSeeAllLink(
+      product || { categoryId: effectiveCatId, id: effectiveProductId, subCategoryId: effectiveSubCatId },
+      categories
+    );
+  }, [product, effectiveCatId, effectiveProductId, effectiveSubCatId, categories]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1207,14 +1211,20 @@ function SimilarProducts({
     const currentRef = product || {
       id: effectiveProductId,
       categoryId: effectiveCatId,
-      subCategoryId: product?.subCategoryId
+      subCategoryId: effectiveSubCatId
     };
 
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'products'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (!isMounted) return;
       try {
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        rawDocs.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
 
@@ -1222,9 +1232,13 @@ function SimilarProducts({
 
         // Exclude duplicate products
         const seenIds = new Set<string>();
+        const seenSlugs = new Set<string>();
         const unique = eligible.filter(p => {
           if (!p || !p.id || seenIds.has(p.id)) return false;
+          const slug = getProductSlug(p);
+          if (slug && seenSlugs.has(slug)) return false;
           seenIds.add(p.id);
+          if (slug) seenSlugs.add(slug);
           return true;
         });
 
@@ -1241,15 +1255,25 @@ function SimilarProducts({
       try {
         const snapshot = await getDocs(collection(db, 'products'));
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+        rawDocs.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
 
         const eligible = rawDocs.filter(p => isProductEligibleSimilar(p, currentRef, categories, rewardSet));
 
         const seenIds = new Set<string>();
+        const seenSlugs = new Set<string>();
         const unique = eligible.filter(p => {
           if (!p || !p.id || seenIds.has(p.id)) return false;
+          const slug = getProductSlug(p);
+          if (slug && seenSlugs.has(slug)) return false;
           seenIds.add(p.id);
+          if (slug) seenSlugs.add(slug);
           return true;
         });
 
@@ -1267,7 +1291,7 @@ function SimilarProducts({
       isMounted = false;
       unsubscribe();
     };
-  }, [product, effectiveCatId, effectiveProductId, categories]);
+  }, [product, effectiveCatId, effectiveProductId, effectiveSubCatId, categories]);
 
   if (!loading && products.length === 0) return null;
 

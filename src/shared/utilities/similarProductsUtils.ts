@@ -1,5 +1,6 @@
 import { Product, Category } from '../types';
 import { getProductSlug, getCategorySlug, getSubcategorySlug, createSlug } from './slug';
+import { cleanProductCode } from './productCode';
 import { isProductAssignedToCategory } from './productCategoryFilter';
 
 /**
@@ -19,27 +20,31 @@ export function isProductEligibleSimilar(
   if (!candidate || !candidate.id) return false;
   if (!currentProduct) return false;
 
-  const currentId = currentProduct.id;
+  const currentId = String(currentProduct.id || '').trim();
   const currentSlug = (currentProduct as any).slug || getProductSlug(currentProduct);
-  const currentCode = (currentProduct as any).productCode;
+  const currentCode = (currentProduct as any).productCode ? cleanProductCode((currentProduct as any).productCode) : '';
 
   // 1. Exclude the currently viewed product
-  const candidateId = candidate.id;
-  const candidateDocId = (candidate as any)._id || candidate.id;
-  const candidateCode = (candidate as any).productCode;
+  const candidateId = String(candidate.id || '').trim();
+  const candidateDocId = String((candidate as any)._id || candidate.id || '').trim();
+  const candidateCode = (candidate as any).productCode ? cleanProductCode((candidate as any).productCode) : '';
   const candidateSlug = getProductSlug(candidate);
 
   if (
-    candidateId === currentId ||
-    candidateDocId === currentId ||
-    (currentCode && candidateCode && candidateCode === currentCode) ||
+    (currentId && (candidateId === currentId || candidateDocId === currentId)) ||
+    (currentCode && candidateCode && (candidateCode === currentCode || cleanProductCode(candidateCode) === cleanProductCode(currentCode))) ||
     (currentSlug && candidateSlug && candidateSlug === currentSlug)
   ) {
     return false;
   }
 
   // 2. Exclude reward products
-  if (rewardIds.has(candidate.id)) {
+  if (
+    rewardIds.has(candidate.id) ||
+    ((candidate as any)._id && rewardIds.has((candidate as any)._id)) ||
+    (candidate as any).isRewardProduct ||
+    (candidate as any).isReward
+  ) {
     return false;
   }
 
@@ -54,33 +59,52 @@ export function isProductEligibleSimilar(
   }
 
   // 5. Exclude out-of-stock products
-  if (candidate.inStock === false) {
+  if (candidate.inStock === false || candidate.status === 'out_of_stock') {
     return false;
   }
-  const stockNum = Number(candidate.stock ?? 0);
+  const stockNum = typeof candidate.stock === 'number' ? candidate.stock : Number(candidate.stock ?? 0);
   const hasVariants = Array.isArray(candidate.variants) && candidate.variants.length > 0;
   const hasInStockVariant = hasVariants && candidate.variants!.some(
-    v => (v.stock ?? 0) > 0 && v.inStock !== false && !v.disabled
+    v => (typeof v.stock === 'number' ? v.stock > 0 : (v.stock === undefined || v.stock === null)) &&
+         v.inStock !== false &&
+         !(v as any).disabled
   );
-  if (stockNum <= 0 && !hasInStockVariant) {
-    return false;
+  if (hasVariants) {
+    if (!hasInStockVariant) {
+      return false;
+    }
+  } else {
+    if (stockNum <= 0) {
+      return false;
+    }
   }
 
   // 6. Category & Subcategory matching (Admin-assigned)
-  const currentCatId = currentProduct.categoryId || '';
+  const currentCatId = currentProduct.categoryId || (Array.isArray((currentProduct as any).categories) && (currentProduct as any).categories[0]) || '';
   const currentCatIds = [currentCatId, ...((currentProduct as any).categories || [])]
     .map(c => String(c || '').trim())
     .filter(Boolean);
 
-  const currentSubId = currentProduct.subCategoryId || '';
+  if (currentCatIds.length === 0) {
+    return false;
+  }
+
+  const currentSubId = currentProduct.subCategoryId || (Array.isArray((currentProduct as any).subCategoryIds) && (currentProduct as any).subCategoryIds[0]) || '';
   const currentSubIds = [currentSubId, ...((currentProduct as any).subCategoryIds || [])]
     .map(s => String(s || '').trim())
     .filter(Boolean);
 
   // Must belong to at least one category of current product
+  const candCatIds = [
+    candidate.categoryId,
+    ...((candidate as any).categories || []),
+    (candidate as any).category
+  ].map(c => String(c || '').trim().toLowerCase()).filter(Boolean);
+
   let matchesCat = false;
   for (const cat of currentCatIds) {
-    if (isProductAssignedToCategory(candidate, cat, categories)) {
+    const catLower = cat.toLowerCase();
+    if (candCatIds.includes(catLower) || isProductAssignedToCategory(candidate, cat, categories)) {
       matchesCat = true;
       break;
     }
@@ -91,10 +115,17 @@ export function isProductEligibleSimilar(
 
   // If current product has admin-assigned subcategory, candidate MUST belong to that subcategory!
   if (currentSubIds.length > 0) {
+    const candSubIds = [
+      candidate.subCategoryId,
+      ...((candidate as any).subCategoryIds || []),
+      (candidate as any).subCategory
+    ].map(s => String(s || '').trim().toLowerCase()).filter(Boolean);
+
     let matchesSub = false;
     for (const cat of currentCatIds) {
       for (const sub of currentSubIds) {
-        if (isProductAssignedToCategory(candidate, cat, categories, sub)) {
+        const subLower = sub.toLowerCase();
+        if (candSubIds.includes(subLower) || isProductAssignedToCategory(candidate, cat, categories, sub)) {
           matchesSub = true;
           break;
         }
@@ -121,38 +152,72 @@ export function getSimilarProductsSeeAllLink(
 ): string {
   if (!product) return '/products';
 
-  const currentCatId = product.categoryId || (product.categories && product.categories[0]) || '';
-  const currentSubId = product.subCategoryId || (product.subCategoryIds && product.subCategoryIds[0]) || '';
+  const currentCatId = product.categoryId || (Array.isArray((product as any).categories) && (product as any).categories[0]) || '';
+  const currentSubId = product.subCategoryId || (Array.isArray((product as any).subCategoryIds) && (product as any).subCategoryIds[0]) || '';
 
   if (!currentCatId && !currentSubId) return '/products';
 
-  const catObj = categories.find(c =>
-    c && (
-      String(c.id).toLowerCase() === currentCatId.toLowerCase() ||
-      String(c.slug || '').toLowerCase() === currentCatId.toLowerCase() ||
-      String((c as any).seoSlug || '').toLowerCase() === currentCatId.toLowerCase()
-    )
-  );
+  const catLower = currentCatId.toLowerCase();
+  const catObj = categories.find(c => {
+    if (!c) return false;
+    const cid = String(c.id || '').toLowerCase();
+    const cslug = String(c.slug || '').toLowerCase();
+    const cseo = String((c as any).seoSlug || '').toLowerCase();
+    const cname = String(c.name || '').toLowerCase();
+    const cnameSlug = c.name ? createSlug(c.name).toLowerCase() : '';
+    const compSlug = String(getCategorySlug(c) || '').toLowerCase();
+    return (
+      cid === catLower ||
+      cslug === catLower ||
+      cseo === catLower ||
+      compSlug === catLower ||
+      cname === catLower ||
+      cnameSlug === catLower
+    );
+  });
 
   const catSlug = catObj ? getCategorySlug(catObj) : (currentCatId ? createSlug(currentCatId) : '');
 
   if (currentSubId) {
-    let subObj = catObj?.subcategories?.find(s =>
-      s && (
-        String(s.id).toLowerCase() === currentSubId.toLowerCase() ||
-        String(s.slug || '').toLowerCase() === currentSubId.toLowerCase() ||
-        String((s as any).seoSlug || '').toLowerCase() === currentSubId.toLowerCase()
-      )
-    );
+    const subLower = currentSubId.toLowerCase();
+    let subObj = catObj?.subcategories?.find(s => {
+      if (!s) return false;
+      const sid = String(s.id || '').toLowerCase();
+      const sslug = String(s.slug || '').toLowerCase();
+      const sseo = String((s as any).seoSlug || '').toLowerCase();
+      const sname = String(s.name || '').toLowerCase();
+      const snameSlug = s.name ? createSlug(s.name).toLowerCase() : '';
+      const compSlug = String(getSubcategorySlug(s) || '').toLowerCase();
+      return (
+        sid === subLower ||
+        sslug === subLower ||
+        sseo === subLower ||
+        compSlug === subLower ||
+        sname === subLower ||
+        snameSlug === subLower
+      );
+    });
+
     if (!subObj) {
       for (const cat of categories) {
-        const found = cat.subcategories?.find(s =>
-          s && (
-            String(s.id).toLowerCase() === currentSubId.toLowerCase() ||
-            String(s.slug || '').toLowerCase() === currentSubId.toLowerCase() ||
-            String((s as any).seoSlug || '').toLowerCase() === currentSubId.toLowerCase()
-          )
-        );
+        if (!cat || !Array.isArray(cat.subcategories)) continue;
+        const found = cat.subcategories.find(s => {
+          if (!s) return false;
+          const sid = String(s.id || '').toLowerCase();
+          const sslug = String(s.slug || '').toLowerCase();
+          const sseo = String((s as any).seoSlug || '').toLowerCase();
+          const sname = String(s.name || '').toLowerCase();
+          const snameSlug = s.name ? createSlug(s.name).toLowerCase() : '';
+          const compSlug = String(getSubcategorySlug(s) || '').toLowerCase();
+          return (
+            sid === subLower ||
+            sslug === subLower ||
+            sseo === subLower ||
+            compSlug === subLower ||
+            sname === subLower ||
+            snameSlug === subLower
+          );
+        });
         if (found) {
           subObj = found;
           break;
