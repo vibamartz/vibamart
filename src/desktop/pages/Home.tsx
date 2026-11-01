@@ -23,7 +23,6 @@ import toast from 'react-hot-toast';
 import CategoryLogo, { Lipstick, renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
-import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import CashbackScheduleSection from '../../shared/components/CashbackScheduleSection';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
@@ -162,7 +161,7 @@ export default function Home() {
   const displayStillLooking = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));
     const fallback = [...filteredProducts].filter(p => !recentIds.has(p.id));
-    return [...recentlyViewedProds, ...shuffleArray(fallback)].slice(0, 8);
+    return [...recentlyViewedProds, ...fallback].slice(0, 8);
   }, [recentlyViewedProds, filteredProducts]);
 
   const scrollCategoryLeft = () => {

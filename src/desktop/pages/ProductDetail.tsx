@@ -34,7 +34,6 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import { isProductEligibleSimilar, getSimilarProductsSeeAllLink } from '../../shared/utilities/similarProductsUtils';
-import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
@@ -1257,7 +1256,7 @@ function SimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(shuffleArray(unique).slice(0, 12));
+          setProducts(unique.slice(0, 12));
           setLoading(false);
         }
       } catch (err) {
@@ -1304,7 +1303,7 @@ function SimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(shuffleArray(unique).slice(0, 12));
+          setProducts(unique.slice(0, 12));
           setLoading(false);
         }
       } catch (err) {

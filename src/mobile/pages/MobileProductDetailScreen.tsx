@@ -16,7 +16,6 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductEligibleSimilar, getSimilarProductsSeeAllLink } from '../../shared/utilities/similarProductsUtils';
-import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../components/MobileProductCardItem';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -1124,7 +1123,7 @@ function MobileSimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(shuffleArray(unique).slice(0, 10));
+          setProducts(unique.slice(0, 10));
           setLoading(false);
         }
       } catch (err) {
@@ -1171,7 +1170,7 @@ function MobileSimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(shuffleArray(unique).slice(0, 10));
+          setProducts(unique.slice(0, 10));
           setLoading(false);
         }
       } catch (err) {
