@@ -763,6 +763,14 @@ export default function AddEditProductForm({
 
       const rawData = {
         ...formData,
+        categoryId: formData.categoryId || null,
+        subCategoryId: formData.subCategoryId || null,
+        nestedSubCategoryId: formData.nestedSubCategoryId || null,
+        visualNestedSubcategoryId: formData.visualNestedSubcategoryId || null,
+        categories: formData.categoryId ? [formData.categoryId] : [],
+        subCategoryIds: formData.subCategoryId ? [formData.subCategoryId] : [],
+        nestedSubCategoryIds: formData.nestedSubCategoryId ? [formData.nestedSubCategoryId] : [],
+        visualNestedSubcategoryIds: formData.visualNestedSubcategoryId ? [formData.visualNestedSubcategoryId] : [],
         tags: finalTags,
         specifications: cleanedSpecs,
         variantSpecifications: hasVariantSpecs ? cleanedVariantSpecs : null,

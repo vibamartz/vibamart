@@ -118,11 +118,20 @@ export default function MobileCategoriesScreen() {
 
       // 1. Nested Subcategory Selected -> Show ONLY assigned products
       if (selectedNestedSubCatId) {
+        let parentSub = selectedSubCatId;
+        if (!parentSub) {
+          for (const sub of selectedCategory.subcategories || []) {
+            if (sub.subcategories?.some(n => n.id === selectedNestedSubCatId)) {
+              parentSub = sub.id;
+              break;
+            }
+          }
+        }
         return isProductAssignedToCategory(
           p,
           selectedCategory.id,
           categories,
-          selectedSubCatId || undefined,
+          parentSub || undefined,
           selectedNestedSubCatId
         );
       }

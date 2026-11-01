@@ -432,11 +432,21 @@ export default function MobileHomepage() {
 
       // 1. Nested Subcategory Filter
       if (selectedNestedSubCatId) {
+        let parentSub = selectedSubCatId;
+        if (!parentSub) {
+          const cat = CATEGORIES.find(c => c.id === activeCategorySlug || c.slug === activeCategorySlug);
+          for (const sub of cat?.subcategories || []) {
+            if (sub.subcategories?.some(n => n.id === selectedNestedSubCatId || n.slug === selectedNestedSubCatId)) {
+              parentSub = sub.id;
+              break;
+            }
+          }
+        }
         return isProductAssignedToCategory(
           p,
           activeCategorySlug,
           CATEGORIES,
-          selectedSubCatId || undefined,
+          parentSub || undefined,
           selectedNestedSubCatId
         );
       }

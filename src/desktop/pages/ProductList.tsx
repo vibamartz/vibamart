@@ -21,6 +21,7 @@ import MoreProductsForYouSection from '../../shared/components/MoreProductsForYo
 import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from '../../shared/utilities/searchHistoryUtils';
 import { searchApiClient } from '../../services/searchApiClient';
 import { isProductInHierarchy, getOrCreateHierarchyEngine } from '../../shared/utilities/categoryHierarchyUtils';
+import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -364,18 +365,7 @@ export default function ProductList() {
   const getFilterCount = (filterType: string, value: any) => {
     return allProducts.filter(p => {
       // Visual Nested Subcategory filter
-      const hasVisualExplicit = Boolean(
-        !isSearchQuery &&
-        matchedVisualNestedSubcategory && (
-          (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
-          allProducts.some(item =>
-            item.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id) ||
-            item.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id
-          )
-        )
-      );
-
-      if (hasVisualExplicit && matchedVisualNestedSubcategory) {
+      if (!isSearchQuery && matchedVisualNestedSubcategory) {
         const assignedIds = new Set(matchedVisualNestedSubcategory.productIds || []);
         const isAssigned = assignedIds.has(p.id) ||
           Boolean(p.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id)) ||
@@ -383,27 +373,28 @@ export default function ProductList() {
         if (!isAssigned) return false;
       }
 
-      // Category filter across entire hierarchy
-      if (!hasVisualExplicit) {
+      // Category and Subcategory filter across entire hierarchy
+      if (isSearchQuery || !matchedVisualNestedSubcategory) {
         const effectiveCats = selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []);
-        if (effectiveCats.length > 0) {
-          if (effectiveCats.includes('all-deals')) {
-            if (!p.discountPrice && !effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems))) return false;
-          } else if (!effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems))) {
-            return false;
-          }
-        }
-      }
-
-      // SubCategory filter across entire hierarchy
-      if (!hasVisualExplicit) {
         const effectiveSubs = filterType !== 'subcategory' && selectedSubCategories.length > 0 ? selectedSubCategories : (filterType !== 'subcategory' && baseSubId ? [baseSubId] : []);
-        const parentCat = selectedCategories.length > 0 ? selectedCategories[0] : (baseCatId || undefined);
-        if (effectiveSubs.length > 0 && !effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat))) return false;
-
         const effectiveNested = filterType !== 'nestedSubCategory' && selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (filterType !== 'nestedSubCategory' && baseNestedId ? [baseNestedId] : []);
-        const parentSub = effectiveSubs.length > 0 ? effectiveSubs[0] : (baseSubId || undefined);
-        if (effectiveNested.length > 0 && !effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat, parentSub))) return false;
+
+        const catFilter = effectiveCats[0] || '';
+        const subFilter = effectiveSubs[0] || '';
+        const nestedFilter = effectiveNested[0] || '';
+
+        if (catFilter || subFilter || nestedFilter) {
+          const isMatch = isProductAssignedToCategory(
+            p,
+            catFilter,
+            CATEGORIES,
+            subFilter,
+            nestedFilter,
+            undefined,
+            visualNestedItems
+          );
+          if (!isMatch) return false;
+        }
       }
 
       // Brand filter
@@ -450,7 +441,10 @@ export default function ProductList() {
       }
 
       // Check the specific value for the current filterType
-      if (filterType === 'subcategory' && !isProductInHierarchy(p, value, CATEGORIES, visualNestedItems)) return false;
+      if (filterType === 'subcategory') {
+        const catFilter = selectedCategories[0] || baseCatId || '';
+        if (!isProductAssignedToCategory(p, catFilter, CATEGORIES, value, undefined, undefined, visualNestedItems)) return false;
+      }
       if (filterType === 'brand' && p.brand !== value) return false;
       if (filterType === 'price' && effectivePrice > value) return false;
       if (filterType === 'rating' && p.rating < value) return false;
@@ -503,8 +497,10 @@ export default function ProductList() {
   // Sync category, subcategory, nested subcategory, and brand from URL params or route params
   useEffect(() => {
     const activeCatId = baseCatId;
-    if (activeCatId && !selectedCategories.includes(activeCatId)) {
+    if (activeCatId) {
       setSelectedCategories([activeCatId]);
+    } else {
+      setSelectedCategories([]);
     }
 
     if (baseSubId) {
@@ -525,8 +521,10 @@ export default function ProductList() {
       setSelectedNestedSubCategories([]);
     }
 
-    if (baseBrand && !selectedBrands.includes(baseBrand)) {
+    if (baseBrand) {
       setSelectedBrands([baseBrand]);
+    } else {
+      setSelectedBrands([]);
     }
   }, [baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedSubcategory, rawSubCat, rawNestedSubCat]);
 
@@ -557,19 +555,8 @@ export default function ProductList() {
         if (!assignedIds.has(p.id)) return false;
       }
 
-      // Visual Nested Subcategory filter (Show assigned products when explicitly assigned to this visual subcategory)
-      const hasVisualExplicit = Boolean(
-        !isSearchQuery &&
-        matchedVisualNestedSubcategory && (
-          (matchedVisualNestedSubcategory.productIds && matchedVisualNestedSubcategory.productIds.length > 0) ||
-          allProducts.some(item =>
-            item.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id) ||
-            item.visualNestedSubcategoryId === matchedVisualNestedSubcategory.id
-          )
-        )
-      );
-
-      if (hasVisualExplicit && matchedVisualNestedSubcategory) {
+      // Visual Nested Subcategory filter (Show assigned products when explicitly viewing this visual subcategory)
+      if (!isSearchQuery && matchedVisualNestedSubcategory) {
         const assignedIds = new Set(matchedVisualNestedSubcategory.productIds || []);
         const isAssigned = assignedIds.has(p.id) ||
           Boolean(p.visualNestedSubcategoryIds?.includes(matchedVisualNestedSubcategory.id)) ||
@@ -580,40 +567,27 @@ export default function ProductList() {
       const effectiveCats = isSearchQuery
         ? (searchParams.get('category') ? [searchParams.get('category')!] : selectedCategories)
         : (selectedCategories.length > 0 ? selectedCategories : (baseCatId ? [baseCatId] : []));
+      const effectiveSubs = isSearchQuery
+        ? (searchParams.get('subCategory') ? [searchParams.get('subCategory')!] : selectedSubCategories)
+        : (selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []));
+      const effectiveNested = isSearchQuery
+        ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
+        : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
 
       // Category filter across entire hierarchy (Skip category filter if viewing explicit banner or explicit visual subcategory)
-      if (!matchedBanner && !hasVisualExplicit) {
-        if (effectiveCats.length > 0) {
-          if (effectiveCats.includes('all-deals')) {
-            const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
+      if (!matchedBanner && (!matchedVisualNestedSubcategory || isSearchQuery)) {
+        const catFilter = effectiveCats[0] || '';
+        const subFilter = effectiveSubs[0] || '';
+        const nestedFilter = effectiveNested[0] || '';
+
+        if (catFilter || subFilter || nestedFilter) {
+          if (catFilter === 'all-deals') {
+            const hasCatMatch = isProductAssignedToCategory(p, catFilter, CATEGORIES, subFilter, nestedFilter, undefined, visualNestedItems);
             if (!p.discountPrice && !hasCatMatch) return false;
           } else {
-            const hasCatMatch = effectiveCats.some(c => isProductInHierarchy(p, c, CATEGORIES, visualNestedItems));
+            const hasCatMatch = isProductAssignedToCategory(p, catFilter, CATEGORIES, subFilter, nestedFilter, undefined, visualNestedItems);
             if (!hasCatMatch) return false;
           }
-        }
-      }
-
-      // SubCategory filter across entire hierarchy (Skip if explicit visual subcategory assignment)
-      if (!hasVisualExplicit) {
-        const effectiveSubs = isSearchQuery
-          ? (searchParams.get('subCategory') ? [searchParams.get('subCategory')!] : selectedSubCategories)
-          : (selectedSubCategories.length > 0 ? selectedSubCategories : (baseSubId ? [baseSubId] : []));
-        const effectiveNested = isSearchQuery
-          ? (searchParams.get('nestedSubCategory') ? [searchParams.get('nestedSubCategory')!] : selectedNestedSubCategories)
-          : (selectedNestedSubCategories.length > 0 ? selectedNestedSubCategories : (baseNestedId ? [baseNestedId] : []));
-        const parentCat = effectiveCats.length > 0 ? effectiveCats[0] : (baseCatId || undefined);
-        const parentSub = effectiveSubs.length > 0 ? effectiveSubs[0] : (baseSubId || undefined);
-
-        if (effectiveSubs.length > 0) {
-          const hasSubMatch = effectiveSubs.some(s => isProductInHierarchy(p, s, CATEGORIES, visualNestedItems, parentCat));
-          if (!hasSubMatch) return false;
-        }
-
-        // Nested SubCategory filter across entire hierarchy
-        if (effectiveNested.length > 0) {
-          const hasNestedMatch = effectiveNested.some(n => isProductInHierarchy(p, n, CATEGORIES, visualNestedItems, parentCat, parentSub));
-          if (!hasNestedMatch) return false;
         }
       }
 
@@ -718,30 +692,38 @@ export default function ProductList() {
 
   const uniqueBrands = useMemo(() => {
     const brands = new Set<string>();
+    const effectiveCat = selectedCategories[0] || baseCatId;
     allProducts.forEach(p => {
-      if (p.brand && (!selectedCategories.length || selectedCategories.includes('all-deals') || selectedCategories.includes(p.categoryId))) {
-        brands.add(p.brand);
+      if (p.brand) {
+        if (!effectiveCat || effectiveCat === 'all-deals' || isProductAssignedToCategory(p, effectiveCat, CATEGORIES, undefined, undefined, undefined, visualNestedItems)) {
+          brands.add(p.brand);
+        }
       }
     });
     return Array.from(brands).sort();
-  }, [allProducts, selectedCategories]);
+  }, [allProducts, selectedCategories, baseCatId, CATEGORIES, visualNestedItems]);
 
   const uniqueSubCategories = useMemo(() => {
-    const subs = new Set<string>();
-    allProducts.forEach(p => {
-      if (p.subCategoryId && (!selectedCategories.length || selectedCategories.includes('all-deals') || selectedCategories.includes(p.categoryId))) {
-        subs.add(p.subCategoryId);
-      }
-    });
-    return Array.from(subs).map(subId => {
-      let name = subId;
-      CATEGORIES.forEach(cat => {
-        const found = cat.subcategories?.find(s => s.id === subId);
-        if (found) name = found.name;
+    const effectiveCat = selectedCategories[0] || baseCatId;
+    if (!effectiveCat || effectiveCat === 'all-deals') {
+      const subs = new Set<string>();
+      allProducts.forEach(p => {
+        if (p.subCategoryId) subs.add(p.subCategoryId);
       });
-      return { id: subId, name };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allProducts, selectedCategories, CATEGORIES]);
+      return Array.from(subs).map(subId => {
+        let name = subId;
+        CATEGORIES.forEach(cat => {
+          const found = cat.subcategories?.find(s => s.id === subId);
+          if (found) name = found.name;
+        });
+        return { id: subId, name };
+      }).sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const catObj = CATEGORIES.find(c => c.id === effectiveCat || c.slug === effectiveCat);
+    if (!catObj || !catObj.subcategories) return [];
+    return catObj.subcategories.map(s => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allProducts, selectedCategories, baseCatId, CATEGORIES]);
 
   const FiltersContent = () => (
     <>

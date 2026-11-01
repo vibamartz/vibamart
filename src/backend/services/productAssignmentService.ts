@@ -61,33 +61,45 @@ export async function assignProductsToCategoryNodes(
         for (const targetNode of standardNodes) {
           if (targetNode.level === 'category') {
             const catId = targetNode.id;
-            updates.categories = arrayUnion(catId);
-            if (!preserveExisting) {
+            if (preserveExisting) {
+              updates.categories = arrayUnion(catId);
+            } else {
+              updates.categories = [catId];
               updates.categoryId = catId;
+              updates.subCategoryIds = [];
+              updates.subCategoryId = '';
+              updates.nestedSubCategoryIds = [];
+              updates.nestedSubCategoryId = '';
             }
           } else if (targetNode.level === 'subcategory') {
             const catId = targetNode.pathIds[0] || targetNode.parentTargetId || '';
             const subId = targetNode.id;
-            if (catId) {
-              updates.categories = arrayUnion(catId);
-            }
-            updates.subCategoryIds = arrayUnion(subId);
-            if (!preserveExisting) {
+            if (preserveExisting) {
+              if (catId) updates.categories = arrayUnion(catId);
+              updates.subCategoryIds = arrayUnion(subId);
+            } else {
+              updates.categories = catId ? [catId] : [];
               if (catId) updates.categoryId = catId;
+              updates.subCategoryIds = [subId];
               updates.subCategoryId = subId;
+              updates.nestedSubCategoryIds = [];
+              updates.nestedSubCategoryId = '';
             }
           } else if (targetNode.level === 'nested_subcategory' || targetNode.level === 'deep_subcategory') {
             const catId = targetNode.pathIds[0] || '';
             const subId = targetNode.pathIds[1] || targetNode.parentTargetId || '';
             const nestedId = targetNode.id;
 
-            if (catId) updates.categories = arrayUnion(catId);
-            if (subId) updates.subCategoryIds = arrayUnion(subId);
-            updates.nestedSubCategoryIds = arrayUnion(nestedId);
-
-            if (!preserveExisting) {
+            if (preserveExisting) {
+              if (catId) updates.categories = arrayUnion(catId);
+              if (subId) updates.subCategoryIds = arrayUnion(subId);
+              updates.nestedSubCategoryIds = arrayUnion(nestedId);
+            } else {
+              updates.categories = catId ? [catId] : [];
               if (catId) updates.categoryId = catId;
+              updates.subCategoryIds = subId ? [subId] : [];
               if (subId) updates.subCategoryId = subId;
+              updates.nestedSubCategoryIds = [nestedId];
               updates.nestedSubCategoryId = nestedId;
             }
           }

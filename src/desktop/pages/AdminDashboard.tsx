@@ -5513,6 +5513,14 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
 
       const rawData = {
         ...formData,
+        categoryId: formData.categoryId || null,
+        subCategoryId: formData.subCategoryId || null,
+        nestedSubCategoryId: formData.nestedSubCategoryId || null,
+        visualNestedSubcategoryId: formData.visualNestedSubcategoryId || null,
+        categories: formData.categoryId ? [formData.categoryId] : [],
+        subCategoryIds: formData.subCategoryId ? [formData.subCategoryId] : [],
+        nestedSubCategoryIds: formData.nestedSubCategoryId ? [formData.nestedSubCategoryId] : [],
+        visualNestedSubcategoryIds: formData.visualNestedSubcategoryId ? [formData.visualNestedSubcategoryId] : [],
         tags: finalTags,
         id: pid,
         images: processedImages,
