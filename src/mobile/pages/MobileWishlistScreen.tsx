@@ -96,7 +96,7 @@ export default function MobileWishlistScreen() {
       });
       setProducts(prev => prev.filter(p => p.id !== productId));
       setSelectedProductIds(prev => prev.filter(id => id !== productId));
-      toast.success("Removed from Wishlist");
+      toast.success("Product removed from your wishlist.");
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -118,7 +118,7 @@ export default function MobileWishlistScreen() {
 
   const handleAddSelectedToCart = () => {
     if (selectedProductIds.length === 0) {
-      toast.error("Select at least one product");
+      toast.warning("Select at least one product");
       return;
     }
 
@@ -132,7 +132,7 @@ export default function MobileWishlistScreen() {
     });
 
     if (addedCount > 0) {
-      toast.success(`Added ${addedCount} selected item(s) to Cart!`, { icon: '🛒' });
+      toast.success("Product added to cart successfully.");
     } else {
       toast.success("Selected items are already in your Cart");
     }
@@ -140,7 +140,7 @@ export default function MobileWishlistScreen() {
 
   const handleRemoveSelectedFromWishlist = async () => {
     if (!user || selectedProductIds.length === 0) {
-      toast.error("Select at least one product");
+      toast.warning("Select at least one product");
       return;
     }
 
@@ -153,7 +153,7 @@ export default function MobileWishlistScreen() {
 
       setProducts(prev => prev.filter(p => !selectedProductIds.includes(p.id)));
       setSelectedProductIds([]);
-      toast.success("Selected items removed from wishlist");
+      toast.success("Product removed from your wishlist.");
     } catch (err) {
       toast.error("Failed to remove selected items");
     }
@@ -341,7 +341,7 @@ export default function MobileWishlistScreen() {
                         navigate('/cart');
                       } else {
                         const res = addItem(product, 1);
-                        if (res.success) toast.success("Added to Cart", { icon: '🛒' });
+                        if (res.success) toast.success("Product added to cart successfully.");
                         else navigate('/cart');
                       }
                     }}

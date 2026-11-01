@@ -126,7 +126,7 @@ export default function Checkout() {
     const storeSelected = useLocationStore.getState().selectedAddress;
     if (user) {
       if (!user.displayName || user.displayName.startsWith('User ') || !user.phone) {
-        toast.error("Please complete your Name and Contact Number before placing an order.", { duration: 5000 });
+        toast.warning("Please complete your profile information.");
         navigate('/profile?tab=overview&edit=true');
         return;
       }
@@ -168,15 +168,15 @@ export default function Checkout() {
 
   const handleSaveFormAddress = async () => {
     if (!editAddressForm.fullName || editAddressForm.fullName.trim() === "") {
-      toast.error("Full Name is required.");
+      toast.warning("Please enter your complete address.");
       return;
     }
     if (!editAddressForm.phone || editAddressForm.phone.trim().length < 7) {
-      toast.error("A valid Contact Number is required.");
+      toast.warning("Please enter a valid mobile number.");
       return;
     }
     if (!editAddressForm.house || !editAddressForm.street || !editAddressForm.city || !editAddressForm.state || !editAddressForm.zip) {
-      toast.error("Please fill all required address fields");
+      toast.warning("Please enter your complete address.");
       return;
     }
 
@@ -187,10 +187,10 @@ export default function Checkout() {
 
         if (editingAddressIndex !== null) {
           updatedAddresses[editingAddressIndex] = editAddressForm;
-          toast.success("Address updated in your profile!");
+          toast.success("Address updated successfully.");
         } else if (saveAddress) {
           updatedAddresses.push(editAddressForm);
-          toast.success("Address saved to your profile!");
+          toast.success("Address saved successfully.");
         }
 
         if (editingAddressIndex !== null || saveAddress) {
@@ -206,7 +206,7 @@ export default function Checkout() {
       setEditingAddressIndex(null);
     } catch (error) {
       console.error("Error saving address:", error);
-      toast.error("Failed to save address to profile");
+      toast.error("Unable to save your address.");
     }
   };
 
@@ -320,6 +320,10 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!address || !address.street || !address.house) {
+      toast.warning('Please select a delivery address.');
+      return;
+    }
     // Validate stock for all cart items before proceeding
     const invalidItems = items.filter(item => {
       const p = item.product;
@@ -504,7 +508,7 @@ export default function Checkout() {
         }
 
         clearCart();
-        toast.success('Order placed successfully!');
+        toast.success('Your order has been placed successfully.');
         navigate('/order-success', { state: { orderId: uniqueId } });
       };
 
@@ -528,15 +532,15 @@ export default function Checkout() {
         } else {
           setLoading(false);
           if (result.error && result.error !== 'Payment cancelled by user') {
-            toast.error(result.error);
+            toast.error(result.error || 'Payment failed. Please try again.');
           } else if (result.error === 'Payment cancelled by user') {
-            toast.error('Payment cancelled');
+            toast.warning('Payment failed. Please try again.');
           }
         }
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to place order. Please try again.');
+      toast.error('Unable to place your order.');
       setLoading(false);
     }
   };

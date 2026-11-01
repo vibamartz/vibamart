@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCartStore, useAuthStore } from '../../backend/store';
-import { Trash2, Plus, Minus, ShoppingCart, ShoppingBag, ArrowRight, Heart, Truck, Zap, MapPin } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, ShoppingBag, ArrowRight, Heart, Truck, Zap, MapPin, Tag } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -96,10 +96,33 @@ export default function Cart() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const { isOnline } = useNetworkStore();
   const navigate = useNavigate();
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      toast.warning('Please enter a coupon code.');
+      return;
+    }
+    const validCodes = ['VIBA10', 'WELCOME10', 'SAVE50', 'FESTIVE20', 'DEAL259'];
+    if (validCodes.includes(code)) {
+      setAppliedCoupon(code);
+      setCouponInput('');
+      toast.success('Coupon applied successfully.');
+    } else {
+      toast.error('This coupon is not valid for the selected products.');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    toast.success('Coupon removed successfully.');
+  };
 
   const handleMoveToWishlist = async (productId: string, variantId?: string) => {
     if (!user) {
-      toast.error('Please login to move item to wishlist');
+      toast.warning('Please login to move item to wishlist');
       return;
     }
     try {
@@ -108,7 +131,7 @@ export default function Cart() {
         wishlist: arrayUnion(productId)
       });
       removeItem(productId, variantId);
-      toast.success('Moved to wishlist');
+      toast.success('Product added to your wishlist.');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -116,7 +139,7 @@ export default function Cart() {
 
   const handleBuyNow = (productId: string, variantId?: string) => {
     if (!isOnline) {
-      toast.error("You're offline. Reconnect to purchase items.");
+      toast.warning("No internet connection. Check your network.");
       return;
     }
     navigate('/checkout');
@@ -248,7 +271,10 @@ export default function Cart() {
                             {/* Quantity Selector */}
                             <div className="flex items-center gap-3 sm:gap-4 bg-gray-50 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-gray-100">
                               <button
-                                onClick={() => updateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variantId)}
+                                onClick={() => {
+                                  updateQuantity(item.productId, Math.max(1, item.quantity - 1), item.variantId);
+                                  toast.success('Cart updated successfully.');
+                                }}
                                 className="text-gray-500 hover:text-primary p-1.5 touch-target transition-colors"
                                 aria-label="Decrease quantity"
                               >
@@ -261,10 +287,11 @@ export default function Cart() {
                                   const variant = item.variantId ? product.variants?.find(v => v.id === item.variantId) : null;
                                   const maxStock = variant ? (variant.stock ?? 0) : (product.stock ?? 0);
                                   if (maxStock > 0 && item.quantity >= maxStock) {
-                                    toast.error(`Maximum available stock reached (${maxStock})`);
+                                    toast.warning(`Maximum available stock reached (${maxStock})`);
                                     return;
                                   }
                                   updateQuantity(item.productId, item.quantity + 1, item.variantId);
+                                  toast.success('Cart updated successfully.');
                                 }}
                                 className="text-gray-500 hover:text-primary p-1.5 touch-target transition-colors"
                                 aria-label="Increase quantity"
@@ -290,7 +317,7 @@ export default function Cart() {
                               </button>
 
                               <button
-                                onClick={() => { removeItem(item.productId, item.variantId); toast.success("Item removed"); }}
+                                onClick={() => { removeItem(item.productId, item.variantId); toast.success("Product removed from cart."); }}
                                 className="px-3 py-1.5 bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-rose-600 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
                               >
                                 <Trash2 className="w-3.5 h-3.5" /> Remove
@@ -315,7 +342,38 @@ export default function Cart() {
 
             {/* Order Summary */}
             <div className="w-full lg:w-96 space-y-6">
-              <div className="py-4 sticky top-24">
+              <div className="py-4 sticky top-24 space-y-4">
+                {/* Apply Coupon Box */}
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-primary" /> Apply Coupon
+                    </span>
+                  </div>
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl text-xs">
+                      <span className="font-bold text-emerald-800">Coupon "{appliedCoupon}" applied</span>
+                      <button onClick={handleRemoveCoupon} className="text-rose-600 font-bold hover:underline cursor-pointer">Remove</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter coupon code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl focus:border-primary outline-none uppercase font-semibold"
+                      />
+                      <button
+                        onClick={handleApplyCoupon}
+                        className="px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <h3 className="text-xl font-black text-gray-900 mb-6">Price Details</h3>
                 <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6 mb-6">
                   <div className="flex justify-between text-gray-600">

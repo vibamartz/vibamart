@@ -122,6 +122,7 @@ export default function ProductList() {
     }).catch(err => {
       console.warn('[ProductList] Search API error, falling back to local dataset:', err);
       if (isCurrent) {
+        toast.error('Search failed. Please try again.');
         setSearchResults(null);
         setSearchRecovery(null);
         setSearchCorrection(null);
@@ -659,6 +660,13 @@ export default function ProductList() {
   const toggleCategory = (id: string) => {
     setSelectedCategories(prev => prev.includes(id) ? [] : [id]);
   };
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (!loading && q && q.trim().length > 0 && filteredProducts.length === 0) {
+      toast.warning('No matching products found.');
+    }
+  }, [loading, searchParams, filteredProducts.length]);
 
   const toggleSubCategory = (id: string) => {
     setSelectedSubCategories(prev => prev.includes(id) ? [] : [id]);

@@ -126,6 +126,7 @@ export default function MobileProductListScreen() {
     }).catch(err => {
       console.warn('[MobileProductListScreen] Server search API error, falling back to local dataset:', err);
       if (isCurrent) {
+        toast.error('Search failed. Please try again.');
         setSearchResults(null);
         setSearchRecovery(null);
         setSearchCorrection(null);
@@ -529,6 +530,12 @@ export default function MobileProductListScreen() {
     }
     return filtered;
   }, [products, searchResults, querySearch, isSearchQuery, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy, categories, visualNestedItems]);
+
+  useEffect(() => {
+    if (!loading && querySearch && querySearch.trim().length > 0 && filteredProducts.length === 0) {
+      toast.warning('No matching products found.');
+    }
+  }, [loading, querySearch, filteredProducts.length]);
 
   const activeFilterCount = (selectedCategory !== baseCatId && selectedCategory !== 'all' ? 1 : 0) +
     (selectedSubCategory !== baseSubId && selectedSubCategory !== '' ? 1 : 0) +

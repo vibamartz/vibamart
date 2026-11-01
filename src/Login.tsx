@@ -76,7 +76,7 @@ export default function Login() {
 
   const sendOtp = async (isResend = false) => {
     if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error('Enter a valid email address');
+      toast.error('Invalid email or password.');
       return;
     }
     setLoading(true);
@@ -141,7 +141,7 @@ export default function Login() {
     e.preventDefault();
     const otpCode = otpDigits.join('');
     if (otpCode.length < 6) {
-      toast.error('Please enter the complete 6-digit OTP');
+      toast.warning('Please enter the complete 6-digit OTP');
       return;
     }
 
@@ -161,7 +161,7 @@ export default function Login() {
           setStep('profile');
         } else {
           await syncUser(firebaseUser);
-          toast.success('Welcome back! 🎉');
+          toast.success('Login successful! Welcome back.');
           navigate('/');
         }
       } else {
@@ -190,12 +190,12 @@ export default function Login() {
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
-        toast.success('Welcome back! 🎉');
+        toast.success('Login successful! Welcome back.');
         navigate('/');
       }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      toast.error("Google Sign-In failed.");
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -204,22 +204,22 @@ export default function Login() {
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || displayName.trim().length < 2) {
-      toast.error('Please enter your full name');
+      toast.warning('Please enter your full name');
       return;
     }
     if (!contactNumber || contactNumber.trim().length < 7) {
-      toast.error('Please enter a valid contact number');
+      toast.warning('Please enter a valid contact number');
       return;
     }
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
       await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
-      toast.success('Account created! Welcome to ViBa Mart 🛍️');
+      toast.success('Your account has been created successfully.');
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to complete signup. Please try again.');
+      toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -19,6 +19,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "react-hot-toast": [
+        "./src/shared/components/toast/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -66,7 +66,7 @@ export default function MobileProfileScreen() {
     try {
       await auth.signOut();
       setUser(null);
-      toast.success("Logged out successfully");
+      toast.success("You have logged out successfully.");
       navigate('/');
     } catch (err) {
       toast.error("Logout failed");

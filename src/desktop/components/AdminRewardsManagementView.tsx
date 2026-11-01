@@ -906,7 +906,7 @@ export default function AdminRewardsManagementView() {
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponForm.brandName || !couponForm.title || !couponForm.code) {
-      toast.error('Please fill in all required fields (Brand Name, Title, Coupon Code).');
+      toast.warning('Please complete all required fields.');
       return;
     }
 
@@ -977,7 +977,7 @@ export default function AdminRewardsManagementView() {
         toast.success(`Product coupon "${payload.title}" updated successfully.`);
       } else {
         await addRewardOffer(payload as Omit<BrandCoupon, 'id'>);
-        toast.success(`New product coupon "${payload.title}" created!`);
+        toast.success('Coupon created successfully.');
       }
       setIsCouponModalOpen(false);
     } catch (err: any) {

@@ -138,6 +138,10 @@ export default function MobileSearchScreen() {
   const handleSearchSubmit = async (e?: React.FormEvent, customTerm?: string) => {
     if (e) e.preventDefault();
     const term = (customTerm || searchQuery).trim();
+    if (!term) {
+      toast.warning('Please enter a search keyword.');
+      return;
+    }
     if (term) {
       const updated = addRecentSearch(term, 8);
       setRecentSearches(updated);

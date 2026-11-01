@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Trash2, Plus, Minus, ShoppingCart, ArrowRight, ShieldCheck, Heart, Truck, Zap, MapPin
+  Trash2, Plus, Minus, ShoppingCart, ArrowRight, ShieldCheck, Heart, Truck, Zap, MapPin, Tag
 } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -124,6 +124,29 @@ export default function MobileCartScreen() {
   const { selectedAddress } = useLocationStore();
   const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      toast.warning('Please enter a coupon code.');
+      return;
+    }
+    const validCodes = ['VIBA10', 'WELCOME10', 'SAVE50', 'FESTIVE20', 'DEAL259'];
+    if (validCodes.includes(code)) {
+      setAppliedCoupon(code);
+      setCouponInput('');
+      toast.success('Coupon applied successfully.');
+    } else {
+      toast.error('This coupon is not valid for the selected products.');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    toast.success('Coupon removed successfully.');
+  };
 
   const cartTotal = total();
   const totalMRP = items.reduce((acc, item) => {
@@ -139,23 +162,25 @@ export default function MobileCartScreen() {
   const handleDecreaseQuantity = (productId: string, currentQty: number, variantId?: string) => {
     if (currentQty <= 1) {
       removeItem(productId, variantId);
-      toast.success("Item removed from cart");
+      toast.success("Product removed from cart.");
     } else {
       updateQuantity(productId, currentQty - 1, variantId);
+      toast.success('Cart updated successfully.');
     }
   };
 
   const handleIncreaseQuantity = (productId: string, currentQty: number, maxStock: number, variantId?: string) => {
     if (currentQty >= maxStock) {
-      toast.error(`Maximum available stock reached (${maxStock})`);
+      toast.warning(`Maximum available stock reached (${maxStock})`);
       return;
     }
     updateQuantity(productId, currentQty + 1, variantId);
+    toast.success('Cart updated successfully.');
   };
 
   const handleMoveToWishlist = async (productId: string, variantId?: string) => {
     if (!user) {
-      toast.error('Please login to move item to wishlist');
+      toast.warning('Please login to move item to wishlist');
       return;
     }
     try {
@@ -164,7 +189,7 @@ export default function MobileCartScreen() {
         wishlist: arrayUnion(productId)
       });
       removeItem(productId, variantId);
-      toast.success('Moved to wishlist');
+      toast.success('Product added to your wishlist.');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
@@ -172,7 +197,7 @@ export default function MobileCartScreen() {
 
   const handleBuyNow = (productId: string, variantId?: string) => {
     if (!isOnline) {
-      toast.error("You're offline. Reconnect to purchase items.");
+      toast.warning("No internet connection. Check your network.");
       return;
     }
     navigate('/checkout');
@@ -379,7 +404,7 @@ export default function MobileCartScreen() {
                     </button>
 
                     <button
-                      onClick={() => { removeItem(product.id, item.variantId); toast.success("Item removed"); }}
+                      onClick={() => { removeItem(product.id, item.variantId); toast.success("Product removed from cart."); }}
                       className="py-1.5 px-3 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-xl flex items-center justify-center gap-1 active:scale-95 transition-transform"
                     >
                       <Trash2 className="w-3 h-3" /> Remove
@@ -388,6 +413,37 @@ export default function MobileCartScreen() {
                 </motion.div>
               );
             })}
+          </div>
+
+          {/* Apply Coupon Box */}
+          <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 space-y-2 mb-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-primary" /> Apply Coupon
+              </span>
+            </div>
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs">
+                <span className="font-bold text-emerald-800">Coupon "{appliedCoupon}" applied</span>
+                <button onClick={handleRemoveCoupon} className="text-rose-600 font-bold hover:underline cursor-pointer">Remove</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-xl focus:border-primary outline-none uppercase font-semibold"
+                />
+                <button
+                  onClick={handleApplyCoupon}
+                  className="px-3 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors cursor-pointer"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Bill Details Summary */}

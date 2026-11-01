@@ -26,11 +26,12 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
 
   checkConnectivity: async (): Promise<boolean> => {
     set({ isChecking: true });
+    toast.warning('Reconnecting to the server...');
 
     // 1. Basic navigator check
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       set({ isOnline: false, isChecking: false });
-      toast.error("You're still offline. Check your connection and try again.");
+      toast.warning('No internet connection. Check your network.');
       return false;
     }
 
@@ -48,7 +49,7 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         });
         clearTimeout(timeoutId);
         set({ isOnline: true, isChecking: false });
-        toast.success('Connection restored! You are back online.');
+        toast.success('Internet connection restored.');
         return true;
       } catch {
         // Fallback probe
@@ -64,9 +65,9 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
         set({ isOnline: isReallyOnline, isChecking: false });
 
         if (isReallyOnline) {
-          toast.success('Connection restored! You are back online.');
+          toast.success('Internet connection restored.');
         } else {
-          toast.error("You're still offline. Check your connection and try again.");
+          toast.warning('No internet connection. Check your network.');
         }
 
         return isReallyOnline;
@@ -77,9 +78,9 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
       set({ isOnline: fallbackOnline, isChecking: false });
 
       if (fallbackOnline) {
-        toast.success('Connection restored! You are back online.');
+        toast.success('Internet connection restored.');
       } else {
-        toast.error("You're still offline. Check your connection and try again.");
+        toast.warning('No internet connection. Check your network.');
       }
 
       return fallbackOnline;
@@ -91,11 +92,11 @@ export const useNetworkStore = create<NetworkState>((set, get) => ({
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     useNetworkStore.getState().setOnline(true);
-    toast.success('Connection restored! You are back online.');
+    toast.success('Internet connection restored.');
   });
 
   window.addEventListener('offline', () => {
     useNetworkStore.getState().setOnline(false);
-    toast.error('No internet connection. Switched to offline mode.');
+    toast.warning('No internet connection. Check your network.');
   });
 }

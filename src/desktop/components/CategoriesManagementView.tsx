@@ -330,11 +330,11 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         await setDoc(catRef, sanitizedPayload, { merge: true });
       }
 
-      toast.success('Saved successfully');
+      toast.success('Category saved successfully.');
       setIsModalOpen(false);
     } catch (error: any) {
       console.error('Error saving category/subcategory:', error);
-      toast.error(error?.message ? `Failed to save: ${error.message}` : 'Failed to save');
+      toast.error('Unable to save changes.');
     } finally {
       setIsSaving(false);
     }

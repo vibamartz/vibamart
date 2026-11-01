@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
         'react': path.resolve(__dirname, 'node_modules/react'),
         'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+        'react-hot-toast': path.resolve(__dirname, 'src/shared/components/toast/index.ts'),
       },
     },
     build: {

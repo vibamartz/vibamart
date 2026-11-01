@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { GlobalToastContainer } from './shared/components/toast';
 import { motion, AnimatePresence } from 'motion/react';
 import Logo from './desktop/components/Logo';
 import { useAuthStore, useCategoryStore, useSettingsStore, useFeatureStore, useRewardsStore, useVisualNestedSubcategoryStore } from './backend/store';
@@ -439,20 +439,7 @@ export default function App() {
         <ScrollToTop />
         <GlobalPushNotificationListener />
         <MainAppRoutes />
-        <Toaster 
-          position="bottom-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#1a1a1a',
-              color: '#fff',
-              borderRadius: '16px',
-              fontWeight: 600,
-              fontSize: '14px',
-              padding: '16px 24px',
-            },
-          }}
-        />
+        <GlobalToastContainer />
         <PermissionModal 
           isOpen={showPermissions} 
           onClose={() => setShowPermissions(false)}

@@ -184,10 +184,10 @@ export default function Deal259AdminManagementView() {
       };
       await setDoc(doc(db, 'settings', 'deal259'), updatedConfig, { merge: true });
       await logAdminAction(AdminAction.SETTINGS_UPDATE, 'Updated Deal 259 settings', 'deal259', 'settings');
-      toast.success('Deal 259 settings saved!', { id: toastId });
+      toast.success('Offer published successfully.', { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save settings', { id: toastId });
+      toast.error('Unable to save changes.', { id: toastId });
     } finally {
       setSavingConfig(false);
     }

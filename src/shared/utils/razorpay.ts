@@ -160,14 +160,14 @@ export const processPayment = async (
 
 const simulateTestPayment = async (details: PaymentDetails): Promise<PaymentResult> => {
   return new Promise((resolve) => {
-    toast.loading(`Processing payment of ₹${details.amount.toLocaleString('en-IN')} (Demo Gateway)...`, {
+    toast.loading('Payment is still processing...', {
       id: 'payment-toast',
       duration: 1500,
     });
 
     setTimeout(() => {
       const mockPayId = `PAY_DEMO_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      toast.success(`Payment of ₹${details.amount.toLocaleString('en-IN')} Successful!`, {
+      toast.success('Payment completed successfully.', {
         id: 'payment-toast',
       });
       resolve({

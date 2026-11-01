@@ -68,7 +68,7 @@ export default function MobileAddressScreen() {
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !phone.trim() || !house.trim() || !street.trim() || !city.trim() || !state.trim() || !zip.trim()) {
-      toast.error("Please fill in all address details");
+      toast.warning("Please enter your complete address.");
       return;
     }
 
@@ -295,7 +295,7 @@ export default function MobileAddressScreen() {
                         if (info.country) setCountry(info.country);
                         toast.success(`Location detected: ${info.area || info.city}, ${info.state}`);
                       }).catch((err) => {
-                        toast.error(err.message || 'Invalid pincode');
+                        toast.warning('Please enter a valid PIN code.');
                       });
                     }
                   }} 

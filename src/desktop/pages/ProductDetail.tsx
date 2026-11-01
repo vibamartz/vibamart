@@ -255,6 +255,7 @@ export default function ProductDetail() {
       } catch (err) {
         console.error("Error fetching product details:", err);
         setFetchError(true);
+        toast.error('Product information could not be loaded.');
       } finally {
         setLoading(false);
       }
@@ -390,9 +391,9 @@ export default function ProductDetail() {
       const attributes = getProductVariantAttributes(product);
       const missingAttr = attributes.find(a => !selectedAttributes[normalizeAttributeKey(a.name)]);
       if (missingAttr) {
-        toast.error(`Please select ${missingAttr.name}`);
+        toast.warning('Please select all required product options.');
       } else {
-        toast.error('Please select an available variant combination.');
+        toast.warning('Please select all required product options.');
       }
       return false;
     }
@@ -409,7 +410,7 @@ export default function ProductDetail() {
     if (result.success || result.exists) {
       navigate('/checkout');
     } else {
-      toast.error('Could not proceed to checkout. Out of stock.');
+      toast.warning('This product is currently out of stock.');
     }
   };
 
@@ -421,13 +422,13 @@ export default function ProductDetail() {
     if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariant);
     if (result.success) {
-      toast.success('Product added to cart');
+      toast.success('Product added to cart successfully.');
     } else if (result.exists) {
       navigate('/cart');
     } else if (result.limitReached) {
       toast.error('Cart limit reached (100 items max)');
     } else {
-      toast.error('Could not add to cart. Out of stock.');
+      toast.warning('This product is currently out of stock.');
     }
   };
 
@@ -456,7 +457,7 @@ export default function ProductDetail() {
 
   const handleToggleWishlist = async () => {
     if (!user || !product) {
-      toast.error('Please login to use wishlist');
+      toast.warning('Please login to use wishlist');
       return;
     }
 
@@ -473,7 +474,7 @@ export default function ProductDetail() {
       await updateDoc(userRef, {
         wishlist: isWishlisted ? arrayRemove(product.id) : arrayUnion(product.id)
       });
-      toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
+      toast.success(isWishlisted ? 'Product removed from your wishlist.' : 'Product added to your wishlist.');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }

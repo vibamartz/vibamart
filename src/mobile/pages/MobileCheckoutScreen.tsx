@@ -89,7 +89,7 @@ export default function MobileCheckoutScreen() {
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFullName || !newPhone || !newHouse || !newStreet || !newZip) {
-      toast.error("Please fill in all address details");
+      toast.warning("Please enter your complete address.");
       return;
     }
 
@@ -115,7 +115,7 @@ export default function MobileCheckoutScreen() {
     if (user) {
       try {
         await setDoc(doc(db, 'users', user.uid), { addresses: updatedAddresses }, { merge: true });
-        toast.success("New address saved!");
+        toast.success("Address saved successfully.");
       } catch (err) {
         console.error("Failed to save address:", err);
       }
@@ -124,11 +124,15 @@ export default function MobileCheckoutScreen() {
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
-      toast.error("Your cart is empty");
+      toast.warning("Your cart is empty.");
+      return;
+    }
+    if (!selectedAddress || !selectedAddress.street) {
+      toast.warning("Please select a delivery address.");
       return;
     }
     if (!contactPhone || contactPhone.length < 10) {
-      toast.error("Please provide a valid phone number");
+      toast.warning("Please enter a valid mobile number.");
       return;
     }
 
@@ -167,9 +171,9 @@ export default function MobileCheckoutScreen() {
       if (!payResult.success) {
         setIsPlacingOrder(false);
         if (payResult.error && payResult.error !== 'Payment cancelled by user') {
-          toast.error(payResult.error);
+          toast.error(payResult.error || "Payment failed. Please try again.");
         } else if (payResult.error === 'Payment cancelled by user') {
-          toast.error('Payment cancelled');
+          toast.warning("Payment failed. Please try again.");
         }
         return;
       }
@@ -297,11 +301,11 @@ export default function MobileCheckoutScreen() {
       }
 
       clearCart();
-      toast.success("Order placed successfully!", { icon: '🎉' });
+      toast.success("Your order has been placed successfully.");
       navigate('/order-success', { state: { orderId: docRef.id, customId, order: { id: docRef.id, ...newOrder } } });
     } catch (err) {
       console.error("Failed to place order:", err);
-      toast.error("Failed to place order. Please try again.");
+      toast.error("Unable to place your order.");
     } finally {
       setIsPlacingOrder(false);
     }

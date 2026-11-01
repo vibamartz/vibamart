@@ -822,11 +822,11 @@ export default function AddEditProductForm({
         'products'
       );
 
-      toast.success(product ? 'Systems Updated' : 'Product Deployed', { id: toastId });
+      toast.success(product ? 'Product updated successfully.' : 'Product added successfully.', { id: toastId });
       onClose();
     } catch (err) {
       console.error('Product deployment error:', err);
-      toast.error('Deployment Failed', { id: toastId });
+      toast.error('Unable to save changes.', { id: toastId });
       handleFirestoreError(err, OperationType.WRITE, 'products');
     } finally {
       setBusy(false);

@@ -278,12 +278,13 @@ export default function MobileProductDetailScreen() {
             setReviews(revs);
           });
         } else {
-          toast.error("Product not found");
+          toast.error("Product information could not be loaded.");
           navigate('/products');
         }
       } catch (err) {
         console.error("Error fetching product:", err);
         setFetchError(true);
+        toast.error("Product information could not be loaded.");
       } finally {
         setLoading(false);
       }
@@ -294,7 +295,7 @@ export default function MobileProductDetailScreen() {
 
   const handleToggleWishlist = async () => {
     if (!user) {
-      toast.error("Please login to manage wishlist");
+      toast.warning("Please login to manage wishlist");
       navigate('/login');
       return;
     }
@@ -316,7 +317,7 @@ export default function MobileProductDetailScreen() {
       await updateDoc(userRef, {
         wishlist: currentlyWishlisted ? arrayRemove(productId) : arrayUnion(productId)
       });
-      toast.success(currentlyWishlisted ? "Removed from Wishlist" : "Saved to Wishlist");
+      toast.success(currentlyWishlisted ? "Product removed from your wishlist." : "Product added to your wishlist.");
     } catch (err) {
       console.error("Wishlist error:", err);
       setIsWishlisted(currentlyWishlisted);
@@ -339,9 +340,9 @@ export default function MobileProductDetailScreen() {
       const attributes = getProductVariantAttributes(product);
       const missingAttr = attributes.find(a => !selectedAttributes[normalizeAttributeKey(a.name)]);
       if (missingAttr) {
-        toast.error(`Please select ${missingAttr.name}`);
+        toast.warning("Please select all required product options.");
       } else {
-        toast.error('Please select an available variant.');
+        toast.warning("Please select all required product options.");
       }
       return false;
     }
@@ -357,13 +358,13 @@ export default function MobileProductDetailScreen() {
     if (!validateVariantSelection()) return;
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
-      toast.success("Added to Cart!", { icon: '🛒' });
+      toast.success("Product added to cart successfully.");
     } else if (result.exists) {
       navigate('/cart');
     } else if (result.limitReached) {
       toast.error("Cart limit reached (100 items max)");
     } else {
-      toast.error("Could not add to cart. Out of stock");
+      toast.warning("This product is currently out of stock.");
     }
   };
 
@@ -378,7 +379,7 @@ export default function MobileProductDetailScreen() {
     if (result.success || result.exists) {
       navigate('/checkout');
     } else {
-      toast.error("Could not proceed to checkout. Out of stock.");
+      toast.warning("This product is currently out of stock.");
     }
   };
 

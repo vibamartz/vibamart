@@ -198,6 +198,19 @@ export default function Navbar() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const queryStr = searchQuery.trim();
+    if (!queryStr) {
+      if (location.pathname === '/products') {
+        const params = new URLSearchParams(location.search);
+        if (params.get('q')) {
+          params.delete('q');
+          navigate(`/products?${params.toString()}`);
+        }
+      } else {
+        toast.warning('Please enter a search keyword.');
+      }
+      setIsMenuOpen(false);
+      return;
+    }
     if (queryStr) {
       logSearch(queryStr, 'text');
       // Save to recent searches (auto-expires after 24h)
@@ -1225,7 +1238,7 @@ export default function Navbar() {
                   </Link>
                 ) : (
                   <button
-                    onClick={() => { auth.signOut(); setIsMenuOpen(false); }}
+                    onClick={() => { auth.signOut(); setIsMenuOpen(false); toast.success('You have logged out successfully.'); }}
                     className="w-full flex items-center justify-center gap-2 text-rose-500 font-black uppercase tracking-widest text-[11px] py-4 border-2 border-rose-50 rounded-2xl hover:bg-rose-50 transition-all"
                   >
                     <LogOut className="w-5 h-5" />

@@ -31,7 +31,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     if (result.success || result.exists) {
       navigate('/checkout');
     } else {
-      toast.error('Could not proceed to checkout. Out of stock.');
+      toast.warning('This product is currently out of stock.');
     }
   };
 
@@ -44,13 +44,13 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
     }
     const result = addItem(product, 1);
     if (result.success) {
-      toast.success('Product added to cart');
+      toast.success('Product added to cart successfully.');
     } else if (result.exists) {
       navigate('/cart');
     } else if (result.limitReached) {
       toast.error('Cart limit reached (100 items max)');
     } else {
-      toast.error('Could not add to cart. Out of stock.');
+      toast.warning('This product is currently out of stock.');
     }
   };
 
@@ -58,7 +58,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
   const discountPercentage = product.discountPrice && product.price ? Math.round((discountAmount / product.price) * 100) : 0;
 
   return (
-    <Link 
+    <Link
       to={`/products/${getProductSlug(product)}`}
       className={`block h-full no-underline text-inherit ${className}`}
     >
@@ -72,7 +72,7 @@ export default function ProductCard({ product, showActionsAlways = false, hideBu
             alt={product.name}
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 bg-white"
           />
-          
+
           {discountPercentage > 0 && (
             <span className="absolute top-2.5 left-2.5 bg-green-600 text-white text-xs font-black px-2.5 py-1 rounded-md shadow-xs">
               {discountPercentage}% OFF

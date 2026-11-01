@@ -88,7 +88,7 @@ export default function Profile() {
     if (!user?.email) return;
     try {
       await sendPasswordResetEmail(auth, user.email);
-      toast.success('Password reset email sent to your inbox!');
+      toast.success('Password changed successfully.');
     } catch (err) {
       toast.error('Failed to send reset email');
     }
@@ -97,15 +97,15 @@ export default function Profile() {
   const handleSaveAddress = async () => {
     if (!user) return;
     if (!newAddress.fullName || newAddress.fullName.trim() === "") {
-      toast.error('Full Name is required.');
+      toast.warning('Please complete your profile information.');
       return;
     }
     if (!newAddress.phone || newAddress.phone.trim().length < 7) {
-      toast.error('A valid Contact Number is required.');
+      toast.warning('Please enter a valid mobile number.');
       return;
     }
     if (!newAddress.house || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zip) {
-      toast.error('Please fill all required address fields');
+      toast.warning('Please enter your complete address.');
       return;
     }
     try {
@@ -139,9 +139,9 @@ export default function Profile() {
         country: 'India',
         label: 'Home'
       });
-      toast.success(editingAddressIndex !== null ? 'Address updated' : 'Address added');
+      toast.success(editingAddressIndex !== null ? 'Address updated successfully.' : 'Address saved successfully.');
     } catch (err) {
-      toast.error('Failed to save address');
+      toast.error('Unable to save your address.');
     }
   };
 
@@ -154,9 +154,9 @@ export default function Profile() {
         addresses: updatedAddresses
       });
       setUser({ ...user, addresses: updatedAddresses });
-      toast.success('Address removed');
+      toast.success('Address deleted successfully.');
     } catch (err) {
-      toast.error('Failed to remove address');
+      toast.error('Unable to save your address.');
     }
   };
 
@@ -168,7 +168,7 @@ export default function Profile() {
         address: address
       });
       setUser({ ...user, address: address });
-      toast.success('Default address updated');
+      toast.success('Address updated successfully.');
     } catch (err) {
       toast.error('Failed to set default address');
     }
@@ -344,10 +344,10 @@ export default function Profile() {
       });
       setUser({ ...user, displayName: editedName, phone: editedPhone });
       setIsEditingProfile(false);
-      toast.success('Profile updated');
+      toast.success('Profile updated successfully.');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`, false);
-      toast.error('Failed to update profile');
+      toast.error('Profile update failed.');
     }
   };
 
@@ -363,6 +363,7 @@ export default function Profile() {
 
   const handleLogout = async () => {
     await auth.signOut();
+    toast.success('You have logged out successfully.');
     navigate('/');
   };
 
@@ -391,12 +392,13 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success(data.message || 'Request submitted successfully');
+        toast.success(data.message || 'Order cancelled successfully.');
         setShowCancelModal(false);
+
         setSelectedOrderId(null);
         setCancelReason('');
       } else {
-        toast.error(data.error || 'Failed to cancel order');
+        toast.error(data.error || 'Order cancellation failed.');
       }
     } catch (err: any) {
       toast.error(err.message || 'An error occurred during cancellation');
@@ -449,7 +451,7 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success(data.message || 'Request submitted successfully');
+        toast.success(data.message || 'Return request submitted successfully.');
         setShowReturnModal(false);
         setSelectedOrderId(null);
         setReturnReason('Wrong Product Received');
@@ -498,7 +500,7 @@ export default function Profile() {
         throw new Error(e.message || 'An unexpected error occurred while communicating with the server. Please try again later.');
       }
       if (data.success) {
-        toast.success(data.message || 'Request submitted successfully');
+        toast.success(data.message || 'Refund processed successfully.');
         setShowRefundModal(false);
         setSelectedOrderId(null);
         setRefundReason('');
@@ -1597,7 +1599,7 @@ function AddressModal({
       }));
       toast.success(`Pincode detected: ${info.city}, ${info.state}, ${info.country}`);
     } catch (err: any) {
-      toast.error(err.message || 'Invalid pincode');
+      toast.warning('Please enter a valid PIN code.');
     } finally {
       setZipLoading(false);
     }
@@ -1845,3 +1847,4 @@ function WishlistSection({ products, onRemove }: { products: Product[], onRemove
     </motion.div>
   );
 }
+

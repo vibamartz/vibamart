@@ -190,7 +190,7 @@ export default function MobileOrderDetailsScreen() {
       }
 
       if (response.ok && data?.success) {
-        toast.success(data.message || "Cancellation request submitted!");
+        toast.success(data.message || "Order cancelled successfully.");
       } else {
         await addDoc(collection(db, 'cancellation_requests'), {
           orderId: order.id,
@@ -203,12 +203,12 @@ export default function MobileOrderDetailsScreen() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
-        toast.success("Cancellation request submitted successfully!");
+        toast.success("Order cancelled successfully.");
       }
       setShowCancelModal(false);
     } catch (err: any) {
       console.error("Cancel order error:", err);
-      toast.error(err.message || "Failed to submit cancellation request");
+      toast.error(err.message || "Order cancellation failed.");
     } finally {
       setIsSubmitting(false);
     }
@@ -219,11 +219,11 @@ export default function MobileOrderDetailsScreen() {
     if (!order || !user) return;
 
     if (returnImages.length === 0) {
-      toast.error("Please upload at least 1 proof image of the product.");
+      toast.warning("Please upload at least 1 proof image of the product.");
       return;
     }
     if (selectedReturnProducts.length === 0) {
-      toast.error("Please select at least 1 item to return.");
+      toast.warning("Please select at least 1 item to return.");
       return;
     }
 
@@ -265,7 +265,7 @@ export default function MobileOrderDetailsScreen() {
       }
 
       if (response.ok && data?.success) {
-        toast.success(data.message || "Return request submitted!");
+        toast.success(data.message || "Return request submitted successfully.");
       } else {
         await addDoc(collection(db, 'return_requests'), {
           orderId: order.id,
@@ -322,7 +322,7 @@ export default function MobileOrderDetailsScreen() {
       }
 
       if (response.ok && data?.success) {
-        toast.success(data.message || "Refund request submitted!");
+        toast.success(data.message || "Refund processed successfully.");
       } else {
         await addDoc(collection(db, 'refund_requests'), {
           orderId: order.id,
@@ -336,7 +336,7 @@ export default function MobileOrderDetailsScreen() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
-        toast.success("Refund request submitted successfully!");
+        toast.success("Refund processed successfully.");
       }
       setShowRefundModal(false);
     } catch (err: any) {

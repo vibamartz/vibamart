@@ -372,18 +372,18 @@ export default function BannersManagementView() {
         payload.order = editingBanner.order ?? 0;
         const bannerRef = doc(db, 'banners', editingBanner.id);
         await setDoc(bannerRef, payload, { merge: true });
-        toast.success('Banner updated successfully');
+        toast.success('Banner updated successfully.');
       } else {
         const newDocRef = doc(collection(db, 'banners'));
         payload.id = newDocRef.id;
         payload.order = banners.length;
         await setDoc(newDocRef, payload);
-        toast.success('Banner created successfully');
+        toast.success('Banner updated successfully.');
       }
       setIsModalOpen(false);
     } catch (error: any) {
       console.error('Error saving banner:', error);
-      toast.error(`Failed to save banner: ${error?.message || error}`);
+      toast.error('Unable to save changes.');
     } finally {
       setIsSaving(false);
     }

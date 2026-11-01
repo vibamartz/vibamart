@@ -102,10 +102,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
             address: newAddress 
           } 
         });
-        toast.success('Address saved!');
+        toast.success('Address saved successfully.');
       } catch (err) {
         console.error('Failed to save address to Firebase:', err);
-        toast.error('Failed to save address to cloud profile');
+        toast.error('Unable to save your address.');
       }
     } else {
       toast.success('Address set for current session');
@@ -154,10 +154,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
             ...(activePrimary ? { address: activePrimary } : {})
           } 
         });
-        toast.success('Address updated!');
+        toast.success('Address updated successfully.');
       } catch (err) {
         console.error('Failed to update address:', err);
-        toast.error('Failed to update address');
+        toast.error('Unable to save your address.');
       }
     }
   },
@@ -199,7 +199,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
             address: nextSelected
           } 
         });
-        toast.success('Address removed');
+        toast.success('Address deleted successfully.');
       } catch (err) {
         console.error('Failed to delete address:', err);
       }
