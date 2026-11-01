@@ -962,7 +962,7 @@ export default function ProductDetail() {
       </div>
 
       {/* Similar Products Section */}
-      <SimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
+      <SimilarProducts key={product.id} product={product} categoryId={product.categoryId} currentProductId={product.id} />
 
       {/* Product Information Details Tabs Section */}
       {availableTabs.length > 0 && (
@@ -1179,6 +1179,7 @@ function SimilarProducts({
   categoryId,
   currentProductId
 }: {
+  key?: any;
   product?: Product | null;
   categoryId?: string;
   currentProductId?: string;
@@ -1187,9 +1188,9 @@ function SimilarProducts({
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const effectiveCatId = product?.categoryId || categoryId || '';
-  const effectiveProductId = product?.id || currentProductId || '';
-  const effectiveSubCatId = product?.subCategoryId || '';
+  const effectiveCatId = String(product?.categoryId || categoryId || (product?.categories && product.categories[0]) || (product as any)?.category || '').trim();
+  const effectiveProductId = String(product?.id || currentProductId || '').trim();
+  const effectiveSubCatId = String(product?.subCategoryId || (product?.subCategoryIds && product.subCategoryIds[0]) || (product as any)?.subCategory || '').trim();
 
   const seeAllLink = useMemo(() => {
     return getSimilarProductsSeeAllLink(
@@ -1202,7 +1203,7 @@ function SimilarProducts({
     let isMounted = true;
     setLoading(true);
 
-    if (!effectiveCatId && !product) {
+    if (!effectiveCatId && !product?.categoryId && !(product?.categories && product.categories.length > 0)) {
       setProducts([]);
       setLoading(false);
       return;
@@ -1233,12 +1234,21 @@ function SimilarProducts({
         // Exclude duplicate products
         const seenIds = new Set<string>();
         const seenSlugs = new Set<string>();
+        const seenCodes = new Set<string>();
         const unique = eligible.filter(p => {
-          if (!p || !p.id || seenIds.has(p.id)) return false;
+          if (!p || !p.id) return false;
+          const pId = String(p.id).trim();
+          const docId = String((p as any)._id || p.id).trim();
+          if (seenIds.has(pId) || seenIds.has(docId)) return false;
           const slug = getProductSlug(p);
-          if (slug && seenSlugs.has(slug)) return false;
-          seenIds.add(p.id);
-          if (slug) seenSlugs.add(slug);
+          if (slug && seenSlugs.has(slug.toLowerCase())) return false;
+          const code = p.productCode ? cleanProductCode(p.productCode) : '';
+          if (code && seenCodes.has(code)) return false;
+
+          seenIds.add(pId);
+          seenIds.add(docId);
+          if (slug) seenSlugs.add(slug.toLowerCase());
+          if (code) seenCodes.add(code);
           return true;
         });
 
@@ -1268,12 +1278,21 @@ function SimilarProducts({
 
         const seenIds = new Set<string>();
         const seenSlugs = new Set<string>();
+        const seenCodes = new Set<string>();
         const unique = eligible.filter(p => {
-          if (!p || !p.id || seenIds.has(p.id)) return false;
+          if (!p || !p.id) return false;
+          const pId = String(p.id).trim();
+          const docId = String((p as any)._id || p.id).trim();
+          if (seenIds.has(pId) || seenIds.has(docId)) return false;
           const slug = getProductSlug(p);
-          if (slug && seenSlugs.has(slug)) return false;
-          seenIds.add(p.id);
-          if (slug) seenSlugs.add(slug);
+          if (slug && seenSlugs.has(slug.toLowerCase())) return false;
+          const code = p.productCode ? cleanProductCode(p.productCode) : '';
+          if (code && seenCodes.has(code)) return false;
+
+          seenIds.add(pId);
+          seenIds.add(docId);
+          if (slug) seenSlugs.add(slug.toLowerCase());
+          if (code) seenCodes.add(code);
           return true;
         });
 
@@ -1302,7 +1321,7 @@ function SimilarProducts({
           <div className="space-y-1">
             <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
-              {product?.subCategoryId ? 'Recommendations from same subcategory' : 'Recommendations from same category'}
+              {effectiveSubCatId ? 'Recommendations from same subcategory' : 'Recommendations from same category'}
             </p>
           </div>
           <Link
