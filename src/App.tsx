@@ -81,7 +81,7 @@ function ScrollToTop() {
 
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
 import { useNetworkStore } from './shared/utilities/networkStatus';
-import { NoInternetScreen, OfflineSplashScreen } from './shared/components/offline';
+import { NoInternetScreen } from './shared/components/offline';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -311,24 +311,9 @@ function MainAppRoutes() {
 
 function SplashScreen({
   isVisible,
-  isOnline,
-  onRetrySuccess,
-  onContinueOffline,
 }: {
   isVisible: boolean;
-  isOnline: boolean;
-  onRetrySuccess: () => void;
-  onContinueOffline: () => void;
 }) {
-  if (isVisible && !isOnline) {
-    return (
-      <OfflineSplashScreen
-        onRetrySuccess={onRetrySuccess}
-        onContinueOffline={onContinueOffline}
-      />
-    );
-  }
-
   return (
     <AnimatePresence>
       {isVisible && (
@@ -399,25 +384,23 @@ export default function App() {
       setMinDelayPassed(true);
     }, 500);
 
-    // Hard fallback safety timer (2s) so app never hangs permanently when online
+    // Hard fallback safety timer (2s) so app never hangs permanently
     const maxSafetyTimer = setTimeout(() => {
-      if (isOnline) {
-        setShowSplash(false);
-      }
+      setShowSplash(false);
     }, 2000);
 
     return () => {
       clearTimeout(timer);
       clearTimeout(maxSafetyTimer);
     };
-  }, [isOnline]);
+  }, []);
 
   useEffect(() => {
     const isStoreLoading = loading || catsLoading || settingsLoading;
-    if (minDelayPassed && !isStoreLoading && isOnline) {
+    if (minDelayPassed && !isStoreLoading) {
       setShowSplash(false);
     }
-  }, [minDelayPassed, loading, catsLoading, settingsLoading, isOnline]);
+  }, [minDelayPassed, loading, catsLoading, settingsLoading]);
 
   const handlePermissionsAccept = () => {
     localStorage.setItem('permissionsAcknowledged', 'true');
@@ -428,12 +411,6 @@ export default function App() {
     <ErrorBoundary>
       <SplashScreen
         isVisible={showSplash}
-        isOnline={isOnline}
-        onRetrySuccess={() => {
-          reinitializeStores();
-          setShowSplash(false);
-        }}
-        onContinueOffline={() => setShowSplash(false)}
       />
       <Router>
         <ScrollToTop />
