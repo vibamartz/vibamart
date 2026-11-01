@@ -31,12 +31,8 @@ export default function OfflineSplashScreen({
       {/* Cream background with soft orange and green decorative shapes */}
       <DecorativeBackgroundElements />
 
-      {/* Top spacing / subtle indicator */}
-      <div className="relative z-10 w-full max-w-sm flex justify-center pt-1 sm:pt-2 shrink-0">
-        <span className="text-[11px] font-bold text-emerald-800/70 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/50 uppercase tracking-wider">
-          ViBa Mart Offline Mode
-        </span>
-      </div>
+      {/* Top spacer */}
+      <div className="relative z-10 shrink-0 h-4 sm:h-6" />
 
       {/* Center: ViBa Mart logo above friendly shopping bag illustration with disconnected Wi-Fi symbol */}
       <div className="relative z-10 flex flex-col items-center max-w-md mx-auto my-auto py-2 px-4">

@@ -31,7 +31,7 @@ import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedT
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import { useNetworkStore } from '../../shared/utilities/networkStatus';
-import { OfflineHomeScreen } from '../../shared/components/offline';
+import { NoInternetScreen } from '../../shared/components/offline';
 
 export default function MobileHomepage() {
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
@@ -482,7 +482,7 @@ export default function MobileHomepage() {
     : 'Recommended For You';
 
   if (!isOnline) {
-    return <OfflineHomeScreen />;
+    return <NoInternetScreen />;
   }
 
   return (

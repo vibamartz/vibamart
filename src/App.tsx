@@ -81,7 +81,7 @@ function ScrollToTop() {
 
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
 import { useNetworkStore } from './shared/utilities/networkStatus';
-import { NoInternetScreen, OfflineSplashScreen, OfflineHomeScreen, OfflineCartScreen } from './shared/components/offline';
+import { NoInternetScreen, OfflineSplashScreen } from './shared/components/offline';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -139,15 +139,11 @@ function MainAppRoutes() {
                       location.pathname.startsWith('/category/');
   const isCartRoute = location.pathname === '/cart';
 
-  // Standalone offline screens: 1 screen on 1 page without any scrolling
+  // Standalone offline screens: No Internet Connection Screen for offline pages; Cart preserves saved items
   if (!isOnline) {
-    if (isHomeRoute) {
-      return <OfflineHomeScreen />;
+    if (!isCartRoute) {
+      return <NoInternetScreen />;
     }
-    if (isCartRoute) {
-      return <OfflineCartScreen />;
-    }
-    return <NoInternetScreen />;
   }
 
   if (isMobile) {

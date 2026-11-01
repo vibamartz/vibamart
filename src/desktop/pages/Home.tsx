@@ -29,7 +29,7 @@ import TrendingProductsTwoRowSection from '../../shared/components/TrendingProdu
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { useNetworkStore } from '../../shared/utilities/networkStatus';
-import { OfflineHomeScreen } from '../../shared/components/offline';
+import { NoInternetScreen } from '../../shared/components/offline';
 
 export default function Home() {
   const { categories: CATEGORIES } = useCategoryStore();
@@ -281,7 +281,7 @@ export default function Home() {
   };
 
   if (!isOnline) {
-    return <OfflineHomeScreen />;
+    return <NoInternetScreen />;
   }
 
   return (
