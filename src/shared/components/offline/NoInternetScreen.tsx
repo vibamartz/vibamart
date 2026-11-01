@@ -221,7 +221,7 @@ export default function NoInternetScreen({ onRetrySuccess, className = '' }: NoI
       {/* Bottom subtle branding text */}
       <div className="relative z-10 pb-2 sm:pb-3 shrink-0">
         <span className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          ViBa Mart Offline Mode
+          Offline Mode
         </span>
       </div>
     </div>
