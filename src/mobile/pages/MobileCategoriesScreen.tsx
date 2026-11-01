@@ -14,6 +14,7 @@ import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import toast from 'react-hot-toast';
 
 export default function MobileCategoriesScreen() {
@@ -154,6 +155,11 @@ export default function MobileCategoriesScreen() {
       return isProductAssignedToCategory(p, selectedCategory.id, categories);
     });
   }, [products, selectedCategory, selectedSubCatId, selectedNestedSubCatId, categories]);
+
+  // Display category products in randomized/shuffled order instead of serial admin addition sequence
+  const displayCategoryProducts = useMemo(() => {
+    return shuffleArray(categoryProducts);
+  }, [categoryProducts]);
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
@@ -340,9 +346,9 @@ export default function MobileCategoriesScreen() {
                         </div>
                       ))}
                     </div>
-                  ) : categoryProducts.length > 0 ? (
+                  ) : displayCategoryProducts.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2.5">
-                      {categoryProducts.map((product) => {
+                      {displayCategoryProducts.map((product) => {
                         const isInCart = cartItems.some(i => i.productId === product.id);
                         const discountPct = product.price && product.discountPrice
                           ? Math.round(((product.price - product.discountPrice) / product.price) * 100)

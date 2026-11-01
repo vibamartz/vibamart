@@ -34,6 +34,7 @@ import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductAvailableAtLocation } from '../../shared/utilities/locationAvailability';
 import { addRecentlyViewedId } from '../../shared/utilities/recentlyViewedUtils';
 import { isProductEligibleSimilar, getSimilarProductsSeeAllLink } from '../../shared/utilities/similarProductsUtils';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import TrendingProductsTwoRowSection from '../../shared/components/TrendingProductsTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 
@@ -1220,11 +1221,6 @@ function SimilarProducts({
       if (!isMounted) return;
       try {
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        rawDocs.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
 
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
@@ -1261,7 +1257,7 @@ function SimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(unique.slice(0, 12));
+          setProducts(shuffleArray(unique).slice(0, 12));
           setLoading(false);
         }
       } catch (err) {
@@ -1273,11 +1269,6 @@ function SimilarProducts({
       try {
         const snapshot = await getDocs(collection(db, 'products'));
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        rawDocs.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
 
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
@@ -1313,7 +1304,7 @@ function SimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(unique.slice(0, 12));
+          setProducts(shuffleArray(unique).slice(0, 12));
           setLoading(false);
         }
       } catch (err) {

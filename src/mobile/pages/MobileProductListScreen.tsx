@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { searchApiClient } from '../../services/searchApiClient';
 import { isProductInHierarchy, getOrCreateHierarchyEngine } from '../../shared/utilities/categoryHierarchyUtils';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 
 export default function MobileProductListScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -413,7 +414,7 @@ export default function MobileProductListScreen() {
   // Filter and Sort products according to 3-tier hierarchy (Requirement 4, 5, 6, 9)
   const filteredProducts = useMemo(() => {
     const baseSource = searchResults !== null ? searchResults : products;
-    return baseSource.filter(product => {
+    const filtered = baseSource.filter(product => {
       if (product.status === 'inactive') return false;
 
       // Banner filter (Show ONLY products assigned to this banner when viewing a banner route)
@@ -512,14 +513,21 @@ export default function MobileProductListScreen() {
       if (inStockOnly && (product.stock <= 0 || product.status === 'out_of_stock')) return false;
 
       return true;
-    }).sort((a, b) => {
-      const priceA = a.discountPrice || a.price;
-      const priceB = b.discountPrice || b.price;
-      if (sortBy === 'low-high') return priceA - priceB;
-      if (sortBy === 'high-low') return priceB - priceA;
-      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-      return 0;
     });
+
+    if (sortBy === 'low-high') {
+      return [...filtered].sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
+    }
+    if (sortBy === 'high-low') {
+      return [...filtered].sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
+    }
+    if (sortBy === 'rating') {
+      return [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+    if (sortBy === 'featured' && !isSearchQuery) {
+      return shuffleArray(filtered);
+    }
+    return filtered;
   }, [products, searchResults, querySearch, isSearchQuery, selectedCategory, currentCategoryObj, selectedSubCategory, currentSubCategoryObj, selectedNestedSubCategory, currentNestedSubCategoryObj, selectedBrand, baseCatId, baseSubId, baseNestedId, baseBrand, matchedBanner, maxPrice, minRating, minDiscount, inStockOnly, sortBy, categories, visualNestedItems]);
 
   const activeFilterCount = (selectedCategory !== baseCatId && selectedCategory !== 'all' ? 1 : 0) +

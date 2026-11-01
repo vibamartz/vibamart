@@ -16,6 +16,7 @@ import { shareProduct, updateOpenGraphTags } from '../../shared/utilities/shareU
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { getShortDeliveryText } from '../../shared/utilities/dateUtils';
 import { isProductEligibleSimilar, getSimilarProductsSeeAllLink } from '../../shared/utilities/similarProductsUtils';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../components/MobileProductCardItem';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -1087,11 +1088,6 @@ function MobileSimilarProducts({
       if (!isMounted) return;
       try {
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        rawDocs.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
 
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
@@ -1128,7 +1124,7 @@ function MobileSimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(unique.slice(0, 10));
+          setProducts(shuffleArray(unique).slice(0, 10));
           setLoading(false);
         }
       } catch (err) {
@@ -1140,11 +1136,6 @@ function MobileSimilarProducts({
       try {
         const snapshot = await getDocs(collection(db, 'products'));
         const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        rawDocs.sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
-        });
 
         const rewardIds = await getRewardProductIds();
         const rewardSet = new Set(rewardIds);
@@ -1180,7 +1171,7 @@ function MobileSimilarProducts({
         });
 
         if (isMounted) {
-          setProducts(unique.slice(0, 10));
+          setProducts(shuffleArray(unique).slice(0, 10));
           setLoading(false);
         }
       } catch (err) {

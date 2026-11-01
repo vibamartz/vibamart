@@ -22,6 +22,7 @@ import { getRecentSearches, addRecentSearch, SEARCH_HISTORY_UPDATED_EVENT } from
 import { searchApiClient } from '../../services/searchApiClient';
 import { isProductInHierarchy, getOrCreateHierarchyEngine } from '../../shared/utilities/categoryHierarchyUtils';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 
 export default function ProductList() {
   const { settings } = useSettingsStore();
@@ -648,6 +649,9 @@ export default function ProductList() {
     if (sortBy === 'price-asc') result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
     if (sortBy === 'price-desc') result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
     if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (sortBy === 'popularity' && !isSearchQuery) {
+      result = shuffleArray(result);
+    }
 
     return result;
   }, [allProducts, searchResults, selectedCategories, selectedSubCategories, selectedNestedSubCategories, selectedBrands, baseCatId, baseSubId, baseNestedId, baseBrand, matchedCategory, matchedBanner, priceRange, minRating, minDiscount, onlyInStock, sortBy, searchParams, CATEGORIES, visualNestedItems, isSearchQuery]);

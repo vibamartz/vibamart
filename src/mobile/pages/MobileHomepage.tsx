@@ -30,6 +30,7 @@ import TrendingProductsTwoRowSection from '../../shared/components/TrendingProdu
 import RecentlyViewedTwoRowSection from '../../shared/components/RecentlyViewedTwoRowSection';
 import MoreProductsForYouSection from '../../shared/components/MoreProductsForYouSection';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import { useNetworkStore } from '../../shared/utilities/networkStatus';
 import { NoInternetScreen } from '../../shared/components/offline';
 
@@ -468,9 +469,13 @@ export default function MobileHomepage() {
 
   const displayRecentAndPopular = useMemo(() => {
     const recentIds = new Set(recentlyViewedProds.map(p => p.id));
-    const fallback = [...filteredProducts].filter(p => !recentIds.has(p.id)).reverse();
-    return [...recentlyViewedProds, ...fallback].slice(0, 8);
+    const fallback = [...filteredProducts].filter(p => !recentIds.has(p.id));
+    return [...recentlyViewedProds, ...shuffleArray(fallback)].slice(0, 8);
   }, [recentlyViewedProds, filteredProducts]);
+
+  const shuffledPersonalizedProducts = useMemo(() => {
+    return shuffleArray(filteredProducts);
+  }, [filteredProducts]);
 
   // User display name for personalized recommendations
   const userName = user?.displayName
@@ -971,7 +976,7 @@ export default function MobileHomepage() {
                 </div>
               ))
             ) : (
-              filteredProducts.slice(0, 8).map((product) => (
+              shuffledPersonalizedProducts.slice(0, 8).map((product) => (
                 <MobileProductCardItem
                   key={`personalized-${product.id}`}
                   product={product}

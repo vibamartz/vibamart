@@ -6,6 +6,7 @@ import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
 import { fetchRecentlyViewedProducts } from '../../shared/utilities/recentlyViewedUtils';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../../mobile/components/MobileProductCardItem';
 import { getProductSlug } from '../../shared/utilities/slug';
@@ -71,7 +72,7 @@ export default function RecentlyViewedTwoRowSection({
     if (combined.length < 8 && catalogProducts.length > 0) {
       const combinedIds = new Set(combined.map(p => p.id));
       const more = catalogProducts.filter(p => !combinedIds.has(p.id));
-      return [...combined, ...more].slice(0, 20);
+      return [...combined, ...shuffleArray(more)].slice(0, 20);
     }
     
     return combined.slice(0, 20);

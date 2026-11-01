@@ -9,6 +9,7 @@ import { useCategoryStore } from '../../backend/store';
 import ProductCard from '../../desktop/components/ProductCard';
 import MobileProductCardItem from '../../mobile/components/MobileProductCardItem';
 import { getProductSlug, getCategorySlug } from '../../shared/utilities/slug';
+import { shuffleArray } from '../../shared/utilities/productShuffleUtils';
 import { useNavigate } from 'react-router-dom';
 
 interface MoreProductsForYouSectionProps {
@@ -91,17 +92,18 @@ export default function MoreProductsForYouSection({
   // Requirement 4:
   // On general For You page: display products from all categories
   // On other category pages: display ONLY products assigned to the respective category
+  // Display products in random/shuffled order instead of serial admin addition sequence
   const displayProducts = useMemo(() => {
-    if (isGeneralForYou) {
-      return products;
-    }
-    return products.filter(p => isProductAssignedToCategory(
-      p,
-      targetCategorySlug,
-      categories,
-      effectiveSub,
-      effectiveNested
-    ));
+    const list = isGeneralForYou
+      ? products
+      : products.filter(p => isProductAssignedToCategory(
+          p,
+          targetCategorySlug,
+          categories,
+          effectiveSub,
+          effectiveNested
+        ));
+    return shuffleArray(list);
   }, [products, isGeneralForYou, targetCategorySlug, effectiveSub, effectiveNested, categories]);
 
   const categoryDisplayName = matchedCategoryObj?.name || (targetCategorySlug !== 'for-you' ? targetCategorySlug : '');
