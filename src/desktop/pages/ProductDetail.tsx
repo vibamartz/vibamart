@@ -1176,6 +1176,7 @@ function SimilarProducts({ product, categoryId, currentProductId }: { product?: 
   const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isViewAllOpen, setIsViewAllOpen] = useState(false);
 
   const currentProd = React.useMemo(() => {
     if (product) return product;
@@ -1195,7 +1196,7 @@ function SimilarProducts({ product, categoryId, currentProductId }: { product?: 
 
     setLoading(true);
 
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'products'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
@@ -1231,13 +1232,21 @@ function SimilarProducts({ product, categoryId, currentProductId }: { product?: 
           <h2 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Similar Products</h2>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Recommendations from same category</p>
         </div>
-        <Link to={seeAllUrl} className="group flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">See All</span>
+        <button
+          type="button"
+          onClick={() => setIsViewAllOpen(true)}
+          className="group flex items-center gap-2 cursor-pointer transition-transform active:scale-95"
+          title="Click to see all eligible similar products"
+        >
+          <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-primary tracking-[0.2em] transition-colors">
+            See All ({products.length})
+          </span>
           <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
             <ChevronRight className="w-4 h-4" />
           </div>
-        </Link>
+        </button>
       </div>
+
       <div className="flex overflow-x-auto gap-4 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
@@ -1255,6 +1264,73 @@ function SimilarProducts({ product, categoryId, currentProductId }: { product?: 
           ))
         )}
       </div>
+
+      {/* View All Similar Products Modal */}
+      <AnimatePresence>
+        {isViewAllOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15 }}
+              className="bg-white rounded-3xl max-w-5xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100"
+            >
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gray-50/50">
+                <div className="space-y-0.5">
+                  <h3 className="text-xl font-black text-gray-900 uppercase italic tracking-tight">
+                    Similar Products ({products.length})
+                  </h3>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    Eligible recommendations matching admin-assigned category & subcategory
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsViewAllOpen(false)}
+                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+                  {products.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setIsViewAllOpen(false);
+                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                      }}
+                      className="flex flex-col"
+                    >
+                      <ProductCard product={p} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-500">
+                  Showing {products.length} eligible product{products.length === 1 ? '' : 's'}
+                </span>
+                <Link
+                  to={seeAllUrl}
+                  onClick={() => {
+                    setIsViewAllOpen(false);
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-emerald-700 hover:text-emerald-800 tracking-wider transition-colors"
+                >
+                  Browse Entire Category Catalog <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

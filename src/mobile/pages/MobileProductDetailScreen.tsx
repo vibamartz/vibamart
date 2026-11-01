@@ -1042,6 +1042,7 @@ function MobileSimilarProducts({ product, categoryId, currentProductId }: { prod
   const { categories } = useCategoryStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isViewAllOpen, setIsViewAllOpen] = useState(false);
 
   const currentProd = React.useMemo(() => {
     if (product) return product;
@@ -1061,7 +1062,7 @@ function MobileSimilarProducts({ product, categoryId, currentProductId }: { prod
 
     setLoading(true);
 
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'products'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
@@ -1096,10 +1097,15 @@ function MobileSimilarProducts({ product, categoryId, currentProductId }: { prod
         <span className="text-xs font-black text-gray-800 uppercase tracking-wider block">
           Similar Products
         </span>
-        <Link to={seeAllUrl} className="text-[10px] font-black uppercase text-emerald-700">
-          See All →
-        </Link>
+        <button
+          type="button"
+          onClick={() => setIsViewAllOpen(true)}
+          className="text-[10px] font-black uppercase text-emerald-700 cursor-pointer active:scale-95 transition-transform"
+        >
+          See All ({products.length}) →
+        </button>
       </div>
+
       <div className="flex overflow-x-auto gap-2.5 hide-scrollbar scroll-smooth snap-x py-1 min-w-0 w-full">
         {loading ? (
           [...Array(4)].map((_, i) => (
@@ -1117,6 +1123,73 @@ function MobileSimilarProducts({ product, categoryId, currentProductId }: { prod
           ))
         )}
       </div>
+
+      {/* Mobile View All Similar Products Modal */}
+      <AnimatePresence>
+        {isViewAllOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50">
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
+                    Similar Products ({products.length})
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Same category & subcategory recommendations
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsViewAllOpen(false)}
+                  className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="grid grid-cols-2 gap-2.5">
+                  {products.map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setIsViewAllOpen(false);
+                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                      }}
+                      className="flex flex-col"
+                    >
+                      <ProductCard product={p} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-500">
+                  {products.length} eligible product{products.length === 1 ? '' : 's'}
+                </span>
+                <Link
+                  to={seeAllUrl}
+                  onClick={() => {
+                    setIsViewAllOpen(false);
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                  }}
+                  className="text-[11px] font-black uppercase text-emerald-700 hover:text-emerald-800 tracking-wider"
+                >
+                  Full Category Catalog →
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
