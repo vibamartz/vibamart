@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, RotateCw, ShoppingBag } from 'lucide-react';
 import Logo from '../../../desktop/components/Logo';
@@ -137,12 +137,10 @@ function ShoppingCartOfflineIllustration({ className = 'w-40 h-40 sm:w-48 sm:h-4
 }
 
 /**
- * 2. Cart Screen (Offline)
- * - Display a shopping cart illustration with a disconnected Wi-Fi icon.
- * - Heading: “You’re Offline”
- * - Message: “Your cart is saved. Some features may be limited until you’re back online.”
- * - Green “Continue Shopping” button.
- * - Show confirmation message: “Your cart items are safely saved on your device.”
+ * Offline Cart Section / Full Screen
+ * - Displays ONLY the Offline Cart screen when offline.
+ * - Completely covers the viewport so no cart products or content appear below.
+ * - All cart data in state/storage is preserved for when connectivity returns.
  */
 export function OfflineCartSection({
   className = '',
@@ -150,6 +148,17 @@ export function OfflineCartSection({
   onRetrySuccess,
 }: OfflineCartSectionProps) {
   const { isChecking, checkConnectivity } = useNetworkStore();
+
+  // Prevent background scrolling while offline cart screen is presented
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, []);
 
   const handleRetry = async () => {
     const isOnline = await checkConnectivity();
@@ -160,7 +169,7 @@ export function OfflineCartSection({
 
   return (
     <div
-      className={`fixed inset-0 h-[100dvh] max-h-[100dvh] w-full flex flex-col items-center justify-between py-5 px-4 sm:py-8 sm:px-6 bg-[#FAF7F2] relative overflow-hidden text-center select-none z-50 ${className}`}
+      className={`fixed inset-0 z-[9999] h-[100dvh] max-h-[100dvh] w-full flex flex-col items-center justify-between py-5 px-4 sm:py-8 sm:px-6 bg-[#FAF7F2] overflow-y-auto overflow-x-hidden text-center select-none ${className}`}
     >
       {/* Cream background with green and orange decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
