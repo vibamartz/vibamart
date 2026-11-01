@@ -162,6 +162,7 @@ export default function MobileProductDetailScreen() {
   useEffect(() => {
     if (!targetSlugOrId) return;
     setLoading(true);
+    setProduct(null);
     setFetchError(false);
 
     const fetchProduct = async () => {
@@ -832,7 +833,7 @@ export default function MobileProductDetailScreen() {
         </div>
 
         {/* Similar Products Section (Requirement 6) */}
-        <MobileSimilarProducts product={product} categoryId={product.categoryId} currentProductId={product.id} />
+        <MobileSimilarProducts key={product.id} product={product} categoryId={product.categoryId} currentProductId={product.id} />
 
         {/* Product Information Details (Requirements 7 & 8) */}
         {availableTabs.length > 0 && (
@@ -1045,6 +1046,7 @@ function MobileSimilarProducts({
   categoryId,
   currentProductId
 }: {
+  key?: React.Key;
   product?: Product | null;
   categoryId?: string;
   currentProductId?: string;
@@ -1068,7 +1070,7 @@ function MobileSimilarProducts({
     let isMounted = true;
     setLoading(true);
 
-    if (!effectiveCatId && !product) {
+    if (!product && !effectiveCatId) {
       setProducts([]);
       setLoading(false);
       return;
@@ -1098,13 +1100,30 @@ function MobileSimilarProducts({
 
         // Exclude duplicate products
         const seenIds = new Set<string>();
+        const seenDocIds = new Set<string>();
         const seenSlugs = new Set<string>();
+        const seenCodes = new Set<string>();
+        const seenNames = new Set<string>();
+
         const unique = eligible.filter(p => {
-          if (!p || !p.id || seenIds.has(p.id)) return false;
+          if (!p || !p.id) return false;
+          const id = String(p.id).trim();
+          const docId = String((p as any)._id || p.id).trim();
           const slug = getProductSlug(p);
+          const code = (p as any).productCode ? cleanProductCode((p as any).productCode) : '';
+          const name = p.name ? String(p.name).trim().toLowerCase() : '';
+
+          if (seenIds.has(id)) return false;
+          if (docId && seenDocIds.has(docId)) return false;
           if (slug && seenSlugs.has(slug)) return false;
-          seenIds.add(p.id);
+          if (code && seenCodes.has(code)) return false;
+          if (name && seenNames.has(name)) return false;
+
+          seenIds.add(id);
+          if (docId) seenDocIds.add(docId);
           if (slug) seenSlugs.add(slug);
+          if (code) seenCodes.add(code);
+          if (name) seenNames.add(name);
           return true;
         });
 
@@ -1133,13 +1152,30 @@ function MobileSimilarProducts({
         const eligible = rawDocs.filter(p => isProductEligibleSimilar(p, currentRef, categories, rewardSet));
 
         const seenIds = new Set<string>();
+        const seenDocIds = new Set<string>();
         const seenSlugs = new Set<string>();
+        const seenCodes = new Set<string>();
+        const seenNames = new Set<string>();
+
         const unique = eligible.filter(p => {
-          if (!p || !p.id || seenIds.has(p.id)) return false;
+          if (!p || !p.id) return false;
+          const id = String(p.id).trim();
+          const docId = String((p as any)._id || p.id).trim();
           const slug = getProductSlug(p);
+          const code = (p as any).productCode ? cleanProductCode((p as any).productCode) : '';
+          const name = p.name ? String(p.name).trim().toLowerCase() : '';
+
+          if (seenIds.has(id)) return false;
+          if (docId && seenDocIds.has(docId)) return false;
           if (slug && seenSlugs.has(slug)) return false;
-          seenIds.add(p.id);
+          if (code && seenCodes.has(code)) return false;
+          if (name && seenNames.has(name)) return false;
+
+          seenIds.add(id);
+          if (docId) seenDocIds.add(docId);
           if (slug) seenSlugs.add(slug);
+          if (code) seenCodes.add(code);
+          if (name) seenNames.add(name);
           return true;
         });
 
@@ -1157,8 +1193,9 @@ function MobileSimilarProducts({
       isMounted = false;
       unsubscribe();
     };
-  }, [product, effectiveCatId, effectiveProductId, effectiveSubCatId, categories]);
+  }, [product?.id, product?.categoryId, product?.subCategoryId, (product as any)?.nestedSubCategoryId, effectiveCatId, effectiveProductId, effectiveSubCatId, categories]);
 
+  if (!product) return null;
   if (!loading && products.length === 0) return null;
 
   return (
