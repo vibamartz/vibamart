@@ -44,6 +44,7 @@ import AdminNotificationsManagementView from '../components/AdminNotificationsMa
 import AdminTermsManagementView from '../components/AdminTermsManagementView';
 import AdminPrivacyManagementView from '../components/AdminPrivacyManagementView';
 import AdminSearchManagementView from '../components/AdminSearchManagementView';
+import ToastNotificationManagementView from '../components/ToastNotificationManagementView';
 import { NotificationEngine } from '../../backend/services/notificationEngine';
 import AdminDateRangeFilter from '../components/AdminDateRangeFilter';
 import { AdminDateFilterProvider, useAdminDateFilter } from '../components/AdminDateFilterContext';
@@ -758,6 +759,7 @@ function AdminDashboardContent() {
             <SidebarItem icon={FileText} label="Sales Reports" active={activeTab === 'sales-reports'} onClick={() => { setActiveTab('sales-reports'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={CreditCard} label="Payment Reports" active={activeTab === 'payment-reports'} onClick={() => { setActiveTab('payment-reports'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Bell} label="Notification & Engagement" active={activeTab === 'notifications-engagement'} onClick={() => { setActiveTab('notifications-engagement'); setShowMobileSidebar(false); }} />
+            <SidebarItem icon={MessageSquare} label="Toast Notification Messages" active={activeTab === 'toast-notifications'} onClick={() => { setActiveTab('toast-notifications'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Activity} label="Activity Logs" active={activeTab === 'activity-logs'} onClick={() => { setActiveTab('activity-logs'); setShowMobileSidebar(false); }} />
             <SidebarItem icon={Layers} label="ViBa CI/CD Platform" active={false} onClick={() => { window.location.href = '/cicd'; }} />
             <SidebarItem icon={Layers} label="Shared Features" active={activeTab === 'features'} onClick={() => { setActiveTab('features'); setShowMobileSidebar(false); }} />
@@ -1444,8 +1446,9 @@ function AdminDashboardContent() {
           {activeTab === 'search-management' && <AdminSearchManagementView />}
           {activeTab === 'terms-management' && <AdminTermsManagementView />}
           {activeTab === 'privacy-management' && <AdminPrivacyManagementView />}
+          {activeTab === 'toast-notifications' && <ToastNotificationManagementView />}
 
-          {(activeTab !== 'dashboard' && activeTab !== 'search-management' && activeTab !== 'terms-management' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
+          {(activeTab !== 'dashboard' && activeTab !== 'search-management' && activeTab !== 'terms-management' && activeTab !== 'privacy-management' && activeTab !== 'toast-notifications' && activeTab !== 'notifications-engagement' && activeTab !== 'sales-reports' && activeTab !== 'payment-reports' && activeTab !== 'activity-logs' && activeTab !== 'user-roles' && activeTab !== 'products' && activeTab !== 'orders' && activeTab !== 'invoices' && activeTab !== 'cancellations' && activeTab !== 'refunds' && activeTab !== 'returns' && activeTab !== 'customers' && activeTab !== 'analytics' && activeTab !== 'settings' && activeTab !== 'features' && activeTab !== 'rewards-management' && activeTab !== 'cashback-management' && activeTab !== 'banners' && activeTab !== 'categories' && activeTab !== 'visual-nested-subcategories' && activeTab !== 'coupons' && activeTab !== 'reviews' && activeTab !== 'vendors' && activeTab !== 'announcements') && (
 
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
               <PieChart className="w-12 h-12 text-gray-300 mb-4" />

@@ -1,5 +1,10 @@
 import React from 'react';
 import { ToastItem, ToastOptions, ToastType } from './types';
+import {
+  DEFAULT_TOAST_NOTIFICATIONS,
+  ToastNotificationConfigItem,
+  subscribeToastNotificationSettings
+} from '../../types/toastNotificationManagement';
 
 type ToastListener = (toast: ToastItem | null) => void;
 
@@ -8,9 +13,22 @@ class ToastManager {
   private listeners: Set<ToastListener> = new Set();
   private dismissTimer: ReturnType<typeof setTimeout> | null = null;
   private lastFired: { message: string; type: ToastType; time: number } | null = null;
+  private messageConfigs: ToastNotificationConfigItem[] = [...DEFAULT_TOAST_NOTIFICATIONS];
+  private unsubscribeSettings: (() => void) | null = null;
   private static instance: ToastManager;
 
-  private constructor() {}
+  private constructor() {
+    try {
+      this.unsubscribeSettings = subscribeToastNotificationSettings((updated) => {
+        if (Array.isArray(updated) && updated.length > 0) {
+          this.messageConfigs = updated;
+        }
+      });
+    } catch (e) {
+      // Fallback to DEFAULT_TOAST_NOTIFICATIONS if Firebase is not yet ready
+      this.messageConfigs = [...DEFAULT_TOAST_NOTIFICATIONS];
+    }
+  }
 
   public static getInstance(): ToastManager {
     if (!ToastManager.instance) {
@@ -31,6 +49,59 @@ class ToastManager {
     return this.currentToast;
   }
 
+  public getConfigs(): ToastNotificationConfigItem[] {
+    return [...this.messageConfigs];
+  }
+
+  public setConfigs(configs: ToastNotificationConfigItem[]): void {
+    this.messageConfigs = [...configs];
+  }
+
+  /**
+   * Find matching toast configuration based on explicit key, message, or patterns
+   */
+  public findMatchingConfig(
+    type: ToastType,
+    rawMessage: string,
+    options?: ToastOptions
+  ): ToastNotificationConfigItem | null {
+    if (!this.messageConfigs || this.messageConfigs.length === 0) return null;
+
+    // 1. Direct match by operationKey or custom key
+    const explicitKey = options?.operationKey || options?.key;
+    if (explicitKey && typeof explicitKey === 'string') {
+      const directMatch = this.messageConfigs.find(
+        (c) => c.operationKey === explicitKey || c.id === explicitKey
+      );
+      if (directMatch) return directMatch;
+    }
+
+    const trimmedMsg = rawMessage.trim().toLowerCase();
+    if (!trimmedMsg) return null;
+
+    // 2. Exact message match
+    const exactMatch = this.messageConfigs.find(
+      (c) => c.type === type && c.message.trim().toLowerCase() === trimmedMsg
+    );
+    if (exactMatch) return exactMatch;
+
+    // 3. Pattern / Substring match: check matchPatterns
+    for (const c of this.messageConfigs) {
+      if (c.type !== type) continue;
+      if (Array.isArray(c.matchPatterns)) {
+        for (const pattern of c.matchPatterns) {
+          if (!pattern) continue;
+          const pLower = pattern.trim().toLowerCase();
+          if (trimmedMsg.includes(pLower) || (pLower.length > 5 && pLower.includes(trimmedMsg))) {
+            return c;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   private notify(): void {
     for (const listener of this.listeners) {
       listener(this.currentToast);
@@ -49,7 +120,29 @@ class ToastManager {
   }
 
   public show(type: ToastType, rawMessage: string | React.ReactNode, options?: ToastOptions): string {
-    const message = typeof rawMessage === 'string' ? rawMessage : String(rawMessage ?? '');
+    const rawMsgStr = typeof rawMessage === 'string' ? rawMessage : String(rawMessage ?? '');
+
+    // Intercept with Admin configured toast notification rules
+    const matchedConfig = this.findMatchingConfig(type, rawMsgStr, options);
+    if (matchedConfig) {
+      // If disabled by Admin, suppress toast notification globally
+      if (matchedConfig.enabled === false) {
+        return '';
+      }
+    }
+
+    let message = rawMsgStr;
+    let title = options?.title;
+
+    if (matchedConfig) {
+      if (matchedConfig.title) {
+        title = matchedConfig.title;
+      }
+      if (matchedConfig.message) {
+        message = matchedConfig.message;
+      }
+    }
+
     const now = Date.now();
 
     // Prevent immediate identical double-triggers (e.g. rapid double click) within 500ms
@@ -84,7 +177,7 @@ class ToastManager {
     this.currentToast = {
       id,
       type,
-      title: options?.title,
+      title,
       message,
       duration,
       createdAt: now,
@@ -205,4 +298,3 @@ export const showToast = (config: {
 };
 
 export { manager as toastManager, toastFn as toast };
-
