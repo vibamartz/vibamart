@@ -47,7 +47,7 @@ export default function MobileProductDetailScreen() {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
-  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('description');
 
   const isProgrammaticScroll = React.useRef(false);
   const scrollTimeoutRef = React.useRef<any>(null);
@@ -581,8 +581,10 @@ export default function MobileProductDetailScreen() {
     });
   }
 
+  // Fallback specs from top-level fields / selected attributes if not in specsList
+  // (Appended so default specifications always remain first, at the top of the Product Specifications section)
   if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
-    specsList.unshift({ key: 'Brand', value: product.brand, values: [product.brand] });
+    specsList.push({ key: 'Brand', value: product.brand, values: [product.brand] });
   }
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color, values: [product.color] });
@@ -629,14 +631,17 @@ export default function MobileProductDetailScreen() {
   }
 
   const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
-  const isWarrantyEnabled = product.enableWarranty !== false;
+  const isWarrantyEnabled = product.enableWarranty === true;
+
+  const displayDescription = (product.fullDescription && product.fullDescription.trim())
+    || (product.description && product.description.trim())
+    || (product.name ? `Buy ${product.name} on ViBa Mart.` : 'No description available for this product.');
 
   const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
+  // Keep the product description active and visible by default for all products
+  availableTabs.push({ id: 'description', label: 'Description' });
   if (specsList.length > 0) {
     availableTabs.push({ id: 'specifications', label: 'Specifications' });
-  }
-  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
-    availableTabs.push({ id: 'description', label: 'Description' });
   }
   if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
     availableTabs.push({ id: 'warranty', label: 'Warranty' });
@@ -647,7 +652,7 @@ export default function MobileProductDetailScreen() {
 
   const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
     ? activeInfoTab
-    : availableTabs[0]?.id;
+    : 'description';
 
   return (
     <div className="min-h-screen bg-white pb-32 font-sans select-none">
@@ -890,7 +895,7 @@ export default function MobileProductDetailScreen() {
             {activeTabId === 'description' && (
               <div>
                 <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-2.5 rounded-xl">
-                  {product.fullDescription || product.description}
+                  {displayDescription}
                 </p>
               </div>
             )}

@@ -62,7 +62,7 @@ export default function ProductDetail() {
   const [isLocationAvailable, setIsLocationAvailable] = useState<boolean | null>(true);
   const [showSizeChartModal, setShowSizeChartModal] = useState(false);
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
-  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('description');
 
   const isProgrammaticScroll = React.useRef(false);
   const scrollTimeoutRef = React.useRef<any>(null);
@@ -515,8 +515,9 @@ export default function ProductDetail() {
   }
 
   // Fallback specs from top-level fields / selected attributes if not in specsList
+  // (Appended so default specifications always remain first, at the top of the Product Specifications section)
   if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
-    specsList.unshift({ key: 'Brand', value: product.brand, values: [product.brand] });
+    specsList.push({ key: 'Brand', value: product.brand, values: [product.brand] });
   }
   if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
     specsList.push({ key: 'Color', value: product.color, values: [product.color] });
@@ -563,14 +564,17 @@ export default function ProductDetail() {
   }
 
   const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
-  const isWarrantyEnabled = product.enableWarranty !== false;
+  const isWarrantyEnabled = product.enableWarranty === true;
+
+  const displayDescription = (product.fullDescription && product.fullDescription.trim())
+    || (product.description && product.description.trim())
+    || (product.name ? `Buy ${product.name} on ViBa Mart.` : 'No description available for this product.');
 
   const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
+  // Keep the product description active and visible by default for all products
+  availableTabs.push({ id: 'description', label: 'Description' });
   if (specsList.length > 0) {
     availableTabs.push({ id: 'specifications', label: 'Specifications' });
-  }
-  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
-    availableTabs.push({ id: 'description', label: 'Description' });
   }
   if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
     availableTabs.push({ id: 'warranty', label: 'Warranty' });
@@ -581,7 +585,7 @@ export default function ProductDetail() {
 
   const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
     ? activeInfoTab
-    : availableTabs[0]?.id;
+    : 'description';
 
   const activeImageSrc = currentVariant?.image || product.images?.[selectedImage] || 'https://via.placeholder.com/400x500?text=No+Image';
 
@@ -927,7 +931,7 @@ export default function ProductDetail() {
                           {getShortDeliveryText()}
                         </span>
                       </div>
-                      {product.isFreeDelivery !== false && (
+                      {product.isFreeDelivery === true && (
                         <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 uppercase tracking-wider">
                           Free Delivery
                         </span>
@@ -1019,7 +1023,7 @@ export default function ProductDetail() {
               <div>
                 <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 sm:p-5">
                   <p className="text-gray-700 leading-relaxed font-medium whitespace-pre-line text-sm">
-                    {product.fullDescription || product.description}
+                    {displayDescription}
                   </p>
                 </div>
               </div>

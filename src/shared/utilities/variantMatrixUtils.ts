@@ -1097,6 +1097,43 @@ export function getProductSpecificationsForSelection(
     product.specificationsBySize
   ].filter(Boolean) as Record<string, { key: string; value: string; values?: string[] }[]>[];
 
+  // Helper to merge variant-specific specs into default specs,
+  // ensuring default specifications are ALWAYS displayed first, at the top of the Product Specifications section
+  const mergeWithDefaultSpecsFirst = (variantSpecs: { key: string; value: string; values?: string[] }[] | null) => {
+    if (!variantSpecs || variantSpecs.length === 0) {
+      return defaultSpecs;
+    }
+    if (defaultSpecs.length === 0) {
+      return variantSpecs;
+    }
+
+    // 1. Default specifications are placed first, at the top.
+    // If the variant specifies a value for a default specification key, override that value in-place.
+    const result = defaultSpecs.map(def => {
+      const defKeyLower = (def.key || '').trim().toLowerCase();
+      const variantOverride = variantSpecs.find(
+        v => (v.key || '').trim().toLowerCase() === defKeyLower
+      );
+      if (variantOverride) {
+        return variantOverride;
+      }
+      return def;
+    });
+
+    // 2. Add any additional variant-only specifications below the default specifications.
+    variantSpecs.forEach(v => {
+      const vKeyLower = (v.key || '').trim().toLowerCase();
+      const existsInDefault = defaultSpecs.some(
+        def => (def.key || '').trim().toLowerCase() === vKeyLower
+      );
+      if (!existsInDefault && v.key && (v.value || (v.values && v.values.length > 0))) {
+        result.push(v);
+      }
+    });
+
+    return result;
+  };
+
   if (specMaps.length === 0) {
     return defaultSpecs;
   }
@@ -1128,30 +1165,30 @@ export function getProductSpecificationsForSelection(
   // 1. Look up by exact Variant ID
   if (selectedVariantId) {
     const byId = findInMaps(selectedVariantId);
-    if (byId) return byId;
+    if (byId) return mergeWithDefaultSpecsFirst(byId);
   }
   if (selectedVariant?.id) {
     const byId = findInMaps(selectedVariant.id);
-    if (byId) return byId;
+    if (byId) return mergeWithDefaultSpecsFirst(byId);
   }
 
   // 2. Look up by Combination Key (e.g. "color:black|storage:128gb")
   if (selectedVariant?.combinationKey) {
     const byCombo = findInMaps(selectedVariant.combinationKey);
-    if (byCombo) return byCombo;
+    if (byCombo) return mergeWithDefaultSpecsFirst(byCombo);
   }
   if (selectedAttributes) {
     const canonicalKey = getCanonicalVariantKey(selectedAttributes);
     if (canonicalKey) {
       const byCanonical = findInMaps(canonicalKey);
-      if (byCanonical) return byCanonical;
+      if (byCanonical) return mergeWithDefaultSpecsFirst(byCanonical);
     }
   }
 
   // 3. Look up by Variant Combination Display Name (e.g. "Black / 128GB" or "128GB")
   if (selectedVariant?.name) {
     const byName = findInMaps(selectedVariant.name);
-    if (byName) return byName;
+    if (byName) return mergeWithDefaultSpecsFirst(byName);
   }
 
   // 4. Look up by individual selected attribute values (e.g. "128GB", "256GB", "1kg", "XL", "Cotton")
@@ -1160,11 +1197,11 @@ export function getProductSpecificationsForSelection(
       if (!attrVal) continue;
       // Look up by raw value (e.g. "256GB" or "XL")
       const byVal = findInMaps(attrVal);
-      if (byVal) return byVal;
+      if (byVal) return mergeWithDefaultSpecsFirst(byVal);
 
       // Look up by "Attribute:Value" (e.g. "Storage:256GB" or "Size:XL")
       const byAttrVal = findInMaps(`${attrName}:${attrVal}`);
-      if (byAttrVal) return byAttrVal;
+      if (byAttrVal) return mergeWithDefaultSpecsFirst(byAttrVal);
     }
   }
 
@@ -1174,9 +1211,9 @@ export function getProductSpecificationsForSelection(
     for (const [attrName, attrVal] of Object.entries(variantAttrs)) {
       if (!attrVal) continue;
       const byVal = findInMaps(attrVal);
-      if (byVal) return byVal;
+      if (byVal) return mergeWithDefaultSpecsFirst(byVal);
       const byAttrVal = findInMaps(`${attrName}:${attrVal}`);
-      if (byAttrVal) return byAttrVal;
+      if (byAttrVal) return mergeWithDefaultSpecsFirst(byAttrVal);
     }
   }
 
