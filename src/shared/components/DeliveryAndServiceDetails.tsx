@@ -42,39 +42,59 @@ function sanitizeServiceText(text: string): string {
 }
 
 export default function DeliveryAndServiceDetails({ product, settings }: DeliveryAndServiceDetailsProps) {
-  if (!product) return null;
+  if (!product || !settings) return null;
 
-  // Do not enable badges automatically. Allow Admin to manually enable or disable each badge.
   // 1. Customer Support
-  const isCustomerSupportEnabled = product.enableCustomerSupport === true;
-  const rawSupportText = product.customerSupportText || '24/7 Customer Support';
+  const isCustomerSupportEnabled = product.enableCustomerSupport !== undefined
+    ? product.enableCustomerSupport
+    : (settings.enableCustomerSupport !== false);
+  const rawSupportText = product.customerSupportText || settings.customerSupportText || '24/7 Customer Support';
   const customerSupportText = sanitizeServiceText(rawSupportText) || '24/7 Customer Support';
 
   // 2. Return Period / Policy
-  const isReturnBadgeEnabled = product.enableReturnPeriod === true || product.enableReturns === true;
-  const isReturnable = product.isReturnable !== false;
-  const returnPeriodDays = (product as any).returnDays || product.returnPeriodDays || 7;
+  const isReturnPeriodEnabled = product.enableReturnPeriod !== undefined
+    ? product.enableReturnPeriod
+    : (settings.enableReturnPeriod !== false);
+
+  const isReturnsEnabled = product.isReturnable !== undefined
+    ? product.isReturnable
+    : product.enableReturns !== undefined
+      ? product.enableReturns
+      : (settings.enableReturns !== false);
+
+  const returnPeriodDays = (product as any).returnDays || product.returnPeriodDays || settings.returnPeriodDays || settings.returnWindowDays || 7;
 
   // 3. Doorstep Cancellation
-  const isDoorstepCancellationEnabled = product.enableDoorstepCancellation === true;
+  const isDoorstepCancellationEnabled = product.enableDoorstepCancellation !== undefined
+    ? product.enableDoorstepCancellation
+    : (settings.enableDoorstepCancellation !== false);
 
   // 4. COD
-  const isCodBadgeEnabled = product.isCodAllowed === true;
+  const isCodEnabled = product.isCodAllowed !== undefined
+    ? product.isCodAllowed
+    : (settings.enableCod !== false);
+  const codText = isCodEnabled ? 'Cash on Delivery' : 'No Cash on Delivery';
 
   // 5. Free Delivery
-  const isFreeDeliveryEnabled = product.isFreeDelivery === true;
+  const isFreeDeliveryEnabled = product.isFreeDelivery !== undefined
+    ? product.isFreeDelivery
+    : (settings.enableFreeDelivery !== false);
 
   // 6. Warranty
-  const isWarrantyEnabled = product.enableWarranty === true;
-  const rawWarranty = (product as any).warranty || product.warrantyPeriod || '1 Year Warranty';
+  const isWarrantyEnabled = product.enableWarranty !== undefined
+    ? product.enableWarranty
+    : (settings.enableWarranty !== false);
+  const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings.warrantyPeriod || '1 Year Warranty';
   let warrantyPeriod = sanitizeServiceText(rawWarranty) || '1 Year Warranty';
   if (!warrantyPeriod.toLowerCase().includes('warranty')) {
     warrantyPeriod = `${warrantyPeriod} Warranty`;
   }
 
   // 7. Brand Support
-  const isBrandSupportEnabled = product.enableBrandSupport === true;
-  const rawBrandSupport = product.brandSupportText || '7-Day Brand Support';
+  const isBrandSupportEnabled = product.enableBrandSupport !== undefined
+    ? product.enableBrandSupport
+    : (settings.enableBrandSupport !== false);
+  const rawBrandSupport = product.brandSupportText || settings.brandSupportText || '7-Day Brand Support';
   const brandSupportText = sanitizeServiceText(rawBrandSupport) || '7-Day Brand Support';
 
   const cards = [];
@@ -90,8 +110,9 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
-  // Card 2: Return Policy
-  if (isReturnBadgeEnabled) {
+  // Card 2: Return (Single card, concise one-liner: e.g. "7-Day Return" or "Non-Returnable")
+  if (isReturnPeriodEnabled || isReturnsEnabled !== undefined) {
+    const isReturnable = isReturnsEnabled !== false;
     let returnText = '';
     if (isReturnable) {
       if (product.returnPolicy && product.returnPolicy.length <= 25) {
@@ -112,27 +133,25 @@ export default function DeliveryAndServiceDetails({ product, settings }: Deliver
     });
   }
 
-  // Card 3: Doorstep Cancellation
-  if (isDoorstepCancellationEnabled) {
+  // Card 3: Doorstep Cancellation (if enabled)
+  if (isDoorstepCancellationEnabled !== undefined && isDoorstepCancellationEnabled !== false) {
     cards.push({
       key: 'doorstep-cancel',
-      icon: CheckCircle2,
-      text: 'Doorstep Cancellation',
-      iconClass: 'text-indigo-700 bg-indigo-100/90',
-      borderClass: 'border-indigo-200/80 bg-indigo-50/50'
+      icon: isDoorstepCancellationEnabled ? CheckCircle2 : Ban,
+      text: isDoorstepCancellationEnabled ? 'Doorstep Cancellation' : 'No Doorstep Cancel',
+      iconClass: isDoorstepCancellationEnabled ? 'text-indigo-700 bg-indigo-100/90' : 'text-rose-700 bg-rose-100/90',
+      borderClass: isDoorstepCancellationEnabled ? 'border-indigo-200/80 bg-indigo-50/50' : 'border-rose-200/80 bg-rose-50/50'
     });
   }
 
   // Card 4: COD
-  if (isCodBadgeEnabled) {
-    cards.push({
-      key: 'cod',
-      icon: Banknote,
-      text: 'Cash on Delivery',
-      iconClass: 'text-cyan-700 bg-cyan-100/90',
-      borderClass: 'border-cyan-200/80 bg-cyan-50/50'
-    });
-  }
+  cards.push({
+    key: 'cod',
+    icon: Banknote,
+    text: codText,
+    iconClass: isCodEnabled ? 'text-cyan-700 bg-cyan-100/90' : 'text-slate-600 bg-slate-200/90',
+    borderClass: isCodEnabled ? 'border-cyan-200/80 bg-cyan-50/50' : 'border-slate-200/80 bg-slate-50/50'
+  });
 
   // Card 5: Free Delivery
   if (isFreeDeliveryEnabled) {

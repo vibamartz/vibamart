@@ -47,7 +47,7 @@ export default function MobileProductDetailScreen() {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
-  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('description');
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
 
   const isProgrammaticScroll = React.useRef(false);
   const scrollTimeoutRef = React.useRef<any>(null);
@@ -561,17 +561,53 @@ export default function MobileProductDetailScreen() {
     selectedVariant
   );
 
-  // Build specifications list excluding empty fields
+  // Build specifications list: Always display default specifications first, at the top of the Product Specifications section
+  const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
   const specsList: { key: string; value: string; values?: string[] }[] = [];
+  const processedKeys = new Set<string>();
+
+  // 1. Process Default Specifications FIRST at the top of the Product Specifications section
+  defaultSpecs.forEach(s => {
+    if (!s.key || !s.key.trim()) return;
+    const keyLower = s.key.trim().toLowerCase();
+    processedKeys.add(keyLower);
+
+    // If variant-specific specs provide an updated value for this default specification key, use it
+    const variantMatch = Array.isArray(rawSpecs)
+      ? rawSpecs.find(rs => rs.key && rs.key.trim().toLowerCase() === keyLower)
+      : null;
+
+    const targetSpec = variantMatch || s;
+    const rawVals = Array.isArray(targetSpec.values) && targetSpec.values.length > 0
+      ? targetSpec.values
+      : (targetSpec.value ? targetSpec.value.split('\n') : []);
+    const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
+    const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (targetSpec.value || '').trim();
+
+    if (cleanedVals.length > 0 || v) {
+      specsList.push({
+        key: s.key.trim(),
+        value: v,
+        values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
+      });
+    }
+  });
+
+  // 2. Append any additional variant-specific specifications below default specifications
   if (rawSpecs && Array.isArray(rawSpecs)) {
     rawSpecs.forEach(s => {
+      if (!s.key || !s.key.trim()) return;
+      const keyLower = s.key.trim().toLowerCase();
+      if (processedKeys.has(keyLower)) return;
+      processedKeys.add(keyLower);
+
       const rawVals = Array.isArray(s.values) && s.values.length > 0
         ? s.values
         : (s.value ? s.value.split('\n') : []);
       const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
       const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
 
-      if (s.key && s.key.trim() && (cleanedVals.length > 0 || v)) {
+      if (cleanedVals.length > 0 || v) {
         specsList.push({
           key: s.key.trim(),
           value: v,
@@ -581,23 +617,27 @@ export default function MobileProductDetailScreen() {
     });
   }
 
-  // Fallback specs from top-level fields / selected attributes if not in specsList
-  // (Appended so default specifications always remain first, at the top of the Product Specifications section)
-  if (product.brand && !specsList.some(s => s.key.toLowerCase() === 'brand')) {
+  // 3. Fallback specs from top-level fields / selected attributes (appended after default specs if not present)
+  if (product.brand && !processedKeys.has('brand')) {
+    processedKeys.add('brand');
     specsList.push({ key: 'Brand', value: product.brand, values: [product.brand] });
   }
-  if (product.color && !specsList.some(s => s.key.toLowerCase() === 'color')) {
+  if (product.color && !processedKeys.has('color')) {
+    processedKeys.add('color');
     specsList.push({ key: 'Color', value: product.color, values: [product.color] });
   }
   if (selectedAttributes) {
     Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
-      if (attrVal && !specsList.some(s => s.key.toLowerCase() === attrKey.toLowerCase())) {
+      const kLower = attrKey.toLowerCase();
+      if (attrVal && !processedKeys.has(kLower)) {
+        processedKeys.add(kLower);
         specsList.push({ key: attrKey, value: String(attrVal), values: [String(attrVal)] });
       }
     });
   } else {
     const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
-    if (currentSize && !specsList.some(s => s.key.toLowerCase() === 'size')) {
+    if (currentSize && !processedKeys.has('size')) {
+      processedKeys.add('size');
       specsList.push({ key: 'Size', value: String(currentSize), values: [String(currentSize)] });
     }
   }
@@ -631,17 +671,14 @@ export default function MobileProductDetailScreen() {
   }
 
   const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
-  const isWarrantyEnabled = product.enableWarranty === true;
-
-  const displayDescription = (product.fullDescription && product.fullDescription.trim())
-    || (product.description && product.description.trim())
-    || (product.name ? `Buy ${product.name} on ViBa Mart.` : 'No description available for this product.');
+  const isWarrantyEnabled = product.enableWarranty !== false;
 
   const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
-  // Keep the product description active and visible by default for all products
-  availableTabs.push({ id: 'description', label: 'Description' });
   if (specsList.length > 0) {
     availableTabs.push({ id: 'specifications', label: 'Specifications' });
+  }
+  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
+    availableTabs.push({ id: 'description', label: 'Description' });
   }
   if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
     availableTabs.push({ id: 'warranty', label: 'Warranty' });
@@ -652,7 +689,7 @@ export default function MobileProductDetailScreen() {
 
   const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
     ? activeInfoTab
-    : 'description';
+    : availableTabs[0]?.id;
 
   return (
     <div className="min-h-screen bg-white pb-32 font-sans select-none">
@@ -895,7 +932,7 @@ export default function MobileProductDetailScreen() {
             {activeTabId === 'description' && (
               <div>
                 <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-2.5 rounded-xl">
-                  {displayDescription}
+                  {product.fullDescription || product.description}
                 </p>
               </div>
             )}

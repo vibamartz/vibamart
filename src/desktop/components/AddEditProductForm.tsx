@@ -193,22 +193,22 @@ export default function AddEditProductForm({
       availabilityRules: [],
       color: '',
       size: '',
-      isCodAllowed: false,
+      isCodAllowed: true,
       isStockVisible: true,
-      isFreeDelivery: false,
+      isFreeDelivery: true,
       isVisible: true,
-      enableCustomerSupport: false,
+      enableCustomerSupport: true,
       customerSupportText: '24/7 Customer Support',
-      enableReturnPeriod: false,
+      enableReturnPeriod: true,
       returnPeriodDays: 7,
       returnPolicy: '7-Day Return',
       noReturnsText: 'Non-Returnable',
-      enableDoorstepCancellation: false,
-      isReturnable: false,
-      enableReturns: false,
-      enableWarranty: false,
+      enableDoorstepCancellation: true,
+      isReturnable: true,
+      enableReturns: true,
+      enableWarranty: true,
       warrantyPeriod: '1 Year Warranty',
-      enableBrandSupport: false,
+      enableBrandSupport: true,
       brandSupportText: '7-Day Brand Support',
       createdAt: new Date().toISOString(),
     };
@@ -247,22 +247,22 @@ export default function AddEditProductForm({
         nestedSubCategoryId: product.nestedSubCategoryId || initialNestedSubCategoryId || '',
         visualNestedSubcategoryId: product.visualNestedSubcategoryId || product.visualNestedSubcategoryIds?.[0] || initialVisualNestedSubcategoryId || '',
         visualNestedSubcategoryIds: product.visualNestedSubcategoryIds || (product.visualNestedSubcategoryId ? [product.visualNestedSubcategoryId] : (initialVisualNestedSubcategoryId ? [initialVisualNestedSubcategoryId] : [])),
-        isCodAllowed: product.isCodAllowed === true,
+        isCodAllowed: product.isCodAllowed !== false,
         isStockVisible: product.isStockVisible !== false,
-        isFreeDelivery: product.isFreeDelivery === true,
+        isFreeDelivery: product.isFreeDelivery !== false,
         isVisible: product.isVisible !== false,
-        enableCustomerSupport: product.enableCustomerSupport === true,
+        enableCustomerSupport: product.enableCustomerSupport !== undefined ? product.enableCustomerSupport : true,
         customerSupportText: product.customerSupportText || '24/7 Customer Support',
-        enableReturnPeriod: product.enableReturnPeriod === true || product.enableReturns === true,
+        enableReturnPeriod: product.enableReturnPeriod !== undefined ? product.enableReturnPeriod : true,
         returnPeriodDays: (product as any).returnDays || product.returnPeriodDays || 7,
         returnPolicy: product.returnPolicy || '7-Day Return',
         noReturnsText: product.noReturnsText || 'Non-Returnable',
-        enableDoorstepCancellation: product.enableDoorstepCancellation === true,
-        isReturnable: product.isReturnable === true || product.enableReturns === true || product.enableReturnPeriod === true,
-        enableReturns: product.enableReturns === true || product.enableReturnPeriod === true,
-        enableWarranty: product.enableWarranty === true,
+        enableDoorstepCancellation: product.enableDoorstepCancellation !== undefined ? product.enableDoorstepCancellation : true,
+        isReturnable: product.isReturnable !== undefined ? product.isReturnable : (product.enableReturns !== undefined ? product.enableReturns : true),
+        enableReturns: product.enableReturns !== undefined ? product.enableReturns : true,
+        enableWarranty: product.enableWarranty !== undefined ? product.enableWarranty : true,
         warrantyPeriod: (product as any).warranty || product.warrantyPeriod || '1 Year Warranty',
-        enableBrandSupport: product.enableBrandSupport === true,
+        enableBrandSupport: product.enableBrandSupport !== undefined ? product.enableBrandSupport : true,
         brandSupportText: product.brandSupportText || '7-Day Brand Support',
         variants: (product.variants || []).map(v => {
           const vImages = Array.isArray(v.images) && v.images.length > 0
@@ -939,16 +939,11 @@ export default function AddEditProductForm({
     const nextIdx = currentSpecs.length;
     updateActiveTabSpecs([...currentSpecs, { key, value: currentVals.join('\n'), values: currentVals }]);
 
-    // Do not automatically scroll to the newly added last field when clicking Add Field
     requestAnimationFrame(() => {
       setTimeout(() => {
         const keyInput = document.getElementById(`spec-key-${nextIdx}`) as HTMLInputElement | null;
         if (keyInput) {
-          try {
-            keyInput.focus({ preventScroll: true });
-          } catch {
-            // Prevent auto-scrolling fallback
-          }
+          keyInput.focus();
         }
       }, 30);
     });
@@ -1745,7 +1740,7 @@ export default function AddEditProductForm({
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.isCodAllowed === true}
+                      checked={formData.isCodAllowed !== false}
                       onChange={e => setFormData(p => ({ ...p, isCodAllowed: e.target.checked }))}
                       className="sr-only peer"
                     />
@@ -1777,7 +1772,7 @@ export default function AddEditProductForm({
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.isFreeDelivery === true}
+                      checked={formData.isFreeDelivery !== false}
                       onChange={e => setFormData(p => ({ ...p, isFreeDelivery: e.target.checked }))}
                       className="sr-only peer"
                     />
@@ -2007,14 +2002,14 @@ export default function AddEditProductForm({
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.enableCustomerSupport === true}
+                      checked={formData.enableCustomerSupport !== false}
                       onChange={e => setFormData(p => ({ ...p, enableCustomerSupport: e.target.checked }))}
                       className="sr-only peer"
                     />
                     <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                {formData.enableCustomerSupport === true && (
+                {formData.enableCustomerSupport !== false && (
                   <input
                     type="text"
                     value={formData.customerSupportText || ''}
@@ -2030,27 +2025,19 @@ export default function AddEditProductForm({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Product Return Policy</span>
-                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Show return policy badge</span>
+                    <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Is product returnable?</span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.enableReturnPeriod === true || formData.enableReturns === true}
-                      onChange={e => {
-                        const val = e.target.checked;
-                        setFormData(p => ({
-                          ...p,
-                          enableReturnPeriod: val,
-                          enableReturns: val,
-                          isReturnable: val
-                        }));
-                      }}
+                      checked={formData.isReturnable !== false}
+                      onChange={e => setFormData(p => ({ ...p, isReturnable: e.target.checked, enableReturns: e.target.checked, enableReturnPeriod: e.target.checked }))}
                       className="sr-only peer"
                     />
                     <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                {(formData.enableReturnPeriod === true || formData.enableReturns === true) && (
+                {formData.isReturnable !== false ? (
                   <div className="flex gap-2">
                     <input
                       type="number"
@@ -2070,6 +2057,14 @@ export default function AddEditProductForm({
                       className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                     />
                   </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.noReturnsText || ''}
+                    onChange={e => setFormData(p => ({ ...p, noReturnsText: e.target.value }))}
+                    placeholder="Non-Returnable"
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-amber-500"
+                  />
                 )}
               </div>
 
@@ -2077,12 +2072,12 @@ export default function AddEditProductForm({
               <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Doorstep Cancellation</span>
-                  <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Show cancel at delivery badge</span>
+                  <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Allow cancel at delivery</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                   <input
                     type="checkbox"
-                    checked={formData.enableDoorstepCancellation === true}
+                    checked={formData.enableDoorstepCancellation !== false}
                     onChange={e => setFormData(p => ({ ...p, enableDoorstepCancellation: e.target.checked }))}
                     className="sr-only peer"
                   />
@@ -2100,14 +2095,14 @@ export default function AddEditProductForm({
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.enableWarranty === true}
+                      checked={formData.enableWarranty !== false}
                       onChange={e => setFormData(p => ({ ...p, enableWarranty: e.target.checked }))}
                       className="sr-only peer"
                     />
                     <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                {formData.enableWarranty === true && (
+                {formData.enableWarranty !== false && (
                   <input
                     type="text"
                     value={formData.warrantyPeriod || ''}
@@ -2128,14 +2123,14 @@ export default function AddEditProductForm({
                   <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input
                       type="checkbox"
-                      checked={formData.enableBrandSupport === true}
+                      checked={formData.enableBrandSupport !== false}
                       onChange={e => setFormData(p => ({ ...p, enableBrandSupport: e.target.checked }))}
                       className="sr-only peer"
                     />
                     <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                {formData.enableBrandSupport === true && (
+                {formData.enableBrandSupport !== false && (
                   <input
                     type="text"
                     value={formData.brandSupportText || ''}
@@ -2144,40 +2139,6 @@ export default function AddEditProductForm({
                     className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                   />
                 )}
-              </div>
-
-              {/* 6. Cash on Delivery (COD) Badge */}
-              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Cash on Delivery</span>
-                  <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Show COD service badge</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isCodAllowed === true}
-                    onChange={e => setFormData(p => ({ ...p, isCodAllowed: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                </label>
-              </div>
-
-              {/* 7. Free Delivery Badge */}
-              <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-black uppercase tracking-wider text-gray-900 block">Free Delivery</span>
-                  <span className="text-[10px] font-bold text-gray-400 block mt-0.5">Show free delivery badge</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isFreeDelivery === true}
-                    onChange={e => setFormData(p => ({ ...p, isFreeDelivery: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                </label>
               </div>
             </div>
           </div>
