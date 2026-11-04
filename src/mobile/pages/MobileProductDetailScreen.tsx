@@ -47,7 +47,7 @@ export default function MobileProductDetailScreen() {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [familyColorVariants, setFamilyColorVariants] = useState<FamilyColorVariant[]>([]);
   const mobileGalleryRef = React.useRef<HTMLDivElement>(null);
-  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('specifications');
+  const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('description');
 
   const isProgrammaticScroll = React.useRef(false);
   const scrollTimeoutRef = React.useRef<any>(null);
@@ -561,45 +561,78 @@ export default function MobileProductDetailScreen() {
     selectedVariant
   );
 
-  // Build specifications list: Always display default specifications first, at the top of the Product Specifications section
-  const defaultSpecs = Array.isArray(product.specifications) ? product.specifications : [];
-  const specsList: { key: string; value: string; values?: string[] }[] = [];
-  const processedKeys = new Set<string>();
+  // Always display default specifications first, at the top of the Product Specifications section (like Brand, Color, Size, etc.)
+  const defaultTopSpecs: { key: string; value: string; values?: string[] }[] = [];
 
-  // 1. Process Default Specifications FIRST at the top of the Product Specifications section
-  defaultSpecs.forEach(s => {
-    if (!s.key || !s.key.trim()) return;
-    const keyLower = s.key.trim().toLowerCase();
-    processedKeys.add(keyLower);
+  // 1. Default Specification: Brand
+  const resolvedBrand = product.brand || rawSpecs?.find(s => s.key && s.key.trim().toLowerCase() === 'brand')?.value;
+  if (resolvedBrand && resolvedBrand.trim()) {
+    defaultTopSpecs.push({
+      key: 'Brand',
+      value: resolvedBrand.trim(),
+      values: [resolvedBrand.trim()]
+    });
+  }
 
-    // If variant-specific specs provide an updated value for this default specification key, use it
-    const variantMatch = Array.isArray(rawSpecs)
-      ? rawSpecs.find(rs => rs.key && rs.key.trim().toLowerCase() === keyLower)
-      : null;
+  // 2. Default Specification: Color
+  const rawColorSpec = rawSpecs?.find(s => s.key && s.key.trim().toLowerCase() === 'color');
+  const resolvedColor =
+    selectedVariant?.color ||
+    selectedVariant?.colorName ||
+    selectedAttributes?.['Color'] ||
+    selectedAttributes?.['color'] ||
+    product.color ||
+    rawColorSpec?.value;
+  if (resolvedColor && String(resolvedColor).trim()) {
+    const colorStr = String(resolvedColor).trim();
+    defaultTopSpecs.push({
+      key: 'Color',
+      value: colorStr,
+      values: rawColorSpec?.values && rawColorSpec.values.length > 0 ? rawColorSpec.values : [colorStr]
+    });
+  }
 
-    const targetSpec = variantMatch || s;
-    const rawVals = Array.isArray(targetSpec.values) && targetSpec.values.length > 0
-      ? targetSpec.values
-      : (targetSpec.value ? targetSpec.value.split('\n') : []);
-    const cleanedVals = rawVals.map(v => (v || '').trim()).filter(Boolean);
-    const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (targetSpec.value || '').trim();
+  // 3. Default Specification: Size
+  const rawSizeSpec = rawSpecs?.find(s => s.key && s.key.trim().toLowerCase() === 'size');
+  const resolvedSize =
+    selectedVariant?.size ||
+    selectedVariant?.shoeSize ||
+    selectedAttributes?.['Size'] ||
+    selectedAttributes?.['size'] ||
+    product.size ||
+    rawSizeSpec?.value;
+  if (resolvedSize && String(resolvedSize).trim()) {
+    const sizeStr = String(resolvedSize).trim();
+    defaultTopSpecs.push({
+      key: 'Size',
+      value: sizeStr,
+      values: rawSizeSpec?.values && rawSizeSpec.values.length > 0 ? rawSizeSpec.values : [sizeStr]
+    });
+  }
 
-    if (cleanedVals.length > 0 || v) {
-      specsList.push({
-        key: s.key.trim(),
-        value: v,
-        values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
-      });
-    }
-  });
+  // 4. Default Specification: Other selected variant attributes (e.g. Storage, RAM, Material, etc.)
+  if (selectedAttributes && typeof selectedAttributes === 'object') {
+    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
+      const lowerKey = attrKey.trim().toLowerCase();
+      if (lowerKey === 'color' || lowerKey === 'size' || lowerKey === 'brand') return;
+      if (attrVal && String(attrVal).trim()) {
+        const valStr = String(attrVal).trim();
+        defaultTopSpecs.push({
+          key: attrKey.trim(),
+          value: valStr,
+          values: [valStr]
+        });
+      }
+    });
+  }
 
-  // 2. Append any additional variant-specific specifications below default specifications
+  // 5. Remaining specifications from rawSpecs (excluding keys already in defaultTopSpecs)
+  const otherSpecs: { key: string; value: string; values?: string[] }[] = [];
   if (rawSpecs && Array.isArray(rawSpecs)) {
     rawSpecs.forEach(s => {
       if (!s.key || !s.key.trim()) return;
-      const keyLower = s.key.trim().toLowerCase();
-      if (processedKeys.has(keyLower)) return;
-      processedKeys.add(keyLower);
+      const lowerKey = s.key.trim().toLowerCase();
+      if (defaultTopSpecs.some(d => d.key.toLowerCase() === lowerKey)) return;
 
       const rawVals = Array.isArray(s.values) && s.values.length > 0
         ? s.values
@@ -608,7 +641,7 @@ export default function MobileProductDetailScreen() {
       const v = cleanedVals.length > 0 ? cleanedVals.join('\n') : (s.value || '').trim();
 
       if (cleanedVals.length > 0 || v) {
-        specsList.push({
+        otherSpecs.push({
           key: s.key.trim(),
           value: v,
           values: cleanedVals.length > 0 ? cleanedVals : (v ? [v] : [])
@@ -617,30 +650,8 @@ export default function MobileProductDetailScreen() {
     });
   }
 
-  // 3. Fallback specs from top-level fields / selected attributes (appended after default specs if not present)
-  if (product.brand && !processedKeys.has('brand')) {
-    processedKeys.add('brand');
-    specsList.push({ key: 'Brand', value: product.brand, values: [product.brand] });
-  }
-  if (product.color && !processedKeys.has('color')) {
-    processedKeys.add('color');
-    specsList.push({ key: 'Color', value: product.color, values: [product.color] });
-  }
-  if (selectedAttributes) {
-    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
-      const kLower = attrKey.toLowerCase();
-      if (attrVal && !processedKeys.has(kLower)) {
-        processedKeys.add(kLower);
-        specsList.push({ key: attrKey, value: String(attrVal), values: [String(attrVal)] });
-      }
-    });
-  } else {
-    const currentSize = selectedVariant?.size || selectedVariant?.shoeSize || product.size;
-    if (currentSize && !processedKeys.has('size')) {
-      processedKeys.add('size');
-      specsList.push({ key: 'Size', value: String(currentSize), values: [String(currentSize)] });
-    }
-  }
+  // Final specifications list with default specifications ALWAYS first at the top
+  const specsList = [...defaultTopSpecs, ...otherSpecs];
 
   // Manufacturer Details
   const manufacturerDetails: { key: string; value: string }[] = [];
@@ -671,14 +682,17 @@ export default function MobileProductDetailScreen() {
   }
 
   const rawWarranty = (product as any).warranty || product.warrantyPeriod || settings?.warrantyPeriod;
-  const isWarrantyEnabled = product.enableWarranty !== false;
+  const isWarrantyEnabled = product.enableWarranty === true;
+
+  const displayDescription = (product.fullDescription && product.fullDescription.trim())
+    || (product.description && product.description.trim())
+    || (product.name ? `Buy ${product.name} on ViBa Mart.` : 'No description available for this product.');
 
   const availableTabs: { id: 'specifications' | 'description' | 'warranty' | 'manufacturer'; label: string }[] = [];
+  // Keep the product description active and visible by default for all products
+  availableTabs.push({ id: 'description', label: 'Description' });
   if (specsList.length > 0) {
     availableTabs.push({ id: 'specifications', label: 'Specifications' });
-  }
-  if ((product.fullDescription && product.fullDescription.trim()) || (product.description && product.description.trim())) {
-    availableTabs.push({ id: 'description', label: 'Description' });
   }
   if (isWarrantyEnabled && rawWarranty && String(rawWarranty).trim()) {
     availableTabs.push({ id: 'warranty', label: 'Warranty' });
@@ -689,7 +703,7 @@ export default function MobileProductDetailScreen() {
 
   const activeTabId = availableTabs.some(t => t.id === activeInfoTab)
     ? activeInfoTab
-    : availableTabs[0]?.id;
+    : 'description';
 
   return (
     <div className="min-h-screen bg-white pb-32 font-sans select-none">
@@ -932,7 +946,7 @@ export default function MobileProductDetailScreen() {
             {activeTabId === 'description' && (
               <div>
                 <p className="text-xs font-medium text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-2.5 rounded-xl">
-                  {product.fullDescription || product.description}
+                  {displayDescription}
                 </p>
               </div>
             )}
