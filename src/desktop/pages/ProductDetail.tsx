@@ -64,6 +64,11 @@ export default function ProductDetail() {
   const [showLocationPickerModal, setShowLocationPickerModal] = useState(false);
   const [activeInfoTab, setActiveInfoTab] = useState<'specifications' | 'description' | 'warranty' | 'manufacturer'>('description');
 
+  // Keep the product description active and visible by default for all products
+  useEffect(() => {
+    setActiveInfoTab('description');
+  }, [product?.id]);
+
   const isProgrammaticScroll = React.useRef(false);
   const scrollTimeoutRef = React.useRef<any>(null);
 
@@ -495,6 +500,12 @@ export default function ProductDetail() {
   );
 
   // Always display default specifications first, at the top of the Product Specifications section (like Brand, Color, Size, etc.)
+  const activeVariant = currentVariant || activeVariants[0];
+  const activeAttributes: Record<string, string> = {
+    ...(activeVariant?.attributes || {}),
+    ...(activeVariant?.attributeValues || {}),
+    ...(selectedAttributes || {})
+  };
   const defaultTopSpecs: { key: string; value: string; values?: string[] }[] = [];
 
   // 1. Default Specification: Brand
@@ -510,10 +521,10 @@ export default function ProductDetail() {
   // 2. Default Specification: Color
   const rawColorSpec = rawSpecs?.find(s => s.key && s.key.trim().toLowerCase() === 'color');
   const resolvedColor =
-    currentVariant?.color ||
-    currentVariant?.colorName ||
-    selectedAttributes?.['Color'] ||
-    selectedAttributes?.['color'] ||
+    activeVariant?.color ||
+    activeVariant?.colorName ||
+    activeAttributes['Color'] ||
+    activeAttributes['color'] ||
     product.color ||
     rawColorSpec?.value;
   if (resolvedColor && String(resolvedColor).trim()) {
@@ -528,10 +539,10 @@ export default function ProductDetail() {
   // 3. Default Specification: Size
   const rawSizeSpec = rawSpecs?.find(s => s.key && s.key.trim().toLowerCase() === 'size');
   const resolvedSize =
-    currentVariant?.size ||
-    currentVariant?.shoeSize ||
-    selectedAttributes?.['Size'] ||
-    selectedAttributes?.['size'] ||
+    activeVariant?.size ||
+    activeVariant?.shoeSize ||
+    activeAttributes['Size'] ||
+    activeAttributes['size'] ||
     product.size ||
     rawSizeSpec?.value;
   if (resolvedSize && String(resolvedSize).trim()) {
@@ -544,20 +555,18 @@ export default function ProductDetail() {
   }
 
   // 4. Default Specification: Other selected variant attributes (e.g. Storage, RAM, Material, etc.)
-  if (selectedAttributes && typeof selectedAttributes === 'object') {
-    Object.entries(selectedAttributes).forEach(([attrKey, attrVal]) => {
-      const lowerKey = attrKey.trim().toLowerCase();
-      if (lowerKey === 'color' || lowerKey === 'size' || lowerKey === 'brand') return;
-      if (attrVal && String(attrVal).trim()) {
-        const valStr = String(attrVal).trim();
-        defaultTopSpecs.push({
-          key: attrKey.trim(),
-          value: valStr,
-          values: [valStr]
-        });
-      }
-    });
-  }
+  Object.entries(activeAttributes).forEach(([attrKey, attrVal]) => {
+    const lowerKey = attrKey.trim().toLowerCase();
+    if (lowerKey === 'color' || lowerKey === 'size' || lowerKey === 'brand') return;
+    if (attrVal && String(attrVal).trim()) {
+      const valStr = String(attrVal).trim();
+      defaultTopSpecs.push({
+        key: attrKey.trim(),
+        value: valStr,
+        values: [valStr]
+      });
+    }
+  });
 
   // 5. Remaining specifications from rawSpecs (excluding keys already in defaultTopSpecs)
   const otherSpecs: { key: string; value: string; values?: string[] }[] = [];
