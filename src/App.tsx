@@ -230,6 +230,9 @@ function MainAppRoutes() {
 
 
 
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const isDesktopHomePage = normalizedPath === '/' || normalizedPath === '/for-you';
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
       <Navbar />
@@ -303,7 +306,7 @@ function MainAppRoutes() {
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
-      <Footer />
+      {isDesktopHomePage && <Footer />}
       <DesktopShareModal />
     </div>
   );

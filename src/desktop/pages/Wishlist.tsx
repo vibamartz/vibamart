@@ -217,7 +217,7 @@ export default function Wishlist() {
   return (
     <div className="bg-gray-50 min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Wishlist Header & Bulk Selection Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-6 border-b border-gray-200">
           <div className="flex items-center gap-4">
@@ -239,11 +239,10 @@ export default function Wishlist() {
                   setIsBulkMode(!isBulkMode);
                   setSelectedProductIds([]);
                 }}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 border ${
-                  isBulkMode 
-                    ? 'bg-gray-900 text-white border-gray-900' 
-                    : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
-                }`}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 border ${isBulkMode
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 {isBulkMode ? <CheckSquare className="w-4 h-4 text-emerald-400" /> : <Square className="w-4 h-4 text-gray-400" />}
                 Select Multiple Items
@@ -261,11 +260,10 @@ export default function Wishlist() {
                   <button
                     onClick={handleAddSelectedToCart}
                     disabled={selectedProductIds.length === 0}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
-                      selectedProductIds.length > 0
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${selectedProductIds.length > 0
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
                   >
                     <ShoppingCart className="w-4 h-4" /> Add Selected to Cart ({selectedProductIds.length})
                   </button>
@@ -273,11 +271,10 @@ export default function Wishlist() {
                   <button
                     onClick={handleRemoveSelectedFromWishlist}
                     disabled={selectedProductIds.length === 0}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                      selectedProductIds.length > 0
-                        ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${selectedProductIds.length > 0
+                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
                   >
                     <Trash2 className="w-4 h-4" /> Remove Selected
                   </button>
@@ -298,9 +295,8 @@ export default function Wishlist() {
               return (
                 <div
                   key={product.id}
-                  className={`relative flex flex-col justify-between p-3 rounded-2xl transition-all ${
-                    isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''
-                  }`}
+                  className={`relative flex flex-col justify-between p-3 rounded-2xl transition-all ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50/20' : ''
+                    }`}
                 >
                   {/* Bulk Checkbox */}
                   {isBulkMode && (
@@ -351,11 +347,10 @@ export default function Wishlist() {
                             else navigate('/cart');
                           }
                         }}
-                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                          isInCart
-                            ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
-                        }`}
+                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isInCart
+                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                          }`}
                       >
                         <ShoppingCart className="w-4 h-4" />
                         {isInCart ? 'In Cart' : 'Add to Cart'}
@@ -389,7 +384,7 @@ export default function Wishlist() {
             })}
           </div>
         ) : (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="py-16 text-center"
@@ -401,7 +396,7 @@ export default function Wishlist() {
             <p className="text-gray-500 max-w-md mx-auto mb-8 text-sm font-medium">
               Save items you love by tapping the heart icon on any product page.
             </p>
-            <Link 
+            <Link
               to="/products"
               className="inline-flex items-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-all shadow-md"
             >

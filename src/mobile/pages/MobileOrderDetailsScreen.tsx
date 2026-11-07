@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  Package, Clock, Truck, ShieldCheck, FileText, Download, 
+import {
+  Package, Clock, Truck, ShieldCheck, FileText, Download,
   ArrowLeft, MapPin, AlertCircle, RefreshCcw, XCircle, Upload, X, HelpCircle, CreditCard, Sparkles, Star
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, limit } from 'firebase/firestore';
@@ -174,10 +174,10 @@ export default function MobileOrderDetailsScreen() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ 
-          customOrderId: order.customOrderId || order.id, 
-          contactEmail: user.email, 
-          reason: `${cancelReason}${cancelComments ? `: ${cancelComments}` : ''}` 
+        body: JSON.stringify({
+          customOrderId: order.customOrderId || order.id,
+          contactEmail: user.email,
+          reason: `${cancelReason}${cancelComments ? `: ${cancelComments}` : ''}`
         })
       });
 
@@ -246,13 +246,13 @@ export default function MobileOrderDetailsScreen() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ 
-          customOrderId: order.customOrderId || order.id, 
+        body: JSON.stringify({
+          customOrderId: order.customOrderId || order.id,
           contactEmail: user.email,
           productIds: selectedReturnProducts,
           reason: returnReason,
           comments: returnComments,
-          images: uploadedImageUrls 
+          images: uploadedImageUrls
         })
       });
 
@@ -306,8 +306,8 @@ export default function MobileOrderDetailsScreen() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ 
-          customOrderId: order.customOrderId || order.id, 
+        body: JSON.stringify({
+          customOrderId: order.customOrderId || order.id,
           contactEmail: user.email,
           reason: refundReason
         })
@@ -463,7 +463,7 @@ export default function MobileOrderDetailsScreen() {
 
   return (
     <div className="min-h-screen bg-white pb-36 sm:pb-40 font-sans select-none px-4 py-4 space-y-6">
-      
+
       {/* Header Info */}
       <div className="pb-4 border-b border-gray-100 space-y-3">
         <div className="flex items-start justify-between gap-3">
@@ -570,7 +570,7 @@ export default function MobileOrderDetailsScreen() {
               <span className="text-gray-500 font-semibold">Logged On:</span>
               <span className="font-medium text-gray-600">{new Date(activeRequest.createdAt).toLocaleString()}</span>
             </div>
-            
+
             {activeRequest.images && activeRequest.images.length > 0 && (
               <div className="pt-2">
                 <span className="text-[10px] font-bold text-gray-400 block mb-1">Proof Images:</span>
@@ -589,7 +589,7 @@ export default function MobileOrderDetailsScreen() {
       {(canCancel || canReturn || canRefund) && (
         <div className="pb-4 border-b border-gray-100 space-y-2">
           <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">Available Order Actions</h3>
-          
+
           {canCancel && (
             <button
               onClick={() => setShowCancelModal(true)}
@@ -634,13 +634,12 @@ export default function MobileOrderDetailsScreen() {
               return (
                 <div key={stage.key} className="relative flex items-center justify-between text-xs">
                   <div
-                    className={`absolute -left-6 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all ${
-                      isCompleted
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                        : isCurrent
+                    className={`absolute -left-6 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all ${isCompleted
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                      : isCurrent
                         ? 'bg-amber-500 border-amber-500 text-white animate-pulse'
                         : 'bg-white border-gray-300 text-gray-400'
-                    }`}
+                      }`}
                   >
                     {isCompleted ? '✓' : idx + 1}
                   </div>
@@ -842,7 +841,7 @@ export default function MobileOrderDetailsScreen() {
               ) : (
                 <div className="space-y-2.5">
                   <p className="text-xs font-bold text-gray-600">Need assistance with order {displayId}? Choose an option below:</p>
-                  
+
                   {canCancel && (
                     <button
                       onClick={() => { setShowHelpModal(false); setShowCancelModal(true); }}

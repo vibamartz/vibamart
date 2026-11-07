@@ -640,8 +640,8 @@ export default function MobileHomepage() {
         {/* Sticky Container: Search Bar & Category Section */}
         <div
           className={`sticky top-0 z-30 transition-colors duration-200 px-3.5 xs:px-4 sm:px-5 py-1 space-y-1.5 ${isSticky
-              ? 'bg-[#fef9c3]/95 backdrop-blur-md shadow-sm border-b border-yellow-200/50'
-              : 'bg-transparent'
+            ? 'bg-[#fef9c3]/95 backdrop-blur-md shadow-sm border-b border-yellow-200/50'
+            : 'bg-transparent'
             }`}
           style={{ top: 0 }}
         >

@@ -399,8 +399,8 @@ export default function MobileCheckoutScreen() {
                 key={pm.id}
                 onClick={() => setPaymentMethod(pm.id as any)}
                 className={`p-3 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${paymentMethod === pm.id
-                    ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20'
-                    : 'bg-white border-gray-200'
+                  ? 'bg-blue-50/80 border-blue-400 ring-2 ring-blue-500/20'
+                  : 'bg-white border-gray-200'
                   }`}
               >
                 <div className="flex items-center gap-3">
