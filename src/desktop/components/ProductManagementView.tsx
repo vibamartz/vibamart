@@ -3,6 +3,7 @@ import AddEditProductForm from './AddEditProductForm';
 import CategoryAssignmentModal from './CategoryAssignmentModal';
 import BrandSectionsBar from './BrandSectionsBar';
 import BrandSectionAssignmentModal from './BrandSectionAssignmentModal';
+import BulkPriceAdjustmentModal from './BulkPriceAdjustmentModal';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
@@ -12,7 +13,7 @@ import { productNeedsKeywordUpgrade, upgradeExistingProductKeywords } from '../.
 import {
   Plus, ChevronRight, ChevronDown, Trash2, CheckCircle2, Edit2, Edit3,
   X, Check, Copy, Search, Hash, Eye, EyeOff, Sparkles, Layers, Filter,
-  CheckSquare, Square, FolderTree, Tag
+  CheckSquare, Square, FolderTree, Tag, Percent
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
@@ -65,6 +66,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
   // Category Assignment & Bulk Selection state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [isPriceAdjustmentModalOpen, setIsPriceAdjustmentModalOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState(persistedInventoryFilterState.filterCategory);
   const [filterSubCategory, setFilterSubCategory] = useState(persistedInventoryFilterState.filterSubCategory);
   const [filterNestedSubCategory, setFilterNestedSubCategory] = useState(persistedInventoryFilterState.filterNestedSubCategory);
@@ -781,6 +783,18 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
             </button>
           )}
 
+          {/* Bulk Adjust Price by Percentage Button (Shown when items are selected) */}
+          {selectedProductIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsPriceAdjustmentModalOpen(true)}
+              className="flex items-center gap-1.5 bg-amber-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-600/20 hover:bg-amber-700 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
+            >
+              <Percent className="w-3.5 h-3.5" />
+              Adjust Price ({selectedProductIds.length})
+            </button>
+          )}
+
           <button
             onClick={handleUpgradeAllKeywords}
             disabled={isUpgradingKeywords}
@@ -998,6 +1012,14 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
               className="text-xs font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
               Deselect All
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPriceAdjustmentModalOpen(true)}
+              className="flex items-center gap-1.5 bg-amber-500 text-gray-950 font-black text-xs uppercase tracking-wider px-5 py-2 rounded-xl hover:bg-amber-400 transition-all cursor-pointer shadow-lg shadow-amber-500/20"
+            >
+              <Percent className="w-4 h-4" />
+              Adjust Price
             </button>
             <button
               onClick={() => setIsAssignmentModalOpen(true)}
@@ -1585,6 +1607,16 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
         }}
         selectedProducts={productsForBrandModal}
         onAssignmentSuccess={() => {
+          setSelectedProductIds([]);
+        }}
+      />
+
+      {/* Bulk Price Adjustment Modal */}
+      <BulkPriceAdjustmentModal
+        isOpen={isPriceAdjustmentModalOpen}
+        onClose={() => setIsPriceAdjustmentModalOpen(false)}
+        selectedProducts={selectedProductsForModal}
+        onAdjustmentSuccess={() => {
           setSelectedProductIds([]);
         }}
       />

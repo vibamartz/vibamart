@@ -138,6 +138,8 @@ function MainAppRoutes() {
                       location.pathname === '/home-mobile' ||
                       location.pathname.startsWith('/category/');
   const isCartRoute = location.pathname === '/cart';
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const isAdminRoute = normalizedPath === '/admin' || normalizedPath.startsWith('/admin/');
 
   // Standalone offline screens: No Internet Connection Screen for offline pages; Cart preserves saved items
   if (!isOnline) {
@@ -150,7 +152,7 @@ function MainAppRoutes() {
 
     return (
       <div className="min-h-screen flex flex-col font-sans bg-white selection:bg-primary selection:text-white overflow-x-hidden w-full">
-        <MobileHeader />
+        {!isAdminRoute && <MobileHeader />}
         <main className="flex-1 w-full max-w-[768px] mx-auto min-w-0 pb-20 sm:pb-24">
           <Routes>
             <Route path="/offline" element={<NoInternetScreen />} />
@@ -230,12 +232,11 @@ function MainAppRoutes() {
 
 
 
-  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
   const isDesktopHomePage = normalizedPath === '/' || normalizedPath === '/for-you';
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-primary selection:text-white">
-      <Navbar />
+      {!isAdminRoute && <Navbar />}
       <main className="flex-1">
         <Routes>
           <Route path="/offline" element={<NoInternetScreen />} />

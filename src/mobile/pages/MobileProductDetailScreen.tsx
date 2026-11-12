@@ -113,7 +113,7 @@ export default function MobileProductDetailScreen() {
   const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
     setSelectedVariantId(variantId);
     setSelectedAttributes(updatedAttributes);
-    
+
     // Check if variant has a specific image matching one in the product gallery
     const targetVariant = product?.variants?.find(v => v.id === variantId);
     const targetImg = targetVariant?.images?.[0] || targetVariant?.image;
@@ -915,11 +915,10 @@ export default function MobileProductDetailScreen() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveInfoTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
-                    activeTabId === tab.id
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${activeTabId === tab.id
                       ? 'bg-green-600 text-white shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
