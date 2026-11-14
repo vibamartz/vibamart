@@ -47,6 +47,18 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
+          configure: (proxy) => {
+            proxy.on('error', (_err, _req, res: any) => {
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  success: false,
+                  error: 'Backend API service unavailable',
+                  message: 'Backend API service unavailable'
+                }));
+              }
+            });
+          }
         }
       }
     },
