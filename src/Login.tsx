@@ -10,6 +10,11 @@ import toast from 'react-hot-toast';
 import Logo from './desktop/components/Logo';
 import axios from 'axios';
 import { ViBaPermissionManager } from './services/ViBaPermissionManager';
+import AuthLanguageSelector from './shared/components/AuthLanguageSelector';
+import {
+  SupportedLanguage,
+  AUTH_TRANSLATIONS,
+} from './shared/translations/authTranslations';
 
 type Step = 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
@@ -20,6 +25,30 @@ export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
   const [step, setStep] = useState<Step>('auth');
   const [loading, setLoading] = useState(false);
+
+  // Preferred Language state (persisted across sessions)
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    try {
+      const saved = localStorage.getItem('viba_preferred_language') as SupportedLanguage;
+      if (saved && AUTH_TRANSLATIONS[saved]) {
+        return saved;
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return 'en';
+  });
+
+  const t = AUTH_TRANSLATIONS[language] || AUTH_TRANSLATIONS.en;
+
+  const handleLanguageChange = (newLang: SupportedLanguage) => {
+    setLanguage(newLang);
+    try {
+      localStorage.setItem('viba_preferred_language', newLang);
+    } catch (e) {
+      // Ignore
+    }
+  };
 
   // Email Auth
   const [emailAddress, setEmailAddress] = useState('');
@@ -53,11 +82,11 @@ export default function Login() {
       ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
         if (code && code.length === 6) {
           setOtpDigits(code.split(''));
-          toast.success('SMS OTP autofilled securely!');
+          toast.success(t.smsAutofilled);
         }
       });
     }
-  }, [step]);
+  }, [step, t.smsAutofilled]);
 
 
   const startResendTimer = () => {
@@ -76,7 +105,7 @@ export default function Login() {
 
   const sendOtp = async (isResend = false) => {
     if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error('Invalid email or password.');
+      toast.error(t.invalidEmail);
       return;
     }
     setLoading(true);
@@ -86,7 +115,7 @@ export default function Login() {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        toast.success(isResend ? t.otpResent : t.otpSent);
         setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
         throw new Error(response.data.error || 'Failed to send OTP');
@@ -141,7 +170,7 @@ export default function Login() {
     e.preventDefault();
     const otpCode = otpDigits.join('');
     if (otpCode.length < 6) {
-      toast.warning('Please enter the complete 6-digit OTP');
+      toast.warning(t.enterCompleteOtp);
       return;
     }
 
@@ -161,7 +190,7 @@ export default function Login() {
           setStep('profile');
         } else {
           await syncUser(firebaseUser);
-          toast.success('Login successful! Welcome back.');
+          toast.success(t.loginSuccess);
           navigate('/');
         }
       } else {
@@ -190,12 +219,12 @@ export default function Login() {
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
-        toast.success('Login successful! Welcome back.');
+        toast.success(t.loginSuccess);
         navigate('/');
       }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      toast.error('Login failed. Please try again.');
+      toast.error(t.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -204,22 +233,22 @@ export default function Login() {
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || displayName.trim().length < 2) {
-      toast.warning('Please enter your full name');
+      toast.warning(t.enterFullName);
       return;
     }
     if (!contactNumber || contactNumber.trim().length < 7) {
-      toast.warning('Please enter a valid contact number');
+      toast.warning(t.enterValidPhone);
       return;
     }
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
       await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
-      toast.success('Your account has been created successfully.');
+      toast.success(t.accountCreated);
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error('Registration failed. Please try again.');
+      toast.error(t.registrationFailed);
     } finally {
       setLoading(false);
     }
@@ -293,6 +322,14 @@ export default function Login() {
           <div className="h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400" />
 
           <div className="p-8 sm:p-10">
+            {/* Always-visible Language Selection Option */}
+            <div className="mb-6">
+              <AuthLanguageSelector
+                currentLanguage={language}
+                onSelectLanguage={handleLanguageChange}
+              />
+            </div>
+
             <div className="flex justify-center mb-8">
               <Link to="/" className="hover:opacity-80 transition-opacity">
                 <Logo className="scale-125" showTextOnMobile={true} />
@@ -318,24 +355,22 @@ export default function Login() {
                           : 'text-gray-400 hover:text-gray-600'
                           }`}
                       >
-                        {m === 'login' ? 'Log In' : 'Sign Up'}
+                        {m === 'login' ? t.logIn : t.signUp}
                       </button>
                     ))}
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 mb-1">
-                    {mode === 'login' ? 'Welcome back! 👋' : 'Create account 🎉'}
+                    {mode === 'login' ? t.welcomeBack : t.createAccount}
                   </h2>
                   <p className="text-gray-400 text-sm font-medium mb-8">
-                    {mode === 'login'
-                      ? 'Sign in to access your orders & wishlist'
-                      : 'Join ViBa Mart and start shopping today'}
+                    {mode === 'login' ? t.loginSubtitle : t.signupSubtitle}
                   </p>
 
                   <form onSubmit={handleRequestOtp} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Email Address
+                        {t.emailAddress}
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -343,7 +378,7 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="you@example.com"
+                          placeholder={t.emailPlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -356,13 +391,13 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <Mail className="w-5 h-5" />
-                      {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
+                      {loading ? t.sendingOtp : mode === 'signup' ? t.sendOtpToVerify : t.getOtp}
                     </button>
                   </form>
 
                   <div className="mt-6 flex items-center gap-4">
                     <div className="h-px flex-1 bg-gray-100" />
-                    <span className="text-xs font-bold text-gray-400 uppercase">OR</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">{t.or}</span>
                     <div className="h-px flex-1 bg-gray-100" />
                   </div>
 
@@ -377,15 +412,15 @@ export default function Login() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Continue with Google
+                    {t.continueWithGoogle}
                   </button>
 
 
                   <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">
-                    By continuing, you agree to ViBa Mart's{' '}
-                    <Link to="/terms" className="text-green-600 underline decoration-green-200">Terms</Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">Privacy Policy</Link>
+                    {t.termsNotice}{' '}
+                    <Link to="/terms" className="text-green-600 underline decoration-green-200">{t.terms}</Link>{' '}
+                    {t.and}{' '}
+                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">{t.privacyPolicy}</Link>
                   </p>
                 </motion.div>
               )}
@@ -404,9 +439,9 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.verifyOtpTitle}</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    Enter the 6-digit code sent to{' '}
+                    {t.enterCodeSentTo}{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
@@ -437,14 +472,14 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? 'Verifying...' : 'Verify & Continue'}
+                      {loading ? t.verifying : t.verifyAndContinue}
                     </button>
                   </form>
 
                   <div className="flex items-center justify-center mt-6 gap-2">
                     {resendTimer > 0 ? (
                       <p className="text-sm text-gray-400 font-medium">
-                        Resend OTP in{' '}
+                        {t.resendOtpIn}{' '}
                         <span className="font-black text-green-600 tabular-nums">{resendTimer}s</span>
                       </p>
                     ) : (
@@ -454,7 +489,7 @@ export default function Login() {
                         className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-4 h-4" />
-                        Resend OTP
+                        {t.resendOtp}
                       </button>
                     )}
                   </div>
@@ -468,7 +503,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    Change Email
+                    {t.changeEmail}
                   </button>
                 </motion.div>
               )}
@@ -487,15 +522,15 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">One last step 🙌</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.oneLastStep}</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    Tell us a little about yourself to complete your account
+                    {t.profileSubtitle}
                   </p>
 
                   <form onSubmit={handleCompleteProfile} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Full Name <span className="text-red-400">*</span>
+                        {t.fullName} <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -503,7 +538,7 @@ export default function Login() {
                           type="text"
                           value={displayName}
                           onChange={(e) => setDisplayName(e.target.value)}
-                          placeholder="e.g. Rahul Sharma"
+                          placeholder={t.fullNamePlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                           autoFocus
@@ -513,7 +548,7 @@ export default function Login() {
 
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Contact Number <span className="text-red-400">*</span>
+                        {t.contactNumber} <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -521,7 +556,7 @@ export default function Login() {
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
-                          placeholder="e.g. 9876543210"
+                          placeholder={t.contactPlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -534,7 +569,7 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? 'Creating account...' : 'Complete Sign Up'}
+                      {loading ? t.creatingAccount : t.completeSignUp}
                     </button>
                   </form>
 
@@ -547,7 +582,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    Cancel & Restart
+                    {t.cancelAndRestart}
                   </button>
                 </motion.div>
               )}
@@ -556,7 +591,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[11px] text-gray-400 font-medium mt-4">
-          🔒 Secured by Google Firebase
+          {t.securedBy}
         </p>
       </motion.div>
     </div>
