@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "viba-mart-f46a4"
-  }
+    "default": "viba-mart",
+    "viba-mart": "viba-mart"
+  },
+  "targets": {},
+  "etags": {}
 }
