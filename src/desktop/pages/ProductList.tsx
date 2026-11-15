@@ -4,7 +4,6 @@ import { collection, onSnapshot, query, orderBy, doc, updateDoc, arrayUnion, arr
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore, useVisualNestedSubcategoryStore } from '../../backend/store';
 import { Product, Banner } from '../../shared/types';
-import { DEFAULT_PRODUCTS, DEFAULT_BANNERS } from '../../shared/constants';
 import { toast } from 'react-hot-toast';
 import {
   Filter, SlidersHorizontal, ChevronDown, ChevronRight, Grid, List as ListIcon, X, Star, Heart, Layers, Sparkles, Tag, ArrowRight, RefreshCw, Search
@@ -472,14 +471,12 @@ export default function ProductList() {
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      const filtered = filterOutRewardProducts(data, rewardIds);
-      setAllProducts(filtered.length > 0 ? filtered : DEFAULT_PRODUCTS);
+      setAllProducts(filterOutRewardProducts(data, rewardIds));
       setLoadError(false);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
-      setAllProducts(DEFAULT_PRODUCTS);
-      setLoadError(false);
+      setLoadError(true);
       setLoading(false);
     });
 
@@ -488,10 +485,9 @@ export default function ProductList() {
       const data = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
         .filter(b => Boolean(b.image && typeof b.image === 'string' && b.image.trim()));
-      setAllBanners(data.length > 0 ? data : DEFAULT_BANNERS);
+      setAllBanners(data);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'banners', false);
-      setAllBanners(DEFAULT_BANNERS);
     });
 
     return () => {

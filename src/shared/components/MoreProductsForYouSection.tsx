@@ -3,7 +3,6 @@ import { Sparkles, ShoppingBag } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
-import { DEFAULT_PRODUCTS } from '../../shared/constants';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import { useCategoryStore } from '../../backend/store';
@@ -51,11 +50,10 @@ export default function MoreProductsForYouSection({
       const valid = filterOutRewardProducts(data, rewardIds).filter(
         p => p.status !== 'inactive' && p.isVisible !== false
       );
-      setProducts(valid.length > 0 ? valid : DEFAULT_PRODUCTS);
+      setProducts(valid);
       setLoading(false);
     }, (error) => {
-      console.warn("More Products for You fallback:", error?.message);
-      setProducts(DEFAULT_PRODUCTS);
+      console.error("More Products for You fetch error:", error);
       setLoading(false);
     });
 

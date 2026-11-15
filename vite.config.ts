@@ -4,15 +4,15 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 function getFirebaseConfig(env: Record<string, string>) {
-  const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart-app';
+  const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart';
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || 'AIzaSyArTZAIiaESeahiK3Gdk5uUrru2U3WW9ww',
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || 'viba-mart-app.firebaseapp.com',
+    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || 'AIzaSyAjDLibmV7qNGHK_PzbuVkS-UE-q63sJGs',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || 'viba-mart.firebaseapp.com',
     projectId: projectId,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || 'viba-mart-app.firebasestorage.app',
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID || '486981133317',
-    appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || '1:486981133317:web:4caa94260d5c2d18cb286c',
-    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID || 'G-W3XVYZZEV4',
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || 'viba-mart.firebasestorage.app',
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID || '1069210639894',
+    appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || '1:1069210639894:web:9723003d1c6c07bb055f37',
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID || 'G-XB3NP07F7Y',
   };
 }
 

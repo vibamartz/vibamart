@@ -1,18 +1,18 @@
 import admin from "firebase-admin";
 import crypto from "crypto";
-import {
-  initializeFirebaseAdmin,
-  getOtpFromMemory,
-  deleteOtpFromMemory,
-  markOtpUsedInMemory,
-  isValidServiceAccount,
-  setCorsHeaders
-} from "../../_utils";
+import { initializeFirebaseAdmin, getOtpFromMemory, deleteOtpFromMemory } from "../../_utils";
 
 initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(req, res);
+  // CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -20,104 +20,51 @@ export default async function handler(req: any, res: any) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, code } = req.body || {};
+  const { email, code } = req.body;
   if (!email || !code) {
-    return res.status(400).json({ success: false, error: "Email address and OTP code are required" });
+    return res.status(400).json({ success: false, error: "Email and code are required" });
   }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
   const enteredCode = String(code).trim();
 
-  if (enteredCode.length !== 6 || !/^\d{6}$/.test(enteredCode)) {
-    return res.status(400).json({ success: false, error: "Please enter a valid 6-digit OTP code" });
-  }
-
   try {
-    // 1. Retrieve OTP record from Memory
-    const memEntry = getOtpFromMemory(normalizedEmail);
+    let isValidOtp = false;
 
-    // 2. Retrieve OTP record from Firestore if service account configured
-    let firestoreData: any = null;
-    let firestoreDocRef: any = null;
-    if (isValidServiceAccount()) {
+    // 1. Check in-memory store
+    const memEntry = getOtpFromMemory(normalizedEmail);
+    if (memEntry && memEntry.otp === enteredCode) {
+      isValidOtp = true;
+      deleteOtpFromMemory(normalizedEmail);
+    }
+
+    // 2. Check Firestore if not already validated in memory
+    if (!isValidOtp) {
       try {
         const db = admin.firestore();
-        firestoreDocRef = db.collection("otps").doc(normalizedEmail);
-        const docSnap = await firestoreDocRef.get();
-        if (docSnap.exists) {
-          firestoreData = docSnap.data();
+        const otpDocRef = db.collection("otps").doc(normalizedEmail);
+        const otpDoc = await otpDocRef.get();
+
+        if (otpDoc.exists) {
+          const data = otpDoc.data();
+          if (data && data.otp === enteredCode) {
+            const now = admin.firestore.Timestamp.now();
+            if (data.expiresAt && data.expiresAt.toMillis() >= now.toMillis()) {
+              isValidOtp = true;
+              await otpDocRef.delete().catch(() => {});
+            }
+          }
         }
       } catch (dbErr) {
         console.warn("[AUTH OTP] Firestore verification lookup notice:", dbErr);
       }
     }
 
-    // If neither store has any record for this email
-    if (!memEntry && !firestoreData) {
-      return res.status(400).json({
-        success: false,
-        error: "No OTP found or it has already been used. Please request a new OTP."
-      });
-    }
-
-    // Check if OTP was already used
-    if ((memEntry && memEntry.used) || (firestoreData && firestoreData.used)) {
-      deleteOtpFromMemory(normalizedEmail);
-      if (firestoreDocRef) firestoreDocRef.delete().catch(() => {});
-      return res.status(400).json({
-        success: false,
-        error: "This OTP has already been used. Please request a new OTP."
-      });
-    }
-
-    // Check if expired
-    const now = Date.now();
-    const isMemExpired = memEntry ? now > memEntry.expiresAt : false;
-    const isFsExpired = firestoreData?.expiresAt ? firestoreData.expiresAt.toMillis() < now : false;
-
-    if ((memEntry && isMemExpired) || (!memEntry && isFsExpired)) {
-      deleteOtpFromMemory(normalizedEmail);
-      if (firestoreDocRef) firestoreDocRef.delete().catch(() => {});
-      return res.status(400).json({
-        success: false,
-        error: "OTP has expired. Please request a new OTP."
-      });
-    }
-
-    // Check attempt limits (brute-force protection: max 5 attempts)
-    const currentAttempts = Math.max(memEntry?.attempts || 0, firestoreData?.attempts || 0);
-    if (currentAttempts >= 5) {
-      deleteOtpFromMemory(normalizedEmail);
-      if (firestoreDocRef) firestoreDocRef.delete().catch(() => {});
-      return res.status(400).json({
-        success: false,
-        error: "Too many failed attempts. This OTP has been invalidated. Please request a new OTP."
-      });
-    }
-
-    // Match OTP code
-    const storedCode = memEntry?.otp || firestoreData?.otp;
-    if (storedCode !== enteredCode) {
-      // Increment attempt counter
-      if (memEntry) memEntry.attempts += 1;
-      if (firestoreDocRef) {
-        firestoreDocRef.update({ attempts: admin.firestore.FieldValue.increment(1) }).catch(() => {});
-      }
-      const remainingAttempts = Math.max(0, 5 - (currentAttempts + 1));
-      return res.status(400).json({
-        success: false,
-        error: `Incorrect OTP. Please enter the valid code sent to your email. (${remainingAttempts} attempt(s) left)`
-      });
-    }
-
-    // Correct OTP! Mark as used and delete immediately to prevent reuse
-    markOtpUsedInMemory(normalizedEmail);
-    deleteOtpFromMemory(normalizedEmail);
-    if (firestoreDocRef) {
-      await firestoreDocRef.delete().catch(() => {});
+    if (!isValidOtp) {
+      return res.status(400).json({ success: false, error: "Invalid or expired OTP. Please try again." });
     }
 
     // Generate fallback deterministic password for direct Firebase Client Auth
@@ -129,7 +76,7 @@ export default async function handler(req: any, res: any) {
 
     // Try creating custom token via Firebase Admin if service account is active
     try {
-      if (isValidServiceAccount()) {
+      if (admin.apps.length > 0) {
         try {
           const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
           uid = userRecord.uid;

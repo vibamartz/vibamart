@@ -11,7 +11,7 @@ import { generateProductKeywords, productNeedsKeywordUpgrade, upgradeExistingPro
 function getValidProjectId(): string {
   const envId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
   if (!envId || envId === 'your_firebase_project_id' || envId.includes('dummy') || envId.includes('placeholder')) {
-    return 'viba-mart-app';
+    return 'viba-mart';
   }
   return envId;
 }
