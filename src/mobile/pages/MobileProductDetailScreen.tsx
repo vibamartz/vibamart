@@ -7,6 +7,7 @@ import {
 import { doc, getDoc, collection, query, where, onSnapshot, addDoc, getDocs, updateDoc, arrayUnion, arrayRemove, limit, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Review, Address, ProductVariant, FamilyColorVariant } from '../../shared/types';
+import { DEFAULT_PRODUCTS } from '../../shared/constants';
 import { useCartStore, useAuthStore, useSettingsStore, useCategoryStore } from '../../backend/store';
 import { useLocationStore } from '../../shared/utilities/useLocationStore';
 import LocationPickerModal from '../../desktop/components/LocationPickerModal';
@@ -217,6 +218,16 @@ export default function MobileProductDetailScreen() {
           if (matches) {
             foundProduct = matches;
           }
+        }
+
+        // 5. Fallback to default catalog
+        if (!foundProduct) {
+          foundProduct = DEFAULT_PRODUCTS.find(p =>
+            p.id === targetSlugOrId ||
+            p.slug === targetSlugOrId ||
+            getProductSlug(p) === targetSlugOrId ||
+            createSlug(p.name) === targetSlugOrId
+          ) || null;
         }
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {

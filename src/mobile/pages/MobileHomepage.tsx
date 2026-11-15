@@ -14,6 +14,7 @@ import Logo from '../../desktop/components/Logo';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
+import { DEFAULT_PRODUCTS, DEFAULT_BANNERS } from '../../shared/constants';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { getProductSlug, getCategorySlug, getSubcategorySlug, getBannerSlug } from '../../shared/utilities/slug';
@@ -45,8 +46,8 @@ export default function MobileHomepage() {
   const routeParams = useParams<{ categorySlug?: string }>();
   const location = useLocation();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [banners, setBanners] = useState<Banner[]>(DEFAULT_BANNERS);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [recentlyViewedProds, setRecentlyViewedProds] = useState<Product[]>([]);
@@ -223,9 +224,10 @@ export default function MobileHomepage() {
           const end = b.endDate ? new Date(b.endDate).getTime() : Infinity;
           return now >= start && now <= end;
         });
-      setBanners(bannerData);
+      setBanners(bannerData.length > 0 ? bannerData : DEFAULT_BANNERS);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'banners', false);
+      setBanners(DEFAULT_BANNERS);
     });
 
     const productsQuery = query(
@@ -236,10 +238,12 @@ export default function MobileHomepage() {
     const unsubscribeProducts = onSnapshot(productsQuery, async (snapshot) => {
       const productData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      setProducts(filterOutRewardProducts(productData, rewardIds).filter(p => p.status !== 'inactive'));
+      const activeProducts = filterOutRewardProducts(productData, rewardIds).filter(p => p.status !== 'inactive');
+      setProducts(activeProducts.length > 0 ? activeProducts : DEFAULT_PRODUCTS);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products', false);
+      setProducts(DEFAULT_PRODUCTS);
       setLoading(false);
     });
 

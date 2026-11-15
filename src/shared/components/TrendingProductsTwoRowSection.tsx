@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product } from '../../shared/types';
+import { DEFAULT_PRODUCTS } from '../../shared/constants';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { isProductAssignedToCategory } from '../../shared/utilities/productCategoryFilter';
 import { useCategoryStore } from '../../backend/store';
@@ -55,10 +56,11 @@ export default function TrendingProductsTwoRowSection({
       const valid = filterOutRewardProducts(data, rewardIds).filter(
         p => p.status !== 'inactive' && p.isVisible !== false
       );
-      setProducts(valid);
+      setProducts(valid.length > 0 ? valid : DEFAULT_PRODUCTS);
       setLoading(false);
     }, (error) => {
-      console.error("Trending products fetch error:", error);
+      console.warn("Trending products fetch fallback:", error?.message);
+      setProducts(DEFAULT_PRODUCTS);
       setLoading(false);
     });
 

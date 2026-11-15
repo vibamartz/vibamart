@@ -114,13 +114,40 @@ export const useAuthStore = create<AuthState>((set) => ({
               }
             }
           } else {
-            localStorage.removeItem("viba_last_uid");
-            useCartStore.getState().setUid(null);
-            set({ user: null, loading: false });
+            const existingUser = useAuthStore.getState().user;
+            const fallbackProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || existingUser?.email || '',
+              displayName: existingUser?.displayName || firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
+              phone: existingUser?.phone || firebaseUser.phoneNumber || '',
+              photoURL: existingUser?.photoURL || firebaseUser.photoURL || '',
+              role: (firebaseUser.email === 'vk311779@gmail.com' || existingUser?.role === 'super_admin') ? 'super_admin' : (existingUser?.role || 'customer'),
+              isVerified: true,
+              accountStatus: 'active',
+              createdAt: existingUser?.createdAt || new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+            };
+            set({ user: fallbackProfile, loading: false });
+            try {
+              setDoc(docRef, fallbackProfile, { merge: true }).catch(() => {});
+            } catch (_) {}
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
-          set({ loading: false });
+          const existingUser = useAuthStore.getState().user;
+          const fallbackProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || existingUser?.email || '',
+            displayName: existingUser?.displayName || firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
+            phone: existingUser?.phone || firebaseUser.phoneNumber || '',
+            photoURL: existingUser?.photoURL || firebaseUser.photoURL || '',
+            role: (firebaseUser.email === 'vk311779@gmail.com' || existingUser?.role === 'super_admin') ? 'super_admin' : (existingUser?.role || 'customer'),
+            isVerified: true,
+            accountStatus: 'active',
+            createdAt: existingUser?.createdAt || new Date().toISOString(),
+            lastLoginAt: new Date().toISOString(),
+          };
+          set({ user: fallbackProfile, loading: false });
         });
 
         // Subscribe to ordered products

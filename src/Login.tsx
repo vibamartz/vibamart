@@ -68,6 +68,12 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
         return 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
       case 'auth/unauthorized-domain':
         return 'This domain is not authorized in Firebase Console. Please add localhost to Authorized Domains.';
+      case 'auth/operation-not-allowed':
+        return 'Google Sign-In is disabled in Firebase Console. Enable Google in Authentication > Sign-in method.';
+      case 'auth/cancelled-popup-request':
+        return 'Sign-in cancelled or another popup is already active.';
+      case 'auth/popup-closed-by-user':
+        return 'Sign-in popup was closed before completing.';
       default:
         break;
     }
@@ -77,6 +83,9 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
     if (err.message.includes('[object Object]')) {
       return fallback;
     }
+    if (err.message.includes('auth/operation-not-allowed')) {
+      return 'Google Sign-In is disabled in Firebase Console. Enable Google in Authentication > Sign-in method.';
+    }
     if (err.message.toLowerCase().includes('server error has occurred') || err.message.includes('auth/internal-error')) {
       return 'Authentication service encountered a temporary error. Please try again.';
     }
@@ -84,6 +93,31 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
   }
 
   return fallback;
+}
+
+// Timeout-protected Firestore read to prevent UI freezing if Firestore is offline / uninitialized
+async function safeGetDoc(docRef: any, timeoutMs = 2500): Promise<any> {
+  try {
+    return await Promise.race([
+      getDoc(docRef),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+    ]);
+  } catch (e) {
+    console.warn("safeGetDoc timed out or offline fallback:", e);
+    return null;
+  }
+}
+
+// Timeout-protected Firestore write to prevent blocking login
+async function safeSetDoc(docRef: any, data: any, timeoutMs = 2500): Promise<void> {
+  try {
+    await Promise.race([
+      setDoc(docRef, data, { merge: true }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+    ]);
+  } catch (e) {
+    console.warn("safeSetDoc timed out or offline notice:", e);
+  }
 }
 
 export default function Login() {
@@ -343,12 +377,7 @@ export default function Login() {
 
       // Check user profile in Firestore
       const userRef = doc(db, 'users', effectiveUid);
-      let userSnap: any = null;
-      try {
-        userSnap = await getDoc(userRef);
-      } catch (getDocErr) {
-        console.warn("User lookup notice:", getDocErr);
-      }
+      const userSnap = await safeGetDoc(userRef);
 
       if (mode === 'signup' && (!userSnap || !userSnap.exists())) {
         setTempFirebaseUser(effectiveUser);
@@ -377,13 +406,8 @@ export default function Login() {
         throw new Error("No user returned from Google authentication");
       }
 
-      let userSnap: any = null;
-      try {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        userSnap = await getDoc(userRef);
-      } catch (docErr) {
-        console.warn("User lookup notice during Google sign-in:", docErr);
-      }
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await safeGetDoc(userRef);
 
       if (mode === 'signup' && (!userSnap || !userSnap.exists()) && !firebaseUser.phoneNumber) {
         setTempFirebaseUser(firebaseUser);
@@ -431,37 +455,30 @@ export default function Login() {
 
   const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
-    let userSnap: any = null;
-    try {
-      userSnap = await getDoc(userRef);
-    } catch (e) {
-      console.warn("User doc lookup notice:", e);
-    }
+    const userSnap = await safeGetDoc(userRef);
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
+    const isAdmin = (userEmail === 'vk311779@gmail.com');
 
     if (!userSnap || !userSnap.exists()) {
       const newUser = {
         uid: firebaseUser.uid,
         email: userEmail,
-        displayName: providedName || firebaseUser.displayName || `User ${Math.floor(Math.random() * 10000)}`,
+        displayName: providedName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : `User ${Math.floor(Math.random() * 10000)}`),
         phone: providedPhone || '',
         photoURL: firebaseUser.photoURL || '',
-        role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+        role: isAdmin ? 'super_admin' : 'customer',
         isVerified: true,
         accountStatus: 'active',
         createdAt: now,
         lastLoginAt: now,
       };
-      try {
-        await setDoc(userRef, newUser);
-      } catch (writeErr) {
-        console.warn("User doc creation notice:", writeErr);
-      }
+      safeSetDoc(userRef, newUser);
+      localStorage.setItem("viba_last_uid", firebaseUser.uid);
       setUser(newUser as any);
     } else {
       const userData = userSnap.data() as any;
-      const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
+      const wasAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
 
       const updateData: any = {
         isVerified: true,
@@ -469,7 +486,7 @@ export default function Login() {
         lastLoginAt: now,
       };
 
-      if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
+      if (wasAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
         updateData.role = 'super_admin';
         userData.role = 'super_admin';
       }
@@ -483,14 +500,11 @@ export default function Login() {
         userData.displayName = providedName;
       }
 
-      try {
-        await setDoc(userRef, updateData, { merge: true });
-      } catch (writeErr) {
-        console.warn("User doc update notice:", writeErr);
-      }
+      safeSetDoc(userRef, updateData);
       userData.isVerified = true;
       userData.accountStatus = 'active';
       userData.lastLoginAt = now;
+      localStorage.setItem("viba_last_uid", firebaseUser.uid);
       setUser(userData);
     }
   };

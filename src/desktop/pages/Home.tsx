@@ -15,6 +15,7 @@ import Logo from '../components/Logo';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
+import { DEFAULT_PRODUCTS, DEFAULT_BANNERS } from '../../shared/constants';
 import { useCategoryStore, useSettingsStore, useAuthStore, useCartStore, useRewardsStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
@@ -42,8 +43,8 @@ export default function Home() {
   const routeParams = useParams<{ categorySlug?: string }>();
   const location = useLocation();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [banners, setBanners] = useState<Banner[]>(DEFAULT_BANNERS);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [recentlyViewedProds, setRecentlyViewedProds] = useState<Product[]>([]);
@@ -186,10 +187,12 @@ export default function Home() {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      setProducts(filterOutRewardProducts(data, rewardIds).filter(p => p.status !== 'inactive'));
+      const activeProducts = filterOutRewardProducts(data, rewardIds).filter(p => p.status !== 'inactive');
+      setProducts(activeProducts.length > 0 ? activeProducts : DEFAULT_PRODUCTS);
       setLoading(false);
     }, (error) => {
-      console.error("Home products error:", error);
+      console.warn("Home products fallback to default catalog:", error?.message);
+      setProducts(DEFAULT_PRODUCTS);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -210,9 +213,10 @@ export default function Home() {
           const end = b.endDate ? new Date(b.endDate).getTime() : Infinity;
           return now >= start && now <= end;
         });
-      setBanners(desktopBanners);
+      setBanners(desktopBanners.length > 0 ? desktopBanners : DEFAULT_BANNERS);
     }, (error) => {
-      console.error("Home banners error:", error);
+      console.warn("Home banners fallback to defaults:", error?.message);
+      setBanners(DEFAULT_BANNERS);
     });
     return () => unsubscribeBanners();
   }, []);

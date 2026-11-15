@@ -6,6 +6,7 @@ import {
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Product, Banner } from '../../shared/types';
+import { DEFAULT_PRODUCTS, DEFAULT_BANNERS } from '../../shared/constants';
 import { useCartStore, useCategoryStore, useVisualNestedSubcategoryStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getNestedSubcategorySlug, getProductSlug, createSlug, getBannerSlug } from '../../shared/utilities/slug';
 import { cleanProductCode } from '../../shared/utilities/productCode';
@@ -375,12 +376,14 @@ export default function MobileProductListScreen() {
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       const rewardIds = await getRewardProductIds();
-      setProducts(filterOutRewardProducts(docs, rewardIds));
+      const filtered = filterOutRewardProducts(docs, rewardIds);
+      setProducts(filtered.length > 0 ? filtered : DEFAULT_PRODUCTS);
       setLoadError(false);
       setLoading(false);
     }, (error) => {
-      console.error('Failed to fetch products:', error);
-      setLoadError(true);
+      console.warn('Fallback to default products on error:', error?.message);
+      setProducts(DEFAULT_PRODUCTS);
+      setLoadError(false);
       setLoading(false);
     });
 
@@ -389,7 +392,9 @@ export default function MobileProductListScreen() {
       const docs = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as Banner))
         .filter(b => Boolean(b.image && typeof b.image === 'string' && b.image.trim()));
-      setBanners(docs);
+      setBanners(docs.length > 0 ? docs : DEFAULT_BANNERS);
+    }, (error) => {
+      setBanners(DEFAULT_BANNERS);
     });
 
     return () => {

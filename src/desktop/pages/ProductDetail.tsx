@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, Link, useNavigate, Navigate } from 'react-router-dom';
 import { Product, ProductVariant, WaitlistItem, FamilyColorVariant } from '../../shared/types';
+import { DEFAULT_PRODUCTS } from '../../shared/constants';
 import { Star, ShoppingCart, ShieldCheck, Truck, RefreshCcw, ChevronRight, Heart, Share2, Bell, MapPin, PackageCheck, Clock, CheckCircle2, XCircle, HelpCircle, Ruler, X, Check, ChevronLeft } from 'lucide-react';
 import { useCartStore, useAuthStore, useCategoryStore, useSettingsStore } from '../../backend/store';
 import DeliveryAndServiceDetails from '../../shared/components/DeliveryAndServiceDetails';
@@ -204,6 +205,16 @@ export default function ProductDetail() {
           if (matches) {
             foundProduct = matches;
           }
+        }
+
+        // 5. Fallback to default catalog
+        if (!foundProduct) {
+          foundProduct = DEFAULT_PRODUCTS.find(p =>
+            p.id === targetSlugOrId ||
+            p.slug === targetSlugOrId ||
+            getProductSlug(p) === targetSlugOrId ||
+            createSlug(p.name) === targetSlugOrId
+          ) || null;
         }
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
