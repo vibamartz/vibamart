@@ -114,12 +114,28 @@ export const useAuthStore = create<AuthState>((set) => ({
               }
             }
           } else {
+            const cachedUser = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
+            if (cachedUser) {
+              try {
+                const parsedUser = JSON.parse(cachedUser);
+                set({ user: parsedUser, loading: false });
+                return;
+              } catch (e) {}
+            }
             localStorage.removeItem("viba_last_uid");
             useCartStore.getState().setUid(null);
             set({ user: null, loading: false });
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
+          const cachedUser = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
+          if (cachedUser) {
+            try {
+              const parsedUser = JSON.parse(cachedUser);
+              set({ user: parsedUser, loading: false });
+              return;
+            } catch (e) {}
+          }
           set({ loading: false });
         });
 

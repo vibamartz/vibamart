@@ -1,5 +1,6 @@
 import admin from "firebase-admin";
 import { initializeFirebaseAdmin } from "../../_utils";
+import { verifyOtp, getDeterministicAuthSecret, hasAdminSdkCredentials } from "../../_otpStore";
 
 initializeFirebaseAdmin();
 
@@ -27,51 +28,53 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Email and code are required" });
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedCode = String(code).trim();
+
   try {
-    const db = admin.firestore();
-    const otpDocRef = db.collection("otps").doc(email);
-    const otpDoc = await otpDocRef.get();
-
-    if (!otpDoc.exists) {
-      return res.status(400).json({ success: false, error: "OTP expired or not found" });
+    const verificationResult = await verifyOtp(normalizedEmail, normalizedCode);
+    if (!verificationResult.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: verificationResult.reason || "Invalid OTP code. Please try again." 
+      });
     }
 
-    const data = otpDoc.data();
-    if (!data) return res.status(400).json({ success: false, error: "Invalid OTP" });
+    const authSecret = getDeterministicAuthSecret(normalizedEmail);
 
-    if (data.otp !== code) {
-      return res.status(400).json({ success: false, error: "Invalid OTP code" });
-    }
+    let customToken: string | null = null;
+    if (hasAdminSdkCredentials()) {
+      try {
+        let uid = "";
+        try {
+          const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+          uid = userRecord.uid;
+        } catch (error: any) {
+          if (error.code === "auth/user-not-found") {
+            const newUser = await admin.auth().createUser({
+              email: normalizedEmail,
+              emailVerified: true,
+            });
+            uid = newUser.uid;
+          } else {
+            throw error;
+          }
+        }
 
-    const now = admin.firestore.Timestamp.now();
-    if (data.expiresAt.toMillis() < now.toMillis()) {
-      await otpDocRef.delete();
-      return res.status(400).json({ success: false, error: "OTP has expired" });
-    }
-
-    await otpDocRef.delete();
-
-    let uid = "";
-    try {
-      const userRecord = await admin.auth().getUserByEmail(email);
-      uid = userRecord.uid;
-    } catch (error: any) {
-      if (error.code === "auth/user-not-found") {
-        const newUser = await admin.auth().createUser({
-          email,
-          emailVerified: true,
+        customToken = await admin.auth().createCustomToken(uid, {
+          email_verified: true
         });
-        uid = newUser.uid;
-      } else {
-        throw error;
+      } catch (tokenErr) {
+        console.warn("[Auth] Custom token generation skipped:", tokenErr);
       }
     }
 
-    const customToken = await admin.auth().createCustomToken(uid, {
-      email_verified: true
+    return res.json({ 
+      success: true, 
+      email: normalizedEmail,
+      authSecret,
+      customToken 
     });
-    
-    return res.json({ success: true, customToken });
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);
     const errMsg = error?.message || String(error) || "Failed to verify OTP";

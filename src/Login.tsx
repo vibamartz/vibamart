@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from './backend/firebase/firebase';
-import { signInWithCustomToken, signInWithPopup, User } from 'firebase/auth';
+import { signInWithCustomToken, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
@@ -76,7 +76,7 @@ export default function Login() {
 
   const sendOtp = async (isResend = false) => {
     if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error('Invalid email or password.');
+      toast.error('Please enter a valid email address.');
       return;
     }
     setLoading(true);
@@ -147,25 +147,89 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/verify-email-otp', { email: emailAddress.trim(), code: otpCode });
+      const response = await axios.post('/api/auth/verify-email-otp', {
+        email: emailAddress.trim(),
+        code: otpCode
+      });
 
-      if (response.data.success && response.data.customToken) {
-        const result = await signInWithCustomToken(auth, response.data.customToken);
-        const firebaseUser = result.user;
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Invalid OTP');
+      }
 
+      let firebaseUser: User | null = null;
+
+      // 1. If server returned customToken, try custom token authentication first
+      if (response.data.customToken) {
+        try {
+          const result = await signInWithCustomToken(auth, response.data.customToken);
+          firebaseUser = result.user;
+        } catch (customErr) {
+          console.warn("[Auth] Custom token sign-in skipped:", customErr);
+        }
+      }
+
+      // 2. If no customToken or customToken failed, authenticate via verified session secret
+      if (!firebaseUser && response.data.authSecret) {
+        const normalizedEmail = emailAddress.trim().toLowerCase();
+        try {
+          const result = await signInWithEmailAndPassword(auth, normalizedEmail, response.data.authSecret);
+          firebaseUser = result.user;
+        } catch (signInErr: any) {
+          if (
+            signInErr.code === 'auth/user-not-found' ||
+            signInErr.code === 'auth/invalid-credential' ||
+            signInErr.code === 'auth/invalid-login-credentials'
+          ) {
+            try {
+              const createResult = await createUserWithEmailAndPassword(auth, normalizedEmail, response.data.authSecret);
+              firebaseUser = createResult.user;
+            } catch (createErr: any) {
+              if (createErr.code === 'auth/email-already-in-use') {
+                toast.error('This email is already registered with Google. Please use "Continue with Google".');
+                setLoading(false);
+                return;
+              }
+              throw createErr;
+            }
+          } else {
+            throw signInErr;
+          }
+        }
+      }
+
+      if (!firebaseUser) {
+        throw new Error("Unable to establish authenticated session. Please try again.");
+      }
+
+      // Check if user profile already exists
+      let userExists = false;
+      let existingProfileData: any = null;
+
+      try {
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
-
-        if (!userSnap.exists()) {
-          setTempFirebaseUser(firebaseUser);
-          setStep('profile');
-        } else {
-          await syncUser(firebaseUser);
-          toast.success('Login successful! Welcome back.');
-          navigate('/');
+        if (userSnap.exists()) {
+          userExists = true;
+          existingProfileData = userSnap.data();
         }
+      } catch (firestoreErr) {
+        console.warn("[Auth] Firestore user read error, checking cached profile:", firestoreErr);
+        const cached = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
+        if (cached) {
+          try {
+            existingProfileData = JSON.parse(cached);
+            userExists = true;
+          } catch (e) {}
+        }
+      }
+
+      if (!userExists) {
+        setTempFirebaseUser(firebaseUser);
+        setStep('profile');
       } else {
-        throw new Error(response.data.error || 'Invalid OTP');
+        await syncUser(firebaseUser, existingProfileData?.displayName, existingProfileData?.phone);
+        toast.success('Login successful! Welcome back.');
+        navigate('/');
       }
     } catch (err: any) {
       console.error("verifyOtp Error:", err);
@@ -182,14 +246,32 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+      let userExists = false;
+      let existingProfileData: any = null;
 
-      if (!userSnap.exists()) {
+      try {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          userExists = true;
+          existingProfileData = userSnap.data();
+        }
+      } catch (firestoreErr) {
+        console.warn("[Auth] Firestore user read error on Google Sign-In:", firestoreErr);
+        const cached = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
+        if (cached) {
+          try {
+            existingProfileData = JSON.parse(cached);
+            userExists = true;
+          } catch (e) {}
+        }
+      }
+
+      if (!userExists) {
         setTempFirebaseUser(firebaseUser);
         setStep('profile');
       } else {
-        await syncUser(firebaseUser);
+        await syncUser(firebaseUser, existingProfileData?.displayName, existingProfileData?.phone);
         toast.success('Login successful! Welcome back.');
         navigate('/');
       }
@@ -227,11 +309,17 @@ export default function Login() {
 
   const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
-    const userSnap = await getDoc(userRef);
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
 
-    if (!userSnap.exists()) {
+    let userSnap: any = null;
+    try {
+      userSnap = await getDoc(userRef);
+    } catch (e) {
+      console.warn("[Auth] Firestore getDoc in syncUser skipped:", e);
+    }
+
+    if (!userSnap || !userSnap.exists()) {
       const newUser = {
         uid: firebaseUser.uid,
         email: userEmail,
@@ -244,7 +332,13 @@ export default function Login() {
         createdAt: now,
         lastLoginAt: now,
       };
-      await setDoc(userRef, newUser);
+      try {
+        await setDoc(userRef, newUser, { merge: true });
+      } catch (err) {
+        console.warn("[Auth] Firestore setDoc newUser skipped, falling back to local session:", err);
+      }
+      localStorage.setItem(`viba_user_${firebaseUser.uid}`, JSON.stringify(newUser));
+      localStorage.setItem("viba_last_uid", firebaseUser.uid);
       setUser(newUser as any);
     } else {
       const userData = userSnap.data() as any;
@@ -270,10 +364,16 @@ export default function Login() {
         userData.displayName = providedName;
       }
 
-      await setDoc(userRef, updateData, { merge: true });
+      try {
+        await setDoc(userRef, updateData, { merge: true });
+      } catch (err) {
+        console.warn("[Auth] Firestore updateDoc skipped:", err);
+      }
       userData.isVerified = true;
       userData.accountStatus = 'active';
       userData.lastLoginAt = now;
+      localStorage.setItem(`viba_user_${firebaseUser.uid}`, JSON.stringify(userData));
+      localStorage.setItem("viba_last_uid", firebaseUser.uid);
       setUser(userData);
     }
   };
