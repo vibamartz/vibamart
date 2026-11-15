@@ -103,7 +103,7 @@ export function isSmtpConfigured(): boolean {
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return false;
   if (user === 'test' || user.includes('your-email') || user.includes('example.com')) return false;
-  if (pass === 'test' || pass.includes('your_app_password')) return false;
+  if (pass === 'test' || pass.includes('your_app_password') || pass.includes('xxxx yyyy') || pass.includes('xxxx')) return false;
   return true;
 }
 
@@ -111,14 +111,13 @@ export function createMailTransporter() {
   try {
     dotenv.config();
   } catch {}
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER || '';
   const rawPass = process.env.SMTP_PASS || '';
   const cleanPass = rawPass.replace(/\s+/g, '');
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().endsWith('@gmail.com');
 
-  if (isGmail && (!process.env.SMTP_PORT || port === 465)) {
+  if (isGmail) {
     return nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -131,8 +130,9 @@ export function createMailTransporter() {
     });
   }
 
+  const port = Number(process.env.SMTP_PORT) || 587;
   return nodemailer.createTransport({
-    host: isGmail ? 'smtp.gmail.com' : host,
+    host,
     port,
     secure: port === 465,
     auth: {
