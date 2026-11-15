@@ -48,8 +48,8 @@ app.get(["/api/health", "/health"], (req, res) => {
 });
 
 // Email OTP
-app.post(["/api/auth/send-email-otp", "/auth/send-email-otp"], sendEmailOtpHandler);
-app.post(["/api/auth/verify-email-otp", "/auth/verify-email-otp"], verifyEmailOtpHandler);
+app.all(["/api/auth/send-email-otp", "/auth/send-email-otp"], sendEmailOtpHandler);
+app.all(["/api/auth/verify-email-otp", "/auth/verify-email-otp"], verifyEmailOtpHandler);
 
 // Payments
 app.post(["/api/payment/create-order", "/payment/create-order"], createPaymentOrderHandler);

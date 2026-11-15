@@ -84,13 +84,18 @@ export default function Login() {
   };
 
   const sendOtp = async (isResend = false) => {
-    if (isSendingRef.current || loading) return;
+    if (loading) return;
     const cleanEmail = emailAddress.trim().toLowerCase();
-    if (!cleanEmail || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
-      toast.error('Please enter a valid email address.');
+    if (!cleanEmail) {
+      toast.error('Please enter your Gmail address.');
       return;
     }
-    isSendingRef.current = true;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      toast.error('Please enter a valid email address (e.g. name@gmail.com).');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.post('/api/auth/send-email-otp', { email: cleanEmail });
@@ -114,20 +119,35 @@ export default function Login() {
       const msg = typeof rawMsg === 'string' && rawMsg.includes('<html')
         ? 'Server communication error. Please try again.'
         : rawMsg;
-      toast.error(msg.toLowerCase().startsWith('otp failed') ? msg : `OTP failed: ${msg}`);
+      toast.error(msg);
     } finally {
       setLoading(false);
-      isSendingRef.current = false;
     }
   };
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestOtp = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     await sendOtp(false);
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const digitsOnly = value.replace(/\D/g, '');
+    if (digitsOnly.length > 1) {
+      // User pasted or autofilled multi-digit OTP into input
+      const newDigits = [...otpDigits];
+      const chars = digitsOnly.slice(0, 6).split('');
+      chars.forEach((c, i) => {
+        if (index + i < 6) {
+          newDigits[index + i] = c;
+        }
+      });
+      setOtpDigits(newDigits);
+      const nextFocus = Math.min(index + chars.length, 5);
+      otpRefs.current[nextFocus]?.focus();
+      return;
+    }
+
+    const digit = digitsOnly.slice(-1);
     const newDigits = [...otpDigits];
     newDigits[index] = digit;
     setOtpDigits(newDigits);
@@ -151,30 +171,39 @@ export default function Login() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length === 6) {
-      setOtpDigits(pasted.split(''));
-      otpRefs.current[5]?.focus();
+    if (pasted.length > 0) {
+      const newDigits = ['', '', '', '', '', ''];
+      pasted.split('').forEach((char, idx) => {
+        if (idx < 6) newDigits[idx] = char;
+      });
+      setOtpDigits(newDigits);
+      const focusIndex = Math.min(pasted.length, 5);
+      otpRefs.current[focusIndex]?.focus();
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isVerifyingRef.current || loading) return;
+  const handleVerifyOtp = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (loading) return;
 
     const cleanEmail = emailAddress.trim().toLowerCase();
     const otpCode = otpDigits.join('').replace(/\D/g, '');
     if (otpCode.length < 6) {
-      toast.warning('Please enter the complete 6-digit OTP');
+      toast.error('Please enter the complete 6-digit OTP received on your Gmail.');
+      const firstEmptyIndex = otpDigits.findIndex(d => !d);
+      if (firstEmptyIndex !== -1) {
+        otpRefs.current[firstEmptyIndex]?.focus();
+      }
       return;
     }
 
-    isVerifyingRef.current = true;
     setLoading(true);
     try {
       const response = await axios.post('/api/auth/verify-email-otp', { email: cleanEmail, code: otpCode });
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         let firebaseUser: any = null;
 
         // 1. If backend returned customToken, sign in with it
@@ -222,21 +251,21 @@ export default function Login() {
         if (mode === 'signup') {
           setTempFirebaseUser(firebaseUser);
           setStep('profile');
+          toast.success('Email verified successfully! Please complete your profile.');
         } else {
           syncUser(firebaseUser);
           toast.success('Login successful! Welcome back.');
           navigate('/', { replace: true });
         }
       } else {
-        throw new Error(response.data.error || 'Invalid OTP');
+        throw new Error(response.data?.error || 'Invalid OTP code. Please check your Gmail and try again.');
       }
     } catch (err: any) {
       console.error("verifyOtp Error:", err);
-      const msg = err.response?.data?.error || err.message || 'Failed to verify OTP';
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to verify OTP';
       toast.error(msg);
     } finally {
       setLoading(false);
-      isVerifyingRef.current = false;
     }
   };
 
@@ -410,7 +439,7 @@ export default function Login() {
                       : 'Join ViBa Mart and start shopping today'}
                   </p>
 
-                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                  <form onSubmit={handleRequestOtp} noValidate className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
                         Email Address
@@ -421,20 +450,27 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="you@example.com"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleRequestOtp();
+                            }
+                          }}
+                          placeholder="you@gmail.com"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
-                          required
+                          autoComplete="email"
                         />
                       </div>
                     </div>
 
                     <button
                       type="submit"
-                      disabled={loading || !emailAddress}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      onClick={handleRequestOtp}
+                      disabled={loading}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <Mail className="w-5 h-5" />
-                      {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
+                      {loading ? 'Sending OTP...' : 'Get OTP'}
                     </button>
                   </form>
 
@@ -488,7 +524,7 @@ export default function Login() {
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
-                  <form onSubmit={handleVerifyOtp} className="space-y-6">
+                  <form onSubmit={handleVerifyOtp} noValidate className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
                       {otpDigits.map((digit, i) => (
                         <input
@@ -496,7 +532,8 @@ export default function Login() {
                           ref={(el) => { otpRefs.current[i] = el; }}
                           type="text"
                           inputMode="numeric"
-                          maxLength={1}
+                          autoComplete={i === 0 ? "one-time-code" : "off"}
+                          maxLength={6}
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
@@ -511,11 +548,12 @@ export default function Login() {
 
                     <button
                       type="submit"
-                      disabled={loading || !isOtpComplete}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      onClick={handleVerifyOtp}
+                      disabled={loading}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? 'Verifying...' : 'Verify & Continue'}
+                      {loading ? 'Verifying OTP...' : 'Send OTP to Verify'}
                     </button>
                   </form>
 

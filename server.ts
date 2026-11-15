@@ -94,6 +94,17 @@ async function startServer() {
   });
   app.use('/api', limiter);
 
+  // Global CORS headers for API requests
+  app.use(['/api', '/auth'], (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -199,7 +210,7 @@ async function startServer() {
 
 
   // Auth: Send Email OTP
-  app.post("/api/auth/send-email-otp", sendEmailOtpHandler);
+  app.all(["/api/auth/send-email-otp", "/auth/send-email-otp"], sendEmailOtpHandler);
 
   // Notifications: Delivery Email
   app.post("/api/notifications/delivery", async (req, res) => {
@@ -490,7 +501,7 @@ async function startServer() {
 
 
   // Auth: Verify Email OTP
-  app.post("/api/auth/verify-email-otp", verifyEmailOtpHandler);
+  app.all(["/api/auth/verify-email-otp", "/auth/verify-email-otp"], verifyEmailOtpHandler);
 
   // ==========================================
   // NOTIFICATION & ENGAGEMENT API ROUTES

@@ -26,9 +26,20 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, code } = req.body;
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      body = {};
+    }
+  }
+
+  const email = body?.email || req.query?.email;
+  const code = body?.code || req.query?.code || body?.otp || req.query?.otp;
+
   if (!email || !code) {
-    return res.status(400).json({ success: false, error: "Email and code are required" });
+    return res.status(400).json({ success: false, error: "Email and OTP code are required" });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
