@@ -62,6 +62,8 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
         return 'Too many attempts. Please try again in a few minutes.';
       case 'auth/network-request-failed':
         return 'Network connection issue. Please check your internet connection.';
+      case 'auth/internal-error':
+        return 'Authentication service encountered a temporary error. Please try again.';
       default:
         break;
     }
@@ -70,6 +72,9 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
   if (typeof err.message === 'string') {
     if (err.message.includes('[object Object]')) {
       return fallback;
+    }
+    if (err.message.toLowerCase().includes('server error has occurred') || err.message.includes('auth/internal-error')) {
+      return 'Authentication service encountered a temporary error. Please try again.';
     }
     return err.message;
   }
@@ -100,6 +105,7 @@ export default function Login() {
   // Resend timer
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [activeDevOtp, setActiveDevOtp] = useState<string | null>(null);
 
   // Profile (signup)
   const [displayName, setDisplayName] = useState('');
@@ -162,10 +168,14 @@ export default function Login() {
         if (!response.data.emailSent) {
           toast.error("Email not delivered: Set SMTP_USER & SMTP_PASS in .env to send real Gmail emails", { duration: 7000 });
           if (response.data.devOtp) {
+            setActiveDevOtp(String(response.data.devOtp));
             toast.success(`Development OTP: ${response.data.devOtp}`, { duration: 10000 });
             setOtpDigits(String(response.data.devOtp).split(''));
+          } else {
+            setActiveDevOtp(null);
           }
         } else {
+          setActiveDevOtp(null);
           toast.success(isResend ? t.otpResent : t.otpSent);
         }
 
@@ -330,7 +340,7 @@ export default function Login() {
         console.warn("User lookup notice:", getDocErr);
       }
 
-      if (!userSnap || !userSnap.exists()) {
+      if (mode === 'signup' && (!userSnap || !userSnap.exists())) {
         setTempFirebaseUser(effectiveUser);
         setStep('profile');
       } else {
@@ -445,7 +455,7 @@ export default function Login() {
         updateData.phone = providedPhone;
         userData.phone = providedPhone;
       }
-      if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
+      if (providedName && (!userData.displayName || (typeof userData.displayName === 'string' && userData.displayName.startsWith('User ')))) {
         updateData.displayName = providedName;
         userData.displayName = providedName;
       }
@@ -672,10 +682,25 @@ export default function Login() {
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.verifyOtpTitle}</h2>
-                  <p className="text-gray-400 text-sm font-medium text-center mb-8">
+                  <p className="text-gray-400 text-sm font-medium text-center mb-6">
                     {t.enterCodeSentTo}{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
+
+                  {activeDevOtp && (
+                    <div className="mb-6 p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl text-xs text-amber-900 text-center shadow-2xs">
+                      <p className="font-bold flex items-center justify-center gap-1.5 text-amber-800">
+                        <span>ℹ️</span> Gmail SMTP Not Configured in .env
+                      </p>
+                      <p className="mt-1 text-amber-700 leading-relaxed">
+                        To send real emails to your Gmail inbox, add <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_USER</code> &amp; <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_PASS</code> (16-digit Google App Password) in <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">.env</code>.
+                      </p>
+                      <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-center gap-2">
+                        <span className="text-amber-800 font-semibold">Development Code:</span>
+                        <span className="font-mono font-black text-sm text-green-700 bg-white px-2.5 py-0.5 rounded-lg border border-green-300 shadow-2xs tracking-widest">{activeDevOtp}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <form onSubmit={handleVerifyOtp} className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>

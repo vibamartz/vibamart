@@ -95,6 +95,9 @@ export function deleteOtpFromMemory(email: string) {
 }
 
 export function isSmtpConfigured(): boolean {
+  try {
+    dotenv.config();
+  } catch {}
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -105,6 +108,9 @@ export function isSmtpConfigured(): boolean {
 }
 
 export function createMailTransporter() {
+  try {
+    dotenv.config();
+  } catch {}
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT) || 587;
   const user = process.env.SMTP_USER || '';
