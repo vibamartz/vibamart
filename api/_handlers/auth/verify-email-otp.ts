@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 import { initializeFirebaseAdmin } from "../../_utils";
-import { verifyOtp, getDeterministicAuthSecret, hasAdminSdkCredentials } from "../../_otpStore";
+import { verifyOtp, hasAdminSdkCredentials } from "../../_otpStore";
 
 initializeFirebaseAdmin();
 
@@ -28,31 +28,32 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Email and code are required" });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const normalizedCode = String(code).trim();
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanCode = String(code).trim();
 
   try {
-    const verificationResult = await verifyOtp(normalizedEmail, normalizedCode);
-    if (!verificationResult.valid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: verificationResult.reason || "Invalid OTP code. Please try again." 
+    const verification = await verifyOtp(cleanEmail, cleanCode);
+    if (!verification.valid) {
+      return res.status(400).json({
+        success: false,
+        error: verification.reason || "Invalid or expired OTP code"
       });
     }
 
-    const authSecret = getDeterministicAuthSecret(normalizedEmail);
-
+    // Attempt to mint customToken if Admin SDK credentials are functional
     let customToken: string | null = null;
+    let uid: string | null = null;
+
     if (hasAdminSdkCredentials()) {
       try {
-        let uid = "";
+        let userRecord;
         try {
-          const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+          userRecord = await admin.auth().getUserByEmail(cleanEmail);
           uid = userRecord.uid;
         } catch (error: any) {
           if (error.code === "auth/user-not-found") {
             const newUser = await admin.auth().createUser({
-              email: normalizedEmail,
+              email: cleanEmail,
               emailVerified: true,
             });
             uid = newUser.uid;
@@ -60,20 +61,21 @@ export default async function handler(req: any, res: any) {
             throw error;
           }
         }
-
-        customToken = await admin.auth().createCustomToken(uid, {
-          email_verified: true
-        });
-      } catch (tokenErr) {
-        console.warn("[Auth] Custom token generation skipped:", tokenErr);
+        if (uid) {
+          customToken = await admin.auth().createCustomToken(uid, {
+            email_verified: true
+          });
+        }
+      } catch (authErr: any) {
+        console.warn("[Verify OTP] Custom token creation skipped:", authErr?.message || authErr);
       }
     }
 
-    return res.json({ 
-      success: true, 
-      email: normalizedEmail,
-      authSecret,
-      customToken 
+    return res.json({
+      success: true,
+      email: cleanEmail,
+      customToken,
+      verified: true
     });
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);

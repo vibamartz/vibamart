@@ -12,13 +12,14 @@ import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
+import sendEmailOtpHandler from "./api/_handlers/auth/send-email-otp";
+import verifyEmailOtpHandler from "./api/_handlers/auth/verify-email-otp";
 import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 import { searchRouter } from "./src/backend/search/routes";
 import { searchService } from "./src/backend/search/searchService";
 import { adminNotificationsCleanupHandler, adminNotificationsPurgeHandler } from "./api/_handlers/notifications/admin-cleanup";
 import { cleanExpiredAdminNotifications } from "./src/backend/services/adminNotificationCleanupService";
-import { storeOtp, verifyOtp, getDeterministicAuthSecret, hasAdminSdkCredentials } from "./api/_otpStore";
 
 
 dotenv.config();
@@ -181,56 +182,7 @@ async function startServer() {
 
 
   // Auth: Send Email OTP
-  app.post("/api/auth/send-email-otp", async (req, res) => {
-    const { email } = req.body;
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ success: false, error: "Email is required" });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    try {
-      // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      storeOtp(normalizedEmail, otp);
-
-      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
-
-      // Send Email
-      if (process.env.SMTP_HOST && !isPlaceholder) {
-        try {
-          await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
-            to: normalizedEmail,
-            subject: "Your ViBa Mart Login OTP",
-            text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
-                <h2 style="color: #16a34a; margin-bottom: 8px;">ViBa Mart Verification</h2>
-                <p style="color: #4b5563; font-size: 15px;">Your one-time verification code is:</p>
-                <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #111827; padding: 16px; background-color: #f0fdf4; border: 1px dashed #22c55e; border-radius: 8px; text-align: center; margin: 20px 0;">
-                  ${otp}
-                </div>
-                <p style="color: #6b7280; font-size: 13px;">This code will expire in 2 minutes. If you did not request this OTP, please ignore this email.</p>
-              </div>
-            `,
-          });
-          console.log(`[Auth] OTP email successfully sent to ${normalizedEmail}`);
-        } catch (mailErr: any) {
-          console.error("[Auth] Nodemailer sendMail error:", mailErr.message);
-          console.log(`[DEVELOPMENT] OTP for ${normalizedEmail} is: ${otp}`);
-        }
-      } else {
-        // Fallback for testing when no SMTP is configured
-        console.log(`[DEVELOPMENT] OTP for ${normalizedEmail} is: ${otp}`);
-      }
-
-      res.json({ success: true, status: "pending" });
-    } catch (error: any) {
-      console.error("Send Email OTP error:", error);
-      res.status(500).json({ success: false, error: "Failed to send OTP" });
-    }
-  });
+  app.post("/api/auth/send-email-otp", sendEmailOtpHandler);
 
   // Notifications: Delivery Email
   app.post("/api/notifications/delivery", async (req, res) => {
@@ -521,64 +473,7 @@ async function startServer() {
 
 
   // Auth: Verify Email OTP
-  app.post("/api/auth/verify-email-otp", async (req, res) => {
-    const { email, code } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({ success: false, error: "Email and code are required" });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedCode = String(code).trim();
-
-    try {
-      const verificationResult = await verifyOtp(normalizedEmail, normalizedCode);
-      if (!verificationResult.valid) {
-        return res.status(400).json({ 
-          success: false, 
-          error: verificationResult.reason || "Invalid OTP code. Please try again." 
-        });
-      }
-
-      const authSecret = getDeterministicAuthSecret(normalizedEmail);
-
-      let customToken: string | null = null;
-      if (hasAdminSdkCredentials()) {
-        try {
-          let uid = "";
-          try {
-            const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
-            uid = userRecord.uid;
-          } catch (error: any) {
-            if (error.code === "auth/user-not-found") {
-              const newUser = await admin.auth().createUser({
-                email: normalizedEmail,
-                emailVerified: true,
-              });
-              uid = newUser.uid;
-            } else {
-              throw error;
-            }
-          }
-
-          customToken = await admin.auth().createCustomToken(uid, {
-            email_verified: true
-          });
-        } catch (tokenErr) {
-          console.warn("[Auth] Custom token generation skipped:", tokenErr);
-        }
-      }
-
-      return res.json({ 
-        success: true, 
-        email: normalizedEmail,
-        authSecret,
-        customToken 
-      });
-    } catch (error: any) {
-      console.error("Verify Email OTP error:", error);
-      res.status(500).json({ success: false, error: "Failed to verify OTP" });
-    }
-  });
+  app.post("/api/auth/verify-email-otp", verifyEmailOtpHandler);
 
   // ==========================================
   // NOTIFICATION & ENGAGEMENT API ROUTES

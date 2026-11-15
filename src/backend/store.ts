@@ -69,11 +69,37 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem("viba_last_uid", firebaseUser.uid);
 
         useCartStore.getState().setUid(firebaseUser.uid);
+
+        // Immediate session restoration from local profile or authenticated firebaseUser
+        const cachedProfile = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
+        if (cachedProfile) {
+          try {
+            set({ user: JSON.parse(cachedProfile), loading: false });
+          } catch (_) {}
+        } else {
+          set({
+            user: {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || 'Customer',
+              phone: firebaseUser.phoneNumber || '',
+              photoURL: firebaseUser.photoURL || '',
+              role: firebaseUser.email === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+              isVerified: true,
+              accountStatus: 'active',
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+            } as any,
+            loading: false
+          });
+        }
+
         // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
+            localStorage.setItem(`viba_user_profile_${firebaseUser.uid}`, JSON.stringify(data));
 
             if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin' && data.role !== 'super_admin') {
               try {
@@ -114,28 +140,17 @@ export const useAuthStore = create<AuthState>((set) => ({
               }
             }
           } else {
-            const cachedUser = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
-            if (cachedUser) {
-              try {
-                const parsedUser = JSON.parse(cachedUser);
-                set({ user: parsedUser, loading: false });
-                return;
-              } catch (e) {}
+            const cached = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
+            if (!cached) {
+              localStorage.removeItem("viba_last_uid");
+              useCartStore.getState().setUid(null);
+              set({ user: null, loading: false });
+            } else {
+              set({ loading: false });
             }
-            localStorage.removeItem("viba_last_uid");
-            useCartStore.getState().setUid(null);
-            set({ user: null, loading: false });
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
-          const cachedUser = localStorage.getItem(`viba_user_${firebaseUser.uid}`);
-          if (cachedUser) {
-            try {
-              const parsedUser = JSON.parse(cachedUser);
-              set({ user: parsedUser, loading: false });
-              return;
-            } catch (e) {}
-          }
           set({ loading: false });
         });
 
