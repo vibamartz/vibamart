@@ -177,7 +177,7 @@ export default async function handler(req: any, res: any) {
       success: true,
       status: "pending",
       emailSent,
-      devOtp: !emailSent ? otp : undefined,
+      devOtp: otp,
       message: emailSent
         ? "OTP has been sent to your Gmail address."
         : `Development mode: OTP generated (check server logs: ${otp})`

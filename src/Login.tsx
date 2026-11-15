@@ -110,6 +110,7 @@ export default function Login() {
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [activeDevOtp, setActiveDevOtp] = useState<string | null>(null);
+  const [emailDelivered, setEmailDelivered] = useState(false);
 
   // Profile (signup)
   const [displayName, setDisplayName] = useState('');
@@ -170,6 +171,7 @@ export default function Login() {
         startResendTimer();
 
         if (!response.data.emailSent) {
+          setEmailDelivered(false);
           const warnMsg = response.data.smtpError || "Email not delivered: Set a 16-character Google App Password in .env to receive real emails";
           toast.error(warnMsg, { duration: 8000 });
           if (response.data.devOtp) {
@@ -180,8 +182,11 @@ export default function Login() {
             setActiveDevOtp(null);
           }
         } else {
-          setActiveDevOtp(null);
-          toast.success(isResend ? t.otpResent : t.otpSent);
+          setEmailDelivered(true);
+          if (response.data.devOtp) {
+            setActiveDevOtp(String(response.data.devOtp));
+          }
+          toast.success("OTP sent to your Gmail! Check Spam if not in Inbox", { duration: 7000 });
         }
 
         setTimeout(() => otpRefs.current[0]?.focus(), 250);
@@ -705,20 +710,42 @@ export default function Login() {
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
-                  {activeDevOtp && (
+                  {emailDelivered ? (
+                    <div className="mb-6 p-4 bg-emerald-50/90 border border-emerald-200 rounded-2xl text-xs text-emerald-900 text-center shadow-2xs">
+                      <p className="font-bold flex items-center justify-center gap-1.5 text-emerald-800">
+                        <span>✉️</span> Verification Code Sent to Gmail!
+                      </p>
+                      <p className="mt-1 text-emerald-700 leading-relaxed text-[11px]">
+                        Please check your <strong>Inbox</strong>, and your <strong>Spam / Junk</strong> folder if not visible immediately.
+                      </p>
+                      {activeDevOtp && (
+                        <div className="mt-2.5 pt-2 border-t border-emerald-200/60 flex items-center justify-center gap-2">
+                          <span className="text-emerald-800 text-[11px] font-semibold">Direct Testing Code:</span>
+                          <span className="font-mono font-black text-xs text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 tracking-wider">{activeDevOtp}</span>
+                          <button
+                            type="button"
+                            onClick={() => setOtpDigits(activeDevOtp.split(''))}
+                            className="text-[11px] text-emerald-700 font-bold underline cursor-pointer hover:text-emerald-900 ml-1"
+                          >
+                            Auto-Fill
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : activeDevOtp ? (
                     <div className="mb-6 p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl text-xs text-amber-900 text-center shadow-2xs">
                       <p className="font-bold flex items-center justify-center gap-1.5 text-amber-800">
-                        <span>ℹ️</span> Gmail SMTP Not Configured in .env
+                        <span>ℹ️</span> Gmail SMTP Notice
                       </p>
                       <p className="mt-1 text-amber-700 leading-relaxed">
-                        To send real emails to your Gmail inbox, add <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_USER</code> &amp; <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_PASS</code> (16-digit Google App Password) in <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">.env</code>.
+                        To send real emails to your Gmail inbox, add <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_USER</code> &amp; <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">SMTP_PASS</code> in <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-amber-900 border border-amber-200">.env</code>.
                       </p>
                       <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-center gap-2">
                         <span className="text-amber-800 font-semibold">Development Code:</span>
                         <span className="font-mono font-black text-sm text-green-700 bg-white px-2.5 py-0.5 rounded-lg border border-green-300 shadow-2xs tracking-widest">{activeDevOtp}</span>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   <form onSubmit={handleVerifyOtp} className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
