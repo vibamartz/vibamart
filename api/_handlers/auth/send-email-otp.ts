@@ -70,6 +70,29 @@ function createTransporters(smtpUser: string, smtpPass: string, smtpHost: string
 }
 
 export default async function handler(req: any, res: any) {
+  // Ensure standard Express helper methods exist on res across all runtime environments
+  if (typeof res.status !== 'function') {
+    res.status = function(code: number) {
+      res.statusCode = code;
+      return res;
+    };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = function(data: any) {
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+      }
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+  if (typeof res.send !== 'function') {
+    res.send = function(data: any) {
+      res.end(data);
+      return res;
+    };
+  }
+
   // CORS configuration
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -89,7 +112,20 @@ export default async function handler(req: any, res: any) {
   }
 
   let body = req.body;
-  if (typeof body === 'string') {
+  if (!body && typeof req.on === 'function') {
+    body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', (chunk: any) => { data += chunk; });
+      req.on('end', () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          resolve({});
+        }
+      });
+      req.on('error', () => resolve({}));
+    });
+  } else if (typeof body === 'string') {
     try {
       body = JSON.parse(body);
     } catch (e) {}
@@ -106,9 +142,9 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Please provide a valid email format (e.g. name@gmail.com)" });
   }
 
-  // Retrieve & normalize SMTP credentials
-  const smtpUser = (process.env.SMTP_USER || "").trim();
-  const rawPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
+  // Retrieve & normalize SMTP credentials (with default production Gmail credentials fallback)
+  const smtpUser = (process.env.SMTP_USER || "vibamartz@gmail.com").replace(/^["']|["']$/g, "").trim();
+  const rawPass = (process.env.SMTP_PASS || "cfca hvvx jsrq kzxk").replace(/^["']|["']$/g, "").trim();
   const smtpPass = rawPass.replace(/\s+/g, "");
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
   const smtpPort = Number(process.env.SMTP_PORT) || 587;
@@ -204,8 +240,11 @@ export default async function handler(req: any, res: any) {
       subject: emailSubject,
       text: emailText,
       html: emailHtml,
+      priority: 'high' as const,
       headers: {
         'X-Entity-Ref-ID': Date.now().toString(),
+        'X-Priority': '1',
+        'Importance': 'high',
       },
     };
 

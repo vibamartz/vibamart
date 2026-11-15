@@ -8,6 +8,29 @@ import { verifyOtp, hasAdminSdkCredentials, getDeterministicAuthSecret } from ".
 initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
+  // Ensure standard Express helper methods exist on res across all runtime environments
+  if (typeof res.status !== 'function') {
+    res.status = function(code: number) {
+      res.statusCode = code;
+      return res;
+    };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = function(data: any) {
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+      }
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+  if (typeof res.send !== 'function') {
+    res.send = function(data: any) {
+      res.end(data);
+      return res;
+    };
+  }
+
   // CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,7 +50,20 @@ export default async function handler(req: any, res: any) {
   }
 
   let body = req.body;
-  if (typeof body === 'string') {
+  if (!body && typeof req.on === 'function') {
+    body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', (chunk: any) => { data += chunk; });
+      req.on('end', () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          resolve({});
+        }
+      });
+      req.on('error', () => resolve({}));
+    });
+  } else if (typeof body === 'string') {
     try {
       body = JSON.parse(body);
     } catch (e) {}
