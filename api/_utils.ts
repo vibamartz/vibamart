@@ -57,7 +57,10 @@ initializeFirebaseAdmin();
 
 export interface StoredOtp {
   otp: string;
+  createdAt: number;
   expiresAt: number;
+  attempts: number;
+  used: boolean;
 }
 
 // Global in-memory fallback cache for OTPs across server requests
@@ -67,19 +70,24 @@ export function storeOtpInMemory(email: string, otp: string, durationMs: number 
   const normalizedEmail = email.trim().toLowerCase();
   memoryOtpCache.set(normalizedEmail, {
     otp,
+    createdAt: Date.now(),
     expiresAt: Date.now() + durationMs,
+    attempts: 0,
+    used: false,
   });
 }
 
 export function getOtpFromMemory(email: string): StoredOtp | null {
   const normalizedEmail = email.trim().toLowerCase();
+  return memoryOtpCache.get(normalizedEmail) || null;
+}
+
+export function markOtpUsedInMemory(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
   const entry = memoryOtpCache.get(normalizedEmail);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    memoryOtpCache.delete(normalizedEmail);
-    return null;
+  if (entry) {
+    entry.used = true;
   }
-  return entry;
 }
 
 export function deleteOtpFromMemory(email: string) {
@@ -94,6 +102,41 @@ export function isSmtpConfigured(): boolean {
   if (user === 'test' || user.includes('your-email') || user.includes('example.com')) return false;
   if (pass === 'test' || pass.includes('your_app_password')) return false;
   return true;
+}
+
+export function createMailTransporter() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const user = process.env.SMTP_USER || '';
+  const rawPass = process.env.SMTP_PASS || '';
+  const cleanPass = rawPass.replace(/\s+/g, '');
+  const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().endsWith('@gmail.com');
+
+  if (isGmail) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass: cleanPass,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: {
+      user,
+      pass: cleanPass,
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
+  });
 }
 
 export const verifyAuth = async (req: any) => {
@@ -161,17 +204,7 @@ export async function sendEmailNotification(toEmail: string, contactName: string
     return;
   }
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.ethereal.email",
-      port: Number(process.env.SMTP_PORT) || 587,
-      auth: {
-        user: process.env.SMTP_USER || "test",
-        pass: process.env.SMTP_PASS || "test",
-      },
-      connectionTimeout: 2000,
-      greetingTimeout: 2000,
-      socketTimeout: 2000,
-    });
+    const transporter = createMailTransporter();
     const emailHtml = `
       <h2>Hello ${contactName || 'Customer'},</h2>
       <p>${messageText}</p>
@@ -179,30 +212,13 @@ export async function sendEmailNotification(toEmail: string, contactName: string
       <p>Best Regards,<br/>The ViBa Mart Team</p>
     `;
     
-    const emailPromise = transporter.sendMail({
+    await transporter.sendMail({
       from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
       to: toEmail,
       subject,
       html: emailHtml,
-    }).catch(err => {
-      if (err.message !== "SMTP Connection Timeout") {
-        console.error("Delayed SMTP error:", err);
-      }
     });
-
-    let timeoutId: NodeJS.Timeout;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000);
-    });
-
-    try {
-      await Promise.race([emailPromise, timeoutPromise]);
-      clearTimeout(timeoutId!);
-      console.log(`Email successfully sent to ${toEmail}`);
-    } catch (err) {
-      clearTimeout(timeoutId!);
-      throw err;
-    }
+    console.log(`Email successfully sent to ${toEmail}`);
   } catch (err) {
     console.error("Error sending email notification:", err);
   }

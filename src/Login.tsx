@@ -153,15 +153,14 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 1. Attempt backend API call
-      const response = await axios.post('/api/auth/send-email-otp', { email: normalizedEmail }, { timeout: 7000 });
+      const response = await axios.post('/api/auth/send-email-otp', { email: normalizedEmail }, { timeout: 15000 });
       if (response?.data?.success) {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
 
         if (response.data.devOtp && !response.data.emailSent) {
-          toast.success(`OTP: ${response.data.devOtp}`, { duration: 10000 });
+          toast.success(`Development OTP: ${response.data.devOtp}`, { duration: 10000 });
           setOtpDigits(String(response.data.devOtp).split(''));
         } else {
           toast.success(isResend ? t.otpResent : t.otpSent);
@@ -172,24 +171,9 @@ export default function Login() {
       }
       throw new Error(response?.data?.error || response?.data?.message || 'Failed to send OTP via server');
     } catch (apiErr: any) {
-      console.warn("sendOtp API notice, activating local fallback OTP:", apiErr);
-
-      // 2. Client-side Fallback: Never leave user blocked!
-      const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      try {
-        sessionStorage.setItem(`viba_local_otp_${normalizedEmail}`, JSON.stringify({
-          otp: fallbackOtp,
-          expiresAt: Date.now() + 5 * 60 * 1000,
-        }));
-      } catch (storageErr) {
-        console.warn("sessionStorage warning:", storageErr);
-      }
-
-      setStep('otp');
-      setOtpDigits(fallbackOtp.split(''));
-      startResendTimer();
-      toast.success(`OTP: ${fallbackOtp}`, { duration: 10000 });
-      setTimeout(() => otpRefs.current[0]?.focus(), 250);
+      console.error("sendOtp error:", apiErr);
+      const errorMsg = formatAuthError(apiErr, 'Failed to send OTP. Please try again.');
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -201,11 +185,29 @@ export default function Login() {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const clean = value.replace(/\D/g, '');
+    if (!clean) {
+      const newDigits = [...otpDigits];
+      newDigits[index] = '';
+      setOtpDigits(newDigits);
+      return;
+    }
+
+    if (clean.length > 1) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < clean.length && index + i < 6; i++) {
+        newDigits[index + i] = clean[i];
+      }
+      setOtpDigits(newDigits);
+      const nextIdx = Math.min(index + clean.length, 5);
+      otpRefs.current[nextIdx]?.focus();
+      return;
+    }
+
     const newDigits = [...otpDigits];
-    newDigits[index] = digit;
+    newDigits[index] = clean;
     setOtpDigits(newDigits);
-    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+    if (index < 5) otpRefs.current[index + 1]?.focus();
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -225,10 +227,16 @@ export default function Login() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length === 6) {
-      setOtpDigits(pasted.split(''));
-      otpRefs.current[5]?.focus();
+    if (pasted.length > 0) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < pasted.length; i++) {
+        newDigits[i] = pasted[i];
+      }
+      setOtpDigits(newDigits);
+      const focusIndex = Math.min(pasted.length, 5);
+      otpRefs.current[focusIndex]?.focus();
     }
   };
 
@@ -244,62 +252,23 @@ export default function Login() {
     setLoading(true);
 
     try {
-      let isVerified = false;
-      let customToken: string | null = null;
-      let authFallback: { email: string; tempPass: string; uid: string } | null = null;
-      let responseUid: string | null = null;
+      const response = await axios.post('/api/auth/verify-email-otp', {
+        email: normalizedEmail,
+        code: otpCode
+      }, { timeout: 15000 });
 
-      // 1. Check local fallback OTP
-      try {
-        const stored = sessionStorage.getItem(`viba_local_otp_${normalizedEmail}`);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.otp === otpCode && Date.now() <= parsed.expiresAt) {
-            isVerified = true;
-            sessionStorage.removeItem(`viba_local_otp_${normalizedEmail}`);
-          }
-        }
-      } catch (storageErr) {
-        console.warn("Storage check warning:", storageErr);
-      }
-
-      // 2. If not verified via local storage, check backend API
-      if (!isVerified) {
-        try {
-          const response = await axios.post('/api/auth/verify-email-otp', {
-            email: normalizedEmail,
-            code: otpCode
-          }, { timeout: 7000 });
-
-          if (response?.data?.success) {
-            isVerified = true;
-            customToken = response.data.customToken || null;
-            authFallback = response.data.authFallback || null;
-            responseUid = response.data.uid || null;
-          } else {
-            const serverErrMsg = formatAuthError(response?.data, 'Invalid OTP');
-            toast.error(serverErrMsg);
-            setLoading(false);
-            return;
-          }
-        } catch (apiErr: any) {
-          if (apiErr.response?.status === 400) {
-            const msg = formatAuthError(apiErr, 'Invalid or expired OTP. Please try again.');
-            toast.error(msg);
-            setLoading(false);
-            return;
-          }
-          console.warn("Backend verification API notice:", apiErr);
-        }
-      }
-
-      if (!isVerified) {
-        toast.error('Invalid or expired OTP. Please check the code and try again.');
+      if (!response?.data?.success) {
+        const serverErrMsg = formatAuthError(response?.data, 'Invalid OTP. Please try again.');
+        toast.error(serverErrMsg);
         setLoading(false);
         return;
       }
 
-      // 3. Authenticate with Firebase
+      const customToken = response.data.customToken || null;
+      const authFallback = response.data.authFallback || null;
+      const responseUid = response.data.uid || null;
+
+      // Authenticate with Firebase
       let firebaseUser: User | null = null;
 
       if (customToken) {
@@ -366,9 +335,9 @@ export default function Login() {
         toast.success(t.loginSuccess);
         navigate('/');
       }
-    } catch (err: any) {
-      console.error("verifyOtp Error:", err);
-      const msg = formatAuthError(err, 'Failed to verify OTP');
+    } catch (apiErr: any) {
+      console.error("verifyOtp Error:", apiErr);
+      const msg = formatAuthError(apiErr, 'Failed to verify OTP. Please try again.');
       toast.error(msg);
     } finally {
       setLoading(false);
