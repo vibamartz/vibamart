@@ -41,7 +41,7 @@ try {
       }
     } else {
       admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart'
+        projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart-app'
       });
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
