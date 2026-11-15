@@ -68,9 +68,11 @@ export default async function handler(req: any, res: any) {
 
     // Direct Firebase client authentication credential
     const authSecret = getDeterministicAuthSecret(normalizedEmail);
+    const deterministicUid = 'usr_' + Buffer.from(normalizedEmail).toString('hex').slice(0, 24);
     return res.json({ 
       success: true, 
       authSecret,
+      uid: deterministicUid,
       email: normalizedEmail 
     });
   } catch (error: any) {

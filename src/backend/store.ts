@@ -39,11 +39,50 @@ interface AuthState {
   initAuth: () => void;
 }
 
+const VIBA_AUTH_SESSION_KEY = "viba_auth_user_session";
+
+const getSavedUserSession = (): UserProfile | null => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(VIBA_AUTH_SESSION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.email) return parsed;
+      }
+    } catch (e) {}
+  }
+  return null;
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
+  user: getSavedUserSession(),
   loading: true,
   orderedProductIds: [],
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    if (user) {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(VIBA_AUTH_SESSION_KEY, JSON.stringify(user));
+          localStorage.setItem("viba_last_uid", user.uid);
+        } catch (e) {}
+      }
+      useCartStore.getState().setUid(user.uid);
+    } else {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(VIBA_AUTH_SESSION_KEY);
+          const lastUid = localStorage.getItem("viba_last_uid");
+          if (lastUid) {
+            localStorage.removeItem(`viba_cart_${lastUid}`);
+            PushService.handleLogout(lastUid);
+          }
+          localStorage.removeItem("viba_last_uid");
+        } catch (e) {}
+      }
+      useCartStore.getState().setUid(null);
+    }
+    set({ user });
+  },
   initAuth: () => {
     let unsubscribeSnapshot: (() => void) | null = null;
     let unsubscribeOrdersSnapshot: (() => void) | null = null;
@@ -163,15 +202,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           handleFirestoreError(error, OperationType.LIST, `orders?customerId=${firebaseUser.uid}`, false);
         });
       } else {
-        const lastUid = localStorage.getItem("viba_last_uid");
-        if (lastUid) {
-          // Completely clear the local session data for the previous account to prevent leakage
-          localStorage.removeItem(`viba_cart_${lastUid}`);
-          PushService.handleLogout(lastUid);
+        const saved = getSavedUserSession();
+        if (saved) {
+          // Keep active verified user session (e.g. from OTP authentication)
+          set({ user: saved, loading: false });
+        } else {
+          const lastUid = typeof window !== 'undefined' ? localStorage.getItem("viba_last_uid") : null;
+          if (lastUid) {
+            localStorage.removeItem(`viba_cart_${lastUid}`);
+            PushService.handleLogout(lastUid);
+          }
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem("viba_last_uid");
+          }
+          useCartStore.getState().setUid(null);
+          set({ user: null, orderedProductIds: [], loading: false });
         }
-        localStorage.removeItem("viba_last_uid");
-        useCartStore.getState().setUid(null);
-        set({ user: null, orderedProductIds: [], loading: false });
       }
     });
   },

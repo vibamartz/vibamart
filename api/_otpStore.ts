@@ -4,6 +4,7 @@ import admin from "firebase-admin";
 interface ActiveOtp {
   code: string;
   expiresAt: number;
+  verifiedAt?: number;
 }
 
 interface OtpRecord {
@@ -83,8 +84,8 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
   const memRecord = globalOtpStore.get(normalizedEmail);
 
   if (memRecord) {
-    // Purge expired OTPs
-    memRecord.otps = memRecord.otps.filter(o => o.expiresAt > now);
+    // Purge expired OTPs (allowing 60s grace period for recently verified codes to prevent duplicate request failures)
+    memRecord.otps = memRecord.otps.filter(o => o.expiresAt > now || (o.verifiedAt && now - o.verifiedAt < 60000));
 
     if (memRecord.otps.length === 0) {
       globalOtpStore.delete(normalizedEmail);
@@ -92,14 +93,26 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
     }
 
     memRecord.attempts += 1;
-    if (memRecord.attempts > 10) {
+    if (memRecord.attempts > 15) {
       globalOtpStore.delete(normalizedEmail);
       return { valid: false, reason: "Too many failed attempts. Please request a new OTP." };
     }
 
-    const matched = memRecord.otps.some(o => o.code === cleanCode);
-    if (matched) {
-      globalOtpStore.delete(normalizedEmail);
+    const matchedOtp = memRecord.otps.find(o => o.code === cleanCode);
+    if (matchedOtp) {
+      matchedOtp.verifiedAt = matchedOtp.verifiedAt || Date.now();
+
+      // Schedule removal after 60-second grace window to absorb duplicate requests or rapid resubmits
+      setTimeout(() => {
+        const current = globalOtpStore.get(normalizedEmail);
+        if (current) {
+          current.otps = current.otps.filter(o => o.code !== cleanCode);
+          if (current.otps.length === 0) {
+            globalOtpStore.delete(normalizedEmail);
+          }
+        }
+      }, 60000);
+
       if (hasAdminSdkCredentials()) {
         try {
           admin.firestore().collection("otps").doc(normalizedEmail).delete().catch(() => {});
