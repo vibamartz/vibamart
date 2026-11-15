@@ -69,14 +69,34 @@ export default async function handler(req: any, res: any) {
     const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
 
     if (process.env.SMTP_HOST && !isPlaceholder) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.ethereal.email",
-        port: Number(process.env.SMTP_PORT) || 587,
-        auth: {
-          user: process.env.SMTP_USER || "test",
-          pass: process.env.SMTP_PASS || "test",
-        },
-      });
+      const smtpUser = (process.env.SMTP_USER || "test").trim();
+      const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
+      const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
+      const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
+
+      const transporter = isGmail
+        ? nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 20000,
+          })
+        : nodemailer.createTransport({
+            host: smtpHost,
+            port: Number(process.env.SMTP_PORT) || 587,
+            secure: Number(process.env.SMTP_PORT) === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 20000,
+          });
       await transporter.sendMail({
         from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
         to: customerEmail,

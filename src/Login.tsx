@@ -86,7 +86,7 @@ export default function Login() {
   const sendOtp = async (isResend = false) => {
     if (isSendingRef.current || loading) return;
     const cleanEmail = emailAddress.trim().toLowerCase();
-    if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+    if (!cleanEmail || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
       toast.error('Please enter a valid email address.');
       return;
     }
@@ -94,23 +94,27 @@ export default function Login() {
     setLoading(true);
     try {
       const response = await axios.post('/api/auth/send-email-otp', { email: cleanEmail });
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-        if (response.data.devOtp) {
-          toast.success(`OTP: ${response.data.devOtp} (Sent to email & console)`, { duration: 6000 });
-        } else {
-          toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
-        }
+        toast.success(
+          isResend
+            ? 'OTP resent to your Gmail address!'
+            : 'OTP sent to your Gmail address! Please check your inbox.'
+        );
         setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
-        throw new Error(response.data.error || 'Failed to send OTP');
+        const errorMsg = response.data?.error || response.data?.message || 'Failed to send OTP';
+        throw new Error(errorMsg);
       }
     } catch (err: any) {
       console.error("sendOtp Error:", err);
-      const msg = err.response?.data?.error || err.message || 'Failed to send OTP';
-      toast.error(`OTP failed: ${msg}`);
+      const rawMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to send OTP';
+      const msg = typeof rawMsg === 'string' && rawMsg.includes('<html')
+        ? 'Server communication error. Please try again.'
+        : rawMsg;
+      toast.error(msg.toLowerCase().startsWith('otp failed') ? msg : `OTP failed: ${msg}`);
     } finally {
       setLoading(false);
       isSendingRef.current = false;

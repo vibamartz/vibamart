@@ -118,17 +118,34 @@ export async function sendEmailNotification(toEmail: string, contactName: string
     return;
   }
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.ethereal.email",
-      port: Number(process.env.SMTP_PORT) || 587,
-      auth: {
-        user: process.env.SMTP_USER || "test",
-        pass: process.env.SMTP_PASS || "test",
-      },
-      connectionTimeout: 2000,
-      greetingTimeout: 2000,
-      socketTimeout: 2000,
-    });
+    const smtpUser = (process.env.SMTP_USER || "test").trim();
+    const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
+    const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
+    const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
+
+    const transporter = isGmail
+      ? nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 20000,
+        })
+      : nodemailer.createTransport({
+          host: smtpHost,
+          port: Number(process.env.SMTP_PORT) || 587,
+          secure: Number(process.env.SMTP_PORT) === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+          socketTimeout: 20000,
+        });
     const emailHtml = `
       <h2>Hello ${contactName || 'Customer'},</h2>
       <p>${messageText}</p>
@@ -149,7 +166,7 @@ export async function sendEmailNotification(toEmail: string, contactName: string
 
     let timeoutId: NodeJS.Timeout;
     const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000);
+      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 20000);
     });
 
     try {

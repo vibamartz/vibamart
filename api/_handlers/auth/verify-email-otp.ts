@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import admin from "firebase-admin";
 import { initializeFirebaseAdmin } from "../../_utils";
 import { verifyOtp, hasAdminSdkCredentials, getDeterministicAuthSecret } from "../../_otpStore";
