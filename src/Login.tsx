@@ -12,18 +12,20 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone, Globe, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './desktop/components/Logo';
 import axios from 'axios';
 import { ViBaPermissionManager } from './services/ViBaPermissionManager';
-import AuthLanguageSelector from './shared/components/AuthLanguageSelector';
+import LanguageSelectionGrid from './shared/components/LanguageSelectionGrid';
+import { useLanguage } from './shared/translations/LanguageContext';
 import {
   SupportedLanguage,
+  SUPPORTED_LANGUAGES,
   AUTH_TRANSLATIONS,
 } from './shared/translations/authTranslations';
 
-type Step = 'auth' | 'otp' | 'profile';
+type Step = 'language' | 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
 
 const RESEND_DELAY = 60;
@@ -77,31 +79,15 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
 
 export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
-  const [step, setStep] = useState<Step>('auth');
+  // Always display "Choose Your Language" screen before the Login / Signup page
+  const [step, setStep] = useState<Step>('language');
   const [loading, setLoading] = useState(false);
 
-  // Preferred Language state (persisted across sessions)
-  const [language, setLanguage] = useState<SupportedLanguage>(() => {
-    try {
-      const saved = localStorage.getItem('viba_preferred_language') as SupportedLanguage;
-      if (saved && AUTH_TRANSLATIONS[saved]) {
-        return saved;
-      }
-    } catch (e) {
-      // Ignore
-    }
-    return 'en';
-  });
-
+  const { language, setLanguage, strings: siteStrings } = useLanguage();
   const t = AUTH_TRANSLATIONS[language] || AUTH_TRANSLATIONS.en;
 
   const handleLanguageChange = (newLang: SupportedLanguage) => {
     setLanguage(newLang);
-    try {
-      localStorage.setItem('viba_preferred_language', newLang);
-    } catch (e) {
-      // Ignore
-    }
   };
 
   // Email Auth
@@ -508,32 +494,73 @@ export default function Login() {
   const isOtpComplete = otpCode.length === 6;
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-10 sm:py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="max-w-md w-full"
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className={`w-full transition-all duration-300 ${
+          step === 'language' ? 'max-w-xl' : 'max-w-md'
+        }`}
       >
         <div className="bg-white rounded-3xl shadow-2xl shadow-green-100/60 border border-green-100/80 overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400" />
 
-          <div className="p-8 sm:p-10">
-            {/* Always-visible Language Selection Option */}
-            <div className="mb-6">
-              <AuthLanguageSelector
-                currentLanguage={language}
-                onSelectLanguage={handleLanguageChange}
-              />
-            </div>
-
-            <div className="flex justify-center mb-8">
-              <Link to="/" className="hover:opacity-80 transition-opacity">
-                <Logo className="scale-125" showTextOnMobile={true} />
-              </Link>
-            </div>
-
+          <div className="p-6 sm:p-9">
             <AnimatePresence mode="wait">
+              {step === 'language' && (
+                <motion.div
+                  key="language-step"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-6"
+                >
+                  {/* Brand Header & Title */}
+                  <div className="text-center">
+                    <div className="flex justify-center mb-4">
+                      <Link to="/" className="hover:opacity-85 transition-opacity">
+                        <Logo className="scale-125" showTextOnMobile={true} />
+                      </Link>
+                    </div>
+
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 text-[11px] font-black uppercase tracking-wider mb-2">
+                      <Globe className="w-3.5 h-3.5 text-green-600" />
+                      <span>{siteStrings.language}</span>
+                    </div>
+
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                      {siteStrings.chooseYourLanguage}
+                    </h1>
+                    <p className="text-gray-500 text-xs sm:text-sm font-medium mt-1">
+                      {siteStrings.chooseYourLanguageSubtitle}
+                    </p>
+                  </div>
+
+                  {/* 12 Language Options Grid */}
+                  <LanguageSelectionGrid
+                    selectedLanguage={language}
+                    onSelectLanguage={handleLanguageChange}
+                  />
+
+                  {/* Continue Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setStep('auth')}
+                      className="w-full bg-green-600 hover:bg-green-700 active:scale-[0.99] text-white py-4 rounded-2xl font-black shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 text-base cursor-pointer"
+                    >
+                      <span>{siteStrings.continueBtn}</span>
+                      <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                    </button>
+                    <p className="text-center text-[11px] text-gray-400 font-medium mt-3">
+                      {siteStrings.proceedToLogin}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               {step === 'auth' && (
                 <motion.div
                   key="auth"
@@ -542,6 +569,42 @@ export default function Login() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
+                  {/* Change Language bar */}
+                  <div className="mb-6 flex items-center justify-between p-2 px-3 bg-green-50/70 border border-green-200/80 rounded-2xl">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-xl bg-white shadow-2xs border border-green-200 flex items-center justify-center text-green-700 shrink-0">
+                        <Globe className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-green-800/80 tracking-wider">
+                          {t.languageLabel}
+                        </span>
+                        <span className="text-xs font-black text-gray-900 truncate">
+                          {SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeName || 'English'}
+                          {language !== 'en' && (
+                            <span className="text-gray-500 font-semibold text-[11px] ml-1">
+                              ({SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setStep('language')}
+                      className="px-2.5 py-1 rounded-xl text-xs font-black text-green-700 hover:text-green-900 bg-white hover:bg-green-100/60 border border-green-200 shadow-2xs transition-all cursor-pointer"
+                    >
+                      {siteStrings.change}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center mb-6">
+                    <Link to="/" className="hover:opacity-80 transition-opacity">
+                      <Logo className="scale-125" showTextOnMobile={true} />
+                    </Link>
+                  </div>
+
                   <div className="flex bg-gray-100 rounded-2xl p-1 mb-8">
                     {(['login', 'signup'] as Mode[]).map((m) => (
                       <button

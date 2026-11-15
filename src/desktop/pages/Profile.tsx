@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Package, MapPin, Settings, Heart, Bell,
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones, Wallet
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones, Wallet, Globe
 } from 'lucide-react';
+import { useLanguage } from '../../shared/translations/LanguageContext';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
@@ -31,6 +32,8 @@ import Logo from '../components/Logo';
 export default function Profile() {
   const { user, setUser } = useAuthStore();
   const { settings } = useSettingsStore();
+  const { language, openLanguageModal, languages, strings: siteStrings } = useLanguage();
+  const currentLangOption = languages.find((l) => l.code === language) || languages[0];
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings' | null>(null);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1145,6 +1148,28 @@ export default function Profile() {
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Account Settings</h2>
 
                     <div className="space-y-6">
+                      {/* Language Preference Setting */}
+                      <div className="p-6 bg-gray-50 rounded-3xl flex items-center justify-between group hover:bg-white hover:border-emerald-500/20 border border-transparent transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-white rounded-2xl shadow-sm text-emerald-600">
+                            <Globe className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-gray-900">{siteStrings.language}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Current: <span className="font-bold text-emerald-700">{currentLangOption.nativeName} ({currentLangOption.name})</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={openLanguageModal}
+                          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
+                        >
+                          {siteStrings.changeLanguage}
+                        </button>
+                      </div>
+
                       <div className="p-6 bg-gray-50 rounded-3xl flex items-center justify-between group hover:bg-white hover:border-primary/20 border border-transparent transition-all">
                         <div className="flex items-center gap-4">
                           <div className="p-3 bg-white rounded-2xl shadow-sm text-primary">

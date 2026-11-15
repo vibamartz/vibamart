@@ -4,11 +4,13 @@ import { Home, LayoutGrid, Flame, User, ShoppingCart } from 'lucide-react';
 import { useCartStore, useAuthStore } from '../../backend/store';
 import { motion } from 'motion/react';
 import { useIsFullscreen } from '../../shared/utilities/useIsFullscreen';
+import { useLanguage } from '../../shared/translations/LanguageContext';
 
 export default function MobileBottomNav() {
   const location = useLocation();
   const { items } = useCartStore();
   const { user } = useAuthStore();
+  const { strings: siteStrings } = useLanguage();
   const isFullscreen = useIsFullscreen();
 
   if (isFullscreen) {
@@ -20,28 +22,28 @@ export default function MobileBottomNav() {
   const navItems = [
     {
       id: 'home',
-      label: 'Home',
+      label: siteStrings.home || 'Home',
       path: '/',
       icon: Home,
       exact: true
     },
     {
       id: 'categories',
-      label: 'Categories',
+      label: siteStrings.categories || 'Categories',
       path: '/categories',
       icon: LayoutGrid,
       exact: false
     },
     {
       id: 'account',
-      label: 'Account',
+      label: siteStrings.account || 'Account',
       path: user ? '/profile' : '/login',
       icon: User,
       exact: false
     },
     {
       id: 'cart',
-      label: 'Cart',
+      label: siteStrings.cart || 'Cart',
       path: '/cart',
       icon: ShoppingCart,
       badge: cartCount > 0 ? (cartCount > 99 ? '99+' : cartCount.toString()) : null,
