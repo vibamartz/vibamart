@@ -425,7 +425,7 @@ const getInitialCategories = (): Category[] => {
   return DEFAULT_CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true));
 };
 
-export const useCategoryStore = create<CategoryState>((set) => {
+export const useCategoryStore = create<CategoryState>((set, get) => {
   const initial = getInitialCategories();
   return {
     categories: initial,
@@ -458,11 +458,20 @@ export const useCategoryStore = create<CategoryState>((set) => {
           }
           set({ categories: fetchedCategories, loading: false });
         } else {
-          set({ categories: [], loading: false });
+          // Never wipe out main categories when Firestore snapshot is empty or initializing
+          const current = get().categories;
+          set({
+            categories: current && current.length > 0 ? current : getInitialCategories(),
+            loading: false
+          });
         }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'categories', false);
-        set({ loading: false });
+        const current = get().categories;
+        set({
+          categories: current && current.length > 0 ? current : getInitialCategories(),
+          loading: false
+        });
       });
     }
   };

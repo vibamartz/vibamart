@@ -1,9 +1,13 @@
 import crypto from "crypto";
 import admin from "firebase-admin";
 
-interface OtpRecord {
-  otp: string;
+interface ActiveOtp {
+  code: string;
   expiresAt: number;
+}
+
+interface OtpRecord {
+  otps: ActiveOtp[];
   attempts: number;
 }
 
@@ -30,12 +34,23 @@ export function getDeterministicAuthSecret(email: string): string {
   return crypto.createHmac('sha256', secretKey).update(email.trim().toLowerCase()).digest('hex') + '!Vb9';
 }
 
-export function storeOtp(email: string, otp: string, ttlMs: number = 2 * 60 * 1000): number {
+export function storeOtp(email: string, otp: string, ttlMs: number = 10 * 60 * 1000): number {
   const normalizedEmail = email.trim().toLowerCase();
-  const expiresAt = Date.now() + ttlMs;
+  const cleanOtp = String(otp).replace(/\D/g, '').trim();
+  const now = Date.now();
+  const expiresAt = now + ttlMs;
+
+  const existing = globalOtpStore.get(normalizedEmail);
+  const activeOtps = existing 
+    ? existing.otps.filter(o => o.expiresAt > now)
+    : [];
+
+  // Append new OTP, preserve existing active OTPs for resend grace, keep up to 5 valid recent OTPs
+  activeOtps.push({ code: cleanOtp, expiresAt });
+  const recentOtps = activeOtps.slice(-5);
+
   globalOtpStore.set(normalizedEmail, {
-    otp: otp.trim(),
-    expiresAt,
+    otps: recentOtps,
     attempts: 0,
   });
 
@@ -44,7 +59,8 @@ export function storeOtp(email: string, otp: string, ttlMs: number = 2 * 60 * 10
     try {
       const db = admin.firestore();
       db.collection("otps").doc(normalizedEmail).set({
-        otp: otp.trim(),
+        otp: cleanOtp,
+        otps: recentOtps.map(o => o.code),
         expiresAt: admin.firestore.Timestamp.fromMillis(expiresAt),
       }).catch(err => {
         console.warn("[OtpStore] Firestore OTP write skipped:", err?.message || err);
@@ -57,20 +73,32 @@ export function storeOtp(email: string, otp: string, ttlMs: number = 2 * 60 * 10
 
 export async function verifyOtp(email: string, code: string): Promise<{ valid: boolean; reason?: string }> {
   const normalizedEmail = email.trim().toLowerCase();
-  const normalizedCode = String(code).trim();
+  const cleanCode = String(code).replace(/\D/g, '').trim();
 
+  if (!cleanCode || cleanCode.length < 6) {
+    return { valid: false, reason: "Please enter the complete 6-digit OTP code." };
+  }
+
+  const now = Date.now();
   const memRecord = globalOtpStore.get(normalizedEmail);
+
   if (memRecord) {
-    if (Date.now() > memRecord.expiresAt) {
+    // Purge expired OTPs
+    memRecord.otps = memRecord.otps.filter(o => o.expiresAt > now);
+
+    if (memRecord.otps.length === 0) {
       globalOtpStore.delete(normalizedEmail);
       return { valid: false, reason: "OTP has expired. Please request a new one." };
     }
+
     memRecord.attempts += 1;
-    if (memRecord.attempts > 5) {
+    if (memRecord.attempts > 10) {
       globalOtpStore.delete(normalizedEmail);
       return { valid: false, reason: "Too many failed attempts. Please request a new OTP." };
     }
-    if (memRecord.otp === normalizedCode) {
+
+    const matched = memRecord.otps.some(o => o.code === cleanCode);
+    if (matched) {
       globalOtpStore.delete(normalizedEmail);
       if (hasAdminSdkCredentials()) {
         try {
@@ -79,7 +107,8 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
       }
       return { valid: true };
     }
-    return { valid: false, reason: "Invalid OTP code. Please try again." };
+
+    return { valid: false, reason: "Invalid OTP code. Please check your Gmail and try again." };
   }
 
   // Fallback to Firestore only if not found in memory and admin credentials explicitly exist
@@ -90,14 +119,17 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
       const otpDoc = await otpDocRef.get();
       if (otpDoc.exists) {
         const data = otpDoc.data();
-        const now = admin.firestore.Timestamp.now();
-        if (data && data.expiresAt && data.expiresAt.toMillis() >= now.toMillis() && data.otp === normalizedCode) {
-          await otpDocRef.delete().catch(() => {});
-          return { valid: true };
+        const nowTs = admin.firestore.Timestamp.now();
+        if (data && data.expiresAt && data.expiresAt.toMillis() >= nowTs.toMillis()) {
+          const isMatch = data.otp === cleanCode || (Array.isArray(data.otps) && data.otps.includes(cleanCode));
+          if (isMatch) {
+            await otpDocRef.delete().catch(() => {});
+            return { valid: true };
+          }
         }
       }
     } catch (e) {}
   }
 
-  return { valid: false, reason: "Invalid OTP code or request expired. Please request a new OTP." };
+  return { valid: false, reason: "No active OTP found. Please request a new OTP." };
 }

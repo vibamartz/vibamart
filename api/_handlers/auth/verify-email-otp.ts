@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const normalizedCode = String(code).trim();
+  const normalizedCode = String(code).replace(/\D/g, '').trim();
 
   try {
     const result = await verifyOtp(normalizedEmail, normalizedCode);

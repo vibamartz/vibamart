@@ -32,7 +32,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    storeOtp(normalizedEmail, otp);
+    storeOtp(normalizedEmail, otp, 10 * 60 * 1000);
 
     const isPlaceholderSmtp = !process.env.SMTP_USER || 
       process.env.SMTP_USER === "your-email@gmail.com" || 
@@ -57,8 +57,8 @@ export default async function handler(req: any, res: any) {
           from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
           to: normalizedEmail,
           subject: "Your ViBa Mart Login OTP",
-          text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
-          html: `<div style="font-family:sans-serif;padding:20px;"><h2>ViBa Mart Verification</h2><p>Your one-time login code is:</p><h1 style="color:#16a34a;letter-spacing:4px;">${otp}</h1><p>This code is valid for 2 minutes.</p></div>`,
+          text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
+          html: `<div style="font-family:sans-serif;padding:20px;"><h2>ViBa Mart Verification</h2><p>Your one-time login code is:</p><h1 style="color:#16a34a;letter-spacing:4px;">${otp}</h1><p>This code is valid for 10 minutes.</p></div>`,
         });
         emailSent = true;
         console.log(`[ViBa Mart] Sent OTP email to ${normalizedEmail} (Code: ${otp})`);

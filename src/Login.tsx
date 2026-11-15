@@ -40,7 +40,14 @@ export default function Login() {
   const [tempFirebaseUser, setTempFirebaseUser] = useState<User | null>(null);
 
   const navigate = useNavigate();
-  const { setUser } = useAuthStore();
+  const { user, loading: authLoading, setUser } = useAuthStore();
+
+  // Redirect immediately if already logged in so the Login page is never displayed to authenticated users
+  useEffect(() => {
+    if (user && !authLoading && step !== 'profile') {
+      navigate('/', { replace: true });
+    }
+  }, [user, authLoading, step, navigate]);
 
   useEffect(() => {
     return () => {
@@ -75,13 +82,14 @@ export default function Login() {
   };
 
   const sendOtp = async (isResend = false) => {
-    if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error('Invalid email or password.');
+    const cleanEmail = emailAddress.trim().toLowerCase();
+    if (!cleanEmail || !/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+      toast.error('Please enter a valid email address.');
       return;
     }
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/send-email-otp', { email: emailAddress.trim() });
+      const response = await axios.post('/api/auth/send-email-otp', { email: cleanEmail });
       if (response.data.success) {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
@@ -143,7 +151,8 @@ export default function Login() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const otpCode = otpDigits.join('');
+    const cleanEmail = emailAddress.trim().toLowerCase();
+    const otpCode = otpDigits.join('').replace(/\D/g, '');
     if (otpCode.length < 6) {
       toast.warning('Please enter the complete 6-digit OTP');
       return;
@@ -151,7 +160,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/verify-email-otp', { email: emailAddress.trim(), code: otpCode });
+      const response = await axios.post('/api/auth/verify-email-otp', { email: cleanEmail, code: otpCode });
 
       if (response.data.success) {
         let firebaseUser: User;
@@ -160,7 +169,7 @@ export default function Login() {
           const result = await signInWithCustomToken(auth, response.data.customToken);
           firebaseUser = result.user;
         } else if (response.data.authSecret) {
-          const targetEmail = response.data.email || emailAddress.trim();
+          const targetEmail = response.data.email || cleanEmail;
           try {
             const result = await signInWithEmailAndPassword(auth, targetEmail, response.data.authSecret);
             firebaseUser = result.user;
@@ -185,22 +194,13 @@ export default function Login() {
           throw new Error(response.data.error || 'Authentication credential missing');
         }
 
-        let userExists = false;
-        try {
-          const userRef = doc(db, 'users', firebaseUser.uid);
-          const userSnap = await getDoc(userRef);
-          userExists = userSnap.exists();
-        } catch (e) {
-          console.warn("Could not check user doc in Firestore:", e);
-        }
-
-        if (!userExists && mode === 'signup') {
+        if (mode === 'signup') {
           setTempFirebaseUser(firebaseUser);
           setStep('profile');
         } else {
-          await syncUser(firebaseUser);
+          syncUser(firebaseUser);
           toast.success('Login successful! Welcome back.');
-          navigate('/');
+          navigate('/', { replace: true });
         }
       } else {
         throw new Error(response.data.error || 'Invalid OTP');
@@ -220,23 +220,9 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
-      let userExists = false;
-      try {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        userExists = userSnap.exists();
-      } catch (e) {
-        console.warn("Could not check existing user doc from Firestore:", e);
-      }
-
-      if (!userExists && mode === 'signup' && !firebaseUser.displayName) {
-        setTempFirebaseUser(firebaseUser);
-        setStep('profile');
-      } else {
-        await syncUser(firebaseUser);
-        toast.success(`Login successful! Welcome ${firebaseUser.displayName || ''}`.trim());
-        navigate('/');
-      }
+      syncUser(firebaseUser);
+      toast.success(`Login successful! Welcome ${firebaseUser.displayName || ''}`.trim());
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
       if (error?.code === 'auth/popup-closed-by-user') {
@@ -269,9 +255,9 @@ export default function Login() {
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
-      await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
+      syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
       toast.success('Your account has been created successfully.');
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || 'Registration failed. Please try again.');
@@ -280,7 +266,7 @@ export default function Login() {
     }
   };
 
-  const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
+  const syncUser = (firebaseUser: User, providedName?: string, providedPhone?: string) => {
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
 
@@ -297,48 +283,51 @@ export default function Login() {
       lastLoginAt: now,
     };
 
-    // Immediately update auth store so the session is active even if Firestore is slow or offline
+    // Immediately update auth store so the session is active instantly
     setUser(fallbackUser);
 
-    try {
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+    // Asynchronously background sync user doc with Firestore without blocking navigation
+    (async () => {
+      try {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
 
-      if (!userSnap.exists()) {
-        await setDoc(userRef, fallbackUser, { merge: true });
-      } else {
-        const userData = userSnap.data() as any;
-        const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
+        if (!userSnap.exists()) {
+          await setDoc(userRef, fallbackUser, { merge: true });
+        } else {
+          const userData = userSnap.data() as any;
+          const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
 
-        const updateData: any = {
-          isVerified: true,
-          accountStatus: 'active',
-          lastLoginAt: now,
-        };
+          const updateData: any = {
+            isVerified: true,
+            accountStatus: 'active',
+            lastLoginAt: now,
+          };
 
-        if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
-          updateData.role = 'super_admin';
-          userData.role = 'super_admin';
+          if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
+            updateData.role = 'super_admin';
+            userData.role = 'super_admin';
+          }
+
+          if (providedPhone && !userData.phone) {
+            updateData.phone = providedPhone;
+            userData.phone = providedPhone;
+          }
+          if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
+            updateData.displayName = providedName;
+            userData.displayName = providedName;
+          }
+
+          await setDoc(userRef, updateData, { merge: true });
+          userData.isVerified = true;
+          userData.accountStatus = 'active';
+          userData.lastLoginAt = now;
+          setUser({ ...fallbackUser, ...userData, ...updateData });
         }
-
-        if (providedPhone && !userData.phone) {
-          updateData.phone = providedPhone;
-          userData.phone = providedPhone;
-        }
-        if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
-          updateData.displayName = providedName;
-          userData.displayName = providedName;
-        }
-
-        await setDoc(userRef, updateData, { merge: true });
-        userData.isVerified = true;
-        userData.accountStatus = 'active';
-        userData.lastLoginAt = now;
-        setUser({ ...fallbackUser, ...userData, ...updateData });
+      } catch (fsErr) {
+        console.warn("[Firestore] User document sync error, continuing with auth session:", fsErr);
       }
-    } catch (fsErr) {
-      console.warn("[Firestore] User document sync error, continuing with auth session:", fsErr);
-    }
+    })();
   };
 
   const otpCode = otpDigits.join('');
