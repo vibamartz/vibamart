@@ -159,9 +159,12 @@ export default function Login() {
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
 
-        if (response.data.devOtp && !response.data.emailSent) {
-          toast.success(`Development OTP: ${response.data.devOtp}`, { duration: 10000 });
-          setOtpDigits(String(response.data.devOtp).split(''));
+        if (!response.data.emailSent) {
+          toast.error("Email not delivered: Set SMTP_USER & SMTP_PASS in .env to send real Gmail emails", { duration: 7000 });
+          if (response.data.devOtp) {
+            toast.success(`Development OTP: ${response.data.devOtp}`, { duration: 10000 });
+            setOtpDigits(String(response.data.devOtp).split(''));
+          }
         } else {
           toast.success(isResend ? t.otpResent : t.otpSent);
         }

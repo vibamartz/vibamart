@@ -112,7 +112,7 @@ export function createMailTransporter() {
   const cleanPass = rawPass.replace(/\s+/g, '');
   const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().endsWith('@gmail.com');
 
-  if (isGmail) {
+  if (isGmail && (!process.env.SMTP_PORT || port === 465)) {
     return nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -126,7 +126,7 @@ export function createMailTransporter() {
   }
 
   return nodemailer.createTransport({
-    host,
+    host: isGmail ? 'smtp.gmail.com' : host,
     port,
     secure: port === 465,
     auth: {
