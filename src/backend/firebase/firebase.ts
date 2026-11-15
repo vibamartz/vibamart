@@ -110,6 +110,9 @@ export const db = dbInstance;
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 export let messaging: Messaging | null = null;
 
@@ -130,16 +133,16 @@ export const getFcmMessaging = async (): Promise<Messaging | null> => {
 };
 
 
-// Connectivity check
+// Connectivity check (client-side only, non-blocking)
 async function testConnection() {
+  if (typeof window === 'undefined') return;
   try {
     // Attempting to reach the server specifically
     await getDocFromServer(doc(db, "test", "connection"));
     console.log("Firestore connection successful.");
   } catch (error) {
-    console.error("Firestore connectivity error:", error);
-    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("10 seconds"))) {
-      console.error("Please check your Firebase configuration or network. If you just set up Firebase, it might take a moment to provision.");
+    if (error instanceof Error && (error.message.includes("offline") || error.message.includes("10 seconds") || error.message.includes("PERMISSION_DENIED"))) {
+      console.warn("Firestore connectivity notice: operating with client resilience.");
     }
   }
 }

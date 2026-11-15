@@ -39,7 +39,7 @@ interface AuthState {
   initAuth: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: true,
   orderedProductIds: [],
@@ -70,28 +70,22 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         useCartStore.getState().setUid(firebaseUser.uid);
 
-        // Immediate session restoration from local profile or authenticated firebaseUser
-        const cachedProfile = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
-        if (cachedProfile) {
-          try {
-            set({ user: JSON.parse(cachedProfile), loading: false });
-          } catch (_) {}
-        } else {
-          set({
-            user: {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Customer',
-              phone: firebaseUser.phoneNumber || '',
-              photoURL: firebaseUser.photoURL || '',
-              role: firebaseUser.email === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
-              isVerified: true,
-              accountStatus: 'active',
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-            } as any,
-            loading: false
-          });
+        const fallbackUser: UserProfile = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'ViBa User'),
+          phone: firebaseUser.phoneNumber || '',
+          photoURL: firebaseUser.photoURL || '',
+          role: firebaseUser.email === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+          isVerified: true,
+          accountStatus: 'active',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        };
+
+        // Guarantee user state is non-null while authenticated
+        if (!get().user) {
+          set({ user: fallbackUser, loading: false });
         }
 
         // Subscribe to user details
@@ -99,17 +93,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
-            localStorage.setItem(`viba_user_profile_${firebaseUser.uid}`, JSON.stringify(data));
 
             if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin' && data.role !== 'super_admin') {
               try {
                 await setDoc(docRef, { role: 'super_admin' }, { merge: true });
               } catch (err) {
-                console.error("Failed to bootstrap super_admin role:", err);
+                console.warn("Failed to bootstrap super_admin role:", err);
                 set({ user: { ...data, role: 'super_admin' }, loading: false });
               }
             } else {
-              set({ user: data, loading: false });
+              set({ user: { ...fallbackUser, ...data }, loading: false });
             }
 
             // Sync cart from Firebase if present, or write local cart to Firebase
@@ -135,23 +128,21 @@ export const useAuthStore = create<AuthState>((set) => ({
                 try {
                   syncCartToFirebase(currentCart);
                 } catch (cartErr) {
-                  console.error("[FIRESTORE WRITE ERROR] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
+                  console.warn("[FIRESTORE WRITE] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
                 }
               }
             }
           } else {
-            const cached = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
-            if (!cached) {
-              localStorage.removeItem("viba_last_uid");
-              useCartStore.getState().setUid(null);
-              set({ user: null, loading: false });
-            } else {
-              set({ loading: false });
-            }
+            // New user or document not created yet: keep session active and create doc in background
+            set((state) => ({ user: state.user || fallbackUser, loading: false }));
+            setDoc(docRef, fallbackUser, { merge: true }).catch((err) => {
+              console.warn("[Firestore] Background profile create notice:", err?.message || err);
+            });
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
-          set({ loading: false });
+          // Keep user logged in with fallback profile even if Firestore is offline
+          set((state) => ({ user: state.user || fallbackUser, loading: false }));
         });
 
         // Subscribe to ordered products

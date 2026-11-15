@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from './backend/firebase/firebase';
-import {
-  signInWithCustomToken,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  User
-} from 'firebase/auth';
+import { signInWithCustomToken, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
@@ -92,7 +86,11 @@ export default function Login() {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        if (response.data.devOtp) {
+          toast.success(`OTP: ${response.data.devOtp} (Sent to email & console)`, { duration: 6000 });
+        } else {
+          toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        }
         setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
         throw new Error(response.data.error || 'Failed to send OTP');
@@ -156,48 +154,44 @@ export default function Login() {
       const response = await axios.post('/api/auth/verify-email-otp', { email: emailAddress.trim(), code: otpCode });
 
       if (response.data.success) {
-        let firebaseUser: User | null = null;
+        let firebaseUser: User;
 
-        // 1. Try custom token if returned by server
         if (response.data.customToken) {
+          const result = await signInWithCustomToken(auth, response.data.customToken);
+          firebaseUser = result.user;
+        } else if (response.data.authSecret) {
+          const targetEmail = response.data.email || emailAddress.trim();
           try {
-            const result = await signInWithCustomToken(auth, response.data.customToken);
+            const result = await signInWithEmailAndPassword(auth, targetEmail, response.data.authSecret);
             firebaseUser = result.user;
-          } catch (customTokenErr) {
-            console.warn("Custom token sign-in fallback:", customTokenErr);
-          }
-        }
-
-        // 2. Direct Firebase Auth sign in / account creation for the verified email address
-        if (!firebaseUser) {
-          const otpAuthSecret = `ViBaMart_Otp_${emailAddress.toLowerCase().trim()}_#Auth2026!`;
-          try {
-            const cred = await signInWithEmailAndPassword(auth, emailAddress.trim(), otpAuthSecret);
-            firebaseUser = cred.user;
           } catch (authErr: any) {
-            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
-              const cred = await createUserWithEmailAndPassword(auth, emailAddress.trim(), otpAuthSecret);
-              firebaseUser = cred.user;
+            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
+              try {
+                const result = await createUserWithEmailAndPassword(auth, targetEmail, response.data.authSecret);
+                firebaseUser = result.user;
+              } catch (createErr: any) {
+                if (createErr.code === 'auth/email-already-in-use') {
+                  throw new Error("This account is registered with Google Sign-In. Please click 'Continue with Google' below.");
+                }
+                throw createErr;
+              }
+            } else if (authErr.code === 'auth/email-already-in-use') {
+              throw new Error("This account is registered with Google Sign-In. Please click 'Continue with Google' below.");
             } else {
               throw authErr;
             }
           }
+        } else {
+          throw new Error(response.data.error || 'Authentication credential missing');
         }
 
-        if (!firebaseUser) {
-          throw new Error("Unable to establish authenticated Firebase session.");
-        }
-
-        // Check if user document exists in Firestore or local storage (with timeout)
         let userExists = false;
         try {
-          const snapPromise = getDoc(doc(db, 'users', firebaseUser.uid));
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
-          const userSnap: any = await Promise.race([snapPromise, timeoutPromise]);
-          userExists = userSnap && typeof userSnap.exists === 'function' && userSnap.exists();
-        } catch (_) {
-          const cached = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
-          if (cached) userExists = true;
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+          userExists = userSnap.exists();
+        } catch (e) {
+          console.warn("Could not check user doc in Firestore:", e);
         }
 
         if (!userExists && mode === 'signup') {
@@ -228,13 +222,11 @@ export default function Login() {
 
       let userExists = false;
       try {
-        const snapPromise = getDoc(doc(db, 'users', firebaseUser.uid));
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
-        const userSnap: any = await Promise.race([snapPromise, timeoutPromise]);
-        userExists = userSnap && typeof userSnap.exists === 'function' && userSnap.exists();
-      } catch (_) {
-        const cached = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
-        if (cached) userExists = true;
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+        userExists = userSnap.exists();
+      } catch (e) {
+        console.warn("Could not check existing user doc from Firestore:", e);
       }
 
       if (!userExists && mode === 'signup' && !firebaseUser.displayName) {
@@ -242,15 +234,22 @@ export default function Login() {
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
-        toast.success('Login successful! Welcome back.');
+        toast.success(`Login successful! Welcome ${firebaseUser.displayName || ''}`.trim());
         navigate('/');
       }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast.error('Sign-in cancelled.');
+      if (error?.code === 'auth/popup-closed-by-user') {
+        toast.error('Google Sign-In was cancelled.');
+      } else if (error?.code === 'auth/popup-blocked') {
+        toast.error('Sign-in popup was blocked by browser. Please allow popups.');
+      } else if (error?.code === 'auth/unauthorized-domain') {
+        toast.error('Domain not authorized in Firebase Console.');
+      } else if (error?.code === 'auth/operation-not-allowed') {
+        toast.error('Google Sign-In is not enabled in Firebase Console.');
       } else {
-        toast.error('Login failed. Please try again.');
+        const msg = error?.message || 'Login failed. Please try again.';
+        toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -275,86 +274,70 @@ export default function Login() {
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error('Registration failed. Please try again.');
+      toast.error(err?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
-    const userRef = doc(db, 'users', firebaseUser.uid);
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
-    const isAdmin = (userEmail === 'vk311779@gmail.com');
 
-    let existingData: any = null;
+    const fallbackUser: any = {
+      uid: firebaseUser.uid,
+      email: userEmail,
+      displayName: providedName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : `User ${Math.floor(Math.random() * 10000)}`),
+      phone: providedPhone || firebaseUser.phoneNumber || '',
+      photoURL: firebaseUser.photoURL || '',
+      role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+      isVerified: true,
+      accountStatus: 'active',
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    // Immediately update auth store so the session is active even if Firestore is slow or offline
+    setUser(fallbackUser);
+
     try {
-      const snapPromise = getDoc(userRef);
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
-      const userSnap: any = await Promise.race([snapPromise, timeoutPromise]);
-      if (userSnap && typeof userSnap.exists === 'function' && userSnap.exists()) {
-        existingData = userSnap.data();
-      }
-    } catch (_) {
-      const cached = localStorage.getItem(`viba_user_profile_${firebaseUser.uid}`);
-      if (cached) {
-        try { existingData = JSON.parse(cached); } catch (_) {}
-      }
-    }
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
 
-    if (!existingData) {
-      const newUser = {
-        uid: firebaseUser.uid,
-        email: userEmail,
-        displayName: providedName || firebaseUser.displayName || `User ${Math.floor(Math.random() * 10000)}`,
-        phone: providedPhone || firebaseUser.phoneNumber || '',
-        photoURL: firebaseUser.photoURL || '',
-        role: isAdmin ? 'super_admin' : 'customer',
-        isVerified: true,
-        accountStatus: 'active',
-        createdAt: now,
-        lastLoginAt: now,
-      };
+      if (!userSnap.exists()) {
+        await setDoc(userRef, fallbackUser, { merge: true });
+      } else {
+        const userData = userSnap.data() as any;
+        const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
 
-      try {
-        await setDoc(userRef, newUser);
-      } catch (err) {
-        console.warn("Firestore user creation write skipped:", err);
-      }
-
-      localStorage.setItem(`viba_user_profile_${firebaseUser.uid}`, JSON.stringify(newUser));
-      setUser(newUser as any);
-    } else {
-      const updatedUser = {
-        ...existingData,
-        displayName: providedName || existingData.displayName || firebaseUser.displayName || 'Customer',
-        phone: providedPhone || existingData.phone || firebaseUser.phoneNumber || '',
-        photoURL: firebaseUser.photoURL || existingData.photoURL || '',
-        isVerified: true,
-        accountStatus: 'active',
-        lastLoginAt: now,
-        role: isAdmin ? 'super_admin' : (existingData.role || 'customer'),
-      };
-
-      try {
-        const firestoreUpdate: any = {
-          displayName: updatedUser.displayName,
-          phone: updatedUser.phone,
-          photoURL: updatedUser.photoURL,
+        const updateData: any = {
+          isVerified: true,
+          accountStatus: 'active',
+          lastLoginAt: now,
         };
-        if (isAdmin) {
-          firestoreUpdate.role = 'super_admin';
-          firestoreUpdate.isVerified = true;
-          firestoreUpdate.accountStatus = 'active';
-          firestoreUpdate.lastLoginAt = now;
-        }
-        await setDoc(userRef, firestoreUpdate, { merge: true });
-      } catch (err) {
-        console.warn("Firestore user update write skipped:", err);
-      }
 
-      localStorage.setItem(`viba_user_profile_${firebaseUser.uid}`, JSON.stringify(updatedUser));
-      setUser(updatedUser);
+        if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
+          updateData.role = 'super_admin';
+          userData.role = 'super_admin';
+        }
+
+        if (providedPhone && !userData.phone) {
+          updateData.phone = providedPhone;
+          userData.phone = providedPhone;
+        }
+        if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
+          updateData.displayName = providedName;
+          userData.displayName = providedName;
+        }
+
+        await setDoc(userRef, updateData, { merge: true });
+        userData.isVerified = true;
+        userData.accountStatus = 'active';
+        userData.lastLoginAt = now;
+        setUser({ ...fallbackUser, ...userData, ...updateData });
+      }
+    } catch (fsErr) {
+      console.warn("[Firestore] User document sync error, continuing with auth session:", fsErr);
     }
   };
 
