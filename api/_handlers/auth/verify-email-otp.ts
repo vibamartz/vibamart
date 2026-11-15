@@ -30,25 +30,29 @@ export default async function handler(req: any, res: any) {
   if (typeof body === 'string') {
     try {
       body = JSON.parse(body);
-    } catch (e) {
-      body = {};
-    }
+    } catch (e) {}
   }
 
-  const email = body?.email || req.query?.email;
-  const code = body?.code || req.query?.code || body?.otp || req.query?.otp;
-
+  const { email, code } = body || {};
   if (!email || !code) {
-    return res.status(400).json({ success: false, error: "Email and OTP code are required" });
+    return res.status(400).json({ success: false, error: "Email and 6-digit OTP code are required" });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
   const normalizedCode = String(code).replace(/\D/g, '').trim();
 
+  if (normalizedCode.length < 6) {
+    return res.status(400).json({ success: false, error: "Please enter the complete 6-digit OTP code." });
+  }
+
   try {
     const result = await verifyOtp(normalizedEmail, normalizedCode);
     if (!result.valid) {
-      return res.status(400).json({ success: false, error: result.reason || "Invalid OTP code" });
+      return res.status(400).json({ 
+        success: false, 
+        error: result.reason || "Invalid OTP code. Please check your Gmail and try again.",
+        message: result.reason || "Invalid OTP code. Please check your Gmail and try again."
+      });
     }
 
     // If Admin SDK credentials are fully configured, generate custom token
