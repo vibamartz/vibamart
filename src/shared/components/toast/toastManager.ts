@@ -120,26 +120,7 @@ class ToastManager {
   }
 
   public show(type: ToastType, rawMessage: string | React.ReactNode, options?: ToastOptions): string {
-    let rawMsgStr: string;
-    if (typeof rawMessage === 'string') {
-      rawMsgStr = rawMessage;
-    } else if (rawMessage && typeof rawMessage === 'object' && !React.isValidElement(rawMessage)) {
-      const obj = rawMessage as any;
-      rawMsgStr = obj.message || obj.error || obj.reason || (typeof obj.toString === 'function' && obj.toString() !== '[object Object]' ? obj.toString() : '');
-      if (!rawMsgStr || rawMsgStr === '[object Object]') {
-        try {
-          rawMsgStr = JSON.stringify(rawMessage);
-        } catch (e) {
-          rawMsgStr = 'Request failed. Please try again.';
-        }
-      }
-    } else {
-      rawMsgStr = String(rawMessage ?? '');
-    }
-
-    if (rawMsgStr === '[object Object]') {
-      rawMsgStr = 'Request failed. Please try again.';
-    }
+    const rawMsgStr = typeof rawMessage === 'string' ? rawMessage : String(rawMessage ?? '');
 
     // Intercept with Admin configured toast notification rules
     const matchedConfig = this.findMatchingConfig(type, rawMsgStr, options);

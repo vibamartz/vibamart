@@ -19,43 +19,7 @@ function getFirebaseConfig(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      {
-        name: 'vite-otp-api-handler',
-        configureServer(server) {
-          server.middlewares.use(async (req, res, next) => {
-            const url = req.url ? req.url.split('?')[0] : '';
-            if (url === '/api/auth/send-email-otp' || url === '/auth/send-email-otp') {
-              try {
-                const handler = (await import('./api/_handlers/auth/send-email-otp')).default;
-                await handler(req, res);
-              } catch (e: any) {
-                if (!res.headersSent) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
-                }
-              }
-            } else if (url === '/api/auth/verify-email-otp' || url === '/auth/verify-email-otp') {
-              try {
-                const handler = (await import('./api/_handlers/auth/verify-email-otp')).default;
-                await handler(req, res);
-              } catch (e: any) {
-                if (!res.headersSent) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
-                }
-              }
-            } else {
-              next();
-            }
-          });
-        }
-      }
-    ],
+    plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
       'process.env.RAZORPAY_KEY_ID': JSON.stringify(env.RAZORPAY_KEY_ID || ''),

@@ -8,12 +8,12 @@ import { storeOtp } from "../../_otpStore";
 initializeFirebaseAdmin();
 
 /**
- * Creates configured Nodemailer transporters with multiple fallbacks for Gmail / SMTP delivery
+ * Creates a configured Nodemailer transporter for Gmail / SMTP delivery
  */
 function createTransporters(smtpUser: string, smtpPass: string, smtpHost: string, smtpPort: number) {
   const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
 
-  // Primary: dedicated Gmail service or custom host
+  // Primary transporter (dedicated Gmail service when targeting Gmail)
   const primaryTransporter = isGmail
     ? nodemailer.createTransport({
         service: "gmail",
@@ -38,25 +38,11 @@ function createTransporters(smtpUser: string, smtpPass: string, smtpHost: string
         socketTimeout: 20000,
       });
 
-  // Secondary fallback: Direct SSL (Port 465)
-  const sslTransporter = nodemailer.createTransport({
-    host: isGmail ? "smtp.gmail.com" : smtpHost,
-    port: 465,
-    secure: true,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
-  });
-
-  // Tertiary fallback: STARTTLS (Port 587)
-  const tlsTransporter = nodemailer.createTransport({
-    host: isGmail ? "smtp.gmail.com" : smtpHost,
+  // Secondary fallback transporter (standard SMTP host + port)
+  const fallbackTransporter = nodemailer.createTransport({
+    host: smtpHost || "smtp.gmail.com",
     port: smtpPort || 587,
-    secure: false,
+    secure: smtpPort === 465,
     auth: {
       user: smtpUser,
       pass: smtpPass,
@@ -66,33 +52,10 @@ function createTransporters(smtpUser: string, smtpPass: string, smtpHost: string
     socketTimeout: 20000,
   });
 
-  return { primaryTransporter, sslTransporter, tlsTransporter };
+  return { primaryTransporter, fallbackTransporter };
 }
 
 export default async function handler(req: any, res: any) {
-  // Ensure standard Express helper methods exist on res across all runtime environments
-  if (typeof res.status !== 'function') {
-    res.status = function(code: number) {
-      res.statusCode = code;
-      return res;
-    };
-  }
-  if (typeof res.json !== 'function') {
-    res.json = function(data: any) {
-      if (!res.headersSent) {
-        res.setHeader('Content-Type', 'application/json');
-      }
-      res.end(JSON.stringify(data));
-      return res;
-    };
-  }
-  if (typeof res.send !== 'function') {
-    res.send = function(data: any) {
-      res.end(data);
-      return res;
-    };
-  }
-
   // CORS configuration
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,27 +74,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  let body = req.body;
-  if (!body && typeof req.on === 'function') {
-    body = await new Promise((resolve) => {
-      let data = '';
-      req.on('data', (chunk: any) => { data += chunk; });
-      req.on('end', () => {
-        try {
-          resolve(data ? JSON.parse(data) : {});
-        } catch (e) {
-          resolve({});
-        }
-      });
-      req.on('error', () => resolve({}));
-    });
-  } else if (typeof body === 'string') {
-    try {
-      body = JSON.parse(body);
-    } catch (e) {}
-  }
-
-  const { email } = body || {};
+  const { email } = req.body || {};
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ success: false, error: "A valid email address is required" });
   }
@@ -142,10 +85,9 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Please provide a valid email format (e.g. name@gmail.com)" });
   }
 
-  // Retrieve & normalize SMTP credentials (with default production Gmail credentials fallback)
-  const smtpUser = (process.env.SMTP_USER || "vibamartz@gmail.com").replace(/^["']|["']$/g, "").trim();
-  const rawPass = (process.env.SMTP_PASS || "cfca hvvx jsrq kzxk").replace(/^["']|["']$/g, "").trim();
-  const smtpPass = rawPass.replace(/\s+/g, "");
+  // Retrieve & normalize SMTP credentials
+  const smtpUser = (process.env.SMTP_USER || "").trim();
+  const smtpPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
   const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
@@ -173,7 +115,7 @@ export default async function handler(req: any, res: any) {
     // Store in backend OTP store with 10 minutes expiry (TTL = 10 * 60 * 1000)
     storeOtp(normalizedEmail, otp, 10 * 60 * 1000);
 
-    const { primaryTransporter, sslTransporter, tlsTransporter } = createTransporters(
+    const { primaryTransporter, fallbackTransporter } = createTransporters(
       smtpUser,
       smtpPass,
       smtpHost,
@@ -240,44 +182,29 @@ export default async function handler(req: any, res: any) {
       subject: emailSubject,
       text: emailText,
       html: emailHtml,
-      priority: 'high' as const,
       headers: {
         'X-Entity-Ref-ID': Date.now().toString(),
-        'X-Priority': '1',
-        'Importance': 'high',
       },
     };
 
     let sendSuccess = false;
     let lastError: any = null;
 
-    // 1. Primary send attempt (dedicated service: "gmail")
+    // Primary send attempt
     try {
       await primaryTransporter.sendMail(mailOptions);
       sendSuccess = true;
       console.log(`[ViBa Mart] OTP email successfully sent to ${normalizedEmail}`);
     } catch (primaryErr: any) {
-      console.warn(`[ViBa Mart] Primary SMTP transport failed (${primaryErr?.message || primaryErr}), trying SSL transport...`);
+      console.warn(`[ViBa Mart] Primary SMTP transport failed (${primaryErr?.message || primaryErr}), trying fallback transport...`);
       lastError = primaryErr;
-      
-      // 2. Secondary send attempt (direct SSL on port 465)
       try {
-        await sslTransporter.sendMail(mailOptions);
+        await fallbackTransporter.sendMail(mailOptions);
         sendSuccess = true;
-        console.log(`[ViBa Mart] OTP email successfully sent via SSL transport to ${normalizedEmail}`);
-      } catch (sslErr: any) {
-        lastError = sslErr;
-        console.warn(`[ViBa Mart] SSL SMTP transport failed (${sslErr?.message || sslErr}), trying TLS transport...`);
-        
-        // 3. Tertiary send attempt (STARTTLS on port 587)
-        try {
-          await tlsTransporter.sendMail(mailOptions);
-          sendSuccess = true;
-          console.log(`[ViBa Mart] OTP email successfully sent via TLS transport to ${normalizedEmail}`);
-        } catch (tlsErr: any) {
-          lastError = tlsErr;
-          console.error(`[ViBa Mart] All SMTP transports failed: ${tlsErr?.message || tlsErr}`);
-        }
+        console.log(`[ViBa Mart] OTP email successfully sent via fallback transport to ${normalizedEmail}`);
+      } catch (fallbackErr: any) {
+        lastError = fallbackErr;
+        console.error(`[ViBa Mart] Fallback SMTP transport failed: ${fallbackErr?.message || fallbackErr}`);
       }
     }
 

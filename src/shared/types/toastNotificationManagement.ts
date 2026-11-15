@@ -128,7 +128,7 @@ export const DEFAULT_TOAST_NOTIFICATIONS: ToastNotificationConfigItem[] = [
     module: 'auth',
     type: 'success',
     title: 'Verification Code Sent',
-    message: 'A 6-digit verification code has been sent to your Gmail address.',
+    message: 'A 6-digit verification code has been sent to your phone number.',
     enabled: true,
     description: 'Triggered when an OTP is dispatched for authentication.',
     isCustom: false

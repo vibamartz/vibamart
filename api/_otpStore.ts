@@ -103,7 +103,7 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
       matchedOtp.verifiedAt = matchedOtp.verifiedAt || Date.now();
 
       // Schedule removal after 60-second grace window to absorb duplicate requests or rapid resubmits
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         const current = globalOtpStore.get(normalizedEmail);
         if (current) {
           current.otps = current.otps.filter(o => o.code !== cleanCode);
@@ -112,9 +112,6 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
           }
         }
       }, 60000);
-      if (typeof timer.unref === 'function') {
-        timer.unref();
-      }
 
       if (hasAdminSdkCredentials()) {
         try {
