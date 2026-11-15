@@ -5,5 +5,6 @@ coverage/
 .DS_Store
 *.log
 .env*
+.viba_otp_cache.json
 firebase-applet-config.json
 src/backend/search/meiliSearchService.ts

@@ -8,36 +8,84 @@ import { verifyOtp, hasAdminSdkCredentials, getDeterministicAuthSecret } from ".
 initializeFirebaseAdmin();
 
 export default async function handler(req: any, res: any) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  // Ensure standard Express response helper methods exist across all runtimes
+  if (typeof res.status !== "function") {
+    res.status = function (code: number) {
+      res.statusCode = code;
+      return res;
+    };
+  }
+  if (typeof res.json !== "function") {
+    res.json = function (data: any) {
+      if (!res.headersSent) {
+        res.setHeader("Content-Type", "application/json");
+      }
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
+  // CORS configuration
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
   res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
   );
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
-  const { email, code } = req.body;
+  // Parse request body across Express, Vite, and serverless streams
+  let body = req.body;
+  if (!body && typeof req.on === "function") {
+    body = await new Promise((resolve) => {
+      let data = "";
+      req.on("data", (chunk: any) => {
+        data += chunk;
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          resolve({});
+        }
+      });
+      req.on("error", () => resolve({}));
+    });
+  } else if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      return res.status(400).json({ success: false, error: "Invalid JSON request body" });
+    }
+  }
+
+  const { email, code } = body || {};
   if (!email || !code) {
-    return res.status(400).json({ success: false, error: "Email and code are required" });
+    return res.status(400).json({ success: false, error: "Email address and 6-digit OTP code are required" });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const normalizedCode = String(code).replace(/\D/g, '').trim();
+  const normalizedCode = String(code).replace(/\D/g, "").trim();
+
+  if (normalizedCode.length !== 6) {
+    return res.status(400).json({ success: false, error: "Please enter the complete 6-digit OTP code." });
+  }
 
   try {
     const result = await verifyOtp(normalizedEmail, normalizedCode);
     if (!result.valid) {
-      return res.status(400).json({ success: false, error: result.reason || "Invalid OTP code" });
+      return res.status(400).json({
+        success: false,
+        error: result.reason || "Invalid OTP code. Please check your Gmail and try again.",
+      });
     }
 
     // If Admin SDK credentials are fully configured, generate custom token
@@ -60,9 +108,9 @@ export default async function handler(req: any, res: any) {
         }
 
         const customToken = await admin.auth().createCustomToken(uid, {
-          email_verified: true
+          email_verified: true,
         });
-        
+
         return res.json({ success: true, customToken });
       } catch (adminErr) {
         console.warn("[VerifyOtp] Admin SDK custom token failed, falling back to auth secret:", adminErr);
@@ -71,20 +119,20 @@ export default async function handler(req: any, res: any) {
 
     // Direct Firebase client authentication credential
     const authSecret = getDeterministicAuthSecret(normalizedEmail);
-    const deterministicUid = 'usr_' + Buffer.from(normalizedEmail).toString('hex').slice(0, 24);
-    return res.json({ 
-      success: true, 
+    const deterministicUid = "usr_" + Buffer.from(normalizedEmail).toString("hex").slice(0, 24);
+    return res.json({
+      success: true,
       authSecret,
       uid: deterministicUid,
-      email: normalizedEmail 
+      email: normalizedEmail,
     });
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);
     const errMsg = error?.message || String(error) || "Failed to verify OTP";
-    res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       error: errMsg,
-      message: errMsg
+      message: errMsg,
     });
   }
 }

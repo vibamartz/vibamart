@@ -57,18 +57,6 @@ export default function Login() {
     };
   }, []);
 
-  useEffect(() => {
-    if (step === 'otp') {
-      ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
-        if (code && code.length === 6) {
-          setOtpDigits(code.split(''));
-          toast.success('SMS OTP autofilled securely!');
-        }
-      });
-    }
-  }, [step]);
-
-
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -86,8 +74,13 @@ export default function Login() {
   const sendOtp = async (isResend = false) => {
     if (isSendingRef.current || loading) return;
     const cleanEmail = emailAddress.trim().toLowerCase();
-    if (!cleanEmail || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
-      toast.error('Please enter a valid email address.');
+    if (!cleanEmail) {
+      toast.error('Please enter your Gmail address.');
+      return;
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      toast.error('Please enter a valid Gmail address (e.g. name@gmail.com).');
       return;
     }
     isSendingRef.current = true;
@@ -114,20 +107,37 @@ export default function Login() {
       const msg = typeof rawMsg === 'string' && rawMsg.includes('<html')
         ? 'Server communication error. Please try again.'
         : rawMsg;
-      toast.error(msg.toLowerCase().startsWith('otp failed') ? msg : `OTP failed: ${msg}`);
+      toast.error(msg);
     } finally {
       setLoading(false);
       isSendingRef.current = false;
     }
   };
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestOtp = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     await sendOtp(false);
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length > 1) {
+      // Handles pasting or autofill of multiple digits
+      const newDigits = [...otpDigits];
+      const chars = cleaned.slice(0, 6).split('');
+      for (let i = 0; i < 6; i++) {
+        if (i >= index && chars[i - index]) {
+          newDigits[i] = chars[i - index];
+        }
+      }
+      setOtpDigits(newDigits);
+      const nextFocus = Math.min(index + cleaned.length - 1, 5);
+      otpRefs.current[nextFocus]?.focus();
+      return;
+    }
+    const digit = cleaned.slice(-1);
     const newDigits = [...otpDigits];
     newDigits[index] = digit;
     setOtpDigits(newDigits);
@@ -151,21 +161,33 @@ export default function Login() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length === 6) {
-      setOtpDigits(pasted.split(''));
-      otpRefs.current[5]?.focus();
+    if (pasted.length > 0) {
+      const newDigits = ['', '', '', '', '', ''];
+      pasted.split('').forEach((char, i) => {
+        if (i < 6) newDigits[i] = char;
+      });
+      setOtpDigits(newDigits);
+      const nextIndex = Math.min(pasted.length, 5);
+      otpRefs.current[nextIndex]?.focus();
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOtp = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
     if (isVerifyingRef.current || loading) return;
 
     const cleanEmail = emailAddress.trim().toLowerCase();
     const otpCode = otpDigits.join('').replace(/\D/g, '');
     if (otpCode.length < 6) {
-      toast.warning('Please enter the complete 6-digit OTP');
+      toast.warning('Please enter the complete 6-digit OTP received in your Gmail.');
+      const firstEmptyIndex = otpDigits.findIndex((d) => !d);
+      if (firstEmptyIndex >= 0) {
+        otpRefs.current[firstEmptyIndex]?.focus();
+      }
       return;
     }
 
@@ -174,7 +196,7 @@ export default function Login() {
     try {
       const response = await axios.post('/api/auth/verify-email-otp', { email: cleanEmail, code: otpCode });
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         let firebaseUser: any = null;
 
         // 1. If backend returned customToken, sign in with it
@@ -222,6 +244,7 @@ export default function Login() {
         if (mode === 'signup') {
           setTempFirebaseUser(firebaseUser);
           setStep('profile');
+          toast.success('Email verified successfully! Please complete your profile.');
         } else {
           syncUser(firebaseUser);
           toast.success('Login successful! Welcome back.');
@@ -410,7 +433,7 @@ export default function Login() {
                       : 'Join ViBa Mart and start shopping today'}
                   </p>
 
-                  <form onSubmit={handleRequestOtp} className="space-y-4">
+                  <form onSubmit={handleRequestOtp} noValidate className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
                         Email Address
@@ -430,8 +453,9 @@ export default function Login() {
 
                     <button
                       type="submit"
-                      disabled={loading || !emailAddress}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      disabled={loading}
+                      onClick={handleRequestOtp}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <Mail className="w-5 h-5" />
                       {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
@@ -488,7 +512,7 @@ export default function Login() {
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
-                  <form onSubmit={handleVerifyOtp} className="space-y-6">
+                  <form onSubmit={handleVerifyOtp} noValidate className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
                       {otpDigits.map((digit, i) => (
                         <input
@@ -496,7 +520,7 @@ export default function Login() {
                           ref={(el) => { otpRefs.current[i] = el; }}
                           type="text"
                           inputMode="numeric"
-                          maxLength={1}
+                          maxLength={6}
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
@@ -511,8 +535,9 @@ export default function Login() {
 
                     <button
                       type="submit"
-                      disabled={loading || !isOtpComplete}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      disabled={loading}
+                      onClick={handleVerifyOtp}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />
                       {loading ? 'Verifying...' : 'Verify & Continue'}
@@ -527,9 +552,10 @@ export default function Login() {
                       </p>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => sendOtp(true)}
                         disabled={loading}
-                        className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         <RefreshCw className="w-4 h-4" />
                         Resend OTP
@@ -538,12 +564,13 @@ export default function Login() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => {
                       setStep('auth');
                       setOtpDigits(['', '', '', '', '', '']);
                       if (timerRef.current) clearInterval(timerRef.current);
                     }}
-                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
+                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2 cursor-pointer"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Change Email

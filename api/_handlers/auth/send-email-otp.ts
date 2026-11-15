@@ -7,100 +7,176 @@ import { storeOtp } from "../../_otpStore";
 
 initializeFirebaseAdmin();
 
-/**
- * Creates a configured Nodemailer transporter for Gmail / SMTP delivery
- */
-function createTransporters(smtpUser: string, smtpPass: string, smtpHost: string, smtpPort: number) {
-  const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
+// Transporter cache to avoid TLS negotiation latency on every single request
+let cachedTransporters: {
+  primary: nodemailer.Transporter;
+  fallback587: nodemailer.Transporter;
+  fallback465: nodemailer.Transporter;
+  user: string;
+  pass: string;
+} | null = null;
 
-  // Primary transporter (dedicated Gmail service when targeting Gmail)
-  const primaryTransporter = isGmail
-    ? nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-      })
-    : nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-      });
+function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
+  if (
+    cachedTransporters &&
+    cachedTransporters.user === smtpUser &&
+    cachedTransporters.pass === smtpPass
+  ) {
+    return cachedTransporters;
+  }
 
-  // Secondary fallback transporter (standard SMTP host + port)
-  const fallbackTransporter = nodemailer.createTransport({
-    host: smtpHost || "smtp.gmail.com",
-    port: smtpPort || 587,
-    secure: smtpPort === 465,
+  const cleanPass = smtpPass.replace(/\s+/g, "");
+
+  // 1. Primary: Dedicated Gmail service
+  const primary = nodemailer.createTransport({
+    service: "gmail",
     auth: {
       user: smtpUser,
-      pass: smtpPass,
+      pass: cleanPass,
     },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
-  return { primaryTransporter, fallbackTransporter };
+  // 2. Fallback STARTTLS (Port 587)
+  const fallback587 = nodemailer.createTransport({
+    host: smtpHost || "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: smtpUser,
+      pass: cleanPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+
+  // 3. Fallback SSL (Port 465)
+  const fallback465 = nodemailer.createTransport({
+    host: smtpHost || "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: smtpUser,
+      pass: cleanPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+
+  cachedTransporters = {
+    primary,
+    fallback587,
+    fallback465,
+    user: smtpUser,
+    pass: smtpPass,
+  };
+
+  return cachedTransporters;
 }
 
 export default async function handler(req: any, res: any) {
+  // Ensure standard Express response helper methods exist across all runtimes
+  if (typeof res.status !== "function") {
+    res.status = function (code: number) {
+      res.statusCode = code;
+      return res;
+    };
+  }
+  if (typeof res.json !== "function") {
+    res.json = function (data: any) {
+      if (!res.headersSent) {
+        res.setHeader("Content-Type", "application/json");
+      }
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
   // CORS configuration
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT");
   res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
   );
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
-  const { email } = req.body || {};
-  if (!email || typeof email !== 'string') {
+  // Parse request body across Express, Vite, and serverless streams
+  let body = req.body;
+  if (!body && typeof req.on === "function") {
+    body = await new Promise((resolve) => {
+      let data = "";
+      req.on("data", (chunk: any) => {
+        data += chunk;
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          resolve({});
+        }
+      });
+      req.on("error", () => resolve({}));
+    });
+  } else if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      return res.status(400).json({ success: false, error: "Invalid JSON request body" });
+    }
+  }
+
+  const { email } = body || {};
+  if (!email || typeof email !== "string") {
     return res.status(400).json({ success: false, error: "A valid email address is required" });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(normalizedEmail)) {
-    return res.status(400).json({ success: false, error: "Please provide a valid email format (e.g. name@gmail.com)" });
+    return res.status(400).json({
+      success: false,
+      error: "Please enter a valid Gmail address (e.g. name@gmail.com)",
+    });
   }
 
   // Retrieve & normalize SMTP credentials
   const smtpUser = (process.env.SMTP_USER || "").trim();
-  const smtpPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
+  const rawPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
+  const smtpPass = rawPass.replace(/\s+/g, "");
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
-  const smtpPort = Number(process.env.SMTP_PORT) || 587;
 
-  const isPlaceholderSmtp =
-    !smtpUser ||
-    !smtpPass ||
-    smtpUser === "your-email@gmail.com" ||
-    smtpUser === "test" ||
-    smtpUser.includes("example.com") ||
-    smtpPass === "your_smtp_password" ||
-    smtpPass === "test";
+  const isConfigured =
+    smtpUser &&
+    smtpPass &&
+    smtpUser !== "your-email@gmail.com" &&
+    smtpUser !== "test" &&
+    !smtpUser.includes("example.com") &&
+    smtpPass !== "your_smtp_password" &&
+    smtpPass !== "test";
 
-  if (isPlaceholderSmtp) {
+  if (!isConfigured) {
     console.error("[ViBa Mart Auth] Gmail SMTP credentials are not configured or are placeholder.");
     return res.status(500).json({
       success: false,
@@ -115,15 +191,10 @@ export default async function handler(req: any, res: any) {
     // Store in backend OTP store with 10 minutes expiry (TTL = 10 * 60 * 1000)
     storeOtp(normalizedEmail, otp, 10 * 60 * 1000);
 
-    const { primaryTransporter, fallbackTransporter } = createTransporters(
-      smtpUser,
-      smtpPass,
-      smtpHost,
-      smtpPort
-    );
+    const transporters = getTransporters(smtpUser, smtpPass, smtpHost);
 
     const emailSubject = "Your ViBa Mart Login Verification Code";
-    const emailText = `Your ViBa Mart verification code is ${otp}. This code is valid for 10 minutes. Do not share this code with anyone.`;
+    const emailText = `Your ViBa Mart verification code is: ${otp}\n\nThis verification code is valid for 10 minutes.\nNever share this code with anyone. ViBa Mart representatives will never ask for your verification code.\n\nIf you did not request this code, you can safely ignore this email.`;
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -149,7 +220,7 @@ export default async function handler(req: any, res: any) {
             
             <!-- OTP Box -->
             <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 20px; text-align: center; margin: 0 0 24px 0;">
-              <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; color: #15803d; letter-spacing: 10px; display: inline-block;">${otp}</span>
+              <span style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 800; color: #15803d; letter-spacing: 12px; display: inline-block;">${otp}</span>
             </div>
             
             <!-- Expiry & Security Notice -->
@@ -183,28 +254,40 @@ export default async function handler(req: any, res: any) {
       text: emailText,
       html: emailHtml,
       headers: {
-        'X-Entity-Ref-ID': Date.now().toString(),
+        "X-Entity-Ref-ID": Date.now().toString(),
       },
     };
 
     let sendSuccess = false;
     let lastError: any = null;
 
-    // Primary send attempt
+    // 1. Primary Attempt (Gmail Service)
     try {
-      await primaryTransporter.sendMail(mailOptions);
+      await transporters.primary.sendMail(mailOptions);
       sendSuccess = true;
       console.log(`[ViBa Mart] OTP email successfully sent to ${normalizedEmail}`);
-    } catch (primaryErr: any) {
-      console.warn(`[ViBa Mart] Primary SMTP transport failed (${primaryErr?.message || primaryErr}), trying fallback transport...`);
-      lastError = primaryErr;
+    } catch (err: any) {
+      console.warn(`[ViBa Mart] Primary transport error: ${err?.message || err}. Trying Port 587 fallback...`);
+      lastError = err;
+
+      // 2. Fallback Attempt (Port 587 STARTTLS)
       try {
-        await fallbackTransporter.sendMail(mailOptions);
+        await transporters.fallback587.sendMail(mailOptions);
         sendSuccess = true;
-        console.log(`[ViBa Mart] OTP email successfully sent via fallback transport to ${normalizedEmail}`);
-      } catch (fallbackErr: any) {
-        lastError = fallbackErr;
-        console.error(`[ViBa Mart] Fallback SMTP transport failed: ${fallbackErr?.message || fallbackErr}`);
+        console.log(`[ViBa Mart] OTP email sent via 587 fallback to ${normalizedEmail}`);
+      } catch (err2: any) {
+        console.warn(`[ViBa Mart] 587 fallback error: ${err2?.message || err2}. Trying Port 465 fallback...`);
+        lastError = err2;
+
+        // 3. Fallback Attempt (Port 465 SSL)
+        try {
+          await transporters.fallback465.sendMail(mailOptions);
+          sendSuccess = true;
+          console.log(`[ViBa Mart] OTP email sent via 465 fallback to ${normalizedEmail}`);
+        } catch (err3: any) {
+          lastError = err3;
+          console.error(`[ViBa Mart] All SMTP transports failed for ${normalizedEmail}: ${err3?.message || err3}`);
+        }
       }
     }
 
@@ -213,7 +296,7 @@ export default async function handler(req: any, res: any) {
       console.error(`[ViBa Mart] OTP delivery failed for ${normalizedEmail}: ${errorDetail}`);
       return res.status(500).json({
         success: false,
-        error: "Failed to deliver OTP to your Gmail address. Please check your email address and try again.",
+        error: "Failed to deliver OTP to your Gmail address. Please verify your email address and try again.",
       });
     }
 
