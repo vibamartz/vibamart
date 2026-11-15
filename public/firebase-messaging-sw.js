@@ -38,12 +38,13 @@ function getConfigFromUrl() {
 }
 
 const defaultConfig = {
-  apiKey: "",
-  authDomain: "viba-mart-f46a4.firebaseapp.com",
-  projectId: "viba-mart-f46a4",
-  storageBucket: "viba-mart-f46a4.appspot.com",
-  messagingSenderId: "1083492847291",
-  appId: "1:1083492847291:web:viba1234567890"
+  apiKey: "AIzaSyArTZAIiaESeahiK3Gdk5uUrru2U3WW9ww",
+  authDomain: "viba-mart-app.firebaseapp.com",
+  projectId: "viba-mart-app",
+  storageBucket: "viba-mart-app.firebasestorage.app",
+  messagingSenderId: "486981133317",
+  appId: "1:486981133317:web:4caa94260d5c2d18cb286c",
+  measurementId: "G-W3XVYZZEV4"
 };
 
 const firebaseConfig = getConfigFromUrl() || defaultConfig;

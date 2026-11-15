@@ -9,8 +9,13 @@ let adminInitError: string | null = null;
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
-        let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
+      const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+      const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
+      const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
+      const isPlaceholderEmail = !rawEmail || rawEmail.includes('your_project') || rawEmail.includes('your_firebase_client_email');
+
+      if (process.env.FIREBASE_PROJECT_ID && !isPlaceholderEmail && !isPlaceholderKey) {
+        let formattedKey = rawKey;
         // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
         // Handle escaped newlines
@@ -19,7 +24,7 @@ export function initializeFirebaseAdmin() {
         admin.initializeApp({
           credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            clientEmail: rawEmail,
             privateKey: formattedKey,
           }),
         });
@@ -29,7 +34,9 @@ export function initializeFirebaseAdmin() {
           console.warn("Firestore settings already initialized or failed:", e);
         }
       } else {
-        admin.initializeApp();
+        admin.initializeApp({
+          projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart-app'
+        });
         try {
           admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
         } catch (e) {}

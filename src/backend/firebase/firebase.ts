@@ -1,41 +1,111 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAnalytics, isSupported as isAnalyticsSupported, Analytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { doc, getDocFromServer, initializeFirestore } from "firebase/firestore";
+import { doc, getDocFromServer, initializeFirestore, getFirestore, Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging, isSupported, Messaging } from "firebase/messaging";
 
-let firebaseConfig: any = {};
+export const firebaseConfig = {
+  apiKey: "AIzaSyArTZAIiaESeahiK3Gdk5uUrru2U3WW9ww",
+  authDomain: "viba-mart-app.firebaseapp.com",
+  projectId: "viba-mart-app",
+  storageBucket: "viba-mart-app.firebasestorage.app",
+  messagingSenderId: "486981133317",
+  appId: "1:486981133317:web:4caa94260d5c2d18cb286c",
+  measurementId: "G-W3XVYZZEV4"
+};
+
+let activeConfig = { ...firebaseConfig };
 try {
+  let envConfig: any = {};
   if (typeof process.env.FIREBASE_CONFIG === 'string') {
-    firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+    envConfig = JSON.parse(process.env.FIREBASE_CONFIG);
   } else if (process.env.FIREBASE_CONFIG) {
-    firebaseConfig = process.env.FIREBASE_CONFIG;
+    envConfig = process.env.FIREBASE_CONFIG;
+  }
+  if (envConfig && typeof envConfig === 'object') {
+    for (const [key, val] of Object.entries(envConfig)) {
+      if (val && typeof val === 'string' && !val.includes('your_') && !val.includes('placeholder')) {
+        (activeConfig as any)[key] = val;
+      }
+    }
   }
 } catch (e) {
-  firebaseConfig = {};
+  // Use fallback configuration
 }
 
-if (!firebaseConfig.projectId) {
-  const pId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
-  firebaseConfig = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || '',
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || `${pId}.firebaseapp.com`,
-    projectId: pId,
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || `${pId}.appspot.com`,
-    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1083492847291',
-    appId: process.env.VITE_FIREBASE_APP_ID || '1:1083492847291:web:viba1234567890',
-    ...firebaseConfig
-  };
+const envApiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
+if (envApiKey && !envApiKey.includes('your_')) activeConfig.apiKey = envApiKey;
+
+const envAuthDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN;
+if (envAuthDomain && !envAuthDomain.includes('your_')) activeConfig.authDomain = envAuthDomain;
+
+const envProjectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+if (envProjectId && !envProjectId.includes('your_') && envProjectId !== 'viba-mart-f46a4') activeConfig.projectId = envProjectId;
+
+const envStorageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET;
+if (envStorageBucket && !envStorageBucket.includes('your_')) activeConfig.storageBucket = envStorageBucket;
+
+const envSenderId = process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID;
+if (envSenderId && envSenderId !== '1083492847291') activeConfig.messagingSenderId = envSenderId;
+
+const envAppId = process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID;
+if (envAppId && !envAppId.includes('your_') && !envAppId.includes('viba1234567890')) activeConfig.appId = envAppId;
+
+const envMeasurementId = process.env.VITE_FIREBASE_MEASUREMENT_ID || process.env.FIREBASE_MEASUREMENT_ID;
+if (envMeasurementId) activeConfig.measurementId = envMeasurementId;
+
+// Prevent duplicate Firebase initialization
+export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(activeConfig);
+
+// Initialize Firebase Analytics safely so it never interrupts Login, Signup, or UI flows if unavailable
+export let analytics: Analytics | null = null;
+
+if (typeof window !== 'undefined') {
+  isAnalyticsSupported()
+    .then((supported) => {
+      if (supported) {
+        try {
+          analytics = getAnalytics(app);
+        } catch (err) {
+          console.warn("[Firebase] Analytics initialization skipped:", err);
+        }
+      }
+    })
+    .catch((err) => {
+      console.warn("[Firebase] Analytics is not supported in this environment:", err);
+    });
 }
 
-const app = initializeApp(firebaseConfig);
+export const getFirebaseAnalytics = async (): Promise<Analytics | null> => {
+  if (analytics) return analytics;
+  if (typeof window !== 'undefined') {
+    try {
+      const supported = await isAnalyticsSupported();
+      if (supported) {
+        analytics = getAnalytics(app);
+        return analytics;
+      }
+    } catch (e) {
+      console.warn("[Firebase] Analytics not supported:", e);
+    }
+  }
+  return null;
+};
 
-// Use initializeFirestore with settings to fix connectivity issues in restricted environments
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  // @ts-ignore
-  useFetchStreams: false,
-}, (firebaseConfig as any).firestoreDatabaseId);
+// Use initializeFirestore with settings to fix connectivity issues in restricted environments,
+// or reuse existing Firestore instance to prevent duplicate initialization
+let dbInstance: Firestore;
+try {
+  dbInstance = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    // @ts-ignore
+    useFetchStreams: false,
+  }, (activeConfig as any).firestoreDatabaseId);
+} catch (e) {
+  dbInstance = getFirestore(app);
+}
+export const db = dbInstance;
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
