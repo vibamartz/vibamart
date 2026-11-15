@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from './backend/firebase/firebase';
-import {
-  signInWithCustomToken,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInAnonymously,
-  User
-} from 'firebase/auth';
+import { signInWithCustomToken, signInWithPopup, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
@@ -17,92 +10,16 @@ import toast from 'react-hot-toast';
 import Logo from './desktop/components/Logo';
 import axios from 'axios';
 import { ViBaPermissionManager } from './services/ViBaPermissionManager';
-import AuthLanguageSelector from './shared/components/AuthLanguageSelector';
-import {
-  SupportedLanguage,
-  AUTH_TRANSLATIONS,
-} from './shared/translations/authTranslations';
 
 type Step = 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
 
 const RESEND_DELAY = 60;
 
-function formatAuthError(err: any, fallback = 'Operation failed'): string {
-  if (!err) return fallback;
-  if (typeof err === 'string') return err;
-
-  const data = err.response?.data;
-  if (data) {
-    if (typeof data === 'string') return data;
-    if (typeof data.error === 'string') return data.error;
-    if (data.error && typeof data.error.message === 'string') return data.error.message;
-    if (data.error && typeof data.error.code === 'string') return `Server error: ${data.error.code}`;
-    if (typeof data.message === 'string') return data.message;
-    if (data.message && typeof data.message.error === 'string') return data.message.error;
-    if (data.message && typeof data.message.message === 'string') return data.message.message;
-    if (typeof data.error === 'object') {
-      try {
-        return JSON.stringify(data.error);
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  if (err.code && typeof err.code === 'string') {
-    switch (err.code) {
-      case 'auth/invalid-email':
-        return 'Invalid email address format.';
-      case 'auth/user-disabled':
-        return 'This account has been disabled.';
-      case 'auth/too-many-requests':
-        return 'Too many attempts. Please try again in a few minutes.';
-      case 'auth/network-request-failed':
-        return 'Network connection issue. Please check your internet connection.';
-      default:
-        break;
-    }
-  }
-
-  if (typeof err.message === 'string') {
-    if (err.message.includes('[object Object]')) {
-      return fallback;
-    }
-    return err.message;
-  }
-
-  return fallback;
-}
-
 export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
   const [step, setStep] = useState<Step>('auth');
   const [loading, setLoading] = useState(false);
-
-  // Preferred Language state (persisted across sessions)
-  const [language, setLanguage] = useState<SupportedLanguage>(() => {
-    try {
-      const saved = localStorage.getItem('viba_preferred_language') as SupportedLanguage;
-      if (saved && AUTH_TRANSLATIONS[saved]) {
-        return saved;
-      }
-    } catch (e) {
-      // Ignore
-    }
-    return 'en';
-  });
-
-  const t = AUTH_TRANSLATIONS[language] || AUTH_TRANSLATIONS.en;
-
-  const handleLanguageChange = (newLang: SupportedLanguage) => {
-    setLanguage(newLang);
-    try {
-      localStorage.setItem('viba_preferred_language', newLang);
-    } catch (e) {
-      // Ignore
-    }
-  };
 
   // Email Auth
   const [emailAddress, setEmailAddress] = useState('');
@@ -136,11 +53,11 @@ export default function Login() {
       ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
         if (code && code.length === 6) {
           setOtpDigits(code.split(''));
-          toast.success(t.smsAutofilled);
+          toast.success('SMS OTP autofilled securely!');
         }
       });
     }
-  }, [step, t.smsAutofilled]);
+  }, [step]);
 
 
   const startResendTimer = () => {
@@ -159,51 +76,25 @@ export default function Login() {
 
   const sendOtp = async (isResend = false) => {
     if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error(t.invalidEmail);
+      toast.error('Invalid email or password.');
       return;
     }
-
-    const normalizedEmail = emailAddress.trim().toLowerCase();
     setLoading(true);
-
     try {
-      // 1. Attempt backend API call
-      const response = await axios.post('/api/auth/send-email-otp', { email: normalizedEmail }, { timeout: 7000 });
-      if (response?.data?.success) {
+      const response = await axios.post('/api/auth/send-email-otp', { email: emailAddress.trim() });
+      if (response.data.success) {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-
-        if (response.data.devOtp && !response.data.emailSent) {
-          toast.success(`OTP: ${response.data.devOtp}`, { duration: 10000 });
-          setOtpDigits(String(response.data.devOtp).split(''));
-        } else {
-          toast.success(isResend ? t.otpResent : t.otpSent);
-        }
-
-        setTimeout(() => otpRefs.current[0]?.focus(), 250);
-        return;
+        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        setTimeout(() => otpRefs.current[0]?.focus(), 200);
+      } else {
+        throw new Error(response.data.error || 'Failed to send OTP');
       }
-      throw new Error(response?.data?.error || response?.data?.message || 'Failed to send OTP via server');
-    } catch (apiErr: any) {
-      console.warn("sendOtp API notice, activating local fallback OTP:", apiErr);
-
-      // 2. Client-side Fallback: Never leave user blocked!
-      const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      try {
-        sessionStorage.setItem(`viba_local_otp_${normalizedEmail}`, JSON.stringify({
-          otp: fallbackOtp,
-          expiresAt: Date.now() + 5 * 60 * 1000,
-        }));
-      } catch (storageErr) {
-        console.warn("sessionStorage warning:", storageErr);
-      }
-
-      setStep('otp');
-      setOtpDigits(fallbackOtp.split(''));
-      startResendTimer();
-      toast.success(`OTP: ${fallbackOtp}`, { duration: 10000 });
-      setTimeout(() => otpRefs.current[0]?.focus(), 250);
+    } catch (err: any) {
+      console.error("sendOtp Error:", err);
+      const msg = err.response?.data?.error || err.message || 'Failed to send OTP';
+      toast.error(`OTP failed: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -248,141 +139,37 @@ export default function Login() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const otpCode = otpDigits.join('').trim();
+    const otpCode = otpDigits.join('');
     if (otpCode.length < 6) {
-      toast.warning(t.enterCompleteOtp);
+      toast.warning('Please enter the complete 6-digit OTP');
       return;
     }
 
-    const normalizedEmail = emailAddress.trim().toLowerCase();
     setLoading(true);
-
     try {
-      let isVerified = false;
-      let customToken: string | null = null;
-      let authFallback: { email: string; tempPass: string; uid: string } | null = null;
-      let responseUid: string | null = null;
+      const response = await axios.post('/api/auth/verify-email-otp', { email: emailAddress.trim(), code: otpCode });
 
-      // 1. Check local fallback OTP
-      try {
-        const stored = sessionStorage.getItem(`viba_local_otp_${normalizedEmail}`);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.otp === otpCode && Date.now() <= parsed.expiresAt) {
-            isVerified = true;
-            sessionStorage.removeItem(`viba_local_otp_${normalizedEmail}`);
-          }
+      if (response.data.success && response.data.customToken) {
+        const result = await signInWithCustomToken(auth, response.data.customToken);
+        const firebaseUser = result.user;
+
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+          setTempFirebaseUser(firebaseUser);
+          setStep('profile');
+        } else {
+          await syncUser(firebaseUser);
+          toast.success('Login successful! Welcome back.');
+          navigate('/');
         }
-      } catch (storageErr) {
-        console.warn("Storage check warning:", storageErr);
-      }
-
-      // 2. If not verified via local storage, check backend API
-      if (!isVerified) {
-        try {
-          const response = await axios.post('/api/auth/verify-email-otp', {
-            email: normalizedEmail,
-            code: otpCode
-          }, { timeout: 7000 });
-
-          if (response?.data?.success) {
-            isVerified = true;
-            customToken = response.data.customToken || null;
-            authFallback = response.data.authFallback || null;
-            responseUid = response.data.uid || null;
-          } else {
-            const serverErrMsg = formatAuthError(response?.data, 'Invalid OTP');
-            toast.error(serverErrMsg);
-            setLoading(false);
-            return;
-          }
-        } catch (apiErr: any) {
-          if (apiErr.response?.status === 400) {
-            const msg = formatAuthError(apiErr, 'Invalid or expired OTP. Please try again.');
-            toast.error(msg);
-            setLoading(false);
-            return;
-          }
-          console.warn("Backend verification API notice:", apiErr);
-        }
-      }
-
-      if (!isVerified) {
-        toast.error('Invalid or expired OTP. Please check the code and try again.');
-        setLoading(false);
-        return;
-      }
-
-      // 3. Authenticate with Firebase
-      let firebaseUser: User | null = null;
-
-      if (customToken) {
-        try {
-          const result = await signInWithCustomToken(auth, customToken);
-          firebaseUser = result.user;
-        } catch (tokenErr) {
-          console.warn("signInWithCustomToken notice, using direct client auth:", tokenErr);
-        }
-      }
-
-      const deterministicPass = authFallback?.tempPass || (
-        "Viba@" + btoa(normalizedEmail).slice(0, 10).replace(/[^a-zA-Z0-9]/g, 'a') + "99!"
-      );
-
-      if (!firebaseUser) {
-        try {
-          const result = await signInWithEmailAndPassword(auth, normalizedEmail, deterministicPass);
-          firebaseUser = result.user;
-        } catch (signErr: any) {
-          if (
-            signErr.code === 'auth/user-not-found' ||
-            signErr.code === 'auth/invalid-credential' ||
-            signErr.code === 'auth/invalid-login-credentials'
-          ) {
-            try {
-              const createResult = await createUserWithEmailAndPassword(auth, normalizedEmail, deterministicPass);
-              firebaseUser = createResult.user;
-            } catch (createErr) {
-              console.warn("createUserWithEmailAndPassword fallback notice:", createErr);
-            }
-          } else {
-            console.warn("signInWithEmailAndPassword notice:", signErr);
-          }
-        }
-      }
-
-      if (!firebaseUser) {
-        try {
-          const anonResult = await signInAnonymously(auth);
-          firebaseUser = anonResult.user;
-        } catch (anonErr) {
-          console.warn("signInAnonymously fallback notice:", anonErr);
-        }
-      }
-
-      const effectiveUid = firebaseUser?.uid || responseUid || `user_${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const effectiveUser = firebaseUser || ({ uid: effectiveUid, email: normalizedEmail } as any);
-
-      // Check user profile in Firestore
-      const userRef = doc(db, 'users', effectiveUid);
-      let userSnap: any = null;
-      try {
-        userSnap = await getDoc(userRef);
-      } catch (getDocErr) {
-        console.warn("User lookup notice:", getDocErr);
-      }
-
-      if (!userSnap || !userSnap.exists()) {
-        setTempFirebaseUser(effectiveUser);
-        setStep('profile');
       } else {
-        await syncUser(effectiveUser);
-        toast.success(t.loginSuccess);
-        navigate('/');
+        throw new Error(response.data.error || 'Invalid OTP');
       }
     } catch (err: any) {
       console.error("verifyOtp Error:", err);
-      const msg = formatAuthError(err, 'Failed to verify OTP');
+      const msg = err.response?.data?.error || err.message || 'Failed to verify OTP';
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -403,12 +190,12 @@ export default function Login() {
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
-        toast.success(t.loginSuccess);
+        toast.success('Login successful! Welcome back.');
         navigate('/');
       }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      toast.error(t.loginFailed);
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -417,22 +204,22 @@ export default function Login() {
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || displayName.trim().length < 2) {
-      toast.warning(t.enterFullName);
+      toast.warning('Please enter your full name');
       return;
     }
     if (!contactNumber || contactNumber.trim().length < 7) {
-      toast.warning(t.enterValidPhone);
+      toast.warning('Please enter a valid contact number');
       return;
     }
     setLoading(true);
     try {
-      const effectiveUser = tempFirebaseUser || ({ uid: `user_${emailAddress.trim().toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}`, email: emailAddress.trim() } as any);
-      await syncUser(effectiveUser, displayName.trim(), contactNumber.trim());
-      toast.success(t.accountCreated);
+      if (!tempFirebaseUser) throw new Error('No temp user');
+      await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
+      toast.success('Your account has been created successfully.');
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error(t.registrationFailed);
+      toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -440,16 +227,11 @@ export default function Login() {
 
   const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
     const userRef = doc(db, 'users', firebaseUser.uid);
-    let userSnap: any = null;
-    try {
-      userSnap = await getDoc(userRef);
-    } catch (e) {
-      console.warn("User doc lookup notice:", e);
-    }
+    const userSnap = await getDoc(userRef);
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
 
-    if (!userSnap || !userSnap.exists()) {
+    if (!userSnap.exists()) {
       const newUser = {
         uid: firebaseUser.uid,
         email: userEmail,
@@ -462,11 +244,7 @@ export default function Login() {
         createdAt: now,
         lastLoginAt: now,
       };
-      try {
-        await setDoc(userRef, newUser);
-      } catch (writeErr) {
-        console.warn("User doc creation notice:", writeErr);
-      }
+      await setDoc(userRef, newUser);
       setUser(newUser as any);
     } else {
       const userData = userSnap.data() as any;
@@ -492,11 +270,7 @@ export default function Login() {
         userData.displayName = providedName;
       }
 
-      try {
-        await setDoc(userRef, updateData, { merge: true });
-      } catch (writeErr) {
-        console.warn("User doc update notice:", writeErr);
-      }
+      await setDoc(userRef, updateData, { merge: true });
       userData.isVerified = true;
       userData.accountStatus = 'active';
       userData.lastLoginAt = now;
@@ -519,14 +293,6 @@ export default function Login() {
           <div className="h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400" />
 
           <div className="p-8 sm:p-10">
-            {/* Always-visible Language Selection Option */}
-            <div className="mb-6">
-              <AuthLanguageSelector
-                currentLanguage={language}
-                onSelectLanguage={handleLanguageChange}
-              />
-            </div>
-
             <div className="flex justify-center mb-8">
               <Link to="/" className="hover:opacity-80 transition-opacity">
                 <Logo className="scale-125" showTextOnMobile={true} />
@@ -552,22 +318,24 @@ export default function Login() {
                           : 'text-gray-400 hover:text-gray-600'
                           }`}
                       >
-                        {m === 'login' ? t.logIn : t.signUp}
+                        {m === 'login' ? 'Log In' : 'Sign Up'}
                       </button>
                     ))}
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 mb-1">
-                    {mode === 'login' ? t.welcomeBack : t.createAccount}
+                    {mode === 'login' ? 'Welcome back! 👋' : 'Create account 🎉'}
                   </h2>
                   <p className="text-gray-400 text-sm font-medium mb-8">
-                    {mode === 'login' ? t.loginSubtitle : t.signupSubtitle}
+                    {mode === 'login'
+                      ? 'Sign in to access your orders & wishlist'
+                      : 'Join ViBa Mart and start shopping today'}
                   </p>
 
                   <form onSubmit={handleRequestOtp} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        {t.emailAddress}
+                        Email Address
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -575,7 +343,7 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder={t.emailPlaceholder}
+                          placeholder="you@example.com"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -588,13 +356,13 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <Mail className="w-5 h-5" />
-                      {loading ? t.sendingOtp : mode === 'signup' ? t.sendOtpToVerify : t.getOtp}
+                      {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
                     </button>
                   </form>
 
                   <div className="mt-6 flex items-center gap-4">
                     <div className="h-px flex-1 bg-gray-100" />
-                    <span className="text-xs font-bold text-gray-400 uppercase">{t.or}</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">OR</span>
                     <div className="h-px flex-1 bg-gray-100" />
                   </div>
 
@@ -609,15 +377,15 @@ export default function Login() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    {t.continueWithGoogle}
+                    Continue with Google
                   </button>
 
 
                   <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">
-                    {t.termsNotice}{' '}
-                    <Link to="/terms" className="text-green-600 underline decoration-green-200">{t.terms}</Link>{' '}
-                    {t.and}{' '}
-                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">{t.privacyPolicy}</Link>
+                    By continuing, you agree to ViBa Mart's{' '}
+                    <Link to="/terms" className="text-green-600 underline decoration-green-200">Terms</Link>{' '}
+                    and{' '}
+                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">Privacy Policy</Link>
                   </p>
                 </motion.div>
               )}
@@ -636,9 +404,9 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.verifyOtpTitle}</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    {t.enterCodeSentTo}{' '}
+                    Enter the 6-digit code sent to{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
@@ -669,14 +437,14 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? t.verifying : t.verifyAndContinue}
+                      {loading ? 'Verifying...' : 'Verify & Continue'}
                     </button>
                   </form>
 
                   <div className="flex items-center justify-center mt-6 gap-2">
                     {resendTimer > 0 ? (
                       <p className="text-sm text-gray-400 font-medium">
-                        {t.resendOtpIn}{' '}
+                        Resend OTP in{' '}
                         <span className="font-black text-green-600 tabular-nums">{resendTimer}s</span>
                       </p>
                     ) : (
@@ -686,7 +454,7 @@ export default function Login() {
                         className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-4 h-4" />
-                        {t.resendOtp}
+                        Resend OTP
                       </button>
                     )}
                   </div>
@@ -700,7 +468,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    {t.changeEmail}
+                    Change Email
                   </button>
                 </motion.div>
               )}
@@ -719,15 +487,15 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.oneLastStep}</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">One last step 🙌</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    {t.profileSubtitle}
+                    Tell us a little about yourself to complete your account
                   </p>
 
                   <form onSubmit={handleCompleteProfile} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        {t.fullName} <span className="text-red-400">*</span>
+                        Full Name <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -735,7 +503,7 @@ export default function Login() {
                           type="text"
                           value={displayName}
                           onChange={(e) => setDisplayName(e.target.value)}
-                          placeholder={t.fullNamePlaceholder}
+                          placeholder="e.g. Rahul Sharma"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                           autoFocus
@@ -745,7 +513,7 @@ export default function Login() {
 
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        {t.contactNumber} <span className="text-red-400">*</span>
+                        Contact Number <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -753,7 +521,7 @@ export default function Login() {
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
-                          placeholder={t.contactPlaceholder}
+                          placeholder="e.g. 9876543210"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -766,7 +534,7 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? t.creatingAccount : t.completeSignUp}
+                      {loading ? 'Creating account...' : 'Complete Sign Up'}
                     </button>
                   </form>
 
@@ -779,7 +547,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    {t.cancelAndRestart}
+                    Cancel & Restart
                   </button>
                 </motion.div>
               )}
@@ -788,7 +556,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[11px] text-gray-400 font-medium mt-4">
-          {t.securedBy}
+          🔒 Secured by Google Firebase
         </p>
       </motion.div>
     </div>

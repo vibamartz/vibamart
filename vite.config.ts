@@ -4,15 +4,15 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 function getFirebaseConfig(env: Record<string, string>) {
-  const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart';
+  const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart-f46a4';
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || 'AIzaSyAjDLibmV7qNGHK_PzbuVkS-UE-q63sJGs',
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || 'viba-mart.firebaseapp.com',
+    apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || '',
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
     projectId: projectId,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || 'viba-mart.firebasestorage.app',
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID || '1069210639894',
-    appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || '1:1069210639894:web:9723003d1c6c07bb055f37',
-    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID || 'G-XB3NP07F7Y',
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID || '1083492847291',
+    appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || '1:1083492847291:web:viba1234567890',
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID || '',
   };
 }
 
@@ -47,18 +47,6 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
-          configure: (proxy) => {
-            proxy.on('error', (_err, _req, res: any) => {
-              if (res && !res.headersSent && typeof res.writeHead === 'function') {
-                res.writeHead(502, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                  success: false,
-                  error: 'Backend API service unavailable',
-                  message: 'Backend API service unavailable'
-                }));
-              }
-            });
-          }
         }
       }
     },

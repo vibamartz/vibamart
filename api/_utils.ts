@@ -6,22 +6,14 @@ dotenv.config();
 
 let adminInitError: string | null = null;
 
-export function isValidServiceAccount(): boolean {
-  const pId = process.env.FIREBASE_PROJECT_ID;
-  const email = process.env.FIREBASE_CLIENT_EMAIL;
-  const key = process.env.FIREBASE_PRIVATE_KEY;
-  if (!pId || !email || !key) return false;
-  if (email.includes('your_firebase_client_email') || email.includes('your_project') || email === 'test') return false;
-  if (key.includes('your_private_key') || key.includes('paste_firebase_private_key') || key.length < 50) return false;
-  return true;
-}
-
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      if (isValidServiceAccount()) {
-        let formattedKey = process.env.FIREBASE_PRIVATE_KEY!;
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+        let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
+        // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
+        // Handle escaped newlines
         formattedKey = formattedKey.replace(/\\n/g, '\n');
         
         admin.initializeApp({
@@ -37,16 +29,14 @@ export function initializeFirebaseAdmin() {
           console.warn("Firestore settings already initialized or failed:", e);
         }
       } else {
-        admin.initializeApp({
-          projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart'
-        });
+        admin.initializeApp();
         try {
           admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
         } catch (e) {}
       }
     } catch (e: any) {
-      console.warn("Firebase Admin initialization notice:", e?.message || e);
-      adminInitError = e?.message || String(e);
+      console.error("Firebase Admin initialization failed:", e);
+      adminInitError = e.message || String(e);
     }
   }
   return admin;
@@ -54,47 +44,6 @@ export function initializeFirebaseAdmin() {
 
 // Auto-run on import to preserve backward compatibility for modules that import utils
 initializeFirebaseAdmin();
-
-export interface StoredOtp {
-  otp: string;
-  expiresAt: number;
-}
-
-// Global in-memory fallback cache for OTPs across server requests
-export const memoryOtpCache = new Map<string, StoredOtp>();
-
-export function storeOtpInMemory(email: string, otp: string, durationMs: number = 5 * 60 * 1000) {
-  const normalizedEmail = email.trim().toLowerCase();
-  memoryOtpCache.set(normalizedEmail, {
-    otp,
-    expiresAt: Date.now() + durationMs,
-  });
-}
-
-export function getOtpFromMemory(email: string): StoredOtp | null {
-  const normalizedEmail = email.trim().toLowerCase();
-  const entry = memoryOtpCache.get(normalizedEmail);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    memoryOtpCache.delete(normalizedEmail);
-    return null;
-  }
-  return entry;
-}
-
-export function deleteOtpFromMemory(email: string) {
-  memoryOtpCache.delete(email.trim().toLowerCase());
-}
-
-export function isSmtpConfigured(): boolean {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) return false;
-  if (user === 'test' || user.includes('your-email') || user.includes('example.com')) return false;
-  if (pass === 'test' || pass.includes('your_app_password')) return false;
-  return true;
-}
 
 export const verifyAuth = async (req: any) => {
   if (!admin.apps.length) {
@@ -156,7 +105,8 @@ export async function createNotification(userId: string, title: string, message:
 }
 
 export async function sendEmailNotification(toEmail: string, contactName: string, subject: string, messageText: string) {
-  if (!isSmtpConfigured()) {
+  const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+  if (!process.env.SMTP_HOST || isPlaceholder) {
     console.log(`[DEVELOPMENT] Email to ${toEmail} (${contactName}):\nSubject: ${subject}\nMessage: ${messageText}`);
     return;
   }
@@ -303,7 +253,6 @@ export async function parseRequestBody(req: any): Promise<any> {
   }
   return {};
 }
-
 export function getErrorLocation(error: any) {
   const stack = error?.stack || "";
   const lines = stack.split("\n");

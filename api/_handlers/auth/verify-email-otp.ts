@@ -1,6 +1,5 @@
 import admin from "firebase-admin";
-import crypto from "crypto";
-import { initializeFirebaseAdmin, getOtpFromMemory, deleteOtpFromMemory } from "../../_utils";
+import { initializeFirebaseAdmin } from "../../_utils";
 
 initializeFirebaseAdmin();
 
@@ -28,93 +27,51 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: "Email and code are required" });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const enteredCode = String(code).trim();
-
   try {
-    let isValidOtp = false;
+    const db = admin.firestore();
+    const otpDocRef = db.collection("otps").doc(email);
+    const otpDoc = await otpDocRef.get();
 
-    // 1. Check in-memory store
-    const memEntry = getOtpFromMemory(normalizedEmail);
-    if (memEntry && memEntry.otp === enteredCode) {
-      isValidOtp = true;
-      deleteOtpFromMemory(normalizedEmail);
+    if (!otpDoc.exists) {
+      return res.status(400).json({ success: false, error: "OTP expired or not found" });
     }
 
-    // 2. Check Firestore if not already validated in memory
-    if (!isValidOtp) {
-      try {
-        const db = admin.firestore();
-        const otpDocRef = db.collection("otps").doc(normalizedEmail);
-        const otpDoc = await otpDocRef.get();
+    const data = otpDoc.data();
+    if (!data) return res.status(400).json({ success: false, error: "Invalid OTP" });
 
-        if (otpDoc.exists) {
-          const data = otpDoc.data();
-          if (data && data.otp === enteredCode) {
-            const now = admin.firestore.Timestamp.now();
-            if (data.expiresAt && data.expiresAt.toMillis() >= now.toMillis()) {
-              isValidOtp = true;
-              await otpDocRef.delete().catch(() => {});
-            }
-          }
-        }
-      } catch (dbErr) {
-        console.warn("[AUTH OTP] Firestore verification lookup notice:", dbErr);
-      }
+    if (data.otp !== code) {
+      return res.status(400).json({ success: false, error: "Invalid OTP code" });
     }
 
-    if (!isValidOtp) {
-      return res.status(400).json({ success: false, error: "Invalid or expired OTP. Please try again." });
+    const now = admin.firestore.Timestamp.now();
+    if (data.expiresAt.toMillis() < now.toMillis()) {
+      await otpDocRef.delete();
+      return res.status(400).json({ success: false, error: "OTP has expired" });
     }
 
-    // Generate fallback deterministic password for direct Firebase Client Auth
-    const deterministicPass = "Viba@" + crypto.createHmac('sha256', 'viba_mart_auth_salt').update(normalizedEmail).digest('hex').slice(0, 12) + "99!";
-    const safeUid = "user_" + crypto.createHash('md5').update(normalizedEmail).digest('hex').slice(0, 20);
+    await otpDocRef.delete();
 
-    let customToken: string | null = null;
-    let uid = safeUid;
-
-    // Try creating custom token via Firebase Admin if service account is active
+    let uid = "";
     try {
-      if (admin.apps.length > 0) {
-        try {
-          const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
-          uid = userRecord.uid;
-        } catch (userErr: any) {
-          if (userErr.code === "auth/user-not-found") {
-            try {
-              const newUser = await admin.auth().createUser({
-                email: normalizedEmail,
-                emailVerified: true,
-              });
-              uid = newUser.uid;
-            } catch (createErr) {}
-          }
-        }
-
-        try {
-          customToken = await admin.auth().createCustomToken(uid, {
-            email_verified: true
-          });
-        } catch (tokenErr) {
-          console.warn("[AUTH OTP] Custom token generation not active, fallback auth credentials ready");
-        }
+      const userRecord = await admin.auth().getUserByEmail(email);
+      uid = userRecord.uid;
+    } catch (error: any) {
+      if (error.code === "auth/user-not-found") {
+        const newUser = await admin.auth().createUser({
+          email,
+          emailVerified: true,
+        });
+        uid = newUser.uid;
+      } else {
+        throw error;
       }
-    } catch (adminErr) {
-      console.warn("[AUTH OTP] Admin auth operations notice:", adminErr);
     }
 
-    return res.json({
-      success: true,
-      customToken: customToken || null,
-      uid,
-      email: normalizedEmail,
-      authFallback: {
-        email: normalizedEmail,
-        tempPass: deterministicPass,
-        uid
-      }
+    const customToken = await admin.auth().createCustomToken(uid, {
+      email_verified: true
     });
+    
+    return res.json({ success: true, customToken });
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);
     const errMsg = error?.message || String(error) || "Failed to verify OTP";

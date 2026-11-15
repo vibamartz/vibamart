@@ -12,7 +12,7 @@ import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
-import { getErrorLocation, storeOtpInMemory, getOtpFromMemory, deleteOtpFromMemory, isSmtpConfigured, isValidServiceAccount } from "./api/_utils";
+import { getErrorLocation } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 import { searchRouter } from "./src/backend/search/routes";
 import { searchService } from "./src/backend/search/searchService";
@@ -24,12 +24,12 @@ dotenv.config();
 
 try {
   if (!admin.apps.length) {
-    if (isValidServiceAccount()) {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/^"|"$/g, '').replace(/\\n/g, '\n'),
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
       try {
@@ -38,16 +38,14 @@ try {
         console.warn("Firestore settings already initialized or failed:", e);
       }
     } else {
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart'
-      });
+      admin.initializeApp();
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
       } catch (e) { }
     }
   }
 } catch (e) {
-  console.warn("Firebase Admin initialization notice:", e);
+  console.warn("Firebase Admin missing credentials, custom token generation will fail unless set.", e);
 }
 
 import crypto from "crypto";
@@ -177,61 +175,42 @@ async function startServer() {
   // Auth: Send Email OTP
   app.post("/api/auth/send-email-otp", async (req, res) => {
     const { email } = req.body;
-    if (!email || typeof email !== 'string') {
+    if (!email) {
       return res.status(400).json({ success: false, error: "Email is required" });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
     try {
+      // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins from now
+      const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 mins from now
 
-      // 1. Store in memory store (guaranteed reliability)
-      storeOtpInMemory(normalizedEmail, otp, 5 * 60 * 1000);
-
-      // 2. Try storing in Firestore if database is ready
-      try {
-        const db = admin.firestore();
-        await db.collection("otps").doc(normalizedEmail).set({
-          otp,
-          expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-        });
-      } catch (dbErr) {
-        console.warn("[AUTH OTP Server] Firestore store notice (memory store active):", dbErr);
-      }
-
-      // 3. Attempt to send via SMTP if real SMTP credentials are provided
-      let emailSent = false;
-      if (isSmtpConfigured()) {
-        try {
-          await transporter.sendMail({
-            from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
-            to: normalizedEmail,
-            subject: "Your ViBa Mart Login OTP",
-            text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-            html: `<b>Your OTP is ${otp}</b><br/>It is valid for 5 minutes.`,
-          });
-          emailSent = true;
-          console.log(`[AUTH OTP Server] Email sent successfully to ${normalizedEmail}`);
-        } catch (smtpErr) {
-          console.warn(`[AUTH OTP Server] SMTP send failed for ${normalizedEmail}, fallback active:`, smtpErr);
-        }
-      }
-
-      console.log(`\n========================================\n[AUTH OTP Server] OTP for ${normalizedEmail} is: ${otp}\n========================================\n`);
-
-      res.json({
-        success: true,
-        status: "pending",
-        emailSent,
-        devOtp: otp,
-        message: emailSent ? "OTP sent to your email" : `Development OTP: ${otp}`
+      // Store in Firestore otps collection
+      const db = admin.firestore();
+      await db.collection("otps").doc(email).set({
+        otp,
+        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       });
+
+      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+
+      // Send Email
+      if (process.env.SMTP_HOST && !isPlaceholder) {
+        await transporter.sendMail({
+          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: "Your ViBa Mart Login OTP",
+          text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
+          html: `<b>Your OTP is ${otp}</b><br/>It is valid for 2 minutes.`,
+        });
+      } else {
+        // Fallback for testing when no SMTP is configured
+        console.log(`[DEVELOPMENT] OTP for ${email} is: ${otp}`);
+      }
+
+      res.json({ success: true, status: "pending" });
     } catch (error: any) {
       console.error("Send Email OTP error:", error);
-      const errMsg = error?.message || String(error) || "Failed to send OTP";
-      res.status(500).json({ success: false, error: errMsg, message: errMsg });
+      res.status(500).json({ success: false, error: "Failed to send OTP" });
     }
   });
 
@@ -530,97 +509,57 @@ async function startServer() {
       return res.status(400).json({ success: false, error: "Email and code are required" });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const enteredCode = String(code).trim();
-
     try {
-      let isValidOtp = false;
+      const db = admin.firestore();
+      const otpDocRef = db.collection("otps").doc(email);
+      const otpDoc = await otpDocRef.get();
 
-      // 1. Check in-memory store
-      const memEntry = getOtpFromMemory(normalizedEmail);
-      if (memEntry && memEntry.otp === enteredCode) {
-        isValidOtp = true;
-        deleteOtpFromMemory(normalizedEmail);
+      if (!otpDoc.exists) {
+        return res.status(400).json({ success: false, error: "OTP expired or not found" });
       }
 
-      // 2. Check Firestore if not already validated in memory
-      if (!isValidOtp) {
-        try {
-          const db = admin.firestore();
-          const otpDocRef = db.collection("otps").doc(normalizedEmail);
-          const otpDoc = await otpDocRef.get();
+      const data = otpDoc.data();
+      if (!data) return res.status(400).json({ success: false, error: "Invalid OTP" });
 
-          if (otpDoc.exists) {
-            const data = otpDoc.data();
-            if (data && data.otp === enteredCode) {
-              const now = admin.firestore.Timestamp.now();
-              if (data.expiresAt && data.expiresAt.toMillis() >= now.toMillis()) {
-                isValidOtp = true;
-                await otpDocRef.delete().catch(() => {});
-              }
-            }
-          }
-        } catch (dbErr) {
-          console.warn("[AUTH OTP Server] Firestore verification lookup notice:", dbErr);
-        }
+      if (data.otp !== code) {
+        return res.status(400).json({ success: false, error: "Invalid OTP code" });
       }
 
-      if (!isValidOtp) {
-        return res.status(400).json({ success: false, error: "Invalid or expired OTP. Please try again." });
+      const now = admin.firestore.Timestamp.now();
+      if (data.expiresAt.toMillis() < now.toMillis()) {
+        await otpDocRef.delete();
+        return res.status(400).json({ success: false, error: "OTP has expired" });
       }
 
-      // Generate fallback deterministic password for direct Firebase Client Auth
-      const deterministicPass = "Viba@" + crypto.createHmac('sha256', 'viba_mart_auth_salt').update(normalizedEmail).digest('hex').slice(0, 12) + "99!";
-      const safeUid = "user_" + crypto.createHash('md5').update(normalizedEmail).digest('hex').slice(0, 20);
+      // Valid OTP. Delete it.
+      await otpDocRef.delete();
 
-      let customToken: string | null = null;
-      let uid = safeUid;
-
-      // Try creating custom token via Firebase Admin if service account is active
+      // Find or create user in Firebase Auth
+      let uid = "";
       try {
-        if (admin.apps.length > 0) {
-          try {
-            const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
-            uid = userRecord.uid;
-          } catch (userErr: any) {
-            if (userErr.code === "auth/user-not-found") {
-              try {
-                const newUser = await admin.auth().createUser({
-                  email: normalizedEmail,
-                  emailVerified: true,
-                });
-                uid = newUser.uid;
-              } catch (createErr) {}
-            }
-          }
-
-          try {
-            customToken = await admin.auth().createCustomToken(uid, {
-              email_verified: true
-            });
-          } catch (tokenErr) {
-            console.warn("[AUTH OTP Server] Custom token generation not active, fallback auth credentials ready");
-          }
+        const userRecord = await admin.auth().getUserByEmail(email);
+        uid = userRecord.uid;
+      } catch (error: any) {
+        if (error.code === "auth/user-not-found") {
+          const newUser = await admin.auth().createUser({
+            email,
+            emailVerified: true,
+          });
+          uid = newUser.uid;
+        } else {
+          throw error;
         }
-      } catch (adminErr) {
-        console.warn("[AUTH OTP Server] Admin auth operations notice:", adminErr);
       }
 
-      return res.json({
-        success: true,
-        customToken: customToken || null,
-        uid,
-        email: normalizedEmail,
-        authFallback: {
-          email: normalizedEmail,
-          tempPass: deterministicPass,
-          uid
-        }
+      // Generate Custom Token for frontend to sign in
+      const customToken = await admin.auth().createCustomToken(uid, {
+        email_verified: true
       });
+
+      return res.json({ success: true, customToken });
     } catch (error: any) {
       console.error("Verify Email OTP error:", error);
-      const errMsg = error?.message || String(error) || "Failed to verify OTP";
-      res.status(500).json({ success: false, error: errMsg, message: errMsg });
+      res.status(500).json({ success: false, error: "Failed to verify OTP" });
     }
   });
 
