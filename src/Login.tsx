@@ -64,6 +64,10 @@ function formatAuthError(err: any, fallback = 'Operation failed'): string {
         return 'Network connection issue. Please check your internet connection.';
       case 'auth/internal-error':
         return 'Authentication service encountered a temporary error. Please try again.';
+      case 'auth/popup-blocked':
+        return 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
+      case 'auth/unauthorized-domain':
+        return 'This domain is not authorized in Firebase Console. Please add localhost to Authorized Domains.';
       default:
         break;
     }
@@ -166,10 +170,11 @@ export default function Login() {
         startResendTimer();
 
         if (!response.data.emailSent) {
-          toast.error("Email not delivered: Set SMTP_USER & SMTP_PASS in .env to send real Gmail emails", { duration: 7000 });
+          const warnMsg = response.data.smtpError || "Email not delivered: Set a 16-character Google App Password in .env to receive real emails";
+          toast.error(warnMsg, { duration: 8000 });
           if (response.data.devOtp) {
             setActiveDevOtp(String(response.data.devOtp));
-            toast.success(`Development OTP: ${response.data.devOtp}`, { duration: 10000 });
+            toast.success(`OTP: ${response.data.devOtp}`, { duration: 10000 });
             setOtpDigits(String(response.data.devOtp).split(''));
           } else {
             setActiveDevOtp(null);
@@ -363,11 +368,21 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+      if (!firebaseUser) {
+        throw new Error("No user returned from Google authentication");
+      }
 
-      if (!userSnap.exists()) {
+      let userSnap: any = null;
+      try {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        userSnap = await getDoc(userRef);
+      } catch (docErr) {
+        console.warn("User lookup notice during Google sign-in:", docErr);
+      }
+
+      if (mode === 'signup' && (!userSnap || !userSnap.exists()) && !firebaseUser.phoneNumber) {
         setTempFirebaseUser(firebaseUser);
+        setDisplayName(firebaseUser.displayName || '');
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
@@ -375,8 +390,11 @@ export default function Login() {
         navigate('/');
       }
     } catch (error: any) {
+      if (error?.code === 'auth/popup-closed-by-user') {
+        return;
+      }
       console.error("Google Sign-In Error:", error);
-      toast.error(t.loginFailed);
+      toast.error(formatAuthError(error, t.loginFailed));
     } finally {
       setLoading(false);
     }

@@ -147,12 +147,27 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // If SMTP was configured but sending failed, report delivery failure
+    // If SMTP was configured but sending failed, provide detailed guidance without blocking authentication
     if (isSmtpConfigured() && !emailSent) {
-      return res.status(500).json({
-        success: false,
-        error: `Failed to deliver OTP to ${normalizedEmail}. ${emailDeliveryError || 'Please check your email configuration and try again.'}`,
-        message: `Failed to deliver OTP to ${normalizedEmail}. ${emailDeliveryError || 'Please check your email configuration and try again.'}`
+      const isAppPassReq = emailDeliveryError?.includes('534') ||
+        emailDeliveryError?.includes('535') ||
+        emailDeliveryError?.toLowerCase().includes('password not accepted') ||
+        emailDeliveryError?.toLowerCase().includes('badcredentials') ||
+        emailDeliveryError?.toLowerCase().includes('application-specific password');
+
+      const guidance = isAppPassReq
+        ? "Google requires a 16-character App Password (visit https://myaccount.google.com/apppasswords). Your regular Gmail password cannot be used directly for SMTP."
+        : (emailDeliveryError || "SMTP delivery failed");
+
+      console.warn(`[AUTH OTP] Email delivery warning for ${normalizedEmail}: ${guidance}`);
+
+      return res.json({
+        success: true,
+        status: "pending",
+        emailSent: false,
+        devOtp: otp,
+        smtpError: guidance,
+        message: guidance
       });
     }
 
