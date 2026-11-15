@@ -1,16 +1,14 @@
 export type SupportedLanguage =
   | 'en'
   | 'hi'
-  | 'kn'
-  | 'ta'
   | 'bn'
-  | 'mr'
-  | 'ml'
   | 'te'
-  | 'or'
-  | 'as'
+  | 'ta'
+  | 'mr'
+  | 'gu'
+  | 'kn'
   | 'pa'
-  | 'gu';
+  | 'ml';
 
 export interface LanguageOption {
   code: SupportedLanguage;
@@ -22,16 +20,14 @@ export interface LanguageOption {
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'en', name: 'English', nativeName: 'English' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
   { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
   { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
-  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ' },
-  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া' },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
   { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
 ];
 
 export interface AuthTranslationStrings {
@@ -574,104 +570,6 @@ export const AUTH_TRANSLATIONS: Record<SupportedLanguage, AuthTranslationStrings
     registrationFailed: 'രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു. ദയവായി വീണ്ടും ശ്രമിക്കുക.',
     loginFailed: 'ലോഗിൻ പരാജയപ്പെട്ടു. ദയവായി വീണ്ടും ശ്രമിക്കുക.',
     smsAutofilled: 'SMS OTP സുരക്ഷിതമായി നൽകി!',
-  },
-  or: {
-    languageLabel: 'ଭାଷା',
-    selectLanguage: 'ଭାଷା ଚୟନ କରନ୍ତୁ',
-    logIn: 'ଲଗ୍ ଇନ୍',
-    signUp: 'ସାଇନ୍ ଅପ୍',
-    welcomeBack: 'ସ୍ୱାଗତମ୍! 👋',
-    createAccount: 'ଖାତା ଖୋଲନ୍ତୁ 🎉',
-    loginSubtitle: 'ଆପଣଙ୍କର ଅର୍ଡର ଏବଂ ଇଚ୍ଛାସୂଚୀ ଦେଖିବାକୁ ସାଇନ୍ ଇନ୍ କରନ୍ତୁ',
-    signupSubtitle: 'ViBa Mart ରେ ଯୋଗ ଦିଅନ୍ତୁ ଏବଂ ଆଜି ହିଁ ସପିଂ ଆରମ୍ଭ କରନ୍ତୁ',
-    emailAddress: 'ଇମେଲ୍ ଠିକଣା',
-    emailPlaceholder: 'you@example.com',
-    getOtp: 'OTP ପ୍ରାପ୍ତ କରନ୍ତୁ',
-    sendOtpToVerify: 'ଯାଞ୍ଚ ପାଇଁ OTP ପଠାନ୍ତୁ',
-    sendingOtp: 'OTP ପଠାଯାଉଛି...',
-    or: 'କିମ୍ବା',
-    continueWithGoogle: 'Google ସହିତ ଜାରି ରଖନ୍ତୁ',
-    termsNotice: 'ଆଗକୁ ବଢ଼ିବା ଦ୍ୱାରା, ଆପଣ ViBa Mart ର',
-    terms: 'ନିୟମାବଳୀ',
-    and: 'ଏବଂ',
-    privacyPolicy: 'ଗୋପନୀୟତା ନୀତି',
-    verifyOtpTitle: 'OTP ଯାଞ୍ଚ କରନ୍ତୁ',
-    enterCodeSentTo: 'ଏଠାକୁ ପଠାଯାଇଥିବା ୬-ଅଙ୍କ ବିଶିଷ୍ଟ କୋଡ୍ ପ୍ରବେଶ କରନ୍ତୁ:',
-    verifyAndContinue: 'ଯାଞ୍ଚ କରି ଆଗକୁ ବଢ଼ନ୍ତୁ',
-    verifying: 'ଯାଞ୍ଚ କରାଯାଉଛି...',
-    resendOtpIn: 'ପୁନଃ OTP ପଠାନ୍ତୁ',
-    resendOtp: 'OTP ପୁନର୍ବାର ପଠାନ୍ତୁ',
-    changeEmail: 'ଇମେଲ୍ ବଦଳାନ୍ତୁ',
-    oneLastStep: 'ଶେଷ ପଦକ୍ଷେପ 🙌',
-    profileSubtitle: 'ଆପଣଙ୍କର ପ୍ରୋଫାଇଲ୍ ସମ୍ପୂର୍ଣ୍ଣ କରିବାକୁ ନିଜ ବିଷୟରେ କିଛି କୁହନ୍ତୁ',
-    fullName: 'ପୂରା ନାମ',
-    fullNamePlaceholder: 'ଯଥା: ରାହୁଲ ଶର୍ମା',
-    contactNumber: 'ମୋବାଇଲ୍ ନମ୍ବର',
-    contactPlaceholder: 'ଯଥା: ୯୮୭୬୫୪୩୨୧୦',
-    completeSignUp: 'ସାଇନ୍ ଅପ୍ ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତୁ',
-    creatingAccount: 'ଖାତା ତିଆରି ହେଉଛି...',
-    cancelAndRestart: 'ବାତିଲ୍ କରି ପୁନର୍ବାର ଆରମ୍ଭ କରନ୍ତୁ',
-    securedBy: '🔒 Google Firebase ଦ୍ୱାରା ସୁରକ୍ଷିତ',
-    invalidEmail: 'ଅବୈଧ ଇମେଲ୍ ଠିକଣା।',
-    enterCompleteOtp: 'ଦୟାକରି ସମ୍ପୂର୍ଣ୍ଣ ୬-ଅଙ୍କ ବିଶିଷ୍ଟ OTP ପ୍ରବେଶ କରନ୍ତୁ',
-    otpSent: 'ଆପଣଙ୍କ ଇମେଲକୁ OTP ପଠାଗଲା!',
-    otpResent: 'OTP ପୁନଃ ପଠାଗଲା!',
-    loginSuccess: 'ଲଗ୍ ଇନ୍ ସଫଳ ହେଲା! ସ୍ୱାଗତମ୍।',
-    enterFullName: 'ଦୟାକରି ଆପଣଙ୍କର ପୂରା ନାମ ଦିଅନ୍ତୁ',
-    enterValidPhone: 'ଦୟାକରି ଏକ ବୈଧ ମୋବାଇଲ୍ ନମ୍ବର ଦିଅନ୍ତୁ',
-    accountCreated: 'ଆପଣଙ୍କର ଖାତା ସଫଳତାପୂର୍ବକ ତିଆରି ହୋଇଛି।',
-    registrationFailed: 'ପଞ୍ଜୀକରଣ ବିଫଳ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
-    loginFailed: 'ଲଗ୍ ଇନ୍ ବିଫଳ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
-    smsAutofilled: 'SMS OTP ସୁରକ୍ଷିତ ଭାବେ ଭରାଗଲା!',
-  },
-  as: {
-    languageLabel: 'ভাষা',
-    selectLanguage: 'ভাষা বাছক',
-    logIn: 'লগ ইন',
-    signUp: 'ছাইন আপ',
-    welcomeBack: 'স্বাগতম! 👋',
-    createAccount: 'একাউণ্ট খোলক 🎉',
-    loginSubtitle: 'আপোনাৰ অৰ্ডাৰ আৰু উইশলিষ্ট চাবলৈ ছাইন ইন কৰক',
-    signupSubtitle: 'ViBa Mart-ত যোগদান কৰক আৰু আজি বজাৰ কৰক',
-    emailAddress: 'ইমেইল ঠিকনা',
-    emailPlaceholder: 'you@example.com',
-    getOtp: 'OTP প্ৰাপ্ত কৰক',
-    sendOtpToVerify: 'যাচাই কৰিবলৈ OTP পঠিয়াওক',
-    sendingOtp: 'OTP পঠিয়াই থকা হৈছে...',
-    or: 'বা',
-    continueWithGoogle: 'Google-ৰ সৈতে আগবাঢ়ক',
-    termsNotice: 'আগবাঢ়িলে আপুনি ViBa Mart-ৰ',
-    terms: 'চৰ্তাৱলী',
-    and: 'আৰু',
-    privacyPolicy: 'গোপনীয়তা নীতি',
-    verifyOtpTitle: 'OTP যাচাই কৰক',
-    enterCodeSentTo: 'পঠিওৱা ৬-অংকৰ ক’ডটো প্ৰৱেশ কৰক:',
-    verifyAndContinue: 'যাচাই কৰি আগবাঢ়ক',
-    verifying: 'যাচাই কৰি থকা হৈছে...',
-    resendOtpIn: 'পুনৰ OTP পঠিয়াওক',
-    resendOtp: 'OTP পুনৰ পঠিয়াওক',
-    changeEmail: 'ইমেইল সলনি কৰক',
-    oneLastStep: 'এটা অন্তিম পদক্ষেপ 🙌',
-    profileSubtitle: 'আপোনাৰ একাউণ্ট সম্পূৰ্ণ কৰিবলৈ আপোনাৰ বিষয়ে কওক',
-    fullName: 'সম্পূৰ্ণ নাম',
-    fullNamePlaceholder: 'উদাহৰণ: ৰাহুল শৰ্মা',
-    contactNumber: 'মোবাইল নম্বৰ',
-    contactPlaceholder: 'উদাহৰণ: ৯৮৭৬৫৪৩২১০',
-    completeSignUp: 'ছাইন আপ সম্পূৰ্ণ কৰক',
-    creatingAccount: 'একাউণ্ট খোলা হৈছে...',
-    cancelAndRestart: 'বাতিল কৰি পুনৰ আৰম্ভ কৰক',
-    securedBy: '🔒 Google Firebase দ্বাৰা সুৰক্ষিত',
-    invalidEmail: 'অবৈধ ইমেইল ঠিকনা।',
-    enterCompleteOtp: 'অনুগ্ৰহ কৰি সম্পূৰ্ণ ৬-অংকৰ OTP প্ৰৱেশ কৰক',
-    otpSent: 'আপোনাৰ ইমেইললৈ OTP পঠিওৱা হৈছে!',
-    otpResent: 'OTP পুনৰ পঠিওৱা হৈছে!',
-    loginSuccess: 'লগ ইন সফল হ’ল! স্বাগতম।',
-    enterFullName: 'অনুগ্ৰহ কৰি আপোনাৰ সম্পূৰ্ণ নাম দিয়ক',
-    enterValidPhone: 'অনুগ্ৰহ কৰি এক বৈধ মোবাইল নম্বৰ দিয়ক',
-    accountCreated: 'আপোনাৰ একাউণ্ট সফলভাৱে তৈয়াৰ কৰা হ’ল।',
-    registrationFailed: 'পঞ্জীয়ন ব্যৰ্থ হ’ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।',
-    loginFailed: 'লগ ইন ব্যৰ্থ হ’ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।',
-    smsAutofilled: 'SMS OTP সুৰক্ষিতভাৱে ভৰোৱা হ’ল!',
   },
 };
 

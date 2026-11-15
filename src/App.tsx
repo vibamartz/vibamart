@@ -82,8 +82,6 @@ function ScrollToTop() {
 import ProfessionalErrorState from './shared/components/ProfessionalErrorState';
 import { useNetworkStore } from './shared/utilities/networkStatus';
 import { NoInternetScreen } from './shared/components/offline';
-import { LanguageProvider } from './shared/translations/LanguageContext';
-import LanguageSelectionModal from './shared/components/LanguageSelectionModal';
 
 // Error Boundary with Professional Error UI
 interface ErrorBoundaryProps {
@@ -415,23 +413,20 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <LanguageProvider>
-        <SplashScreen
-          isVisible={showSplash}
+      <SplashScreen
+        isVisible={showSplash}
+      />
+      <Router>
+        <ScrollToTop />
+        <GlobalPushNotificationListener />
+        <MainAppRoutes />
+        <GlobalToastContainer />
+        <PermissionModal 
+          isOpen={showPermissions} 
+          onClose={() => setShowPermissions(false)}
+          onAccept={handlePermissionsAccept}
         />
-        <Router>
-          <ScrollToTop />
-          <GlobalPushNotificationListener />
-          <MainAppRoutes />
-          <GlobalToastContainer />
-          <PermissionModal 
-            isOpen={showPermissions} 
-            onClose={() => setShowPermissions(false)}
-            onAccept={handlePermissionsAccept}
-          />
-          <LanguageSelectionModal />
-        </Router>
-      </LanguageProvider>
+      </Router>
     </ErrorBoundary>
   );
 }
