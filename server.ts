@@ -199,7 +199,7 @@ async function startServer() {
 
 
   // Auth: Send Email OTP
-  app.post("/api/auth/send-email-otp", sendEmailOtpHandler);
+  app.post(["/api/auth/send-email-otp", "/auth/send-email-otp"], sendEmailOtpHandler);
 
   // Notifications: Delivery Email
   app.post("/api/notifications/delivery", async (req, res) => {
@@ -490,7 +490,7 @@ async function startServer() {
 
 
   // Auth: Verify Email OTP
-  app.post("/api/auth/verify-email-otp", verifyEmailOtpHandler);
+  app.post(["/api/auth/verify-email-otp", "/auth/verify-email-otp"], verifyEmailOtpHandler);
 
   // ==========================================
   // NOTIFICATION & ENGAGEMENT API ROUTES

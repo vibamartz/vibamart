@@ -93,8 +93,8 @@ export default function Login() {
         startResendTimer();
         toast.success(
           isResend
-            ? 'OTP resent to your Gmail address!'
-            : 'OTP sent to your Gmail address! Please check your inbox.'
+            ? 'OTP resent to your Gmail address! Check Inbox or Spam.'
+            : 'OTP sent to your Gmail address! Check Inbox or Spam.'
         );
         setTimeout(() => otpRefs.current[0]?.focus(), 250);
       } else {
@@ -519,10 +519,16 @@ export default function Login() {
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
-                  <p className="text-gray-400 text-sm font-medium text-center mb-8">
+                  <p className="text-gray-400 text-sm font-medium text-center mb-4">
                     Enter the 6-digit code sent to{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
+
+                  <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3 mb-6 text-center">
+                    <p className="text-xs font-semibold text-amber-900 leading-relaxed">
+                      📬 6-digit code dispatched to your Gmail. If not in your primary inbox, please check your <strong>Spam / Junk</strong> folder.
+                    </p>
+                  </div>
 
                   <form onSubmit={handleVerifyOtp} noValidate className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>

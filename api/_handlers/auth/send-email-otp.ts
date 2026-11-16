@@ -199,50 +199,38 @@ export default async function handler(req: any, res: any) {
 
     const transporters = getTransporters(smtpUser, smtpPass, smtpHost);
 
-    const emailSubject = "Your ViBa Mart Login Verification Code";
-    const emailText = `Your ViBa Mart verification code is: ${otp}\n\nThis verification code is valid for 10 minutes.\nNever share this code with anyone. ViBa Mart representatives will never ask for your verification code.\n\nIf you did not request this code, you can safely ignore this email.`;
+    const emailSubject = "Your ViBa Mart Login OTP";
+    const emailText = `Your ViBa Mart verification code is ${otp}. This code is valid for 10 minutes. Do not share this code with anyone.`;
     const emailHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ViBa Mart Verification Code</title>
+        <title>ViBa Mart Login OTP</title>
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px;">
-        <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-          <!-- Header -->
-          <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); padding: 32px 24px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">ViBa Mart</h1>
-            <p style="color: #dcfce7; margin: 6px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Account Verification</p>
+        <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <div style="background-color: #16a34a; padding: 28px 24px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">ViBa Mart</h1>
+            <p style="color: #dcfce7; margin: 6px 0 0 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">Verification Code</p>
           </div>
-          
-          <!-- Body -->
-          <div style="padding: 32px 28px;">
+          <div style="padding: 28px 24px;">
             <p style="color: #1e293b; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">Hello,</p>
-            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
-              Use the single-use verification code below to securely log in to your ViBa Mart account:
+            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+              Use the 6-digit verification code below to verify your ViBa Mart account:
             </p>
-            
-            <!-- OTP Box -->
-            <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 14px; padding: 20px; text-align: center; margin: 0 0 24px 0;">
-              <span style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 800; color: #15803d; letter-spacing: 12px; display: inline-block;">${otp}</span>
+            <div style="background-color: #f0fdf4; border: 2px dashed #86efac; border-radius: 12px; padding: 18px; text-align: center; margin: 0 0 20px 0;">
+              <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; color: #15803d; letter-spacing: 8px; display: inline-block;">${otp}</span>
             </div>
-            
-            <!-- Expiry & Security Notice -->
-            <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0 0 16px 0;">
-              ⏱️ This verification code is valid for <strong>10 minutes</strong>.
-            </p>
-            <p style="color: #dc2626; font-size: 12px; line-height: 1.5; margin: 0 0 24px 0; background-color: #fef2f2; padding: 10px 14px; border-radius: 8px;">
-              🔒 <strong>Security Notice:</strong> Never share this code with anyone. ViBa Mart representatives will never ask for your verification code.
+            <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0 0 12px 0;">
+              ⏱️ Valid for <strong>10 minutes</strong>. Do not share this code with anyone.
             </p>
             <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0;">
-              If you did not request this login code, you can safely ignore this email.
+              If you did not request this code, you can safely ignore this email.
             </p>
           </div>
-          
-          <!-- Footer -->
-          <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center;">
+          <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center;">
             <p style="color: #94a3b8; font-size: 11px; margin: 0;">
               © ${new Date().getFullYear()} ViBa Mart. All rights reserved.
             </p>
@@ -259,9 +247,6 @@ export default async function handler(req: any, res: any) {
       subject: emailSubject,
       text: emailText,
       html: emailHtml,
-      headers: {
-        "X-Entity-Ref-ID": Date.now().toString(),
-      },
     };
 
     let sendSuccess = false;

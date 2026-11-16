@@ -76,7 +76,8 @@ export default async function handler(req: any, res: any) {
   }
 
   const body = await parseRequestBody(req);
-  const { email, code } = body || {};
+  const email = body?.email;
+  const code = body?.code || body?.otp;
 
   if (!email || !code) {
     return res.status(400).json({ success: false, error: "Gmail address and OTP code are required" });
