@@ -57,6 +57,18 @@ export default function Login() {
     };
   }, []);
 
+  useEffect(() => {
+    if (step === 'otp') {
+      ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
+        if (code && code.length === 6) {
+          setOtpDigits(code.split(''));
+          toast.success('SMS OTP autofilled securely!');
+        }
+      });
+    }
+  }, [step]);
+
+
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -96,7 +108,7 @@ export default function Login() {
             ? 'OTP resent to your Gmail address!'
             : 'OTP sent to your Gmail address! Please check your inbox.'
         );
-        setTimeout(() => otpRefs.current[0]?.focus(), 200);
+        setTimeout(() => otpRefs.current[0]?.focus(), 250);
       } else {
         const errorMsg = response.data?.error || response.data?.message || 'Failed to send OTP';
         throw new Error(errorMsg);
@@ -124,7 +136,7 @@ export default function Login() {
   const handleOtpChange = (index: number, value: string) => {
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length > 1) {
-      // Handles pasting or autofill of multiple digits
+      // Handles multi-digit paste or mobile autofill
       const newDigits = [...otpDigits];
       const chars = cleaned.slice(0, 6).split('');
       for (let i = 0; i < 6; i++) {
@@ -133,7 +145,7 @@ export default function Login() {
         }
       }
       setOtpDigits(newDigits);
-      const nextFocus = Math.min(index + cleaned.length - 1, 5);
+      const nextFocus = Math.min(index + cleaned.length, 5);
       otpRefs.current[nextFocus]?.focus();
       return;
     }
@@ -169,8 +181,8 @@ export default function Login() {
         if (i < 6) newDigits[i] = char;
       });
       setOtpDigits(newDigits);
-      const nextIndex = Math.min(pasted.length, 5);
-      otpRefs.current[nextIndex]?.focus();
+      const nextFocus = Math.min(pasted.length, 5);
+      otpRefs.current[nextFocus]?.focus();
     }
   };
 
@@ -244,18 +256,17 @@ export default function Login() {
         if (mode === 'signup') {
           setTempFirebaseUser(firebaseUser);
           setStep('profile');
-          toast.success('Email verified successfully! Please complete your profile.');
         } else {
           syncUser(firebaseUser);
           toast.success('Login successful! Welcome back.');
           navigate('/', { replace: true });
         }
       } else {
-        throw new Error(response.data.error || 'Invalid OTP');
+        throw new Error(response.data?.error || response.data?.message || 'Invalid OTP');
       }
     } catch (err: any) {
       console.error("verifyOtp Error:", err);
-      const msg = err.response?.data?.error || err.message || 'Failed to verify OTP';
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to verify OTP';
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -444,9 +455,17 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="you@example.com"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleRequestOtp();
+                            }
+                          }}
+                          placeholder="Enter your Gmail address"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck="false"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
-                          required
                         />
                       </div>
                     </div>
@@ -454,7 +473,6 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      onClick={handleRequestOtp}
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <Mail className="w-5 h-5" />
@@ -521,7 +539,9 @@ export default function Login() {
                           type="text"
                           inputMode="numeric"
                           maxLength={6}
+                          autoComplete="one-time-code"
                           value={digit}
+                          onPaste={handleOtpPaste}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
                           className={`w-11 h-14 text-center text-xl font-black rounded-2xl border-2 transition-all focus:outline-none
@@ -536,7 +556,6 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      onClick={handleVerifyOtp}
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />

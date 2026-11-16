@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import admin from "firebase-admin";
 
@@ -18,10 +19,11 @@ interface OtpRecord {
 const globalOtpStore: Map<string, OtpRecord> = (globalThis as any).__viba_otp_store || new Map();
 (globalThis as any).__viba_otp_store = globalOtpStore;
 
-const CACHE_FILE_PATH = path.join(process.cwd(), ".viba_otp_cache.json");
+// Safe temporary cache file path in system temporary directory
+const CACHE_FILE_PATH = path.join(os.tmpdir(), "viba_otp_cache.json");
 
 /**
- * Safely reads the persistent disk OTP cache to recover state across process reloads
+ * Safely reads the persistent disk OTP cache to recover state across server reloads
  */
 function readDiskCache(): Record<string, OtpRecord> {
   try {
@@ -31,8 +33,8 @@ function readDiskCache(): Record<string, OtpRecord> {
         return JSON.parse(data);
       }
     }
-  } catch (e) {
-    // Ignore file read errors
+  } catch {
+    // Silently ignore disk cache read errors
   }
   return {};
 }
@@ -58,8 +60,8 @@ function writeDiskCache(records: Record<string, OtpRecord>) {
     }
 
     fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(cleanRecords, null, 2), "utf-8");
-  } catch (e) {
-    // Ignore file write errors
+  } catch {
+    // Silently ignore disk cache write errors on read-only environments
   }
 }
 
@@ -72,7 +74,7 @@ export function hasAdminSdkCredentials(): boolean {
     if (rawKey.includes("your_private_key") || rawKey.includes("paste_firebase_private_key")) return false;
     if (rawEmail.includes("your_project") || rawEmail.includes("your_firebase_client_email") || rawEmail.includes("example.com")) return false;
     return admin.apps.length > 0;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -131,7 +133,7 @@ export function storeOtp(email: string, otp: string, ttlMs: number = 10 * 60 * 1
         .catch((err) => {
           console.warn("[OtpStore] Firestore OTP write skipped:", err?.message || err);
         });
-    } catch (e) {}
+    } catch {}
   }
 
   return expiresAt;
@@ -172,7 +174,7 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
     }
 
     memRecord.attempts += 1;
-    if (memRecord.attempts > 10) {
+    if (memRecord.attempts > 15) {
       globalOtpStore.delete(normalizedEmail);
       const diskData = readDiskCache();
       delete diskData[normalizedEmail];
@@ -209,14 +211,15 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
           writeDiskCache(updatedDisk);
         }
       }, 60000);
-      if (timer && typeof timer.unref === "function") {
-        timer.unref();
+
+      if (timer && typeof (timer as any).unref === "function") {
+        (timer as any).unref();
       }
 
       if (hasAdminSdkCredentials()) {
         try {
           admin.firestore().collection("otps").doc(normalizedEmail).delete().catch(() => {});
-        } catch (e) {}
+        } catch {}
       }
       return { valid: true };
     }
@@ -246,7 +249,7 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
           }
         }
       }
-    } catch (e) {}
+    } catch {}
   }
 
   return { valid: false, reason: "No active OTP found. Please request a new OTP." };

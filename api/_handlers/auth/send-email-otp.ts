@@ -17,15 +17,15 @@ let cachedTransporters: {
 } | null = null;
 
 function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
+  const cleanPass = smtpPass.replace(/\s+/g, "");
+
   if (
     cachedTransporters &&
     cachedTransporters.user === smtpUser &&
-    cachedTransporters.pass === smtpPass
+    cachedTransporters.pass === cleanPass
   ) {
     return cachedTransporters;
   }
-
-  const cleanPass = smtpPass.replace(/\s+/g, "");
 
   // 1. Primary: Dedicated Gmail service
   const primary = nodemailer.createTransport({
@@ -37,9 +37,9 @@ function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
     tls: {
       rejectUnauthorized: false,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 
   // 2. Fallback STARTTLS (Port 587)
@@ -54,9 +54,9 @@ function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
     tls: {
       rejectUnauthorized: false,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 
   // 3. Fallback SSL (Port 465)
@@ -71,9 +71,9 @@ function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
     tls: {
       rejectUnauthorized: false,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 
   cachedTransporters = {
@@ -81,10 +81,43 @@ function getTransporters(smtpUser: string, smtpPass: string, smtpHost: string) {
     fallback587,
     fallback465,
     user: smtpUser,
-    pass: smtpPass,
+    pass: cleanPass,
   };
 
   return cachedTransporters;
+}
+
+/**
+ * Safely parses request body across Express, Vite dev middleware, and serverless runtimes
+ */
+async function parseRequestBody(req: any): Promise<any> {
+  if (req.body && typeof req.body === "object") {
+    return req.body;
+  }
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof req.on === "function") {
+    return new Promise((resolve) => {
+      let data = "";
+      req.on("data", (chunk: any) => {
+        data += chunk;
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch {
+          resolve({});
+        }
+      });
+      req.on("error", () => resolve({}));
+    });
+  }
+  return {};
 }
 
 export default async function handler(req: any, res: any) {
@@ -122,61 +155,34 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
-  // Parse request body across Express, Vite, and serverless streams
-  let body = req.body;
-  if (!body && typeof req.on === "function") {
-    body = await new Promise((resolve) => {
-      let data = "";
-      req.on("data", (chunk: any) => {
-        data += chunk;
-      });
-      req.on("end", () => {
-        try {
-          resolve(data ? JSON.parse(data) : {});
-        } catch (e) {
-          resolve({});
-        }
-      });
-      req.on("error", () => resolve({}));
-    });
-  } else if (typeof body === "string") {
-    try {
-      body = JSON.parse(body);
-    } catch (e) {
-      return res.status(400).json({ success: false, error: "Invalid JSON request body" });
-    }
-  }
-
+  const body = await parseRequestBody(req);
   const { email } = body || {};
+
   if (!email || typeof email !== "string") {
-    return res.status(400).json({ success: false, error: "A valid email address is required" });
+    return res.status(400).json({ success: false, error: "A valid Gmail address is required" });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(normalizedEmail)) {
-    return res.status(400).json({
-      success: false,
-      error: "Please enter a valid Gmail address (e.g. name@gmail.com)",
-    });
+    return res.status(400).json({ success: false, error: "Please provide a valid email format (e.g. name@gmail.com)" });
   }
 
   // Retrieve & normalize SMTP credentials
   const smtpUser = (process.env.SMTP_USER || "").trim();
-  const rawPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
-  const smtpPass = rawPass.replace(/\s+/g, "");
+  const smtpPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
 
-  const isConfigured =
-    smtpUser &&
-    smtpPass &&
-    smtpUser !== "your-email@gmail.com" &&
-    smtpUser !== "test" &&
-    !smtpUser.includes("example.com") &&
-    smtpPass !== "your_smtp_password" &&
-    smtpPass !== "test";
+  const isPlaceholderSmtp =
+    !smtpUser ||
+    !smtpPass ||
+    smtpUser === "your-email@gmail.com" ||
+    smtpUser === "test" ||
+    smtpUser.includes("example.com") ||
+    smtpPass === "your_smtp_password" ||
+    smtpPass === "test";
 
-  if (!isConfigured) {
+  if (isPlaceholderSmtp) {
     console.error("[ViBa Mart Auth] Gmail SMTP credentials are not configured or are placeholder.");
     return res.status(500).json({
       success: false,
@@ -261,29 +267,29 @@ export default async function handler(req: any, res: any) {
     let sendSuccess = false;
     let lastError: any = null;
 
-    // 1. Primary Attempt (Gmail Service)
+    // 1. Primary Attempt (Dedicated Gmail Service)
     try {
       await transporters.primary.sendMail(mailOptions);
       sendSuccess = true;
-      console.log(`[ViBa Mart] OTP email successfully sent to ${normalizedEmail}`);
+      console.log(`[ViBa Mart] OTP email successfully sent via primary Gmail service to ${normalizedEmail}`);
     } catch (err: any) {
-      console.warn(`[ViBa Mart] Primary transport error: ${err?.message || err}. Trying Port 587 fallback...`);
+      console.warn(`[ViBa Mart] Primary transport error: ${err?.message || err}. Trying Port 587 STARTTLS fallback...`);
       lastError = err;
 
       // 2. Fallback Attempt (Port 587 STARTTLS)
       try {
         await transporters.fallback587.sendMail(mailOptions);
         sendSuccess = true;
-        console.log(`[ViBa Mart] OTP email sent via 587 fallback to ${normalizedEmail}`);
+        console.log(`[ViBa Mart] OTP email sent via Port 587 fallback to ${normalizedEmail}`);
       } catch (err2: any) {
-        console.warn(`[ViBa Mart] 587 fallback error: ${err2?.message || err2}. Trying Port 465 fallback...`);
+        console.warn(`[ViBa Mart] Port 587 fallback error: ${err2?.message || err2}. Trying Port 465 SSL fallback...`);
         lastError = err2;
 
         // 3. Fallback Attempt (Port 465 SSL)
         try {
           await transporters.fallback465.sendMail(mailOptions);
           sendSuccess = true;
-          console.log(`[ViBa Mart] OTP email sent via 465 fallback to ${normalizedEmail}`);
+          console.log(`[ViBa Mart] OTP email sent via Port 465 SSL fallback to ${normalizedEmail}`);
         } catch (err3: any) {
           lastError = err3;
           console.error(`[ViBa Mart] All SMTP transports failed for ${normalizedEmail}: ${err3?.message || err3}`);
@@ -296,7 +302,7 @@ export default async function handler(req: any, res: any) {
       console.error(`[ViBa Mart] OTP delivery failed for ${normalizedEmail}: ${errorDetail}`);
       return res.status(500).json({
         success: false,
-        error: "Failed to deliver OTP to your Gmail address. Please verify your email address and try again.",
+        error: "Failed to deliver OTP to your Gmail address. Please check your email address and try again.",
       });
     }
 

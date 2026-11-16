@@ -7,6 +7,39 @@ import { verifyOtp, hasAdminSdkCredentials, getDeterministicAuthSecret } from ".
 
 initializeFirebaseAdmin();
 
+/**
+ * Safely parses request body across Express, Vite dev middleware, and serverless runtimes
+ */
+async function parseRequestBody(req: any): Promise<any> {
+  if (req.body && typeof req.body === "object") {
+    return req.body;
+  }
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof req.on === "function") {
+    return new Promise((resolve) => {
+      let data = "";
+      req.on("data", (chunk: any) => {
+        data += chunk;
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch {
+          resolve({});
+        }
+      });
+      req.on("error", () => resolve({}));
+    });
+  }
+  return {};
+}
+
 export default async function handler(req: any, res: any) {
   // Ensure standard Express response helper methods exist across all runtimes
   if (typeof res.status !== "function") {
@@ -42,50 +75,20 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
-  // Parse request body across Express, Vite, and serverless streams
-  let body = req.body;
-  if (!body && typeof req.on === "function") {
-    body = await new Promise((resolve) => {
-      let data = "";
-      req.on("data", (chunk: any) => {
-        data += chunk;
-      });
-      req.on("end", () => {
-        try {
-          resolve(data ? JSON.parse(data) : {});
-        } catch (e) {
-          resolve({});
-        }
-      });
-      req.on("error", () => resolve({}));
-    });
-  } else if (typeof body === "string") {
-    try {
-      body = JSON.parse(body);
-    } catch (e) {
-      return res.status(400).json({ success: false, error: "Invalid JSON request body" });
-    }
-  }
-
+  const body = await parseRequestBody(req);
   const { email, code } = body || {};
+
   if (!email || !code) {
-    return res.status(400).json({ success: false, error: "Email address and 6-digit OTP code are required" });
+    return res.status(400).json({ success: false, error: "Gmail address and OTP code are required" });
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
   const normalizedCode = String(code).replace(/\D/g, "").trim();
 
-  if (normalizedCode.length !== 6) {
-    return res.status(400).json({ success: false, error: "Please enter the complete 6-digit OTP code." });
-  }
-
   try {
     const result = await verifyOtp(normalizedEmail, normalizedCode);
     if (!result.valid) {
-      return res.status(400).json({
-        success: false,
-        error: result.reason || "Invalid OTP code. Please check your Gmail and try again.",
-      });
+      return res.status(400).json({ success: false, error: result.reason || "Invalid OTP code" });
     }
 
     // If Admin SDK credentials are fully configured, generate custom token
@@ -129,7 +132,7 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     console.error("Verify Email OTP error:", error);
     const errMsg = error?.message || String(error) || "Failed to verify OTP";
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: errMsg,
       message: errMsg,
