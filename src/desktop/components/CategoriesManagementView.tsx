@@ -67,13 +67,6 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
       setCategories(catsData);
       setLoading(false);
-
-      // Auto-migrate any existing category documents that contain base64 image data
-      catsData.forEach(cat => {
-        migrateCategoryDocIfNeeded(cat).catch(err => {
-          console.error("Migration error for category:", cat.id, err);
-        });
-      });
     }, (error) => {
       console.error("Error fetching categories:", error);
       toast.error("Failed to load categories.");
@@ -430,28 +423,53 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   };
 
   const handleRestoreDefaults = async () => {
-    if (!window.confirm("This will restore any missing default categories. Continue?")) return;
+    if (!window.confirm("This will safely restore any missing default categories while strictly preserving all existing categories, products, and configurations. Continue?")) return;
     setIsSaving(true);
+    const toastId = toast.loading('Checking and restoring missing default categories...');
     try {
+      const existingIds = new Set(categories.map(c => (c.id || '').trim().toLowerCase()));
+      const existingSlugs = new Set(
+        categories.map(c => (c.slug || c.seoSlug || createSlug(c.name || '')).trim().toLowerCase()).filter(Boolean)
+      );
+      const existingNames = new Set(categories.map(c => (c.name || '').trim().toLowerCase()).filter(Boolean));
+
       const batch = writeBatch(db);
       let added = 0;
       INITIAL_CATEGORIES.forEach((cat) => {
-        const exists = categories.some(c => c.id === cat.id);
-        if (!exists) {
-          const catRef = doc(db, 'categories', cat.id);
-          batch.set(catRef, cat);
+        const defId = (cat.id || '').trim().toLowerCase();
+        const defSlug = (cat.slug || cat.seoSlug || createSlug(cat.name || '')).trim().toLowerCase();
+        const defName = (cat.name || '').trim().toLowerCase();
+
+        const alreadyExists =
+          existingIds.has(defId) ||
+          (defSlug && existingSlugs.has(defSlug)) ||
+          (defName && existingNames.has(defName));
+
+        if (!alreadyExists) {
+          const targetDocId = cat.id || defSlug || `cat_${Date.now()}_${added}`;
+          const catRef = doc(db, 'categories', targetDocId);
+          const payload = cleanForFirestore({
+            ...cat,
+            id: targetDocId,
+            slug: cat.slug || defSlug,
+            seoSlug: cat.seoSlug || defSlug,
+            order: typeof cat.order === 'number' ? cat.order : categories.length + added,
+            isVisible: cat.isVisible ?? true,
+            subcategories: cat.subcategories || []
+          });
+          batch.set(catRef, payload);
           added++;
         }
       });
       if (added > 0) {
         await batch.commit();
-        toast.success(`Restored ${added} default categories!`);
+        toast.success(`Restored ${added} missing default categories! Existing data preserved.`, { id: toastId });
       } else {
-        toast.success("All default categories are already present.");
+        toast.success("All default categories are already present. No changes needed.", { id: toastId });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Restore error:", error);
-      toast.error("Failed to restore default categories.");
+      toast.error(`Failed to restore default categories: ${error?.message || error}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }

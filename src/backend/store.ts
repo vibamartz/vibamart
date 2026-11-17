@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory, InventoryBrandSection } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion, writeBatch } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
 import { PushService } from "./services/pushService";
@@ -782,19 +782,18 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
         // Auto-seed missing default features if admin
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          DEFAULT_FEATURES.forEach(async (defFeature) => {
-            const exists = fetchedFeatures.some(f => f.id === defFeature.id);
-            if (!exists) {
-              try {
-                await setDoc(doc(db, 'features', defFeature.id), {
-                  ...defFeature,
-                  updatedAt: new Date().toISOString()
-                });
-              } catch (e) {
-                console.error("Failed to seed feature:", defFeature.id, e);
-              }
-            }
-          });
+          const missingFeatures = DEFAULT_FEATURES.filter(def => !fetchedFeatures.some(f => f.id === def.id));
+          if (missingFeatures.length > 0) {
+            const batch = writeBatch(db);
+            const now = new Date().toISOString();
+            missingFeatures.forEach((defFeature) => {
+              batch.set(doc(db, 'features', defFeature.id), {
+                ...defFeature,
+                updatedAt: now
+              });
+            });
+            batch.commit().catch(e => console.error("Failed to seed features batch:", e));
+          }
         }
 
         set({ features: fetchedFeatures, loading: false });
@@ -802,16 +801,15 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
         // Seed default features if collection is completely empty
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          DEFAULT_FEATURES.forEach(async (defFeature) => {
-            try {
-              await setDoc(doc(db, 'features', defFeature.id), {
-                ...defFeature,
-                updatedAt: new Date().toISOString()
-              });
-            } catch (e) {
-              console.error("Failed to seed default feature:", defFeature.id, e);
-            }
+          const batch = writeBatch(db);
+          const now = new Date().toISOString();
+          DEFAULT_FEATURES.forEach((defFeature) => {
+            batch.set(doc(db, 'features', defFeature.id), {
+              ...defFeature,
+              updatedAt: now
+            });
           });
+          batch.commit().catch(e => console.error("Failed to seed default features batch:", e));
         }
         set({ features: DEFAULT_FEATURES as FeatureConfig[], loading: false });
       }
@@ -914,13 +912,11 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           // Auto-seed DEFAULT_BRAND_COUPONS if empty on initial creation only
-          DEFAULT_BRAND_COUPONS.forEach(async (vouch) => {
-            try {
-              await setDoc(doc(db, 'reward_offers', vouch.id), vouch);
-            } catch (e) {
-              console.error("Failed to seed default reward offer:", vouch.id, e);
-            }
+          const batch = writeBatch(db);
+          DEFAULT_BRAND_COUPONS.forEach((vouch) => {
+            batch.set(doc(db, 'reward_offers', vouch.id), cleanForFirestore(vouch));
           });
+          batch.commit().catch(e => console.error("Failed to seed default reward offers batch:", e));
         }
         set({ offers: DEFAULT_BRAND_COUPONS });
       } else {
@@ -1323,16 +1319,21 @@ export interface InventoryBrandSectionState {
   bulkAssignProducts: (productIds: string[], sectionId: string | null) => Promise<void>;
 }
 
+let hasCheckedInventoryBrandSections = false;
+
 export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>((set, get) => ({
   sections: DEFAULT_BRAND_SECTIONS.map(s => ({ ...s, createdAt: '', updatedAt: '' })),
   loading: true,
   initialized: false,
 
   initSections: () => {
-    // Seed default sections once if collection is empty
-    seedInventoryBrandSectionsIfEmpty().catch(err => {
-      console.warn('[useInventoryBrandSectionStore] seed error:', err);
-    });
+    // Seed default sections once per session if collection is empty
+    if (!hasCheckedInventoryBrandSections) {
+      hasCheckedInventoryBrandSections = true;
+      seedInventoryBrandSectionsIfEmpty().catch(err => {
+        console.warn('[useInventoryBrandSectionStore] seed error:', err);
+      });
+    }
 
     const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);
     const unsubscribe = onSnapshot(colRef, (snapshot) => {

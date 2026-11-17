@@ -9,6 +9,7 @@ import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck
 import toast from 'react-hot-toast';
 import Logo from './desktop/components/Logo';
 import axios from 'axios';
+import { ViBaPermissionManager } from './services/ViBaPermissionManager';
 
 type Step = 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
@@ -56,6 +57,17 @@ export default function Login() {
     };
   }, []);
 
+  useEffect(() => {
+    if (step === 'otp') {
+      ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
+        if (code && code.length === 6) {
+          setOtpDigits(code.split(''));
+          toast.success('SMS OTP autofilled securely!');
+        }
+      });
+    }
+  }, [step]);
+
 
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
@@ -93,8 +105,8 @@ export default function Login() {
         startResendTimer();
         toast.success(
           isResend
-            ? 'OTP resent to your Gmail address! Check Inbox or Spam.'
-            : 'OTP sent to your Gmail address! Check Inbox or Spam.'
+            ? 'OTP resent to your Gmail address!'
+            : 'OTP sent to your Gmail address! Please check your inbox.'
         );
         setTimeout(() => otpRefs.current[0]?.focus(), 250);
       } else {
@@ -145,11 +157,6 @@ export default function Login() {
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleVerifyOtp();
-      return;
-    }
     if (e.key === 'Backspace') {
       if (otpDigits[index]) {
         const newDigits = [...otpDigits];
@@ -466,7 +473,6 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      onClick={handleRequestOtp}
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <Mail className="w-5 h-5" />
@@ -519,16 +525,10 @@ export default function Login() {
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
-                  <p className="text-gray-400 text-sm font-medium text-center mb-4">
+                  <p className="text-gray-400 text-sm font-medium text-center mb-8">
                     Enter the 6-digit code sent to{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
-
-                  <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3 mb-6 text-center">
-                    <p className="text-xs font-semibold text-amber-900 leading-relaxed">
-                      📬 6-digit code dispatched to your Gmail. If not in your primary inbox, please check your <strong>Spam / Junk</strong> folder.
-                    </p>
-                  </div>
 
                   <form onSubmit={handleVerifyOtp} noValidate className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
@@ -556,7 +556,6 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      onClick={handleVerifyOtp}
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />

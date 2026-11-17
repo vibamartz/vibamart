@@ -229,6 +229,7 @@ export async function migrateCategoryDocIfNeeded(catDoc: Category): Promise<Cate
     );
 
   if (!needsMigration) {
+    migratedCategoryIds.add(catDoc.id);
     return catDoc;
   }
 

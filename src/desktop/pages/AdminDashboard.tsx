@@ -7,7 +7,7 @@ import {
   Plus, Search, Filter, MoreVertical, AlertTriangle, ShoppingCart, Info, Download, Truck, MapPin,
   FileText, Calendar, CreditCard, PieChart, Activity, Bell, Image, Layout,
   Shield, ShieldCheck, UserPlus, Check, X, Eye, EyeOff, ChevronDown, Edit3, Trash2, Hash, ArrowUp, ArrowDown,
-  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet, Sparkles
+  Upload, Link2, Menu, MessageSquare, Copy, Layers, Gift, Tag, Smartphone, Lock, Wallet, Sparkles, RotateCcw
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -16,15 +16,16 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import Logo from '../components/Logo';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, setDoc, arrayUnion, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, setDoc, arrayUnion, getDoc, writeBatch } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { logAdminAction, AdminAction } from '../../backend/services/adminLogService';
 import { Role, UserProfile, Product, ProductVariant, Order, OrderStatus, Coupon, Banner, Review, Announcement, ReturnRequest, Category, SubCategory } from '../../shared/types';
 import axios from 'axios';
 import { CATEGORIES, AVAILABLE_PERMISSIONS } from '../../shared/constants';
+import { createSlug } from '../../shared/utilities/slug';
+import { isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
-import NewCategoriesManagementView from '../components/CategoriesManagementView';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
@@ -1436,7 +1437,7 @@ function AdminDashboardContent() {
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'cashback-management' && <AdminCashbackManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
-          {activeTab === 'categories' && <NewCategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
+          {activeTab === 'categories' && <CategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
           {activeTab === 'visual-nested-subcategories' && <VisualNestedSubcategoriesAdminView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
@@ -6091,7 +6092,11 @@ function AddProductView({ product, onClose, onDelete }: { product: Product | nul
   );
 }
 
-function CategoriesManagementView() {
+interface CategoriesManagementViewProps {
+  onNavigateToVisualNested?: () => void;
+}
+
+function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManagementViewProps = {}) {
   const { categories } = useCategoryStore();
   const [busy, setBusy] = useState(false);
 
@@ -6155,18 +6160,23 @@ function CategoriesManagementView() {
   const addCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
+    if (isDuplicateCategory(newCatName, categories)) {
+      toast.error('A category with this name or slug already exists.');
+      return;
+    }
     const catId = newCatName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
     setBusy(true);
     try {
       const newCat: Category = {
         id: catId,
+        slug: newCatSeoSlug.trim() || createSlug(newCatName),
         name: newCatName.trim(),
         image: newCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
         icon: newCatIcon || 'sparkles',
         iconImage: newCatIconImage,
         color: newCatColor,
-        order: newCatOrder,
-        seoSlug: newCatSeoSlug.trim(),
+        order: typeof newCatOrder === 'number' ? newCatOrder : categories.length,
+        seoSlug: newCatSeoSlug.trim() || createSlug(newCatName),
         seoTitle: newCatSeoTitle.trim(),
         seoDescription: newCatSeoDesc.trim(),
         subcategories: []
@@ -6209,6 +6219,10 @@ function CategoriesManagementView() {
       toast.error('Category name is required');
       return;
     }
+    if (isDuplicateCategory(editCatName, categories, catId)) {
+      toast.error('Another category already exists with this name or slug.');
+      return;
+    }
     setBusy(true);
     try {
       const cat = categories.find(c => c.id === catId);
@@ -6221,7 +6235,7 @@ function CategoriesManagementView() {
         iconImage: editCatIconImage,
         color: editCatColor,
         order: editCatOrder,
-        seoSlug: editCatSeoSlug.trim(),
+        seoSlug: editCatSeoSlug.trim() || createSlug(editCatName),
         seoTitle: editCatSeoTitle.trim(),
         seoDescription: editCatSeoDesc.trim()
       };
@@ -6261,15 +6275,72 @@ function CategoriesManagementView() {
 
     setBusy(true);
     try {
-      for (let i = 0; i < sortedCats.length; i++) {
-        await updateDoc(doc(db, 'categories', sortedCats[i].id), { order: i });
-      }
+      const batch = writeBatch(db);
+      sortedCats.forEach((c, i) => {
+        batch.update(doc(db, 'categories', c.id), { order: i });
+      });
+      await batch.commit();
       toast.success('Categories reordered');
     } catch (err: any) {
       toast.error('Failed to save category order: ' + err.message);
     } finally {
       setBusy(false);
       setDraggedCatId(null);
+    }
+  };
+
+  const handleRestoreDefaults = async () => {
+    if (!window.confirm("This will safely restore any missing default categories while strictly preserving all existing categories, products, and configurations. Continue?")) return;
+    setBusy(true);
+    const toastId = toast.loading('Checking and restoring missing default categories...');
+    try {
+      const existingIds = new Set(categories.map(c => (c.id || '').trim().toLowerCase()));
+      const existingSlugs = new Set(
+        categories.map(c => (c.slug || c.seoSlug || createSlug(c.name || '')).trim().toLowerCase()).filter(Boolean)
+      );
+      const existingNames = new Set(categories.map(c => (c.name || '').trim().toLowerCase()).filter(Boolean));
+
+      const batch = writeBatch(db);
+      let addedCount = 0;
+
+      for (const defCat of CATEGORIES) {
+        const defId = (defCat.id || '').trim().toLowerCase();
+        const defSlug = (defCat.slug || defCat.seoSlug || createSlug(defCat.name || '')).trim().toLowerCase();
+        const defName = (defCat.name || '').trim().toLowerCase();
+
+        const alreadyExists =
+          existingIds.has(defId) ||
+          (defSlug && existingSlugs.has(defSlug)) ||
+          (defName && existingNames.has(defName));
+
+        if (!alreadyExists) {
+          const targetDocId = defCat.id || defSlug || `cat_${Date.now()}_${addedCount}`;
+          const docRef = doc(db, 'categories', targetDocId);
+          const payload = cleanForFirestore({
+            ...defCat,
+            id: targetDocId,
+            slug: defCat.slug || defSlug,
+            seoSlug: defCat.seoSlug || defSlug,
+            order: typeof defCat.order === 'number' ? defCat.order : categories.length + addedCount,
+            isVisible: defCat.isVisible ?? true,
+            subcategories: defCat.subcategories || []
+          });
+          batch.set(docRef, payload);
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        await batch.commit();
+        toast.success(`Restored ${addedCount} missing default categories! Existing data preserved.`, { id: toastId });
+      } else {
+        toast.success('All default categories are already present. No changes needed.', { id: toastId });
+      }
+    } catch (error: any) {
+      console.error("Restore categories error:", error);
+      toast.error(`Failed to restore categories: ${error?.message || error}`, { id: toastId });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -6485,7 +6556,7 @@ function CategoriesManagementView() {
         }
         return s;
       }) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Nested subcategory deleted');
     } catch (e: any) {
       toast.error('Failed to delete nested subcategory: ' + e?.message);
@@ -6508,7 +6579,7 @@ function CategoriesManagementView() {
         setBusy(false);
         return;
       }
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Subcategory reordered');
     } catch (e: any) {
       toast.error('Failed to reorder: ' + e?.message);
@@ -6534,7 +6605,7 @@ function CategoriesManagementView() {
         }
         return s;
       }) || [];
-      await setDoc(doc(db, 'categories', catId), { ...cat, subcategories });
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({ ...cat, subcategories }), { merge: true });
       toast.success('Nested subcategory reordered');
     } catch (e: any) {
       toast.error('Failed to reorder: ' + e?.message);
@@ -6550,13 +6621,36 @@ function CategoriesManagementView() {
           <h2 className="text-xl font-bold text-gray-900">Manage Categories</h2>
           <p className="text-sm text-gray-500">Add, edit or remove categories, subcategories and nested subcategories (3 Levels)</p>
         </div>
-        <button
-          onClick={() => setShowAddCat(!showAddCat)}
-          className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-hover shadow-lg shadow-blue-500/10 flex items-center gap-2 self-start sm:self-center transition-all active:scale-95"
-        >
-          {showAddCat ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-          {showAddCat ? 'Cancel' : 'New Category'}
-        </button>
+        <div className="flex items-center flex-wrap gap-2.5 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={handleRestoreDefaults}
+            disabled={busy}
+            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50"
+            title="Restore missing default categories safely without overwriting existing data"
+          >
+            <RotateCcw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} />
+            Restore Defaults
+          </button>
+          {onNavigateToVisualNested && (
+            <button
+              type="button"
+              onClick={onNavigateToVisualNested}
+              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all active:scale-95"
+              title="Navigate to Visual Nested Subcategories Management"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              Visual Nested
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddCat(!showAddCat)}
+            className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-hover shadow-lg shadow-blue-500/10 flex items-center gap-2 transition-all active:scale-95"
+          >
+            {showAddCat ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showAddCat ? 'Cancel' : 'New Category'}
+          </button>
+        </div>
       </div>
 
       {showAddCat && (
@@ -6621,12 +6715,20 @@ function CategoriesManagementView() {
                 onChange={(e) => setNewCatIcon(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
               >
-                <option value="sparkles">Sparkles</option>
-                <option value="smartphone">Smartphone</option>
-                <option value="shirt">Shirt</option>
-                <option value="laptop">Laptop</option>
-                <option value="home">Home</option>
-                <option value="tv">TV</option>
+                <option value="sparkles">Sparkles (General)</option>
+                <option value="smartphone">Smartphone (Mobiles)</option>
+                <option value="shirt">Shirt (Fashion)</option>
+                <option value="laptop">Laptop (Electronics)</option>
+                <option value="home">Home (Home & Kitchen)</option>
+                <option value="tv">TV (Appliances)</option>
+                <option value="flame">Flame (Deals & Offers)</option>
+                <option value="gamepad">Gamepad (Toys & Games)</option>
+                <option value="apple">Apple (Food & Groceries)</option>
+                <option value="armchair">Armchair (Furniture)</option>
+                <option value="shopping-bag">Shopping Bag</option>
+                <option value="heart">Heart (Beauty & Care)</option>
+                <option value="watch">Watch</option>
+                <option value="headphones">Headphones</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -6710,7 +6812,20 @@ function CategoriesManagementView() {
         </motion.form>
       )}
 
-      {categories.map(cat => (
+      {categories.length === 0 ? (
+        <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center space-y-4">
+          <p className="text-gray-500 font-medium">No categories found in database.</p>
+          <button
+            onClick={handleRestoreDefaults}
+            disabled={busy}
+            className="inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-hover shadow-md transition-all active:scale-95 disabled:opacity-50"
+          >
+            <RotateCcw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} />
+            Seed Default Categories
+          </button>
+        </div>
+      ) : (
+        [...categories].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map(cat => (
         <div
           key={cat.id}
           draggable
@@ -6773,12 +6888,20 @@ function CategoriesManagementView() {
                     onChange={(e) => setEditCatIcon(e.target.value)}
                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
                   >
-                    <option value="sparkles">Sparkles</option>
-                    <option value="smartphone">Smartphone</option>
-                    <option value="shirt">Shirt</option>
-                    <option value="laptop">Laptop</option>
-                    <option value="home">Home</option>
-                    <option value="tv">TV</option>
+                    <option value="sparkles">Sparkles (General)</option>
+                    <option value="smartphone">Smartphone (Mobiles)</option>
+                    <option value="shirt">Shirt (Fashion)</option>
+                    <option value="laptop">Laptop (Electronics)</option>
+                    <option value="home">Home (Home & Kitchen)</option>
+                    <option value="tv">TV (Appliances)</option>
+                    <option value="flame">Flame (Deals & Offers)</option>
+                    <option value="gamepad">Gamepad (Toys & Games)</option>
+                    <option value="apple">Apple (Food & Groceries)</option>
+                    <option value="armchair">Armchair (Furniture)</option>
+                    <option value="shopping-bag">Shopping Bag</option>
+                    <option value="heart">Heart (Beauty & Care)</option>
+                    <option value="watch">Watch</option>
+                    <option value="headphones">Headphones</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -6902,7 +7025,7 @@ function CategoriesManagementView() {
                 <button onClick={() => toggleCat(cat.id)} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-900">
                   <ChevronRight className={`w-5 h-5 transition-transform ${expandedCats.includes(cat.id) ? 'rotate-90' : ''}`} />
                 </button>
-                <CategoryLogo name={cat.name} icon={cat.icon} size="md" />
+                <CategoryLogo name={cat.name} image={cat.image || cat.iconImage} icon={cat.icon} size="md" />
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                     {cat.name}
@@ -7362,7 +7485,7 @@ function CategoriesManagementView() {
           </AnimatePresence>
 
         </div>
-      ))}
+      )))}
     </div>
   );
 }
