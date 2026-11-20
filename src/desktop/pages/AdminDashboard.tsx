@@ -2689,7 +2689,7 @@ function OrderRow({ id, customer, date, amount, status }: any) {
 function UserManagementView() {
   const { user: currentUser } = useAuthStore();
   const { isDateInRange, selectedPreset, dateRange } = useAdminDateFilter();
-  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com';
+  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com' || currentUser?.email === 'vibamartz@gmail.com';
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchEmail, setSearchEmail] = useState('');
@@ -2699,24 +2699,15 @@ function UserManagementView() {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    setSearchEmail(''); // Reset search when filter changes
-    let q = query(
-      collection(db, 'users'),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
-
-    if (roleFilter !== 'all') {
-      q = query(
-        collection(db, 'users'),
-        where('role', '==', roleFilter),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-    }
+    const q = query(collection(db, 'users'), limit(300));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => doc.data() as UserProfile);
+      const usersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+      usersData.sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.lastLoginAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.lastLoginAt || 0).getTime();
+        return timeB - timeA;
+      });
       setUsersList(usersData);
       setLoading(false);
     }, (error) => {
@@ -2724,11 +2715,21 @@ function UserManagementView() {
     });
 
     return () => unsubscribe();
-  }, [roleFilter]);
+  }, []);
 
   const filteredUsersList = useMemo(() => {
-    return usersList.filter(u => isDateInRange(u.createdAt));
-  }, [usersList, isDateInRange]);
+    return usersList.filter(u => {
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (searchEmail.trim()) {
+        const queryTerm = searchEmail.trim().toLowerCase();
+        const matchEmail = u.email?.toLowerCase().includes(queryTerm);
+        const matchName = u.displayName?.toLowerCase().includes(queryTerm);
+        if (!matchEmail && !matchName) return false;
+      }
+      if (selectedPreset !== 'all' && u.createdAt && !isDateInRange(u.createdAt)) return false;
+      return true;
+    });
+  }, [usersList, roleFilter, searchEmail, selectedPreset, isDateInRange]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2738,7 +2739,7 @@ function UserManagementView() {
     try {
       const q = query(collection(db, 'users'), where('email', '==', searchEmail.trim()));
       const snap = await getDocs(q);
-      const foundUsers = snap.docs.map(doc => doc.data() as UserProfile);
+      const foundUsers = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
       setUsersList(foundUsers);
     } catch (err) {
       console.error(err);
@@ -2926,7 +2927,7 @@ function UserManagementView() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -3049,7 +3050,7 @@ function RoleOption({ role, current, description, onClick }: { role: Role, curre
 
 function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
   const { user: currentUser } = useAuthStore();
-  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com';
+  const isCurrentSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.email === 'vk311779@gmail.com' || currentUser?.email === 'vibamartz@gmail.com';
   const [formData, setFormData] = useState({
     email: '',
     displayName: '',
@@ -4314,9 +4315,16 @@ function CustomersManagementView() {
   const [selectedCustomer, setSelectedCustomer] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), where('role', '==', 'customer'));
+    const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as UserProfile);
+      const data = snapshot.docs
+        .map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile))
+        .filter(u => !u.role || u.role === 'customer');
+      data.sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.lastLoginAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.lastLoginAt || 0).getTime();
+        return timeB - timeA;
+      });
       setCustomers(data);
       setLoading(false);
     }, (error) => {
@@ -4326,8 +4334,12 @@ function CustomersManagementView() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
-    return customers.filter(c => isDateInRange(c.createdAt));
-  }, [customers, isDateInRange]);
+    if (selectedPreset === 'all') return customers;
+    return customers.filter(c => {
+      if (!c.createdAt) return true;
+      return isDateInRange(c.createdAt);
+    });
+  }, [customers, isDateInRange, selectedPreset]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -4374,7 +4386,7 @@ function CustomersManagementView() {
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-gray-900">{customer.displayName}</span>
+                          <span className="text-sm font-bold text-gray-900">{customer.displayName || customer.email?.split('@')[0] || 'Customer'}</span>
                           {customer.isVerified && (
                             <span className="bg-green-100 text-green-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
                               <ShieldCheck className="w-3 h-3" />
@@ -4400,7 +4412,7 @@ function CustomersManagementView() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 text-center">
-                    {new Date(customer.createdAt).toLocaleDateString()}
+                    {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">

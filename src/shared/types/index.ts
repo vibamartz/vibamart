@@ -155,6 +155,7 @@ export interface Product {
   deal259Status?: 'active' | 'disabled'; // Status specifically for Deal 259
   showInGeneralStore?: boolean; // Admin explicit toggle to also display this product on standard non-Deal259 store pages
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface FamilyProductVariant {
@@ -492,6 +493,7 @@ export interface Announcement {
   type: 'sale' | 'info' | 'critical';
   active: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface StoreSettings {

@@ -39,9 +39,14 @@ export default function MobileCategoriesScreen() {
 
   // Fetch real products & banners from Firestore
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'products'));
     const unsubscribeProducts = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Product));
+      docs.sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(docs, rewardIds));
       setLoading(false);

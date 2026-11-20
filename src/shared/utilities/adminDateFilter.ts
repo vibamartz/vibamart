@@ -212,9 +212,9 @@ export function calculateDateRangeBounds(
  */
 export function isDateInRange(
   dateVal: any,
-  range: { startDate: Date; endDate: Date } | null | undefined
+  range: { startDate: Date; endDate: Date; preset?: DateRangePreset } | null | undefined
 ): boolean {
-  if (!range) return true;
+  if (!range || range.preset === 'all') return true;
   const date = parseDateValue(dateVal);
   if (!date) return false;
   const time = date.getTime();
