@@ -94,58 +94,59 @@ export default async function handler(req: any, res: any) {
     const authSecret = getDeterministicAuthSecret(normalizedEmail);
     let uid = "usr_" + Buffer.from(normalizedEmail).toString("hex").slice(0, 24);
 
-    // Sync or provision user in Firebase Auth via Admin SDK so client authentication always succeeds
-    try {
-      if (admin.apps.length > 0) {
-        let userRecord;
-        try {
-          userRecord = await admin.auth().getUserByEmail(normalizedEmail);
-          uid = userRecord.uid;
-          await admin.auth().updateUser(uid, {
-            password: authSecret,
-            emailVerified: true,
-          });
-        } catch (error: any) {
-          if (error.code === "auth/user-not-found") {
-            const newUser = await admin.auth().createUser({
-              email: normalizedEmail,
-              password: authSecret,
-              emailVerified: true,
-            });
-            uid = newUser.uid;
-          } else {
-            console.warn("[VerifyOtp] Firebase Admin getUser error:", error.message);
-          }
-        }
-
-        // Try generating custom token if private key / service account signing is configured
-        try {
-          const customToken = await admin.auth().createCustomToken(uid, {
-            email_verified: true,
-          });
-          return res.json({ success: true, customToken, authSecret, uid, email: normalizedEmail });
-        } catch (tokenErr) {
-          // Custom token signing not available; fall through to authSecret sign-in
-        }
-      }
-    } catch (adminErr: any) {
-      console.warn("[VerifyOtp] Firebase Admin auth sync notice:", adminErr?.message || adminErr);
+    if (!admin.apps.length) {
+      initializeFirebaseAdmin();
     }
 
-    // Direct Firebase client authentication credential
+    // Retrieve existing user or create user, synchronizing authSecret as password
+    try {
+      const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+      uid = userRecord.uid;
+      // Existing account (email/password or Google-authenticated).
+      // Synchronize the deterministic authSecret as their Firebase Authentication password.
+      await admin.auth().updateUser(uid, {
+        password: authSecret,
+        emailVerified: true,
+      });
+    } catch (authErr: any) {
+      if (authErr.code === "auth/user-not-found") {
+        // User does not exist, create new Firebase Authentication user
+        const newUser = await admin.auth().createUser({
+          email: normalizedEmail,
+          password: authSecret,
+          emailVerified: true,
+          displayName: normalizedEmail.split("@")[0],
+        });
+        uid = newUser.uid;
+      } else {
+        console.error("[VerifyOtp] Firebase Admin auth error:", authErr?.message || authErr);
+        throw new Error(`Authentication synchronization failed: ${authErr?.message || "Internal auth error"}`);
+      }
+    }
+
+    // Attempt custom token if private key / service account signing is configured
+    let customToken: string | undefined;
+    try {
+      customToken = await admin.auth().createCustomToken(uid, {
+        email_verified: true,
+      });
+    } catch {
+      // Custom token signing not available with authorized user ADC; proceed with authSecret
+    }
+
     return res.json({
       success: true,
       authSecret,
       uid,
       email: normalizedEmail,
+      ...(customToken ? { customToken } : {}),
     });
   } catch (error: any) {
-    console.error("Verify Email OTP error:", error);
-    const errMsg = error?.message || String(error) || "Failed to verify OTP";
+    console.error("Verify Email OTP error:", error?.message || error);
+    const errMsg = error?.message || "Failed to verify OTP";
     res.status(500).json({
       success: false,
       error: errMsg,
-      message: errMsg,
     });
   }
 }
