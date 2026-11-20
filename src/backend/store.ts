@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'ViBa User'),
           phone: firebaseUser.phoneNumber || '',
           photoURL: firebaseUser.photoURL || '',
-          role: firebaseUser.email === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+          role: (firebaseUser.email === 'vk311779@gmail.com' || firebaseUser.email === 'vibamartz@gmail.com') ? 'super_admin' : 'customer',
           isVerified: true,
           accountStatus: 'active',
           createdAt: new Date().toISOString(),
@@ -133,7 +133,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
 
-            if (firebaseUser.email === 'vk311779@gmail.com' && data.role !== 'admin' && data.role !== 'super_admin') {
+            const isSuper = firebaseUser.email === 'vk311779@gmail.com' || firebaseUser.email === 'vibamartz@gmail.com';
+            if (isSuper && data.role !== 'admin' && data.role !== 'super_admin') {
               try {
                 await setDoc(docRef, { role: 'super_admin' }, { merge: true });
               } catch (err) {

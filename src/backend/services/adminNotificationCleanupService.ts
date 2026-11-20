@@ -1,5 +1,6 @@
 import { collection, query, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
+import admin from 'firebase-admin';
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -8,6 +9,17 @@ export interface CleanupResult {
   preservedUnreadCount: number;
   activeReadCount: number;
   errors: string[];
+}
+
+function getBackendDb(): any {
+  if (typeof window === 'undefined' && admin.apps.length > 0) {
+    try {
+      return admin.firestore();
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -24,9 +36,51 @@ export async function cleanExpiredAdminNotifications(): Promise<CleanupResult> {
   };
 
   try {
+    const adminDb = getBackendDb();
+    const now = Date.now();
+
+    if (adminDb) {
+      const snapshot = await adminDb.collection('notifications').get();
+      for (const notifDoc of snapshot.docs) {
+        const data = notifDoc.data();
+        const notifId = notifDoc.id;
+
+        if (!data.read) {
+          result.preservedUnreadCount++;
+          continue;
+        }
+
+        let readTime: number | null = null;
+        if (data.readAt) {
+          const parsed = new Date(data.readAt).getTime();
+          if (!isNaN(parsed)) readTime = parsed;
+        }
+
+        if (!readTime) {
+          if (data.createdAt) {
+            const createdTime = new Date(data.createdAt).getTime();
+            if (!isNaN(createdTime) && (now - createdTime >= TWENTY_FOUR_HOURS_MS)) {
+              readTime = createdTime;
+            }
+          }
+        }
+
+        if (readTime && (now - readTime >= TWENTY_FOUR_HOURS_MS)) {
+          try {
+            await adminDb.collection('notifications').doc(notifId).delete();
+            result.deletedCount++;
+          } catch (delErr: any) {
+            result.errors.push(`Failed to delete expired notification ${notifId}: ${delErr.message}`);
+          }
+        } else {
+          result.activeReadCount++;
+        }
+      }
+      return result;
+    }
+
     const notificationsCol = collection(db, 'notifications');
     const snapshot = await getDocs(notificationsCol);
-    const now = Date.now();
 
     for (const notifDoc of snapshot.docs) {
       const data = notifDoc.data();
@@ -77,9 +131,20 @@ export async function cleanExpiredAdminNotifications(): Promise<CleanupResult> {
  * Permanently deletes all existing admin notifications from Firestore database.
  */
 export async function purgeAllAdminNotifications(): Promise<{ deletedCount: number }> {
+  const adminDb = getBackendDb();
+  let deletedCount = 0;
+
+  if (adminDb) {
+    const snapshot = await adminDb.collection('notifications').get();
+    for (const notifDoc of snapshot.docs) {
+      await adminDb.collection('notifications').doc(notifDoc.id).delete();
+      deletedCount++;
+    }
+    return { deletedCount };
+  }
+
   const notificationsCol = collection(db, 'notifications');
   const snapshot = await getDocs(notificationsCol);
-  let deletedCount = 0;
 
   for (const notifDoc of snapshot.docs) {
     await deleteDoc(doc(db, 'notifications', notifDoc.id));

@@ -14,7 +14,7 @@ import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
 import updateStatusHandler from "./api/_handlers/requests/update-status";
 import sendNotificationHandler from "./api/_handlers/notifications/send";
-import { getErrorLocation } from "./api/_utils";
+import { getErrorLocation, ensureApplicationDefaultCredentials } from "./api/_utils";
 import { cicdRouter } from "./src/backend/cicd/routes";
 import { searchRouter } from "./src/backend/search/routes";
 import { searchService } from "./src/backend/search/searchService";
@@ -26,6 +26,7 @@ dotenv.config();
 
 try {
   if (!admin.apps.length) {
+    ensureApplicationDefaultCredentials();
     const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
     const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
     const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
@@ -168,7 +169,7 @@ async function startServer() {
 
   // Setup Nodemailer transporter
   const smtpUser = (process.env.SMTP_USER || "test").trim();
-  const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
+  const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
   const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
   const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
 
@@ -306,7 +307,7 @@ async function startServer() {
 
     // Simple admin check
     let isAdmin = false;
-    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+    if ((decodedToken.email === 'vk311779@gmail.com' || decodedToken.email === 'vibamartz@gmail.com') && decodedToken.email_verified) {
       isAdmin = true;
     } else {
       try {
@@ -427,7 +428,7 @@ async function startServer() {
 
     // Simple admin check
     let isAdmin = false;
-    if (decodedToken.email === 'vk311779@gmail.com' && decodedToken.email_verified) {
+    if ((decodedToken.email === 'vk311779@gmail.com' || decodedToken.email === 'vibamartz@gmail.com') && decodedToken.email_verified) {
       isAdmin = true;
     } else {
       try {
