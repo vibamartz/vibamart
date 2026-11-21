@@ -26,7 +26,6 @@ import { createSlug } from '../../shared/utilities/slug';
 import { isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
-import NewCategoriesManagementView from '../components/CategoriesManagementView';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
@@ -1438,7 +1437,7 @@ function AdminDashboardContent() {
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'cashback-management' && <AdminCashbackManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
-          {activeTab === 'categories' && <NewCategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
+          {activeTab === 'categories' && <CategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
           {activeTab === 'visual-nested-subcategories' && <VisualNestedSubcategoriesAdminView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
@@ -6168,13 +6167,10 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
     const catId = newCatName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
     setBusy(true);
     try {
-      const newCat: Category = {
+      const newCat: any = {
         id: catId,
         slug: newCatSeoSlug.trim() || createSlug(newCatName),
         name: newCatName.trim(),
-        image: newCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
-        icon: newCatIcon || 'sparkles',
-        iconImage: newCatIconImage,
         color: newCatColor,
         order: typeof newCatOrder === 'number' ? newCatOrder : categories.length,
         seoSlug: newCatSeoSlug.trim() || createSlug(newCatName),
@@ -6182,6 +6178,12 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
         seoDescription: newCatSeoDesc.trim(),
         subcategories: []
       };
+      // Do not store Main Category icons or their configuration in the database
+      delete newCat.image;
+      delete newCat.iconImage;
+      delete newCat.icon;
+      delete newCat.iconName;
+
       const sanitized = await sanitizeAndUploadCategoryDoc(newCat);
       await setDoc(doc(db, 'categories', catId), sanitized);
       toast.success('Category added successfully');
@@ -6228,18 +6230,21 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const updatedCat: Partial<Category> = {
+      const updatedCat: any = {
         ...cat,
         name: editCatName.trim(),
-        image: editCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
-        icon: editCatIcon,
-        iconImage: editCatIconImage,
         color: editCatColor,
         order: editCatOrder,
         seoSlug: editCatSeoSlug.trim() || createSlug(editCatName),
         seoTitle: editCatSeoTitle.trim(),
         seoDescription: editCatSeoDesc.trim()
       };
+      // Do not store Main Category icons or their configuration in the database
+      delete updatedCat.image;
+      delete updatedCat.iconImage;
+      delete updatedCat.icon;
+      delete updatedCat.iconName;
+
       const sanitized = await sanitizeAndUploadCategoryDoc(updatedCat);
       await setDoc(doc(db, 'categories', catId), sanitized, { merge: true });
       toast.success('Category updated successfully');
@@ -6317,7 +6322,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
         if (!alreadyExists) {
           const targetDocId = defCat.id || defSlug || `cat_${Date.now()}_${addedCount}`;
           const docRef = doc(db, 'categories', targetDocId);
-          const payload = cleanForFirestore({
+          const payload: any = cleanForFirestore({
             ...defCat,
             id: targetDocId,
             slug: defCat.slug || defSlug,
@@ -6326,6 +6331,11 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
             isVisible: defCat.isVisible ?? true,
             subcategories: defCat.subcategories || []
           });
+          // Do not store Main Category icons or their configuration in the database
+          delete payload.image;
+          delete payload.iconImage;
+          delete payload.icon;
+          delete payload.iconName;
           batch.set(docRef, payload);
           addedCount++;
         }
@@ -7026,7 +7036,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                 <button onClick={() => toggleCat(cat.id)} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-900">
                   <ChevronRight className={`w-5 h-5 transition-transform ${expandedCats.includes(cat.id) ? 'rotate-90' : ''}`} />
                 </button>
-                <CategoryLogo name={cat.name} image={cat.image || cat.iconImage} icon={cat.icon} size="md" />
+                <CategoryLogo name={cat.name} icon={cat.icon} size="md" />
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                     {cat.name}

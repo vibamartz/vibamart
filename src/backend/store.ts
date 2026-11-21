@@ -459,7 +459,17 @@ const getInitialCategories = (): Category[] => {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((catData: Category) => {
+            const defCat = DEFAULT_CATEGORIES.find(
+              c => c.id === catData.id || 
+                   (c.slug && catData.slug && c.slug.toLowerCase() === catData.slug.toLowerCase()) || 
+                   (c.name && catData.name && c.name.toLowerCase() === catData.name.toLowerCase())
+            );
+            if (defCat?.icon && !catData.icon) {
+              catData.icon = defCat.icon;
+            }
+            return catData;
+          });
         }
       }
     } catch (e) {
@@ -482,6 +492,14 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
         if (!snapshot.empty) {
           const fetchedCategories = snapshot.docs.map(doc => {
             const catData = { id: doc.id, ...doc.data() } as Category;
+            const defCat = DEFAULT_CATEGORIES.find(
+              c => c.id === catData.id || 
+                   (c.slug && catData.slug && c.slug.toLowerCase() === catData.slug.toLowerCase()) || 
+                   (c.name && catData.name && c.name.toLowerCase() === catData.name.toLowerCase())
+            );
+            if (defCat?.icon && !catData.icon) {
+              catData.icon = defCat.icon;
+            }
             if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
               catData.icon = 'gamepad';
             }
