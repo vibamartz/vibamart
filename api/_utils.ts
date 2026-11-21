@@ -13,39 +13,30 @@ export function ensureApplicationDefaultCredentials() {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
     return;
   }
-  const appDataAdc = process.env.APPDATA ? path.join(process.env.APPDATA, "gcloud", "application_default_credentials.json") : null;
-  const homeAdc = path.join(os.homedir(), ".config", "gcloud", "application_default_credentials.json");
-
-  if (appDataAdc && fs.existsSync(appDataAdc)) {
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = appDataAdc;
+  const adcDir = process.env.APPDATA ? path.join(process.env.APPDATA, "gcloud") : path.join(os.homedir(), ".config", "gcloud");
+  const adcPath = path.join(adcDir, "application_default_credentials.json");
+  if (fs.existsSync(adcPath)) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
     return;
   }
-  if (fs.existsSync(homeAdc)) {
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = homeAdc;
-    return;
-  }
-
-  const targetAdcPath = appDataAdc || homeAdc;
-  const targetDir = path.dirname(targetAdcPath);
-
   try {
     const configPath = path.join(os.homedir(), ".config", "configstore", "firebase-tools.json");
     if (fs.existsSync(configPath)) {
       const fbData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       if (fbData.tokens?.refresh_token) {
-        fs.mkdirSync(targetDir, { recursive: true });
+        fs.mkdirSync(adcDir, { recursive: true });
         const adcData = {
           client_id: "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com",
           client_secret: "j9iVZfS8kkCEFUPaAeJV0sAi",
           refresh_token: fbData.tokens.refresh_token,
           type: "authorized_user"
         };
-        fs.writeFileSync(targetAdcPath, JSON.stringify(adcData, null, 2), "utf-8");
-        process.env.GOOGLE_APPLICATION_CREDENTIALS = targetAdcPath;
+        fs.writeFileSync(adcPath, JSON.stringify(adcData, null, 2), "utf-8");
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
       }
     }
   } catch (e) {
-    // Non-blocking fallback
+    // Non-blocking
   }
 }
 
@@ -163,7 +154,7 @@ export async function sendEmailNotification(toEmail: string, contactName: string
   }
   try {
     const smtpUser = (process.env.SMTP_USER || "test").trim();
-    const smtpPass = (process.env.SMTP_PASS || '').replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
+    const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
     const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
     const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
 

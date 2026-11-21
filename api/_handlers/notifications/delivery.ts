@@ -70,7 +70,7 @@ export default async function handler(req: any, res: any) {
 
     if (process.env.SMTP_HOST && !isPlaceholder) {
       const smtpUser = (process.env.SMTP_USER || "test").trim();
-      const smtpPass = (process.env.SMTP_PASS || '').replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
+      const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
       const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
       const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
 

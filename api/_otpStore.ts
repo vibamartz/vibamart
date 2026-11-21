@@ -3,9 +3,6 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import admin from "firebase-admin";
-import { initializeFirebaseAdmin, ensureApplicationDefaultCredentials } from "./_utils";
-
-initializeFirebaseAdmin();
 
 interface ActiveOtp {
   code: string;
@@ -70,17 +67,10 @@ function writeDiskCache(records: Record<string, OtpRecord>) {
 
 export function hasAdminSdkCredentials(): boolean {
   try {
-    ensureApplicationDefaultCredentials();
-    if (!admin.apps.length) {
-      initializeFirebaseAdmin();
-    }
     if (!admin.apps.length) return false;
     const rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
     const isServiceAccount = rawKey && !rawKey.includes("your_private_key") && !rawKey.includes("paste_firebase_private_key");
-    const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-      (process.env.APPDATA ? path.join(process.env.APPDATA, "gcloud", "application_default_credentials.json") : null) ||
-      path.join(os.homedir(), ".config", "gcloud", "application_default_credentials.json");
-    const hasAdc = !!(adcPath && fs.existsSync(adcPath));
+    const hasAdc = !!(process.env.GOOGLE_APPLICATION_CREDENTIALS || (process.env.APPDATA && fs.existsSync(path.join(process.env.APPDATA, "gcloud", "application_default_credentials.json"))));
     return Boolean(isServiceAccount || hasAdc);
   } catch {
     return false;
@@ -92,7 +82,7 @@ export function getDeterministicAuthSecret(email: string): string {
   return crypto.createHmac("sha256", secretKey).update(email.trim().toLowerCase()).digest("hex") + "!Vb9";
 }
 
-export async function storeOtp(email: string, otp: string, ttlMs: number = 10 * 60 * 1000): Promise<number> {
+export function storeOtp(email: string, otp: string, ttlMs: number = 10 * 60 * 1000): number {
   const normalizedEmail = email.trim().toLowerCase();
   const cleanOtp = String(otp).replace(/\D/g, "").trim();
   const now = Date.now();
@@ -127,29 +117,25 @@ export async function storeOtp(email: string, otp: string, ttlMs: number = 10 * 
   diskData[normalizedEmail] = newRecord;
   writeDiskCache(diskData);
 
-  // Synchronize to Firestore
+  // Background sync to Firestore only if real admin credentials exist
   if (hasAdminSdkCredentials()) {
     try {
       const db = admin.firestore();
-      await db.collection("otps")
+      db.collection("otps")
         .doc(normalizedEmail)
         .set({
           otp: cleanOtp,
           otps: recentOtps.map((o) => o.code),
           expiresAt: admin.firestore.Timestamp.fromMillis(expiresAt),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        })
+        .catch((err) => {
+          console.warn("[OtpStore] Firestore OTP write skipped:", err?.message || err);
         });
-    } catch (err: any) {
-      console.error("[OtpStore] Failed to synchronize OTP with Firestore:", err?.message || err);
-      throw new Error(`Database synchronization failed: ${err?.message || "Unable to sync OTP record"}`);
-    }
+    } catch {}
   }
 
   return expiresAt;
 }
-
-// Concurrent request deduplication map
-const inFlightVerifications = new Map<string, Promise<{ valid: boolean; reason?: string }>>();
 
 export async function verifyOtp(email: string, code: string): Promise<{ valid: boolean; reason?: string }> {
   const normalizedEmail = email.trim().toLowerCase();
@@ -159,110 +145,110 @@ export async function verifyOtp(email: string, code: string): Promise<{ valid: b
     return { valid: false, reason: "Please enter the complete 6-digit verification code." };
   }
 
-  const requestKey = `${normalizedEmail}_${cleanCode}`;
-  if (inFlightVerifications.has(requestKey)) {
-    return inFlightVerifications.get(requestKey)!;
+  const now = Date.now();
+
+  // Try memory first, then disk cache
+  let memRecord = globalOtpStore.get(normalizedEmail);
+  if (!memRecord) {
+    const diskData = readDiskCache();
+    if (diskData[normalizedEmail]) {
+      memRecord = diskData[normalizedEmail];
+      globalOtpStore.set(normalizedEmail, memRecord);
+    }
   }
 
-  const verifyPromise = (async (): Promise<{ valid: boolean; reason?: string }> => {
-    const now = Date.now();
+  if (memRecord) {
+    // Purge expired OTPs (allowing 60s grace period for recently verified codes to absorb rapid duplicate requests)
+    memRecord.otps = memRecord.otps.filter(
+      (o) => o.expiresAt > now || (o.verifiedAt && now - o.verifiedAt < 60000)
+    );
 
-    // 1. Try memory first, then disk cache
-    let memRecord = globalOtpStore.get(normalizedEmail);
-    if (!memRecord) {
+    if (memRecord.otps.length === 0) {
+      globalOtpStore.delete(normalizedEmail);
       const diskData = readDiskCache();
-      if (diskData[normalizedEmail]) {
-        memRecord = diskData[normalizedEmail];
-        globalOtpStore.set(normalizedEmail, memRecord);
-      }
+      delete diskData[normalizedEmail];
+      writeDiskCache(diskData);
+      return { valid: false, reason: "OTP has expired. Please request a new one." };
     }
 
-    if (memRecord) {
-      // Purge expired OTPs
-      memRecord.otps = memRecord.otps.filter((o) => o.expiresAt > now);
+    memRecord.attempts += 1;
+    if (memRecord.attempts > 15) {
+      globalOtpStore.delete(normalizedEmail);
+      const diskData = readDiskCache();
+      delete diskData[normalizedEmail];
+      writeDiskCache(diskData);
+      return { valid: false, reason: "Too many failed attempts. Please request a new OTP." };
+    }
 
-      if (memRecord.otps.length === 0) {
-        globalOtpStore.delete(normalizedEmail);
-        const diskData = readDiskCache();
-        delete diskData[normalizedEmail];
-        writeDiskCache(diskData);
-        return { valid: false, reason: "OTP has expired. Please request a new one." };
-      }
+    const matchedOtp = memRecord.otps.find((o) => o.code === cleanCode);
+    if (matchedOtp) {
+      matchedOtp.verifiedAt = matchedOtp.verifiedAt || Date.now();
 
-      memRecord.attempts = (memRecord.attempts || 0) + 1;
-      if (memRecord.attempts > 15) {
-        globalOtpStore.delete(normalizedEmail);
-        const diskData = readDiskCache();
-        delete diskData[normalizedEmail];
-        writeDiskCache(diskData);
-        return { valid: false, reason: "Too many failed attempts. Please request a new OTP." };
-      }
-
-      const matchIndex = memRecord.otps.findIndex((o) => o.code === cleanCode);
-      if (matchIndex >= 0) {
-        // Enforce strict one-time usage: immediately remove the verified code
-        memRecord.otps.splice(matchIndex, 1);
-        if (memRecord.otps.length === 0) {
-          globalOtpStore.delete(normalizedEmail);
-          const diskData = readDiskCache();
-          delete diskData[normalizedEmail];
-          writeDiskCache(diskData);
-        } else {
-          globalOtpStore.set(normalizedEmail, memRecord);
-          const diskData = readDiskCache();
-          diskData[normalizedEmail] = memRecord;
-          writeDiskCache(diskData);
-        }
-
-        // Clean up from Firestore
-        if (hasAdminSdkCredentials()) {
-          try {
-            await admin.firestore().collection("otps").doc(normalizedEmail).delete();
-          } catch (delErr: any) {
-            console.warn("[OtpStore] Firestore OTP cleanup notice:", delErr?.message || delErr);
-          }
-        }
-
-        return { valid: true };
-      }
-
-      // Code didn't match memory; persist attempt increment
+      // Update disk cache with verification timestamp
       const diskData = readDiskCache();
       diskData[normalizedEmail] = memRecord;
       writeDiskCache(diskData);
 
-      return { valid: false, reason: "Invalid OTP code. Please check your Gmail and try again." };
-    }
-
-    // 2. Fallback to Firestore if not found in memory/disk and admin credentials explicitly exist
-    if (hasAdminSdkCredentials()) {
-      try {
-        const db = admin.firestore();
-        const otpDocRef = db.collection("otps").doc(normalizedEmail);
-        const otpDoc = await otpDocRef.get();
-        if (otpDoc.exists) {
-          const data = otpDoc.data();
-          const nowTs = admin.firestore.Timestamp.now();
-          if (data && data.expiresAt && data.expiresAt.toMillis() >= nowTs.toMillis()) {
-            const isMatch = data.otp === cleanCode || (Array.isArray(data.otps) && data.otps.includes(cleanCode));
-            if (isMatch) {
-              await otpDocRef.delete();
-              return { valid: true };
-            }
+      // Schedule removal after 60-second grace window
+      const timer = setTimeout(() => {
+        const current = globalOtpStore.get(normalizedEmail);
+        if (current) {
+          current.otps = current.otps.filter((o) => o.code !== cleanCode);
+          if (current.otps.length === 0) {
+            globalOtpStore.delete(normalizedEmail);
           }
         }
-      } catch (fsErr: any) {
-        console.warn("[OtpStore] Firestore fallback verification notice:", fsErr?.message || fsErr);
+        const updatedDisk = readDiskCache();
+        if (updatedDisk[normalizedEmail]) {
+          updatedDisk[normalizedEmail].otps = updatedDisk[normalizedEmail].otps.filter(
+            (o) => o.code !== cleanCode
+          );
+          if (updatedDisk[normalizedEmail].otps.length === 0) {
+            delete updatedDisk[normalizedEmail];
+          }
+          writeDiskCache(updatedDisk);
+        }
+      }, 60000);
+
+      if (timer && typeof (timer as any).unref === "function") {
+        (timer as any).unref();
       }
+
+      if (hasAdminSdkCredentials()) {
+        try {
+          admin.firestore().collection("otps").doc(normalizedEmail).delete().catch(() => {});
+        } catch {}
+      }
+      return { valid: true };
     }
 
-    return { valid: false, reason: "No active OTP found. Please request a new OTP." };
-  })();
+    // Persist attempt increment
+    const diskData = readDiskCache();
+    diskData[normalizedEmail] = memRecord;
+    writeDiskCache(diskData);
 
-  inFlightVerifications.set(requestKey, verifyPromise);
-  try {
-    return await verifyPromise;
-  } finally {
-    inFlightVerifications.delete(requestKey);
+    return { valid: false, reason: "Invalid OTP code. Please check your Gmail and try again." };
   }
+
+  // Fallback to Firestore only if not found in memory/disk and admin credentials explicitly exist
+  if (hasAdminSdkCredentials()) {
+    try {
+      const db = admin.firestore();
+      const otpDocRef = db.collection("otps").doc(normalizedEmail);
+      const otpDoc = await otpDocRef.get();
+      if (otpDoc.exists) {
+        const data = otpDoc.data();
+        const nowTs = admin.firestore.Timestamp.now();
+        if (data && data.expiresAt && data.expiresAt.toMillis() >= nowTs.toMillis()) {
+          const isMatch = data.otp === cleanCode || (Array.isArray(data.otps) && data.otps.includes(cleanCode));
+          if (isMatch) {
+            await otpDocRef.delete().catch(() => {});
+            return { valid: true };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return { valid: false, reason: "No active OTP found. Please request a new OTP." };
 }

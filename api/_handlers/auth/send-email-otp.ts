@@ -170,7 +170,7 @@ export default async function handler(req: any, res: any) {
 
   // Retrieve & normalize SMTP credentials
   const smtpUser = (process.env.SMTP_USER || "").trim();
-  const smtpPass = (process.env.SMTP_PASS || '').replace(/^["']|["']$/g, '').replace(/\s+/g, '').trim();
+  const smtpPass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
 
   const isPlaceholderSmtp =
@@ -195,7 +195,7 @@ export default async function handler(req: any, res: any) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Store in backend OTP store with 10 minutes expiry (TTL = 10 * 60 * 1000)
-    await storeOtp(normalizedEmail, otp, 10 * 60 * 1000);
+    storeOtp(normalizedEmail, otp, 10 * 60 * 1000);
 
     const transporters = getTransporters(smtpUser, smtpPass, smtpHost);
 
