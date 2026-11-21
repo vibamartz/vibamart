@@ -6207,7 +6207,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
   const startEditCategory = (cat: Category) => {
     setEditingCatId(cat.id);
     setEditCatName(cat.name);
-    setEditCatImage(cat.image);
+    setEditCatImage(cat.image || '');
     setEditCatIcon(cat.icon || 'sparkles');
     setEditCatIconImage(cat.iconImage || '');
     setEditCatColor(cat.color || '#000000');
@@ -6331,13 +6331,25 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
             isVisible: defCat.isVisible ?? true,
             subcategories: defCat.subcategories || []
           });
-          // Do not store Main Category icons or their configuration in the database
+          // Do not store Main Category icons or image URLs in the database
           delete payload.image;
           delete payload.iconImage;
           delete payload.icon;
           delete payload.iconName;
           batch.set(docRef, payload);
           addedCount++;
+        } else {
+          // If category exists in DB but is missing its subcategories, restore them from default constants
+          const existingCat = categories.find(
+            c => (c.id || '').trim().toLowerCase() === defId ||
+                 (c.slug && (c.slug || '').trim().toLowerCase() === defSlug) ||
+                 (c.name && (c.name || '').trim().toLowerCase() === defName)
+          );
+          if (existingCat && (!existingCat.subcategories || existingCat.subcategories.length === 0) && defCat.subcategories && defCat.subcategories.length > 0) {
+            const docRef = doc(db, 'categories', existingCat.id);
+            batch.update(docRef, { subcategories: cleanForFirestore(defCat.subcategories) });
+            addedCount++;
+          }
         }
       }
 
@@ -6685,42 +6697,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                <span>Banner Image</span>
-                <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  Upload PNG/JPG
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 10 * 1024 * 1024) {
-                        toast.error('File size exceeds 10 MB limit');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const dataUrl = ev.target?.result as string;
-                        if (dataUrl) setNewCatImage(dataUrl);
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-              </label>
-              <input
-                type="text"
-                value={newCatImage.startsWith('data:') ? 'Local Uploaded File' : newCatImage}
-                onChange={(e) => setNewCatImage(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
-                placeholder="https://... or upload local file"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Icon Logo</label>
               <select
                 value={newCatIcon}
                 onChange={(e) => setNewCatIcon(e.target.value)}
@@ -6742,39 +6719,15 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                 <option value="headphones">Headphones</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                <span>Custom Icon / Emoji</span>
-                <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                  <Upload className="w-3 h-3" /> Upload
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 10 * 1024 * 1024) {
-                        toast.error('File size exceeds 10 MB limit');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const dataUrl = ev.target?.result as string;
-                        if (dataUrl) setNewCatIconImage(dataUrl);
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-              </label>
-              <input
-                type="text"
-                value={newCatIconImage.startsWith('data:') ? 'Local Uploaded File' : newCatIconImage}
-                onChange={(e) => setNewCatIconImage(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
-                placeholder="Emoji 🔥 or URL/upload"
-              />
+            <div className="space-y-1 flex flex-col justify-center">
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Logo Preview</label>
+              <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                <CategoryLogo name={newCatName || 'Category'} icon={newCatIcon} size="md" />
+                <div>
+                  <p className="text-xs font-bold text-gray-700">Source-Code Icon Logo</p>
+                  <p className="text-[10px] text-gray-400">Defined directly in source code</p>
+                </div>
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>
@@ -6860,40 +6813,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                    <span>Banner Image</span>
-                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload File
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast.error('File size exceeds 10 MB limit');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const dataUrl = ev.target?.result as string;
-                            if (dataUrl) setEditCatImage(dataUrl);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
-                  </label>
-                  <input
-                    type="text"
-                    value={editCatImage.startsWith('data:') ? 'Local Uploaded File' : editCatImage}
-                    onChange={(e) => setEditCatImage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Icon Logo</label>
                   <select
                     value={editCatIcon}
                     onChange={(e) => setEditCatIcon(e.target.value)}
@@ -6915,39 +6835,15 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                     <option value="headphones">Headphones</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                    <span>Custom Icon / Emoji</span>
-                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast.error('File size exceeds 10 MB limit');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const dataUrl = ev.target?.result as string;
-                            if (dataUrl) setEditCatIconImage(dataUrl);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
-                  </label>
-                  <input
-                    type="text"
-                    value={editCatIconImage.startsWith('data:') ? 'Local Uploaded File' : editCatIconImage}
-                    onChange={(e) => setEditCatIconImage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
-                    placeholder="Emoji 🔥 or URL/upload"
-                  />
+                <div className="space-y-1 flex flex-col justify-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Logo Preview</label>
+                  <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-200">
+                    <CategoryLogo name={editCatName} icon={editCatIcon} size="md" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Source-Code Icon Logo</p>
+                      <p className="text-[10px] text-gray-400">Defined directly in source code</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>

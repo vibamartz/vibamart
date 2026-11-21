@@ -468,6 +468,9 @@ const getInitialCategories = (): Category[] => {
             if (defCat?.icon && !catData.icon) {
               catData.icon = defCat.icon;
             }
+            if ((!catData.subcategories || catData.subcategories.length === 0) && defCat?.subcategories && defCat.subcategories.length > 0) {
+              catData.subcategories = defCat.subcategories;
+            }
             return catData;
           });
         }
@@ -508,6 +511,9 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
             }
             if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
               catData.icon = 'armchair';
+            }
+            if ((!catData.subcategories || catData.subcategories.length === 0) && defCat?.subcategories && defCat.subcategories.length > 0) {
+              catData.subcategories = defCat.subcategories;
             }
             return catData;
           });
