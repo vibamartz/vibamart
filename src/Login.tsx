@@ -336,7 +336,7 @@ export default function Login() {
       displayName: providedName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : `User ${Math.floor(Math.random() * 10000)}`),
       phone: providedPhone || firebaseUser.phoneNumber || '',
       photoURL: firebaseUser.photoURL || '',
-      role: (userEmail === 'vk311779@gmail.com' || userEmail === 'vibamartz@gmail.com') ? 'super_admin' : 'customer',
+      role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
       isVerified: true,
       accountStatus: 'active',
       createdAt: now,
@@ -356,12 +356,7 @@ export default function Login() {
           await setDoc(userRef, fallbackUser, { merge: true });
         } else {
           const userData = userSnap.data() as any;
-          const isAdmin = (
-            userEmail === 'vk311779@gmail.com' ||
-            userEmail === 'vibamartz@gmail.com' ||
-            userData.email === 'vk311779@gmail.com' ||
-            userData.email === 'vibamartz@gmail.com'
-          );
+          const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
 
           const updateData: any = {
             isVerified: true,

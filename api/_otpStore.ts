@@ -67,11 +67,13 @@ function writeDiskCache(records: Record<string, OtpRecord>) {
 
 export function hasAdminSdkCredentials(): boolean {
   try {
-    if (!admin.apps.length) return false;
     const rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
-    const isServiceAccount = rawKey && !rawKey.includes("your_private_key") && !rawKey.includes("paste_firebase_private_key");
-    const hasAdc = !!(process.env.GOOGLE_APPLICATION_CREDENTIALS || (process.env.APPDATA && fs.existsSync(path.join(process.env.APPDATA, "gcloud", "application_default_credentials.json"))));
-    return Boolean(isServiceAccount || hasAdc);
+    const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || "";
+    const projectId = process.env.FIREBASE_PROJECT_ID || "";
+    if (!rawKey || !rawEmail || !projectId) return false;
+    if (rawKey.includes("your_private_key") || rawKey.includes("paste_firebase_private_key")) return false;
+    if (rawEmail.includes("your_project") || rawEmail.includes("your_firebase_client_email") || rawEmail.includes("example.com")) return false;
+    return admin.apps.length > 0;
   } catch {
     return false;
   }

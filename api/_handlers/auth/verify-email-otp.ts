@@ -91,52 +91,42 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ success: false, error: result.reason || "Invalid OTP code" });
     }
 
-    const authSecret = getDeterministicAuthSecret(normalizedEmail);
-    let uid = "usr_" + Buffer.from(normalizedEmail).toString("hex").slice(0, 24);
-
-    // Sync or provision user in Firebase Auth via Admin SDK so client authentication always succeeds
-    try {
-      if (admin.apps.length > 0) {
-        let userRecord;
+    // If Admin SDK credentials are fully configured, generate custom token
+    if (hasAdminSdkCredentials()) {
+      try {
+        let uid = "";
         try {
-          userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+          const userRecord = await admin.auth().getUserByEmail(normalizedEmail);
           uid = userRecord.uid;
-          await admin.auth().updateUser(uid, {
-            password: authSecret,
-            emailVerified: true,
-          });
         } catch (error: any) {
           if (error.code === "auth/user-not-found") {
             const newUser = await admin.auth().createUser({
               email: normalizedEmail,
-              password: authSecret,
               emailVerified: true,
             });
             uid = newUser.uid;
           } else {
-            console.warn("[VerifyOtp] Firebase Admin getUser error:", error.message);
+            throw error;
           }
         }
 
-        // Try generating custom token if private key / service account signing is configured
-        try {
-          const customToken = await admin.auth().createCustomToken(uid, {
-            email_verified: true,
-          });
-          return res.json({ success: true, customToken, authSecret, uid, email: normalizedEmail });
-        } catch (tokenErr) {
-          // Custom token signing not available; fall through to authSecret sign-in
-        }
+        const customToken = await admin.auth().createCustomToken(uid, {
+          email_verified: true,
+        });
+
+        return res.json({ success: true, customToken });
+      } catch (adminErr) {
+        console.warn("[VerifyOtp] Admin SDK custom token failed, falling back to auth secret:", adminErr);
       }
-    } catch (adminErr: any) {
-      console.warn("[VerifyOtp] Firebase Admin auth sync notice:", adminErr?.message || adminErr);
     }
 
     // Direct Firebase client authentication credential
+    const authSecret = getDeterministicAuthSecret(normalizedEmail);
+    const deterministicUid = "usr_" + Buffer.from(normalizedEmail).toString("hex").slice(0, 24);
     return res.json({
       success: true,
       authSecret,
-      uid,
+      uid: deterministicUid,
       email: normalizedEmail,
     });
   } catch (error: any) {

@@ -17,12 +17,11 @@ function getValidProjectId(): string {
 }
 
 function hasAdminCredentials(): boolean {
-  if (!admin.apps.length) return false;
   const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
   const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
-  const hasServiceAccount = Boolean(process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey);
-  const hasAdc = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
-  return hasServiceAccount || hasAdc;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const isPlaceholderProj = !projectId || projectId === 'your_firebase_project_id';
+  return Boolean(!isPlaceholderProj && process.env.FIREBASE_CLIENT_EMAIL && !isPlaceholderKey && admin.apps.length > 0);
 }
 
 function getFallbackClientDb() {

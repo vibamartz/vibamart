@@ -24,7 +24,7 @@ export async function logAdminAction(
 
     await addDoc(collection(db, 'adminLogs'), {
       adminId: user.uid,
-      adminEmail: user.email || '',
+      adminEmail: user.email,
       action,
       description,
       timestamp: serverTimestamp(),

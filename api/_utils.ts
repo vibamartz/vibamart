@@ -1,49 +1,14 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
-import fs from "fs";
-import path from "path";
-import os from "os";
 
 dotenv.config();
 
 let adminInitError: string | null = null;
 
-export function ensureApplicationDefaultCredentials() {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS && fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
-    return;
-  }
-  const adcDir = process.env.APPDATA ? path.join(process.env.APPDATA, "gcloud") : path.join(os.homedir(), ".config", "gcloud");
-  const adcPath = path.join(adcDir, "application_default_credentials.json");
-  if (fs.existsSync(adcPath)) {
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
-    return;
-  }
-  try {
-    const configPath = path.join(os.homedir(), ".config", "configstore", "firebase-tools.json");
-    if (fs.existsSync(configPath)) {
-      const fbData = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      if (fbData.tokens?.refresh_token) {
-        fs.mkdirSync(adcDir, { recursive: true });
-        const adcData = {
-          client_id: "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com",
-          client_secret: "j9iVZfS8kkCEFUPaAeJV0sAi",
-          refresh_token: fbData.tokens.refresh_token,
-          type: "authorized_user"
-        };
-        fs.writeFileSync(adcPath, JSON.stringify(adcData, null, 2), "utf-8");
-        process.env.GOOGLE_APPLICATION_CREDENTIALS = adcPath;
-      }
-    }
-  } catch (e) {
-    // Non-blocking
-  }
-}
-
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      ensureApplicationDefaultCredentials();
       const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
       const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
       const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
