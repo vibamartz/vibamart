@@ -9,6 +9,8 @@ import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
+import { mergeCategoryTreeWithDefaults } from '../../shared/utilities/categoryHierarchyUtils';
+import { useCategoryStore } from '../../backend/store';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
 import { useVisualNestedSubcategoryStore } from '../../backend/store';
 import { createSlug } from '../../shared/utilities/slug';
@@ -19,8 +21,21 @@ interface CategoriesManagementViewProps {
 }
 
 export default function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManagementViewProps = {}) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return mergeCategoryTreeWithDefaults(parsed);
+          }
+        }
+      } catch {}
+    }
+    return mergeCategoryTreeWithDefaults([]);
+  });
+  const [loading, setLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
 
   // Expanded State
@@ -63,9 +78,14 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         ...doc.data()
       } as Category));
 
-      catsData.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-
-      setCategories(catsData);
+      const merged = mergeCategoryTreeWithDefaults(catsData);
+      setCategories(merged);
+      useCategoryStore.getState().setCategories(merged);
+      try {
+        const json = JSON.stringify(merged);
+        localStorage.setItem('viba_categories_cache', json);
+        localStorage.setItem('viba_cached_categories', json);
+      } catch {}
       setLoading(false);
     }, (error) => {
       console.error("Error fetching categories:", error);
@@ -431,58 +451,57 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   };
 
   const handleRestoreDefaults = async () => {
-    if (!window.confirm("This will safely restore any missing default categories while strictly preserving all existing categories, products, and configurations. Continue?")) return;
+    if (!window.confirm("This will safely restore ALL missing default subcategories and nested subcategories with their original uploaded images while preserving all custom categories and data. Continue?")) return;
     setIsSaving(true);
-    const toastId = toast.loading('Checking and restoring missing default categories...');
+    const toastId = toast.loading('Restoring all subcategories and nested subcategories...');
     try {
-      const existingIds = new Set(categories.map(c => (c.id || '').trim().toLowerCase()));
-      const existingSlugs = new Set(
-        categories.map(c => (c.slug || c.seoSlug || createSlug(c.name || '')).trim().toLowerCase()).filter(Boolean)
-      );
-      const existingNames = new Set(categories.map(c => (c.name || '').trim().toLowerCase()).filter(Boolean));
-
+      const mergedAll = mergeCategoryTreeWithDefaults(categories);
       const batch = writeBatch(db);
-      let added = 0;
-      INITIAL_CATEGORIES.filter(cat => cat.id !== 'all-deals' && cat.slug !== 'all-deals').forEach((cat) => {
-        const defId = (cat.id || '').trim().toLowerCase();
-        const defSlug = (cat.slug || cat.seoSlug || createSlug(cat.name || '')).trim().toLowerCase();
-        const defName = (cat.name || '').trim().toLowerCase();
+      let updatedCount = 0;
+      let addedCount = 0;
 
-        const alreadyExists =
-          existingIds.has(defId) ||
-          (defSlug && existingSlugs.has(defSlug)) ||
-          (defName && existingNames.has(defName));
+      mergedAll.forEach((cat) => {
+        if (cat.id === 'all-deals' || cat.slug === 'all-deals') return;
+        const catRef = doc(db, 'categories', cat.id);
+        const existsInState = categories.some(c => c.id === cat.id);
 
-        if (!alreadyExists) {
-          const targetDocId = cat.id || defSlug || `cat_${Date.now()}_${added}`;
-          const catRef = doc(db, 'categories', targetDocId);
-          const payload: any = cleanForFirestore({
-            ...cat,
-            id: targetDocId,
-            slug: cat.slug || defSlug,
-            seoSlug: cat.seoSlug || defSlug,
-            order: typeof cat.order === 'number' ? cat.order : categories.length + added,
-            isVisible: cat.isVisible ?? true,
-            subcategories: cat.subcategories || []
-          });
-          // Do not store Main Category icons or image URLs in the database
-          delete payload.image;
-          delete payload.iconImage;
-          delete payload.icon;
-          delete payload.iconName;
+        const payload: any = cleanForFirestore({
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug || createSlug(cat.name),
+          seoSlug: cat.seoSlug || cat.slug || createSlug(cat.name),
+          order: typeof cat.order === 'number' ? cat.order : categories.length,
+          isVisible: cat.isVisible ?? true,
+          subcategories: cat.subcategories || []
+        });
+
+        // Main Category icon logos must remain defined in source code, NOT in the database
+        delete payload.image;
+        delete payload.iconImage;
+        delete payload.icon;
+        delete payload.iconName;
+
+        if (existsInState) {
+          batch.update(catRef, { subcategories: payload.subcategories });
+          updatedCount++;
+        } else {
           batch.set(catRef, payload);
-          added++;
+          addedCount++;
         }
       });
-      if (added > 0) {
-        await batch.commit();
-        toast.success(`Restored ${added} missing default categories! Existing data preserved.`, { id: toastId });
-      } else {
-        toast.success("All default categories are already present. No changes needed.", { id: toastId });
-      }
+
+      await batch.commit();
+      setCategories(mergedAll);
+      useCategoryStore.getState().setCategories(mergedAll);
+      try {
+        const json = JSON.stringify(mergedAll);
+        localStorage.setItem('viba_categories_cache', json);
+        localStorage.setItem('viba_cached_categories', json);
+      } catch {}
+      toast.success(`Successfully restored all subcategories and nested subcategories with original images!`, { id: toastId });
     } catch (error: any) {
       console.error("Restore error:", error);
-      toast.error(`Failed to restore default categories: ${error?.message || error}`, { id: toastId });
+      toast.error(`Failed to restore categories: ${error?.message || error}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -492,29 +511,27 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     const newName = e.target.value;
     const slug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
-    // Auto-generate logo if adding new category and logo not manually chosen
-    let autoImage = formData.image;
-    let autoIcon = formData.icon;
-    if (!editingId && newName.length >= 3) {
-      const autoGen = generateCategoryLogo(newName, categories);
-      autoImage = autoGen.image;
-      autoIcon = autoGen.icon;
-    }
-
     if (modalType === 'category' && !editingId) {
+      let autoImage = formData.image;
+      let autoIcon = formData.icon;
+      if (!formData.image && newName.length >= 3) {
+        const autoGen = generateCategoryLogo(newName, categories);
+        autoImage = autoGen.image;
+        autoIcon = autoGen.icon;
+      }
       setFormData(prev => ({
         ...prev,
         name: newName,
         seoSlug: slug,
-        image: autoImage,
-        icon: autoIcon,
+        image: autoImage || prev.image,
+        icon: autoIcon || prev.icon,
       }));
     } else {
+      // For subcategories and nested subcategories:
+      // Never overwrite the user's uploaded or selected photo when typing the name
       setFormData(prev => ({
         ...prev,
         name: newName,
-        image: autoImage || prev.image,
-        icon: autoIcon || prev.icon,
       }));
     }
   };
@@ -635,13 +652,15 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
           {/* Category List */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-100 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
-              <div className="col-span-1 text-center">Order</div>
-              <div className="col-span-1">Logo</div>
-              <div className="col-span-4">Name</div>
-              <div className="col-span-3">Details</div>
-              <div className="col-span-3 text-right pr-4">Actions</div>
-            </div>
+            <div className="overflow-x-auto min-w-full">
+              <div className="min-w-[700px]">
+                <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-100 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <div className="col-span-1 text-center">Order</div>
+                  <div className="col-span-1">Logo</div>
+                  <div className="col-span-4">Name</div>
+                  <div className="col-span-3">Details</div>
+                  <div className="col-span-3 text-right pr-4">Actions</div>
+                </div>
 
             {loading ? (
               <div className="p-10 text-center text-gray-500 font-medium">Loading categories...</div>
@@ -774,6 +793,8 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                 })}
               </div>
             )}
+              </div>
+            </div>
           </div>
 
           {/* Add/Edit Modal */}
@@ -860,7 +881,9 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                       ) : (
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between">
-                            <label className="text-sm font-bold text-gray-700">Subcategory Image</label>
+                            <label className="text-sm font-bold text-gray-700">
+                              {modalType === 'subcategory' ? 'Subcategory Photo / Image' : 'Nested Subcategory Photo / Image'}
+                            </label>
                             <button
                               type="button"
                               onClick={() => handleAutoGenerateLogo()}
@@ -872,20 +895,38 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                           <div className="flex items-start gap-6">
                             <div className="shrink-0">
                               {formData.image ? (
-                                <div className="relative group">
-                                  <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
-                                    <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors" title="Upload Custom Logo">
-                                      <Edit2 className="w-4 h-4 text-gray-900" />
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="relative group">
+                                    <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
+                                      <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-md" title="Upload Custom Photo">
+                                        <Edit2 className="w-4 h-4 text-gray-900" />
+                                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAutoGenerateLogo()}
+                                        className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600 shadow-md"
+                                        title="Auto-Regenerate Unique Logo"
+                                      >
+                                        <Wand2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <label className="cursor-pointer text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-indigo-200">
+                                      <Edit2 className="w-3 h-3" />
+                                      <span>Replace</span>
                                       <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                                     </label>
                                     <button
                                       type="button"
-                                      onClick={() => handleAutoGenerateLogo()}
-                                      className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600"
-                                      title="Auto-Regenerate Unique Logo"
+                                      onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                                      className="text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-rose-200"
+                                      title="Remove Photo"
                                     >
-                                      <Wand2 className="w-4 h-4" />
+                                      <X className="w-3 h-3" />
+                                      <span>Remove</span>
                                     </button>
                                   </div>
                                 </div>
@@ -908,22 +949,24 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                               )}
                             </div>
                             <div className="flex-1 text-sm text-gray-500 bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
-                              <p className="font-bold text-emerald-900 mb-1">Logo Guidelines</p>
+                              <p className="font-bold text-emerald-900 mb-1">Photo & Logo Guidelines</p>
                               <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
-                                <li>Auto-generate selects a unique logo tailored to category name.</li>
+                                <li>Upload custom photo (JPG, PNG, WEBP) up to 10 MB.</li>
                                 <li>Guarantees visual consistency across Mobile and Desktop.</li>
-                                <li>You can edit, upload custom image files, or provide an image link below.</li>
+                                <li>You can edit, replace, remove, or provide an image URL below.</li>
                               </ul>
                             </div>
                           </div>
 
                           <div className="mt-3">
-                            <label className="text-xs font-bold text-gray-700 block mb-1">Icon Image URL / Icon Link</label>
+                            <label className="text-xs font-bold text-gray-700 block mb-1">
+                              {modalType === 'subcategory' ? 'Subcategory Photo URL / Image Link' : 'Nested Subcategory Photo URL / Image Link'}
+                            </label>
                             <input
                               type="text"
                               value={formData.image || ''}
                               onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                              placeholder="https://example.com/icon.png or image link"
+                              placeholder="https://example.com/photo.webp or image link"
                               className="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-mono"
                             />
                           </div>

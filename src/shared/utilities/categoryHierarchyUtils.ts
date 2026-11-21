@@ -1,4 +1,5 @@
 import { Category, SubCategory, VisualNestedSubcategory, Product, FlatCategoryNode, CategoryHierarchyLevel } from '../types';
+import { CATEGORIES as INITIAL_CATEGORIES } from '../constants';
 
 /**
  * Build a unified flat list of all category levels (Main, Sub, Nested, Visual Showcase, Deep)
@@ -474,4 +475,161 @@ export function getDescendantCategoryIds(
 ): Set<string> {
   const engine = getOrCreateHierarchyEngine(categories, visualItems);
   return engine.getDescendantIds(nodeIdOrSlug);
+}
+
+/**
+ * Recursively deep-merges category documents with INITIAL_CATEGORIES and local cache.
+ * Guarantees that:
+ * 1. ALL default subcategories (20) and nested subcategories (67) with original uploaded images are restored.
+ * 2. Any custom subcategories/nested subcategories added by admin in Firestore/cache are strictly preserved.
+ * 3. Parent-child hierarchy, existing category IDs, and associations are strictly preserved.
+ * 4. Empty or missing image fields on subcategories/nested subcategories are restored from defaults.
+ * 5. 'all-deals' is strictly excluded from Category Management.
+ */
+export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = []): Category[] {
+  const defaultList = INITIAL_CATEGORIES.filter(c => c.id !== 'all-deals' && c.slug !== 'all-deals');
+
+  let localCached: Category[] = [];
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem('viba_categories_cache') || localStorage.getItem('viba_cached_categories');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) localCached = parsed;
+      }
+    } catch {}
+  }
+
+  const matchCategory = (cat: Partial<Category>, list: Category[]) => {
+    const id = (cat.id || '').trim().toLowerCase();
+    const slug = (cat.slug || cat.seoSlug || createSlug(cat.name || '')).trim().toLowerCase();
+    const name = (cat.name || '').trim().toLowerCase();
+    return list.find(c => {
+      const cId = (c.id || '').trim().toLowerCase();
+      const cSlug = (c.slug || c.seoSlug || createSlug(c.name || '')).trim().toLowerCase();
+      const cName = (c.name || '').trim().toLowerCase();
+      return (id && cId && id === cId) || (slug && cSlug && slug === cSlug) || (name && cName && name === cName);
+    });
+  };
+
+  const matchSub = (sub: Partial<SubCategory>, list: SubCategory[]) => {
+    const id = (sub.id || '').trim().toLowerCase();
+    const slug = (sub.slug || createSlug(sub.name || '')).trim().toLowerCase();
+    const name = (sub.name || '').trim().toLowerCase();
+    return list.find(s => {
+      const sId = (s.id || '').trim().toLowerCase();
+      const sSlug = (s.slug || createSlug(s.name || '')).trim().toLowerCase();
+      const sName = (s.name || '').trim().toLowerCase();
+      return (id && sId && id === sId) || (slug && sSlug && slug === sSlug) || (name && sName && name === sName);
+    });
+  };
+
+  const mergeSubcategories = (remoteSubs: SubCategory[] = [], fallbackSubs: SubCategory[] = []): SubCategory[] => {
+    const result: SubCategory[] = [];
+    const seenIds = new Set<string>();
+
+    for (const rSub of remoteSubs) {
+      const matchingFallback = matchSub(rSub, fallbackSubs);
+      const subId = rSub.id || matchingFallback?.id || createSlug(rSub.name);
+      seenIds.add(subId.toLowerCase());
+
+      const nestedMerged: SubCategory[] = [];
+      const seenNestedIds = new Set<string>();
+
+      const rNested = rSub.subcategories || [];
+      const fbNested = matchingFallback?.subcategories || [];
+
+      for (const rn of rNested) {
+        const matchingFbNested = matchSub(rn, fbNested);
+        const nId = rn.id || matchingFbNested?.id || createSlug(rn.name);
+        seenNestedIds.add(nId.toLowerCase());
+        nestedMerged.push({
+          ...matchingFbNested,
+          ...rn,
+          id: nId,
+          name: rn.name || matchingFbNested?.name || '',
+          slug: rn.slug || matchingFbNested?.slug || createSlug(rn.name || ''),
+          image: rn.image || matchingFbNested?.image || '',
+          icon: rn.icon || matchingFbNested?.icon || '',
+          isVisible: rn.isVisible ?? matchingFbNested?.isVisible ?? true
+        });
+      }
+
+      for (const fn of fbNested) {
+        const fnId = (fn.id || createSlug(fn.name)).toLowerCase();
+        if (!seenNestedIds.has(fnId) && !matchSub(fn, nestedMerged)) {
+          seenNestedIds.add(fnId);
+          nestedMerged.push({ ...fn });
+        }
+      }
+
+      result.push({
+        ...matchingFallback,
+        ...rSub,
+        id: subId,
+        name: rSub.name || matchingFallback?.name || '',
+        slug: rSub.slug || matchingFallback?.slug || createSlug(rSub.name || ''),
+        image: rSub.image || matchingFallback?.image || '',
+        icon: rSub.icon || matchingFallback?.icon || '',
+        isVisible: rSub.isVisible ?? matchingFallback?.isVisible ?? true,
+        subcategories: nestedMerged
+      });
+    }
+
+    for (const fbSub of fallbackSubs) {
+      const fbSubId = (fbSub.id || createSlug(fbSub.name)).toLowerCase();
+      if (!seenIds.has(fbSubId) && !matchSub(fbSub, result)) {
+        seenIds.add(fbSubId);
+        result.push(JSON.parse(JSON.stringify(fbSub)));
+      }
+    }
+
+    return result;
+  };
+
+  const merged: Category[] = [];
+  const processedCatIds = new Set<string>();
+
+  for (const remoteCat of remoteCategories) {
+    if (remoteCat.id === 'all-deals' || remoteCat.slug === 'all-deals') continue;
+    const defCat = matchCategory(remoteCat, defaultList);
+    const localCat = matchCategory(remoteCat, localCached);
+    const catId = remoteCat.id || defCat?.id || localCat?.id || createSlug(remoteCat.name);
+    processedCatIds.add(catId.toLowerCase());
+
+    const combinedFallbackSubs = mergeSubcategories(localCat?.subcategories || [], defCat?.subcategories || []);
+    const mergedSubs = mergeSubcategories(remoteCat.subcategories || [], combinedFallbackSubs);
+
+    merged.push({
+      ...defCat,
+      ...localCat,
+      ...remoteCat,
+      id: catId,
+      name: remoteCat.name || defCat?.name || localCat?.name || '',
+      slug: remoteCat.slug || defCat?.slug || localCat?.slug || createSlug(remoteCat.name || ''),
+      seoSlug: remoteCat.seoSlug || remoteCat.slug || defCat?.seoSlug || defCat?.slug || createSlug(remoteCat.name || ''),
+      order: remoteCat.order ?? defCat?.order ?? localCat?.order ?? 999,
+      isVisible: remoteCat.isVisible ?? defCat?.isVisible ?? localCat?.isVisible ?? true,
+      subcategories: mergedSubs
+    });
+  }
+
+  for (const defCat of defaultList) {
+    const defId = (defCat.id || '').toLowerCase();
+    if (!processedCatIds.has(defId) && !matchCategory(defCat, merged)) {
+      processedCatIds.add(defId);
+      const localCat = matchCategory(defCat, localCached);
+      const mergedSubs = mergeSubcategories(localCat?.subcategories || [], defCat.subcategories || []);
+      merged.push({
+        ...defCat,
+        ...localCat,
+        id: defCat.id,
+        order: defCat.order ?? merged.length,
+        subcategories: mergedSubs
+      });
+    }
+  }
+
+  merged.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  return merged;
 }

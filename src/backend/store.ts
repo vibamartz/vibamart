@@ -1,3 +1,4 @@
+import { mergeCategoryTreeWithDefaults } from "../shared/utilities/categoryHierarchyUtils";
 import { create } from "zustand";
 import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory, InventoryBrandSection } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
@@ -380,6 +381,7 @@ interface CategoryState {
   categories: Category[];
   loading: boolean;
   initCategories: () => void;
+  setCategories: (categories: Category[]) => void;
 }
 
 const CACHED_CATEGORIES_KEY = 'viba_cached_categories';
@@ -387,60 +389,67 @@ const CACHED_CATEGORIES_KEY = 'viba_cached_categories';
 const getInitialCategories = (): Category[] => {
   if (typeof window !== 'undefined') {
     try {
-      const cached = localStorage.getItem(CACHED_CATEGORIES_KEY);
+      const cached = localStorage.getItem(CACHED_CATEGORIES_KEY) || localStorage.getItem('viba_categories_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return mergeCategoryTreeWithDefaults(parsed);
         }
       }
     } catch (e) {
       console.warn('Failed to parse cached categories from localStorage:', e);
     }
   }
-  // Fallback to default constants CATEGORIES so categories like Mobiles, Fashion, Electronics
-  // are never empty on initial render and don't load late while "For You" is already shown!
-  return DEFAULT_CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true));
+  return mergeCategoryTreeWithDefaults([]);
 };
 
-export const useCategoryStore = create<CategoryState>((set) => {
+export const useCategoryStore = create<CategoryState>((set, get) => {
   const initial = getInitialCategories();
   return {
     categories: initial,
     loading: initial.length === 0,
+    setCategories: (categories: Category[]) => {
+      const merged = mergeCategoryTreeWithDefaults(categories);
+      if (typeof window !== 'undefined') {
+        try {
+          const json = JSON.stringify(merged);
+          localStorage.setItem(CACHED_CATEGORIES_KEY, json);
+          localStorage.setItem('viba_categories_cache', json);
+        } catch (e) {
+          console.warn('Failed to cache categories to localStorage:', e);
+        }
+      }
+      set({ categories: merged });
+    },
     initCategories: () => {
       const q = collection(db, 'categories');
       onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
           const fetchedCategories = snapshot.docs.map(doc => {
             const catData = { id: doc.id, ...doc.data() } as Category;
-            if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
-              catData.icon = 'gamepad';
-            }
-            if (catData.name === 'Food & Health' || catData.id === '8' || catData.slug === 'food-health') {
-              catData.icon = 'apple';
-            }
-            if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
-              catData.icon = 'armchair';
-            }
             return catData;
           });
 
-          fetchedCategories.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          const mergedCats = mergeCategoryTreeWithDefaults(fetchedCategories);
+          mergedCats.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
           if (typeof window !== 'undefined') {
             try {
-              localStorage.setItem(CACHED_CATEGORIES_KEY, JSON.stringify(fetchedCategories));
+              const json = JSON.stringify(mergedCats);
+              localStorage.setItem(CACHED_CATEGORIES_KEY, json);
+              localStorage.setItem('viba_categories_cache', json);
             } catch (e) {
               console.warn('Failed to cache categories to localStorage:', e);
             }
           }
-          set({ categories: fetchedCategories, loading: false });
+          set({ categories: mergedCats, loading: false });
         } else {
-          set({ categories: [], loading: false });
+          const fallback = mergeCategoryTreeWithDefaults(get().categories.length > 0 ? get().categories : []);
+          set({ categories: fallback, loading: false });
         }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'categories', false);
-        set({ loading: false });
+        const fallback = mergeCategoryTreeWithDefaults(get().categories.length > 0 ? get().categories : []);
+        set({ categories: fallback, loading: false });
       });
     }
   };

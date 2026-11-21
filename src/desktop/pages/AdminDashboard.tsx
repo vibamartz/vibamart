@@ -6339,6 +6339,50 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
           delete payload.iconName;
           batch.set(docRef, payload);
           addedCount++;
+        } else {
+          // If category exists in DB, safely restore any missing subcategories or nested subcategories
+          const existingCat = categories.find(
+            c => (c.id || '').trim().toLowerCase() === defId ||
+                 (c.slug && (c.slug || '').trim().toLowerCase() === defSlug) ||
+                 (c.name && (c.name || '').trim().toLowerCase() === defName)
+          );
+          if (existingCat && defCat.subcategories && defCat.subcategories.length > 0) {
+            const currentSubs = existingCat.subcategories || [];
+            const subMap = new Map<string, SubCategory>();
+            currentSubs.forEach(s => subMap.set(s.id, s));
+            let subChanged = false;
+
+            defCat.subcategories.forEach(defSub => {
+              const existingSub = subMap.get(defSub.id);
+              if (!existingSub) {
+                subMap.set(defSub.id, defSub);
+                subChanged = true;
+              } else if (defSub.subcategories && defSub.subcategories.length > 0) {
+                const nestedMap = new Map<string, SubCategory>();
+                (existingSub.subcategories || []).forEach(n => nestedMap.set(n.id, n));
+                let nestedChanged = false;
+                defSub.subcategories.forEach(defNested => {
+                  if (!nestedMap.has(defNested.id)) {
+                    nestedMap.set(defNested.id, defNested);
+                    nestedChanged = true;
+                  }
+                });
+                if (nestedChanged) {
+                  subMap.set(defSub.id, {
+                    ...existingSub,
+                    subcategories: Array.from(nestedMap.values())
+                  });
+                  subChanged = true;
+                }
+              }
+            });
+
+            if (subChanged) {
+              const docRef = doc(db, 'categories', existingCat.id);
+              batch.update(docRef, { subcategories: cleanForFirestore(Array.from(subMap.values())) });
+              addedCount++;
+            }
+          }
         }
       }
 
