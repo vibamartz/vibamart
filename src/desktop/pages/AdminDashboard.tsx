@@ -26,6 +26,7 @@ import { createSlug } from '../../shared/utilities/slug';
 import { isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
+import NewCategoriesManagementView from '../components/CategoriesManagementView';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
@@ -1437,7 +1438,7 @@ function AdminDashboardContent() {
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'cashback-management' && <AdminCashbackManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
-          {activeTab === 'categories' && <CategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
+          {activeTab === 'categories' && <NewCategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
           {activeTab === 'visual-nested-subcategories' && <VisualNestedSubcategoriesAdminView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}
@@ -6167,13 +6168,10 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
     const catId = newCatName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
     setBusy(true);
     try {
-      const newCat: Category = {
+      const newCat: any = {
         id: catId,
         slug: newCatSeoSlug.trim() || createSlug(newCatName),
         name: newCatName.trim(),
-        image: newCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
-        icon: newCatIcon || 'sparkles',
-        iconImage: newCatIconImage,
         color: newCatColor,
         order: typeof newCatOrder === 'number' ? newCatOrder : categories.length,
         seoSlug: newCatSeoSlug.trim() || createSlug(newCatName),
@@ -6181,6 +6179,12 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
         seoDescription: newCatSeoDesc.trim(),
         subcategories: []
       };
+      // Do not store Main Category icons or their configuration in the database
+      delete newCat.image;
+      delete newCat.iconImage;
+      delete newCat.icon;
+      delete newCat.iconName;
+
       const sanitized = await sanitizeAndUploadCategoryDoc(newCat);
       await setDoc(doc(db, 'categories', catId), sanitized);
       toast.success('Category added successfully');
@@ -6227,18 +6231,21 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
     try {
       const cat = categories.find(c => c.id === catId);
       if (!cat) return;
-      const updatedCat: Partial<Category> = {
+      const updatedCat: any = {
         ...cat,
         name: editCatName.trim(),
-        image: editCatImage.trim() || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=400',
-        icon: editCatIcon,
-        iconImage: editCatIconImage,
         color: editCatColor,
         order: editCatOrder,
         seoSlug: editCatSeoSlug.trim() || createSlug(editCatName),
         seoTitle: editCatSeoTitle.trim(),
         seoDescription: editCatSeoDesc.trim()
       };
+      // Do not store Main Category icons or their configuration in the database
+      delete updatedCat.image;
+      delete updatedCat.iconImage;
+      delete updatedCat.icon;
+      delete updatedCat.iconName;
+
       const sanitized = await sanitizeAndUploadCategoryDoc(updatedCat);
       await setDoc(doc(db, 'categories', catId), sanitized, { merge: true });
       toast.success('Category updated successfully');
@@ -6303,7 +6310,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
       const batch = writeBatch(db);
       let addedCount = 0;
 
-      for (const defCat of CATEGORIES) {
+      for (const defCat of CATEGORIES.filter(c => c.id !== 'all-deals' && c.slug !== 'all-deals')) {
         const defId = (defCat.id || '').trim().toLowerCase();
         const defSlug = (defCat.slug || defCat.seoSlug || createSlug(defCat.name || '')).trim().toLowerCase();
         const defName = (defCat.name || '').trim().toLowerCase();
@@ -6316,7 +6323,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
         if (!alreadyExists) {
           const targetDocId = defCat.id || defSlug || `cat_${Date.now()}_${addedCount}`;
           const docRef = doc(db, 'categories', targetDocId);
-          const payload = cleanForFirestore({
+          const payload: any = cleanForFirestore({
             ...defCat,
             id: targetDocId,
             slug: defCat.slug || defSlug,
@@ -6325,6 +6332,11 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
             isVisible: defCat.isVisible ?? true,
             subcategories: defCat.subcategories || []
           });
+          // Do not store Main Category icons or image URLs in the database
+          delete payload.image;
+          delete payload.iconImage;
+          delete payload.icon;
+          delete payload.iconName;
           batch.set(docRef, payload);
           addedCount++;
         }
@@ -6674,42 +6686,17 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                <span>Banner Image</span>
-                <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  Upload PNG/JPG
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 10 * 1024 * 1024) {
-                        toast.error('File size exceeds 10 MB limit');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const dataUrl = ev.target?.result as string;
-                        if (dataUrl) setNewCatImage(dataUrl);
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-              </label>
-              <input
-                type="text"
-                value={newCatImage.startsWith('data:') ? 'Local Uploaded File' : newCatImage}
-                onChange={(e) => setNewCatImage(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
-                placeholder="https://... or upload local file"
-              />
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Icon Logo</label>
+              <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                <CategoryLogo name={newCatName || 'Category'} icon={newCatIcon} size="md" />
+                <div>
+                  <p className="text-xs font-bold text-gray-700">Source-Code Icon Logo</p>
+                  <p className="text-[10px] text-gray-400">Defined directly in source code</p>
+                </div>
+              </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Type</label>
               <select
                 value={newCatIcon}
                 onChange={(e) => setNewCatIcon(e.target.value)}
@@ -6730,40 +6717,6 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                 <option value="watch">Watch</option>
                 <option value="headphones">Headphones</option>
               </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                <span>Custom Icon / Emoji</span>
-                <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                  <Upload className="w-3 h-3" /> Upload
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 10 * 1024 * 1024) {
-                        toast.error('File size exceeds 10 MB limit');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const dataUrl = ev.target?.result as string;
-                        if (dataUrl) setNewCatIconImage(dataUrl);
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                </label>
-              </label>
-              <input
-                type="text"
-                value={newCatIconImage.startsWith('data:') ? 'Local Uploaded File' : newCatIconImage}
-                onChange={(e) => setNewCatIconImage(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:bg-white focus:border-primary transition-all text-sm font-medium"
-                placeholder="Emoji 🔥 or URL/upload"
-              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>
@@ -6849,40 +6802,17 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                    <span>Banner Image</span>
-                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload File
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast.error('File size exceeds 10 MB limit');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const dataUrl = ev.target?.result as string;
-                            if (dataUrl) setEditCatImage(dataUrl);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
-                  </label>
-                  <input
-                    type="text"
-                    value={editCatImage.startsWith('data:') ? 'Local Uploaded File' : editCatImage}
-                    onChange={(e) => setEditCatImage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
-                  />
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Category Icon Logo</label>
+                  <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-gray-200">
+                    <CategoryLogo name={editCatName} icon={editCatIcon} size="md" />
+                    <div>
+                      <p className="text-xs font-bold text-gray-700">Source-Code Icon Logo</p>
+                      <p className="text-[10px] text-gray-400">Defined directly in source code</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Fallback Icon</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Icon Type</label>
                   <select
                     value={editCatIcon}
                     onChange={(e) => setEditCatIcon(e.target.value)}
@@ -6903,40 +6833,6 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                     <option value="watch">Watch</option>
                     <option value="headphones">Headphones</option>
                   </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                    <span>Custom Icon / Emoji</span>
-                    <label className="text-[9px] font-black text-primary hover:underline cursor-pointer flex items-center gap-1">
-                      <Upload className="w-3 h-3" /> Upload
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast.error('File size exceeds 10 MB limit');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const dataUrl = ev.target?.result as string;
-                            if (dataUrl) setEditCatIconImage(dataUrl);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
-                  </label>
-                  <input
-                    type="text"
-                    value={editCatIconImage.startsWith('data:') ? 'Local Uploaded File' : editCatIconImage}
-                    onChange={(e) => setEditCatIconImage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-primary transition-all text-xs font-semibold"
-                    placeholder="Emoji 🔥 or URL/upload"
-                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sort Order</label>
@@ -7025,7 +6921,7 @@ function CategoriesManagementView({ onNavigateToVisualNested }: CategoriesManage
                 <button onClick={() => toggleCat(cat.id)} className="p-2 hover:bg-gray-50 rounded-full transition-colors text-gray-400 hover:text-gray-900">
                   <ChevronRight className={`w-5 h-5 transition-transform ${expandedCats.includes(cat.id) ? 'rotate-90' : ''}`} />
                 </button>
-                <CategoryLogo name={cat.name} image={cat.image || cat.iconImage} icon={cat.icon} size="md" />
+                <CategoryLogo name={cat.name} icon={cat.icon} size="md" />
                 <div>
                   <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                     {cat.name}

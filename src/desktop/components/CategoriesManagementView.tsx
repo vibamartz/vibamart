@@ -443,7 +443,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
       const batch = writeBatch(db);
       let added = 0;
-      INITIAL_CATEGORIES.forEach((cat) => {
+      INITIAL_CATEGORIES.filter(cat => cat.id !== 'all-deals' && cat.slug !== 'all-deals').forEach((cat) => {
         const defId = (cat.id || '').trim().toLowerCase();
         const defSlug = (cat.slug || cat.seoSlug || createSlug(cat.name || '')).trim().toLowerCase();
         const defName = (cat.name || '').trim().toLowerCase();
