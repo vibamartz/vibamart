@@ -26,6 +26,7 @@ import { createSlug } from '../../shared/utilities/slug';
 import { isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import ProductCard from '../components/ProductCard';
 import AdminOrderDetailsView from '../components/AdminOrderDetailsView';
+import NewCategoriesManagementView from '../components/CategoriesManagementView';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesAdminView from '../components/VisualNestedSubcategoriesAdminView';
 import NewProductManagementView from '../components/ProductManagementView';
@@ -1437,7 +1438,7 @@ function AdminDashboardContent() {
           {activeTab === 'rewards-management' && <AdminRewardsManagementView />}
           {activeTab === 'cashback-management' && <AdminCashbackManagementView />}
           {activeTab === 'banners' && <NewBannersManagementView />}
-          {activeTab === 'categories' && <CategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
+          {activeTab === 'categories' && <NewCategoriesManagementView onNavigateToVisualNested={() => setActiveTab('visual-nested-subcategories')} />}
           {activeTab === 'visual-nested-subcategories' && <VisualNestedSubcategoriesAdminView />}
           {activeTab === 'coupons' && <CouponsManagementView />}
           {activeTab === 'reviews' && <ReviewsManagementView />}

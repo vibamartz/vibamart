@@ -232,16 +232,24 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         const catRef = doc(db, 'categories', catId);
 
         const existingCat = editingId ? categories.find(c => c.id === catId) : null;
-        const rawPayload = {
+        const rawPayload: any = {
           ...existingCat,
-          ...formData,
-          name: formData.name!.trim(),
-          image: finalLogo || formData.image || '',
-          icon: finalIcon || formData.icon || '',
           id: catId,
+          name: formData.name!.trim(),
+          slug: formData.seoSlug?.trim() || existingCat?.slug || createSlug(formData.name!),
+          seoSlug: formData.seoSlug?.trim() || existingCat?.seoSlug || createSlug(formData.name!),
+          seoTitle: formData.seoTitle?.trim() || '',
+          seoDescription: formData.seoDescription?.trim() || '',
+          isVisible: formData.isVisible ?? true,
           order: existingCat?.order ?? categories.length,
           subcategories: existingCat?.subcategories ?? [],
         };
+
+        // Requirement 5: Do not store Main Category icons or image URLs in the database
+        delete rawPayload.image;
+        delete rawPayload.iconImage;
+        delete rawPayload.icon;
+        delete rawPayload.iconName;
 
         const sanitizedPayload = await sanitizeAndUploadCategoryDoc(rawPayload);
         await setDoc(catRef, sanitizedPayload, { merge: true });
@@ -448,7 +456,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         if (!alreadyExists) {
           const targetDocId = cat.id || defSlug || `cat_${Date.now()}_${added}`;
           const catRef = doc(db, 'categories', targetDocId);
-          const payload = cleanForFirestore({
+          const payload: any = cleanForFirestore({
             ...cat,
             id: targetDocId,
             slug: cat.slug || defSlug,
@@ -457,6 +465,11 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
             isVisible: cat.isVisible ?? true,
             subcategories: cat.subcategories || []
           });
+          // Do not store Main Category icons or image URLs in the database
+          delete payload.image;
+          delete payload.iconImage;
+          delete payload.icon;
+          delete payload.iconName;
           batch.set(catRef, payload);
           added++;
         }
@@ -828,77 +841,94 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                         </div>
                       </div>
 
-                      {/* Image & Logo Upload */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-sm font-bold text-gray-700">Category Logo / Image</label>
-                          <button
-                            type="button"
-                            onClick={() => handleAutoGenerateLogo()}
-                            className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all border border-emerald-200"
-                          >
-                            <Wand2 className="w-3.5 h-3.5" /> Auto-Generate Unique Logo
-                          </button>
+                      {/* Image & Logo Section */}
+                      {modalType === 'category' ? (
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-bold text-gray-700">Category Icon Logo</label>
+                          <div className="flex items-center gap-6 p-4 bg-emerald-50/40 rounded-2xl border border-emerald-100">
+                            <div className="shrink-0">
+                              <CategoryLogo name={formData.name || 'Category'} size="lg" />
+                            </div>
+                            <div className="flex-1 text-sm text-emerald-950">
+                              <p className="font-bold text-emerald-900 mb-0.5">Source-Code Defined Icon Logo</p>
+                              <p className="text-xs text-emerald-800/80 leading-relaxed">
+                                Main Category icon logos are defined and maintained directly in the source code. Icons update automatically based on the category name.
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-start gap-6">
-                          <div className="shrink-0">
-                            {formData.image ? (
-                              <div className="relative group">
-                                <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
-                                  <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors" title="Upload Custom Logo">
-                                    <Edit2 className="w-4 h-4 text-gray-900" />
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-sm font-bold text-gray-700">Subcategory Image</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAutoGenerateLogo()}
+                              className="text-xs font-extrabold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all border border-emerald-200"
+                            >
+                              <Wand2 className="w-3.5 h-3.5" /> Auto-Generate Unique Logo
+                            </button>
+                          </div>
+                          <div className="flex items-start gap-6">
+                            <div className="shrink-0">
+                              {formData.image ? (
+                                <div className="relative group">
+                                  <CategoryLogo name={formData.name || 'Category'} image={formData.image} icon={formData.icon} size="lg" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-2">
+                                    <label className="cursor-pointer p-2 bg-white rounded-full hover:bg-gray-100 transition-colors" title="Upload Custom Logo">
+                                      <Edit2 className="w-4 h-4 text-gray-900" />
+                                      <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAutoGenerateLogo()}
+                                      className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600"
+                                      title="Auto-Regenerate Unique Logo"
+                                    >
+                                      <Wand2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <label className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-indigo-300 transition-colors cursor-pointer group">
+                                    <ImageIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 mb-2" />
+                                    <span className="text-[10px] font-bold text-gray-500">Upload</span>
                                     <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                                   </label>
                                   <button
                                     type="button"
                                     onClick={() => handleAutoGenerateLogo()}
-                                    className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors text-emerald-600"
-                                    title="Auto-Regenerate Unique Logo"
+                                    className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/50 transition-colors group"
                                   >
-                                    <Wand2 className="w-4 h-4" />
+                                    <Wand2 className="w-6 h-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+                                    <span className="text-[9px] font-black text-emerald-700 uppercase tracking-tighter">Auto-Gen</span>
                                   </button>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="flex gap-2">
-                                <label className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-indigo-300 transition-colors cursor-pointer group">
-                                  <ImageIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 mb-2" />
-                                  <span className="text-[10px] font-bold text-gray-500">Upload</span>
-                                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAutoGenerateLogo()}
-                                  className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100/50 transition-colors group"
-                                >
-                                  <Wand2 className="w-6 h-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
-                                  <span className="text-[9px] font-black text-emerald-700 uppercase tracking-tighter">Auto-Gen</span>
-                                </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                            <div className="flex-1 text-sm text-gray-500 bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
+                              <p className="font-bold text-emerald-900 mb-1">Logo Guidelines</p>
+                              <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
+                                <li>Auto-generate selects a unique logo tailored to category name.</li>
+                                <li>Guarantees visual consistency across Mobile and Desktop.</li>
+                                <li>You can edit, upload custom image files, or provide an image link below.</li>
+                              </ul>
+                            </div>
                           </div>
-                          <div className="flex-1 text-sm text-gray-500 bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
-                            <p className="font-bold text-emerald-900 mb-1">Logo Guidelines</p>
-                            <ul className="list-disc list-inside space-y-1 text-emerald-800/80 text-xs">
-                              <li>Auto-generate selects a unique logo tailored to category name.</li>
-                              <li>Guarantees visual consistency across Mobile and Desktop.</li>
-                              <li>You can edit, upload custom image files, or provide an image link below.</li>
-                            </ul>
-                          </div>
-                        </div>
 
-                        <div className="mt-3">
-                          <label className="text-xs font-bold text-gray-700 block mb-1">Icon Image URL / Icon Link</label>
-                          <input
-                            type="text"
-                            value={formData.image || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                            placeholder="https://example.com/icon.png or image link"
-                            className="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-mono"
-                          />
+                          <div className="mt-3">
+                            <label className="text-xs font-bold text-gray-700 block mb-1">Icon Image URL / Icon Link</label>
+                            <input
+                              type="text"
+                              value={formData.image || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                              placeholder="https://example.com/icon.png or image link"
+                              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none font-mono"
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* SEO Section (Only for Categories) */}
                       {modalType === 'category' && (
