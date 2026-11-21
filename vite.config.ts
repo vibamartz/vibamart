@@ -27,45 +27,27 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use(async (req, res, next) => {
             const url = req.url ? req.url.split('?')[0] : '';
-            if (
-              url === '/api/auth/send-email-otp' ||
-              url === '/auth/send-email-otp' ||
-              url === '/api/auth/verify-email-otp' ||
-              url === '/auth/verify-email-otp'
-            ) {
-              const runHandler = async () => {
-                try {
-                  if (url.includes('send-email-otp')) {
-                    const handler = (await import('./api/_handlers/auth/send-email-otp')).default;
-                    await handler(req, res);
-                  } else {
-                    const handler = (await import('./api/_handlers/auth/verify-email-otp')).default;
-                    await handler(req, res);
-                  }
-                } catch (e: any) {
-                  if (!res.headersSent) {
-                    res.statusCode = 500;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
-                  }
+            if (url === '/api/auth/send-email-otp' || url === '/auth/send-email-otp') {
+              try {
+                const handler = (await import('./api/_handlers/auth/send-email-otp')).default;
+                await handler(req, res);
+              } catch (e: any) {
+                if (!res.headersSent) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
                 }
-              };
-
-              if ((req as any).body || req.readableEnded) {
-                await runHandler();
-              } else {
-                let rawBody = '';
-                req.on('data', chunk => {
-                  rawBody += chunk;
-                });
-                req.on('end', async () => {
-                  try {
-                    (req as any).body = rawBody ? JSON.parse(rawBody) : {};
-                  } catch {
-                    (req as any).body = {};
-                  }
-                  await runHandler();
-                });
+              }
+            } else if (url === '/api/auth/verify-email-otp' || url === '/auth/verify-email-otp') {
+              try {
+                const handler = (await import('./api/_handlers/auth/verify-email-otp')).default;
+                await handler(req, res);
+              } catch (e: any) {
+                if (!res.headersSent) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
+                }
               }
             } else {
               next();

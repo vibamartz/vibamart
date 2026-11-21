@@ -789,7 +789,6 @@ export default function AddEditProductForm({
         discountPrice: isDiscounted ? price : null,
         mrp: mrp || price,
         discountPercentage: isDiscounted ? Math.round(((mrp - price) / mrp) * 100) : 0,
-        createdAt: product?.createdAt || formData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 

@@ -228,15 +228,13 @@ export default function MobileHomepage() {
       handleFirestoreError(error, OperationType.LIST, 'banners', false);
     });
 
-    const productsQuery = query(collection(db, 'products'));
+    const productsQuery = query(
+      collection(db, 'products'),
+      orderBy('createdAt', 'desc')
+    );
 
     const unsubscribeProducts = onSnapshot(productsQuery, async (snapshot) => {
       const productData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-      productData.sort((a, b) => {
-        const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
-        const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
-        return timeB - timeA;
-      });
       const rewardIds = await getRewardProductIds();
       setProducts(filterOutRewardProducts(productData, rewardIds).filter(p => p.status !== 'inactive'));
       setLoading(false);

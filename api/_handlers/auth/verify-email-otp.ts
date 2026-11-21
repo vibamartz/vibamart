@@ -21,28 +21,20 @@ async function parseRequestBody(req: any): Promise<any> {
       return {};
     }
   }
-  if (req.readableEnded || req.complete) {
-    return {};
-  }
   if (typeof req.on === "function") {
     return new Promise((resolve) => {
       let data = "";
-      const timer = setTimeout(() => resolve({}), 3000);
       req.on("data", (chunk: any) => {
         data += chunk;
       });
       req.on("end", () => {
-        clearTimeout(timer);
         try {
           resolve(data ? JSON.parse(data) : {});
         } catch {
           resolve({});
         }
       });
-      req.on("error", () => {
-        clearTimeout(timer);
-        resolve({});
-      });
+      req.on("error", () => resolve({}));
     });
   }
   return {};
