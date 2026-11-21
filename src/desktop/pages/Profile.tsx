@@ -363,7 +363,6 @@ export default function Profile() {
 
   const handleLogout = async () => {
     await auth.signOut();
-    useAuthStore.getState().setUser(null);
     toast.success('You have logged out successfully.');
     navigate('/');
   };

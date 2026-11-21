@@ -7,8 +7,6 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-import sendEmailOtpHandler from "./api/_handlers/auth/send-email-otp";
-import verifyEmailOtpHandler from "./api/_handlers/auth/verify-email-otp";
 import cancelHandler from "./api/_handlers/orders/cancel";
 import returnRequestHandler from "./api/_handlers/returns/request";
 import refundRequestHandler from "./api/_handlers/refunds/request";
@@ -26,17 +24,12 @@ dotenv.config();
 
 try {
   if (!admin.apps.length) {
-    const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-    const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
-    const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
-    const isPlaceholderEmail = !rawEmail || rawEmail.includes('your_project') || rawEmail.includes('your_firebase_client_email');
-
-    if (process.env.FIREBASE_PROJECT_ID && !isPlaceholderEmail && !isPlaceholderKey) {
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: rawEmail,
-          privateKey: rawKey.replace(/^"|"$/g, '').replace(/\\n/g, '\n'),
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
       try {
@@ -45,9 +38,7 @@ try {
         console.warn("Firestore settings already initialized or failed:", e);
       }
     } else {
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart-app'
-      });
+      admin.initializeApp();
       try {
         admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
       } catch (e) { }
@@ -167,39 +158,61 @@ async function startServer() {
 
 
   // Setup Nodemailer transporter
-  const smtpUser = (process.env.SMTP_USER || "test").trim();
-  const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
-  const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
-  const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
-
-  const transporter = isGmail
-    ? nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-      })
-    : nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-      });
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.ethereal.email",
+    port: Number(process.env.SMTP_PORT) || 587,
+    auth: {
+      user: process.env.SMTP_USER || "test",
+      pass: process.env.SMTP_PASS || "test",
+    },
+    connectionTimeout: 2000,
+    greetingTimeout: 2000,
+    socketTimeout: 2000,
+  });
 
 
 
   // Auth: Send Email OTP
-  app.post("/api/auth/send-email-otp", sendEmailOtpHandler);
+  app.post("/api/auth/send-email-otp", async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: "Email is required" });
+    }
+
+    try {
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 mins from now
+
+      // Store in Firestore otps collection
+      const db = admin.firestore();
+      await db.collection("otps").doc(email).set({
+        otp,
+        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      });
+
+      const isPlaceholder = !process.env.SMTP_USER || process.env.SMTP_USER === "your-email@gmail.com" || process.env.SMTP_USER === "test";
+
+      // Send Email
+      if (process.env.SMTP_HOST && !isPlaceholder) {
+        await transporter.sendMail({
+          from: `"ViBa Mart" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: "Your ViBa Mart Login OTP",
+          text: `Your OTP is ${otp}. It is valid for 2 minutes.`,
+          html: `<b>Your OTP is ${otp}</b><br/>It is valid for 2 minutes.`,
+        });
+      } else {
+        // Fallback for testing when no SMTP is configured
+        console.log(`[DEVELOPMENT] OTP for ${email} is: ${otp}`);
+      }
+
+      res.json({ success: true, status: "pending" });
+    } catch (error: any) {
+      console.error("Send Email OTP error:", error);
+      res.status(500).json({ success: false, error: "Failed to send OTP" });
+    }
+  });
 
   // Notifications: Delivery Email
   app.post("/api/notifications/delivery", async (req, res) => {
@@ -490,7 +503,65 @@ async function startServer() {
 
 
   // Auth: Verify Email OTP
-  app.post("/api/auth/verify-email-otp", verifyEmailOtpHandler);
+  app.post("/api/auth/verify-email-otp", async (req, res) => {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ success: false, error: "Email and code are required" });
+    }
+
+    try {
+      const db = admin.firestore();
+      const otpDocRef = db.collection("otps").doc(email);
+      const otpDoc = await otpDocRef.get();
+
+      if (!otpDoc.exists) {
+        return res.status(400).json({ success: false, error: "OTP expired or not found" });
+      }
+
+      const data = otpDoc.data();
+      if (!data) return res.status(400).json({ success: false, error: "Invalid OTP" });
+
+      if (data.otp !== code) {
+        return res.status(400).json({ success: false, error: "Invalid OTP code" });
+      }
+
+      const now = admin.firestore.Timestamp.now();
+      if (data.expiresAt.toMillis() < now.toMillis()) {
+        await otpDocRef.delete();
+        return res.status(400).json({ success: false, error: "OTP has expired" });
+      }
+
+      // Valid OTP. Delete it.
+      await otpDocRef.delete();
+
+      // Find or create user in Firebase Auth
+      let uid = "";
+      try {
+        const userRecord = await admin.auth().getUserByEmail(email);
+        uid = userRecord.uid;
+      } catch (error: any) {
+        if (error.code === "auth/user-not-found") {
+          const newUser = await admin.auth().createUser({
+            email,
+            emailVerified: true,
+          });
+          uid = newUser.uid;
+        } else {
+          throw error;
+        }
+      }
+
+      // Generate Custom Token for frontend to sign in
+      const customToken = await admin.auth().createCustomToken(uid, {
+        email_verified: true
+      });
+
+      return res.json({ success: true, customToken });
+    } catch (error: any) {
+      console.error("Verify Email OTP error:", error);
+      res.status(500).json({ success: false, error: "Failed to verify OTP" });
+    }
+  });
 
   // ==========================================
   // NOTIFICATION & ENGAGEMENT API ROUTES

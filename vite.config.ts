@@ -7,9 +7,9 @@ function getFirebaseConfig(env: Record<string, string>) {
   const projectId = env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || 'viba-mart-app';
   return {
     apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || 'AIzaSyArTZAIiaESeahiK3Gdk5uUrru2U3WW9ww',
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || ${projectId}.firebaseapp.com,
     projectId: projectId,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || ${projectId}.firebasestorage.app,
     messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || env.FIREBASE_MESSAGING_SENDER_ID || '486981133317',
     appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || '1:486981133317:web:4caa94260d5c2d18cb286c',
     measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || env.FIREBASE_MEASUREMENT_ID || 'G-W3XVYZZEV4',
@@ -19,43 +19,7 @@ function getFirebaseConfig(env: Record<string, string>) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-      {
-        name: 'vite-otp-api-handler',
-        configureServer(server) {
-          server.middlewares.use(async (req, res, next) => {
-            const url = req.url ? req.url.split('?')[0] : '';
-            if (url === '/api/auth/send-email-otp' || url === '/auth/send-email-otp') {
-              try {
-                const handler = (await import('./api/_handlers/auth/send-email-otp')).default;
-                await handler(req, res);
-              } catch (e: any) {
-                if (!res.headersSent) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
-                }
-              }
-            } else if (url === '/api/auth/verify-email-otp' || url === '/auth/verify-email-otp') {
-              try {
-                const handler = (await import('./api/_handlers/auth/verify-email-otp')).default;
-                await handler(req, res);
-              } catch (e: any) {
-                if (!res.headersSent) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: e?.message || 'Internal Server Error' }));
-                }
-              }
-            } else {
-              next();
-            }
-          });
-        }
-      }
-    ],
+    plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
       'process.env.RAZORPAY_KEY_ID': JSON.stringify(env.RAZORPAY_KEY_ID || ''),

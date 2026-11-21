@@ -100,7 +100,7 @@ export default function SellerDashboard() {
         </nav>
 
         <div className="p-4 border-t border-gray-100/50">
-          <button onClick={() => { signOut(auth); useAuthStore.getState().setUser(null); }} className="flex items-center gap-3 text-gray-500 hover:text-rose-600 hover:bg-rose-50 px-4 py-3 rounded-xl w-full transition-all font-medium group">
+          <button onClick={() => signOut(auth)} className="flex items-center gap-3 text-gray-500 hover:text-rose-600 hover:bg-rose-50 px-4 py-3 rounded-xl w-full transition-all font-medium group">
             <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             Sign Out
           </button>

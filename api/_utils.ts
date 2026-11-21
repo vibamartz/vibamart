@@ -9,13 +9,8 @@ let adminInitError: string | null = null;
 export function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
-      const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
-      const isPlaceholderKey = !rawKey || rawKey.includes('your_private_key') || rawKey.includes('paste_firebase_private_key') || rawKey === 'paste_firebase_private_key_here';
-      const rawEmail = process.env.FIREBASE_CLIENT_EMAIL || '';
-      const isPlaceholderEmail = !rawEmail || rawEmail.includes('your_project') || rawEmail.includes('your_firebase_client_email');
-
-      if (process.env.FIREBASE_PROJECT_ID && !isPlaceholderEmail && !isPlaceholderKey) {
-        let formattedKey = rawKey;
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY !== 'paste_firebase_private_key_here') {
+        let formattedKey = process.env.FIREBASE_PRIVATE_KEY;
         // Strip surrounding quotes if environment formatted them
         formattedKey = formattedKey.replace(/^"|"$/g, '');
         // Handle escaped newlines
@@ -24,7 +19,7 @@ export function initializeFirebaseAdmin() {
         admin.initializeApp({
           credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: rawEmail,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: formattedKey,
           }),
         });
@@ -34,9 +29,7 @@ export function initializeFirebaseAdmin() {
           console.warn("Firestore settings already initialized or failed:", e);
         }
       } else {
-        admin.initializeApp({
-          projectId: process.env.FIREBASE_PROJECT_ID || 'viba-mart-app'
-        });
+        admin.initializeApp();
         try {
           admin.firestore().settings({ preferRest: true, ignoreUndefinedProperties: true });
         } catch (e) {}
@@ -118,34 +111,17 @@ export async function sendEmailNotification(toEmail: string, contactName: string
     return;
   }
   try {
-    const smtpUser = (process.env.SMTP_USER || "test").trim();
-    const smtpPass = (process.env.SMTP_PASS || "test").replace(/^["']|["']$/g, '').trim();
-    const smtpHost = (process.env.SMTP_HOST || "smtp.ethereal.email").trim();
-    const isGmail = smtpHost === "smtp.gmail.com" || smtpUser.toLowerCase().endsWith("@gmail.com");
-
-    const transporter = isGmail
-      ? nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-          connectionTimeout: 15000,
-          greetingTimeout: 15000,
-          socketTimeout: 20000,
-        })
-      : nodemailer.createTransport({
-          host: smtpHost,
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: Number(process.env.SMTP_PORT) === 465,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass,
-          },
-          connectionTimeout: 15000,
-          greetingTimeout: 15000,
-          socketTimeout: 20000,
-        });
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.ethereal.email",
+      port: Number(process.env.SMTP_PORT) || 587,
+      auth: {
+        user: process.env.SMTP_USER || "test",
+        pass: process.env.SMTP_PASS || "test",
+      },
+      connectionTimeout: 2000,
+      greetingTimeout: 2000,
+      socketTimeout: 2000,
+    });
     const emailHtml = `
       <h2>Hello ${contactName || 'Customer'},</h2>
       <p>${messageText}</p>
@@ -166,7 +142,7 @@ export async function sendEmailNotification(toEmail: string, contactName: string
 
     let timeoutId: NodeJS.Timeout;
     const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 20000);
+      timeoutId = setTimeout(() => reject(new Error("SMTP Connection Timeout")), 4000);
     });
 
     try {

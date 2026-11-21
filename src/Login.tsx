@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from './backend/firebase/firebase';
-import { signInWithCustomToken, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from 'firebase/auth';
+import { signInWithCustomToken, signInWithPopup, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
@@ -37,19 +37,10 @@ export default function Login() {
   const [contactNumber, setContactNumber] = useState('');
 
   // Firebase Auth
-  const [tempFirebaseUser, setTempFirebaseUser] = useState<any>(null);
-  const isVerifyingRef = useRef(false);
-  const isSendingRef = useRef(false);
+  const [tempFirebaseUser, setTempFirebaseUser] = useState<User | null>(null);
 
   const navigate = useNavigate();
-  const { user, loading: authLoading, setUser } = useAuthStore();
-
-  // Redirect immediately if already logged in so the Login page is never displayed to authenticated users
-  useEffect(() => {
-    if (user && !authLoading && step !== 'profile') {
-      navigate('/', { replace: true });
-    }
-  }, [user, authLoading, step, navigate]);
+  const { setUser } = useAuthStore();
 
   useEffect(() => {
     return () => {
@@ -84,72 +75,38 @@ export default function Login() {
   };
 
   const sendOtp = async (isResend = false) => {
-    if (isSendingRef.current || loading) return;
-    const cleanEmail = emailAddress.trim().toLowerCase();
-    if (!cleanEmail) {
-      toast.error('Please enter your Gmail address.');
+    if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
+      toast.error('Invalid email or password.');
       return;
     }
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(cleanEmail)) {
-      toast.error('Please enter a valid Gmail address (e.g. name@gmail.com).');
-      return;
-    }
-    isSendingRef.current = true;
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/send-email-otp', { email: cleanEmail });
-      if (response.data && response.data.success) {
+      const response = await axios.post('/api/auth/send-email-otp', { email: emailAddress.trim() });
+      if (response.data.success) {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-        toast.success(
-          isResend
-            ? 'OTP resent to your Gmail address!'
-            : 'OTP sent to your Gmail address! Please check your inbox.'
-        );
-        setTimeout(() => otpRefs.current[0]?.focus(), 250);
+        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
-        const errorMsg = response.data?.error || response.data?.message || 'Failed to send OTP';
-        throw new Error(errorMsg);
+        throw new Error(response.data.error || 'Failed to send OTP');
       }
     } catch (err: any) {
       console.error("sendOtp Error:", err);
-      const rawMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to send OTP';
-      const msg = typeof rawMsg === 'string' && rawMsg.includes('<html')
-        ? 'Server communication error. Please try again.'
-        : rawMsg;
-      toast.error(msg);
+      const msg = err.response?.data?.error || err.message || 'Failed to send OTP';
+      toast.error(`OTP failed: ${msg}`);
     } finally {
       setLoading(false);
-      isSendingRef.current = false;
     }
   };
 
-  const handleRequestOtp = async (e?: React.FormEvent) => {
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-    }
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
     await sendOtp(false);
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length > 1) {
-      // Handles multi-digit paste or mobile autofill
-      const newDigits = [...otpDigits];
-      const chars = cleaned.slice(0, 6).split('');
-      for (let i = 0; i < 6; i++) {
-        if (i >= index && chars[i - index]) {
-          newDigits[i] = chars[i - index];
-        }
-      }
-      setOtpDigits(newDigits);
-      const nextFocus = Math.min(index + cleaned.length, 5);
-      otpRefs.current[nextFocus]?.focus();
-      return;
-    }
-    const digit = cleaned.slice(-1);
+    const digit = value.replace(/\D/g, '').slice(-1);
     const newDigits = [...otpDigits];
     newDigits[index] = digit;
     setOtpDigits(newDigits);
@@ -173,104 +130,49 @@ export default function Login() {
   };
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted.length > 0) {
-      const newDigits = ['', '', '', '', '', ''];
-      pasted.split('').forEach((char, i) => {
-        if (i < 6) newDigits[i] = char;
-      });
-      setOtpDigits(newDigits);
-      const nextFocus = Math.min(pasted.length, 5);
-      otpRefs.current[nextFocus]?.focus();
+    if (pasted.length === 6) {
+      setOtpDigits(pasted.split(''));
+      otpRefs.current[5]?.focus();
     }
   };
 
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
-    if (e && typeof e.preventDefault === 'function') {
-      e.preventDefault();
-    }
-    if (isVerifyingRef.current || loading) return;
-
-    const cleanEmail = emailAddress.trim().toLowerCase();
-    const otpCode = otpDigits.join('').replace(/\D/g, '');
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const otpCode = otpDigits.join('');
     if (otpCode.length < 6) {
-      toast.warning('Please enter the complete 6-digit OTP received in your Gmail.');
-      const firstEmptyIndex = otpDigits.findIndex((d) => !d);
-      if (firstEmptyIndex >= 0) {
-        otpRefs.current[firstEmptyIndex]?.focus();
-      }
+      toast.warning('Please enter the complete 6-digit OTP');
       return;
     }
 
-    isVerifyingRef.current = true;
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/verify-email-otp', { email: cleanEmail, code: otpCode });
+      const response = await axios.post('/api/auth/verify-email-otp', { email: emailAddress.trim(), code: otpCode });
 
-      if (response.data && response.data.success) {
-        let firebaseUser: any = null;
+      if (response.data.success && response.data.customToken) {
+        const result = await signInWithCustomToken(auth, response.data.customToken);
+        const firebaseUser = result.user;
 
-        // 1. If backend returned customToken, sign in with it
-        if (response.data.customToken) {
-          try {
-            const result = await signInWithCustomToken(auth, response.data.customToken);
-            firebaseUser = result.user;
-          } catch (tokenErr) {
-            console.warn("Custom token sign-in notice:", tokenErr);
-          }
-        }
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
 
-        // 2. If no customToken or it failed, try client authSecret
-        if (!firebaseUser && response.data.authSecret) {
-          const targetEmail = response.data.email || cleanEmail;
-          try {
-            const result = await signInWithEmailAndPassword(auth, targetEmail, response.data.authSecret);
-            firebaseUser = result.user;
-          } catch (authErr: any) {
-            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/invalid-login-credentials') {
-              try {
-                const result = await createUserWithEmailAndPassword(auth, targetEmail, response.data.authSecret);
-                firebaseUser = result.user;
-              } catch (createErr: any) {
-                console.warn("Firebase Auth create user notice:", createErr.code);
-              }
-            }
-          }
-        }
-
-        // 3. Fallback: If Firebase client Auth couldn't sign in (e.g. existing Google sign-in user with different credentials)
-        // Since OTP is 100% verified by backend, create/use the authenticated session object
-        if (!firebaseUser) {
-          const deterministicUid = response.data.uid || ('usr_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_'));
-          firebaseUser = {
-            uid: deterministicUid,
-            email: cleanEmail,
-            displayName: cleanEmail.split('@')[0],
-            phoneNumber: '',
-            photoURL: '',
-            emailVerified: true,
-          };
-        }
-
-        if (mode === 'signup') {
+        if (!userSnap.exists()) {
           setTempFirebaseUser(firebaseUser);
           setStep('profile');
         } else {
-          syncUser(firebaseUser);
+          await syncUser(firebaseUser);
           toast.success('Login successful! Welcome back.');
-          navigate('/', { replace: true });
+          navigate('/');
         }
       } else {
-        throw new Error(response.data?.error || response.data?.message || 'Invalid OTP');
+        throw new Error(response.data.error || 'Invalid OTP');
       }
     } catch (err: any) {
       console.error("verifyOtp Error:", err);
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to verify OTP';
+      const msg = err.response?.data?.error || err.message || 'Failed to verify OTP';
       toast.error(msg);
     } finally {
       setLoading(false);
-      isVerifyingRef.current = false;
     }
   };
 
@@ -280,23 +182,20 @@ export default function Login() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
-      syncUser(firebaseUser);
-      toast.success(`Login successful! Welcome ${firebaseUser.displayName || ''}`.trim());
-      navigate('/', { replace: true });
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        setTempFirebaseUser(firebaseUser);
+        setStep('profile');
+      } else {
+        await syncUser(firebaseUser);
+        toast.success('Login successful! Welcome back.');
+        navigate('/');
+      }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      if (error?.code === 'auth/popup-closed-by-user') {
-        toast.error('Google Sign-In was cancelled.');
-      } else if (error?.code === 'auth/popup-blocked') {
-        toast.error('Sign-in popup was blocked by browser. Please allow popups.');
-      } else if (error?.code === 'auth/unauthorized-domain') {
-        toast.error('Domain not authorized in Firebase Console.');
-      } else if (error?.code === 'auth/operation-not-allowed') {
-        toast.error('Google Sign-In is not enabled in Firebase Console.');
-      } else {
-        const msg = error?.message || 'Login failed. Please try again.';
-        toast.error(msg);
-      }
+      toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -315,79 +214,68 @@ export default function Login() {
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
-      syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
+      await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
       toast.success('Your account has been created successfully.');
-      navigate('/', { replace: true });
+      navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message || 'Registration failed. Please try again.');
+      toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const syncUser = (firebaseUser: any, providedName?: string, providedPhone?: string) => {
+  const syncUser = async (firebaseUser: User, providedName?: string, providedPhone?: string) => {
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const userSnap = await getDoc(userRef);
     const now = new Date().toISOString();
     const userEmail = firebaseUser.email || emailAddress || '';
 
-    const fallbackUser: any = {
-      uid: firebaseUser.uid,
-      email: userEmail,
-      displayName: providedName || firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : `User ${Math.floor(Math.random() * 10000)}`),
-      phone: providedPhone || firebaseUser.phoneNumber || '',
-      photoURL: firebaseUser.photoURL || '',
-      role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
-      isVerified: true,
-      accountStatus: 'active',
-      createdAt: now,
-      lastLoginAt: now,
-    };
+    if (!userSnap.exists()) {
+      const newUser = {
+        uid: firebaseUser.uid,
+        email: userEmail,
+        displayName: providedName || firebaseUser.displayName || `User ${Math.floor(Math.random() * 10000)}`,
+        phone: providedPhone || '',
+        photoURL: firebaseUser.photoURL || '',
+        role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
+        isVerified: true,
+        accountStatus: 'active',
+        createdAt: now,
+        lastLoginAt: now,
+      };
+      await setDoc(userRef, newUser);
+      setUser(newUser as any);
+    } else {
+      const userData = userSnap.data() as any;
+      const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
 
-    // Immediately update auth store so the session is active instantly
-    setUser(fallbackUser);
+      const updateData: any = {
+        isVerified: true,
+        accountStatus: 'active',
+        lastLoginAt: now,
+      };
 
-    // Asynchronously background sync user doc with Firestore without blocking navigation
-    (async () => {
-      try {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (!userSnap.exists()) {
-          await setDoc(userRef, fallbackUser, { merge: true });
-        } else {
-          const userData = userSnap.data() as any;
-          const isAdmin = (userEmail === 'vk311779@gmail.com' || userData.email === 'vk311779@gmail.com');
-
-          const updateData: any = {
-            isVerified: true,
-            accountStatus: 'active',
-            lastLoginAt: now,
-          };
-
-          if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
-            updateData.role = 'super_admin';
-            userData.role = 'super_admin';
-          }
-
-          if (providedPhone && !userData.phone) {
-            updateData.phone = providedPhone;
-            userData.phone = providedPhone;
-          }
-          if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
-            updateData.displayName = providedName;
-            userData.displayName = providedName;
-          }
-
-          await setDoc(userRef, updateData, { merge: true });
-          userData.isVerified = true;
-          userData.accountStatus = 'active';
-          userData.lastLoginAt = now;
-          setUser({ ...fallbackUser, ...userData, ...updateData });
-        }
-      } catch (fsErr) {
-        console.warn("[Firestore] User document sync error, continuing with auth session:", fsErr);
+      if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
+        updateData.role = 'super_admin';
+        userData.role = 'super_admin';
       }
-    })();
+
+      if (providedPhone && !userData.phone) {
+        updateData.phone = providedPhone;
+        userData.phone = providedPhone;
+      }
+      if (providedName && (!userData.displayName || userData.displayName.startsWith('User '))) {
+        updateData.displayName = providedName;
+        userData.displayName = providedName;
+      }
+
+      await setDoc(userRef, updateData, { merge: true });
+      userData.isVerified = true;
+      userData.accountStatus = 'active';
+      userData.lastLoginAt = now;
+      setUser(userData);
+    }
   };
 
   const otpCode = otpDigits.join('');
@@ -444,7 +332,7 @@ export default function Login() {
                       : 'Join ViBa Mart and start shopping today'}
                   </p>
 
-                  <form onSubmit={handleRequestOtp} noValidate className="space-y-4">
+                  <form onSubmit={handleRequestOtp} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
                         Email Address
@@ -455,25 +343,17 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleRequestOtp();
-                            }
-                          }}
-                          placeholder="Enter your Gmail address"
-                          autoCapitalize="none"
-                          autoCorrect="off"
-                          spellCheck="false"
+                          placeholder="you@example.com"
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
+                          required
                         />
                       </div>
                     </div>
 
                     <button
                       type="submit"
-                      disabled={loading}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
+                      disabled={loading || !emailAddress}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <Mail className="w-5 h-5" />
                       {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
@@ -530,7 +410,7 @@ export default function Login() {
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
-                  <form onSubmit={handleVerifyOtp} noValidate className="space-y-6">
+                  <form onSubmit={handleVerifyOtp} className="space-y-6">
                     <div className="flex gap-2.5 justify-center" onPaste={handleOtpPaste}>
                       {otpDigits.map((digit, i) => (
                         <input
@@ -538,10 +418,8 @@ export default function Login() {
                           ref={(el) => { otpRefs.current[i] = el; }}
                           type="text"
                           inputMode="numeric"
-                          maxLength={6}
-                          autoComplete="one-time-code"
+                          maxLength={1}
                           value={digit}
-                          onPaste={handleOtpPaste}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
                           className={`w-11 h-14 text-center text-xl font-black rounded-2xl border-2 transition-all focus:outline-none
@@ -555,8 +433,8 @@ export default function Login() {
 
                     <button
                       type="submit"
-                      disabled={loading}
-                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
+                      disabled={loading || !isOtpComplete}
+                      className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <CheckCircle2 className="w-5 h-5" />
                       {loading ? 'Verifying...' : 'Verify & Continue'}
@@ -571,10 +449,9 @@ export default function Login() {
                       </p>
                     ) : (
                       <button
-                        type="button"
                         onClick={() => sendOtp(true)}
                         disabled={loading}
-                        className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50 cursor-pointer"
+                        className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-4 h-4" />
                         Resend OTP
@@ -583,13 +460,12 @@ export default function Login() {
                   </div>
 
                   <button
-                    type="button"
                     onClick={() => {
                       setStep('auth');
                       setOtpDigits(['', '', '', '', '', '']);
                       if (timerRef.current) clearInterval(timerRef.current);
                     }}
-                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2 cursor-pointer"
+                    className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Change Email

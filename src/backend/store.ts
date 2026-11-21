@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { UserProfile, CartItem, Product, Category, StoreSettings, FeatureConfig, UserRewards, RewardTransaction, RewardsSectionConfig, RewardOffer, BrandCoupon, RewardOrder, VisualNestedSubcategory, InventoryBrandSection } from "../shared/types";
 import { DEFAULT_FEATURES, DEFAULT_VOUCHERS, DEFAULT_BRAND_COUPONS, DEFAULT_REWARDS_CONFIG, CATEGORIES as DEFAULT_CATEGORIES } from "../shared/constants";
 import { auth, db, handleFirestoreError, OperationType } from "./firebase/firebase";
-import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion, writeBatch } from "firebase/firestore";
+import { doc, getDoc, setDoc, onSnapshot, collection, query, where, updateDoc, deleteDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { cleanForFirestore } from "../shared/utilities/firestoreUtils";
 import { PushService } from "./services/pushService";
@@ -39,50 +39,11 @@ interface AuthState {
   initAuth: () => void;
 }
 
-const VIBA_AUTH_SESSION_KEY = "viba_auth_user_session";
-
-const getSavedUserSession = (): UserProfile | null => {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem(VIBA_AUTH_SESSION_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.email) return parsed;
-      }
-    } catch (e) {}
-  }
-  return null;
-};
-
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: getSavedUserSession(),
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
   loading: true,
   orderedProductIds: [],
-  setUser: (user) => {
-    if (user) {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(VIBA_AUTH_SESSION_KEY, JSON.stringify(user));
-          localStorage.setItem("viba_last_uid", user.uid);
-        } catch (e) {}
-      }
-      useCartStore.getState().setUid(user.uid);
-    } else {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(VIBA_AUTH_SESSION_KEY);
-          const lastUid = localStorage.getItem("viba_last_uid");
-          if (lastUid) {
-            localStorage.removeItem(`viba_cart_${lastUid}`);
-            PushService.handleLogout(lastUid);
-          }
-          localStorage.removeItem("viba_last_uid");
-        } catch (e) {}
-      }
-      useCartStore.getState().setUid(null);
-    }
-    set({ user });
-  },
+  setUser: (user) => set({ user }),
   initAuth: () => {
     let unsubscribeSnapshot: (() => void) | null = null;
     let unsubscribeOrdersSnapshot: (() => void) | null = null;
@@ -108,25 +69,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         localStorage.setItem("viba_last_uid", firebaseUser.uid);
 
         useCartStore.getState().setUid(firebaseUser.uid);
-
-        const fallbackUser: UserProfile = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'ViBa User'),
-          phone: firebaseUser.phoneNumber || '',
-          photoURL: firebaseUser.photoURL || '',
-          role: firebaseUser.email === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
-          isVerified: true,
-          accountStatus: 'active',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-        };
-
-        // Guarantee user state is non-null while authenticated
-        if (!get().user) {
-          set({ user: fallbackUser, loading: false });
-        }
-
         // Subscribe to user details
         const docRef = doc(db, "users", firebaseUser.uid);
         unsubscribeSnapshot = onSnapshot(docRef, async (docSnap) => {
@@ -137,11 +79,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               try {
                 await setDoc(docRef, { role: 'super_admin' }, { merge: true });
               } catch (err) {
-                console.warn("Failed to bootstrap super_admin role:", err);
+                console.error("Failed to bootstrap super_admin role:", err);
                 set({ user: { ...data, role: 'super_admin' }, loading: false });
               }
             } else {
-              set({ user: { ...fallbackUser, ...data }, loading: false });
+              set({ user: data, loading: false });
             }
 
             // Sync cart from Firebase if present, or write local cart to Firebase
@@ -167,21 +109,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 try {
                   syncCartToFirebase(currentCart);
                 } catch (cartErr) {
-                  console.warn("[FIRESTORE WRITE] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
+                  console.error("[FIRESTORE WRITE ERROR] Failed to sync local cart to Firebase users collection on auth init:", cartErr);
                 }
               }
             }
           } else {
-            // New user or document not created yet: keep session active and create doc in background
-            set((state) => ({ user: state.user || fallbackUser, loading: false }));
-            setDoc(docRef, fallbackUser, { merge: true }).catch((err) => {
-              console.warn("[Firestore] Background profile create notice:", err?.message || err);
-            });
+            localStorage.removeItem("viba_last_uid");
+            useCartStore.getState().setUid(null);
+            set({ user: null, loading: false });
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`, false);
-          // Keep user logged in with fallback profile even if Firestore is offline
-          set((state) => ({ user: state.user || fallbackUser, loading: false }));
+          set({ loading: false });
         });
 
         // Subscribe to ordered products
@@ -202,22 +141,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           handleFirestoreError(error, OperationType.LIST, `orders?customerId=${firebaseUser.uid}`, false);
         });
       } else {
-        const saved = getSavedUserSession();
-        if (saved) {
-          // Keep active verified user session (e.g. from OTP authentication)
-          set({ user: saved, loading: false });
-        } else {
-          const lastUid = typeof window !== 'undefined' ? localStorage.getItem("viba_last_uid") : null;
-          if (lastUid) {
-            localStorage.removeItem(`viba_cart_${lastUid}`);
-            PushService.handleLogout(lastUid);
-          }
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem("viba_last_uid");
-          }
-          useCartStore.getState().setUid(null);
-          set({ user: null, orderedProductIds: [], loading: false });
+        const lastUid = localStorage.getItem("viba_last_uid");
+        if (lastUid) {
+          // Completely clear the local session data for the previous account to prevent leakage
+          localStorage.removeItem(`viba_cart_${lastUid}`);
+          PushService.handleLogout(lastUid);
         }
+        localStorage.removeItem("viba_last_uid");
+        useCartStore.getState().setUid(null);
+        set({ user: null, orderedProductIds: [], loading: false });
       }
     });
   },
@@ -459,20 +391,7 @@ const getInitialCategories = (): Category[] => {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((catData: Category) => {
-            const defCat = DEFAULT_CATEGORIES.find(
-              c => c.id === catData.id || 
-                   (c.slug && catData.slug && c.slug.toLowerCase() === catData.slug.toLowerCase()) || 
-                   (c.name && catData.name && c.name.toLowerCase() === catData.name.toLowerCase())
-            );
-            if (defCat?.icon && !catData.icon) {
-              catData.icon = defCat.icon;
-            }
-            if ((!catData.subcategories || catData.subcategories.length === 0) && defCat?.subcategories && defCat.subcategories.length > 0) {
-              catData.subcategories = defCat.subcategories;
-            }
-            return catData;
-          });
+          return parsed;
         }
       }
     } catch (e) {
@@ -484,7 +403,7 @@ const getInitialCategories = (): Category[] => {
   return DEFAULT_CATEGORIES.filter(c => c.id !== 'all-deals' && (c.isVisible ?? true));
 };
 
-export const useCategoryStore = create<CategoryState>((set, get) => {
+export const useCategoryStore = create<CategoryState>((set) => {
   const initial = getInitialCategories();
   return {
     categories: initial,
@@ -495,14 +414,6 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
         if (!snapshot.empty) {
           const fetchedCategories = snapshot.docs.map(doc => {
             const catData = { id: doc.id, ...doc.data() } as Category;
-            const defCat = DEFAULT_CATEGORIES.find(
-              c => c.id === catData.id || 
-                   (c.slug && catData.slug && c.slug.toLowerCase() === catData.slug.toLowerCase()) || 
-                   (c.name && catData.name && c.name.toLowerCase() === catData.name.toLowerCase())
-            );
-            if (defCat?.icon && !catData.icon) {
-              catData.icon = defCat.icon;
-            }
             if (catData.name === 'Toys' || catData.id === '7' || catData.slug === 'toys') {
               catData.icon = 'gamepad';
             }
@@ -511,9 +422,6 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
             }
             if (catData.name === 'Furniture' || catData.id === '9' || catData.slug === 'furniture') {
               catData.icon = 'armchair';
-            }
-            if ((!catData.subcategories || catData.subcategories.length === 0) && defCat?.subcategories && defCat.subcategories.length > 0) {
-              catData.subcategories = defCat.subcategories;
             }
             return catData;
           });
@@ -528,20 +436,11 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
           }
           set({ categories: fetchedCategories, loading: false });
         } else {
-          // Never wipe out main categories when Firestore snapshot is empty or initializing
-          const current = get().categories;
-          set({
-            categories: current && current.length > 0 ? current : getInitialCategories(),
-            loading: false
-          });
+          set({ categories: [], loading: false });
         }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'categories', false);
-        const current = get().categories;
-        set({
-          categories: current && current.length > 0 ? current : getInitialCategories(),
-          loading: false
-        });
+        set({ loading: false });
       });
     }
   };
@@ -806,18 +705,19 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
         // Auto-seed missing default features if admin
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          const missingFeatures = DEFAULT_FEATURES.filter(def => !fetchedFeatures.some(f => f.id === def.id));
-          if (missingFeatures.length > 0) {
-            const batch = writeBatch(db);
-            const now = new Date().toISOString();
-            missingFeatures.forEach((defFeature) => {
-              batch.set(doc(db, 'features', defFeature.id), {
-                ...defFeature,
-                updatedAt: now
-              });
-            });
-            batch.commit().catch(e => console.error("Failed to seed features batch:", e));
-          }
+          DEFAULT_FEATURES.forEach(async (defFeature) => {
+            const exists = fetchedFeatures.some(f => f.id === defFeature.id);
+            if (!exists) {
+              try {
+                await setDoc(doc(db, 'features', defFeature.id), {
+                  ...defFeature,
+                  updatedAt: new Date().toISOString()
+                });
+              } catch (e) {
+                console.error("Failed to seed feature:", defFeature.id, e);
+              }
+            }
+          });
         }
 
         set({ features: fetchedFeatures, loading: false });
@@ -825,15 +725,16 @@ export const useFeatureStore = create<FeatureState>((set, get) => ({
         // Seed default features if collection is completely empty
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
-          const batch = writeBatch(db);
-          const now = new Date().toISOString();
-          DEFAULT_FEATURES.forEach((defFeature) => {
-            batch.set(doc(db, 'features', defFeature.id), {
-              ...defFeature,
-              updatedAt: now
-            });
+          DEFAULT_FEATURES.forEach(async (defFeature) => {
+            try {
+              await setDoc(doc(db, 'features', defFeature.id), {
+                ...defFeature,
+                updatedAt: new Date().toISOString()
+              });
+            } catch (e) {
+              console.error("Failed to seed default feature:", defFeature.id, e);
+            }
           });
-          batch.commit().catch(e => console.error("Failed to seed default features batch:", e));
         }
         set({ features: DEFAULT_FEATURES as FeatureConfig[], loading: false });
       }
@@ -936,11 +837,13 @@ export const useRewardsStore = create<RewardsState>((set, get) => ({
         const currentUser = useAuthStore.getState().user;
         if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'super_admin')) {
           // Auto-seed DEFAULT_BRAND_COUPONS if empty on initial creation only
-          const batch = writeBatch(db);
-          DEFAULT_BRAND_COUPONS.forEach((vouch) => {
-            batch.set(doc(db, 'reward_offers', vouch.id), cleanForFirestore(vouch));
+          DEFAULT_BRAND_COUPONS.forEach(async (vouch) => {
+            try {
+              await setDoc(doc(db, 'reward_offers', vouch.id), vouch);
+            } catch (e) {
+              console.error("Failed to seed default reward offer:", vouch.id, e);
+            }
           });
-          batch.commit().catch(e => console.error("Failed to seed default reward offers batch:", e));
         }
         set({ offers: DEFAULT_BRAND_COUPONS });
       } else {
@@ -1343,21 +1246,16 @@ export interface InventoryBrandSectionState {
   bulkAssignProducts: (productIds: string[], sectionId: string | null) => Promise<void>;
 }
 
-let hasCheckedInventoryBrandSections = false;
-
 export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>((set, get) => ({
   sections: DEFAULT_BRAND_SECTIONS.map(s => ({ ...s, createdAt: '', updatedAt: '' })),
   loading: true,
   initialized: false,
 
   initSections: () => {
-    // Seed default sections once per session if collection is empty
-    if (!hasCheckedInventoryBrandSections) {
-      hasCheckedInventoryBrandSections = true;
-      seedInventoryBrandSectionsIfEmpty().catch(err => {
-        console.warn('[useInventoryBrandSectionStore] seed error:', err);
-      });
-    }
+    // Seed default sections once if collection is empty
+    seedInventoryBrandSectionsIfEmpty().catch(err => {
+      console.warn('[useInventoryBrandSectionStore] seed error:', err);
+    });
 
     const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);
     const unsubscribe = onSnapshot(colRef, (snapshot) => {

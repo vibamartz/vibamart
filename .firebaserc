@@ -1,7 +1,7 @@
 {
   "projects": {
-    "default": "viba-mart-app",
-    "viba-mart": "viba-mart-app"
+    "default": "viba-mart",
+    "viba-mart": "viba-mart"
   },
   "targets": {},
   "etags": {}
