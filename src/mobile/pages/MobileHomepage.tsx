@@ -909,18 +909,18 @@ export default function MobileHomepage() {
       {/* ========================================================================= */}
       {/* 6. SUBCATEGORIES (Directly below Banners)                                  */}
       {/* ========================================================================= */}
-      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.filter(s => s.isVisible !== false).length > 0 && (
+      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
         <section className="w-full min-w-0 space-y-1.5">
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-black text-gray-900 tracking-tight">
-                {activeCategoryObj.name} Subcategories
+                {activeCategoryObj.name}
               </span>
             </div>
 
             {/* Subcategories Responsive 2-Row Grid (Max 5 items per row, auto adjusting) */}
             <ResponsiveCategoryGrid
-              items={activeCategoryObj.subcategories.filter(s => s.isVisible !== false)}
+              items={activeCategoryObj.subcategories}
               onItemClick={(sub) => {
                 const catSlug = getCategorySlug(activeCategoryObj);
                 const subSlug = getSubcategorySlug(sub);
@@ -928,44 +928,6 @@ export default function MobileHomepage() {
               }}
             />
           </div>
-        </section>
-      )}
-
-      {/* 6b. NESTED SUBCATEGORIES (Grouped by Subcategory parent-child hierarchy)     */}
-      {activeCategoryObj && activeCategoryObj.subcategories && (
-        <section className="w-full min-w-0 space-y-3">
-          {activeCategoryObj.subcategories
-            .filter(sub => sub.isVisible !== false && sub.subcategories && sub.subcategories.filter(n => n.isVisible !== false).length > 0)
-            .map(sub => {
-              const catSlug = getCategorySlug(activeCategoryObj);
-              const subSlug = getSubcategorySlug(sub);
-              const validNested = sub.subcategories!.filter(n => n.isVisible !== false);
-              return (
-                <div key={sub.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs font-black text-gray-900 tracking-tight">
-                        {sub.name} Collections
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/categories/${catSlug}/${subSlug}`)}
-                      className="text-[10px] font-bold text-emerald-700 underline flex items-center gap-0.5"
-                    >
-                      View All <ArrowRight className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                  <ResponsiveCategoryGrid
-                    items={validNested}
-                    onItemClick={(nested) => {
-                      const nestedSlug = getSubcategorySlug(nested);
-                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
-                    }}
-                  />
-                </div>
-              );
-            })}
         </section>
       )}
 

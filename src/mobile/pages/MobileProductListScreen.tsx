@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { 
-  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles, Search, ArrowRight
+  Filter, SlidersHorizontal, ArrowUpDown, Grid, List, X, Star, ShoppingCart, Check, RefreshCw, Layers, Sparkles, Search
 } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
@@ -802,28 +802,17 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Subcategories Bar (Always visible for Category browsing) */}
-      {currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.filter(s => s.isVisible !== false).length > 0 && (
+      {/* Collections Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+      {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
-              {currentCategoryObj.name} Subcategories
+              {currentCategoryObj.name}
             </span>
-            {currentSubCategoryObj && (
-              <button
-                onClick={() => {
-                  const catSlug = getCategorySlug(currentCategoryObj);
-                  navigate(`/categories/${catSlug}`);
-                }}
-                className="text-[10px] font-bold text-emerald-700 underline"
-              >
-                View All
-              </button>
-            )}
           </div>
           <ResponsiveCategoryGrid
-            items={currentCategoryObj.subcategories.filter(s => s.isVisible !== false)}
-            isSelected={(sub) => currentSubCategoryObj?.id === sub.id || currentSubCategoryObj?.slug === sub.slug || selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory}
+            items={currentCategoryObj.subcategories}
+            isSelected={(sub) => selectedSubCategory === sub.id || selectedSubCategory === sub.slug || createSlug(sub.name) === selectedSubCategory}
             onItemClick={(sub) => handleSubCategorySelect(sub.id)}
           />
         </div>
@@ -854,7 +843,7 @@ export default function MobileProductListScreen() {
             )}
           </div>
           <ResponsiveCategoryGrid
-            items={currentNestedSubCategoryObj.subcategories.filter(c => c.isVisible !== false)}
+            items={currentNestedSubCategoryObj.subcategories}
             isSelected={(child) => currentDeepChildSubCategoryObj?.id === child.id || rawVisual === child.id || rawVisual === child.slug || createSlug(child.name) === rawVisual}
             onItemClick={(child) => {
               const catSlug = getCategorySlug(currentCategoryObj!);
@@ -872,8 +861,8 @@ export default function MobileProductListScreen() {
         </div>
       )}
 
-      {/* Dedicated Collections Showcase for active Subcategory */}
-      {currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.filter(n => n.isVisible !== false).length > 0 && (
+      {/* Dedicated Collections Showcase (Shown ONLY for active Subcategory) */}
+      {!currentNestedSubCategoryObj && currentSubCategoryObj && currentSubCategoryObj.subcategories && currentSubCategoryObj.subcategories.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1.5">
@@ -896,48 +885,10 @@ export default function MobileProductListScreen() {
             )}
           </div>
           <ResponsiveCategoryGrid
-            items={currentSubCategoryObj.subcategories.filter(n => n.isVisible !== false)}
-            isSelected={(nested) => currentNestedSubCategoryObj?.id === nested.id || currentNestedSubCategoryObj?.slug === nested.slug || selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory}
+            items={currentSubCategoryObj.subcategories}
+            isSelected={(nested) => selectedNestedSubCategory === nested.id || selectedNestedSubCategory === nested.slug || createSlug(nested.name) === selectedNestedSubCategory}
             onItemClick={(nested) => handleNestedSubCategorySelect(nested.id)}
           />
-        </div>
-      )}
-
-      {/* When browsing root category without active subcategory: show nested subcategories grouped by parent subcategory (Parent-Child Hierarchy) */}
-      {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && (
-        <div className="space-y-3">
-          {currentCategoryObj.subcategories
-            .filter(sub => sub.isVisible !== false && sub.subcategories && sub.subcategories.filter(n => n.isVisible !== false).length > 0)
-            .map(sub => {
-              const catSlug = getCategorySlug(currentCategoryObj!);
-              const subSlug = getSubcategorySlug(sub);
-              const validNested = sub.subcategories!.filter(n => n.isVisible !== false);
-              return (
-                <div key={sub.id} className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs font-black text-gray-900">
-                        {sub.name} Collections
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/categories/${catSlug}/${subSlug}`)}
-                      className="text-[10px] font-bold text-emerald-700 underline flex items-center gap-0.5"
-                    >
-                      View All <ArrowRight className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                  <ResponsiveCategoryGrid
-                    items={validNested}
-                    onItemClick={(nested) => {
-                      const nestedSlug = getNestedSubcategorySlug(nested);
-                      navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
-                    }}
-                  />
-                </div>
-              );
-            })}
         </div>
       )}
 

@@ -734,21 +734,8 @@ export default function ProductList() {
 
     const catObj = CATEGORIES.find(c => c.id === effectiveCat || c.slug === effectiveCat);
     if (!catObj || !catObj.subcategories) return [];
-    return catObj.subcategories.filter(s => s.isVisible !== false).map(s => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name));
+    return catObj.subcategories.map(s => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allProducts, selectedCategories, baseCatId, CATEGORIES]);
-
-  const uniqueNestedSubCategories = useMemo(() => {
-    const effectiveCat = selectedCategories[0] || baseCatId;
-    const effectiveSub = selectedSubCategories[0] || baseSubId;
-    const catObj = CATEGORIES.find(c => c.id === effectiveCat || c.slug === effectiveCat);
-    if (!catObj) return [];
-    if (effectiveSub) {
-      const subObj = catObj.subcategories?.find(s => s.id === effectiveSub || s.slug === effectiveSub);
-      return (subObj?.subcategories || []).filter(n => n.isVisible !== false).map(n => ({ id: n.id, name: n.name })).sort((a, b) => a.name.localeCompare(b.name));
-    }
-    const nestedList = catObj.subcategories?.filter(s => s.isVisible !== false).flatMap(s => s.subcategories?.filter(n => n.isVisible !== false) || []) || [];
-    return nestedList.map(n => ({ id: n.id, name: n.name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedCategories, selectedSubCategories, baseCatId, baseSubId, CATEGORIES]);
 
   const FiltersContent = () => (
     <>
@@ -776,20 +763,6 @@ export default function ProductList() {
           <p className="text-xs text-gray-400">No items available</p>
         )}
       </FilterSection>
-
-      {uniqueNestedSubCategories.length > 0 && (
-        <FilterSection title="Nested Subcategories">
-          {uniqueNestedSubCategories.map(nested => (
-            <FilterOption
-              key={nested.id}
-              label={nested.name}
-              count={getFilterCount('nestedSubCategory', nested.id)}
-              checked={selectedNestedSubCategories.includes(nested.id)}
-              onChange={() => toggleNestedSubCategory(nested.id)}
-            />
-          ))}
-        </FilterSection>
-      )}
 
       {settings.enableBrandFilter && (
         <FilterSection title="Brand">
@@ -957,30 +930,19 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Categories/Collections Horizontal Bar (Always visible for Category browsing) */}
-          {matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.filter(s => s.isVisible !== false).length > 0 && (
+          {/* Categories/Collections Horizontal Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
+          {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && matchedCategory.subcategories.length > 0 && (
             <div className="py-2 mb-4 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-500">
-                  {matchedCategory.name} Subcategories
+                  {matchedCategory.name}
                 </span>
-                {matchedSubcategory && (
-                  <button
-                    onClick={() => {
-                      const catSlug = getCategorySlug(matchedCategory);
-                      navigate(`/categories/${catSlug}`);
-                    }}
-                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
-                  >
-                    View All {matchedCategory.name}
-                  </button>
-                )}
               </div>
               <div
                 className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-1"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {matchedCategory.subcategories.filter(s => s.isVisible !== false).map(sub => {
+                {matchedCategory.subcategories.map(sub => {
                   const isSubActive = matchedSubcategory?.id === sub.id || selectedSubCategories.includes(sub.id);
                   const catSlug = getCategorySlug(matchedCategory);
                   const subSlug = getSubcategorySlug(sub);
@@ -993,7 +955,7 @@ export default function ProductList() {
                       className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
                     >
                       <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
-                        isSubActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105 bg-white' : 'bg-gray-50'
+                        isSubActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {sub.image && (sub.image.startsWith('http') || sub.image.startsWith('data:') || sub.image.startsWith('/')) ? (
                           <img src={sub.image} alt={sub.name} className="w-full h-full object-cover" />
@@ -1012,66 +974,6 @@ export default function ProductList() {
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Root Category Nested Subcategories Showcase (Grouped by Subcategory parent-child hierarchy) */}
-          {!matchedSubcategory && matchedCategory && matchedCategory.subcategories && (
-            <div className="space-y-6 mb-6">
-              {matchedCategory.subcategories
-                .filter(sub => sub.isVisible !== false && sub.subcategories && sub.subcategories.filter(n => n.isVisible !== false).length > 0)
-                .map(sub => {
-                  const catSlug = getCategorySlug(matchedCategory!);
-                  const subSlug = getSubcategorySlug(sub);
-                  const validNested = sub.subcategories!.filter(n => n.isVisible !== false);
-                  return (
-                    <div key={sub.id} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-emerald-600" />
-                            <span>{sub.name} Collections</span>
-                          </h3>
-                          <p className="text-xs text-gray-600 font-medium">Explore all nested subcategories in {sub.name}</p>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/categories/${catSlug}/${subSlug}`)}
-                          className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center gap-1 cursor-pointer"
-                        >
-                          View All {sub.name} <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div
-                        className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-2"
-                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                      >
-                        {validNested.map(nested => {
-                          const nestedSlug = getNestedSubcategorySlug(nested);
-                          return (
-                            <button
-                              key={nested.id}
-                              onClick={() => navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`)}
-                              className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
-                            >
-                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center bg-gray-50 border border-gray-100">
-                                {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
-                                  <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
-                                    {renderCategoryFallbackIcon(nested.name, nested.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-sm sm:text-base font-extrabold text-center max-w-[120px] leading-tight transition-colors line-clamp-1 text-gray-700 group-hover:text-emerald-700">
-                                {nested.name}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
             </div>
           )}
 
@@ -1105,7 +1007,7 @@ export default function ProductList() {
                 className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {matchedNestedSubcategory.subcategories.filter(c => c.isVisible !== false).map(child => {
+                {matchedNestedSubcategory.subcategories.map(child => {
                   const isChildActive = matchedDeepChildSubcategory?.id === child.id;
                   const catSlug = getCategorySlug(matchedCategory!);
                   const subSlug = getSubcategorySlug(matchedSubcategory!);
@@ -1146,8 +1048,8 @@ export default function ProductList() {
             </div>
           )}
 
-          {/* Dedicated Collections Showcase for active Subcategory (Level 2) */}
-          {matchedSubcategory && matchedSubcategory.subcategories && matchedSubcategory.subcategories.filter(n => n.isVisible !== false).length > 0 && (
+          {/* Dedicated Collections Showcase for the active Subcategory (Level 2) */}
+          {!matchedNestedSubcategory && matchedSubcategory && matchedSubcategory.subcategories && matchedSubcategory.subcategories.length > 0 && (
             <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -1175,7 +1077,7 @@ export default function ProductList() {
                 className="flex gap-0 overflow-x-auto hide-scrollbar no-scrollbar py-2"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {matchedSubcategory.subcategories.filter(n => n.isVisible !== false).map(nested => {
+                {matchedSubcategory.subcategories.map(nested => {
                   const isNestedActive = matchedNestedSubcategory?.id === nested.id || selectedNestedSubCategories.includes(nested.id);
                   const catSlug = getCategorySlug(matchedCategory!);
                   const subSlug = getSubcategorySlug(matchedSubcategory);
@@ -1193,7 +1095,7 @@ export default function ProductList() {
                       className="flex flex-col items-center gap-1.5 group transition-all shrink-0 w-28 sm:w-32 cursor-pointer"
                     >
                       <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden group-hover:scale-105 transition-all flex items-center justify-center ${
-                        isNestedActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105 bg-white' : 'bg-gray-50'
+                        isNestedActive ? 'ring-2 ring-emerald-600 shadow-sm scale-105' : 'bg-gray-50'
                       }`}>
                         {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
                           <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
