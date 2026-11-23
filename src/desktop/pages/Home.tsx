@@ -290,7 +290,7 @@ export default function Home() {
 
 
       {/* 1. Selected Category's Subcategories (Displays in the space below Search Bar ONLY when a Category is selected) */}
-      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
+      {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.filter(s => s.isVisible !== false).length > 0 && (
         <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative group/subcat">
           <div className="relative flex items-center">
             <button
@@ -308,7 +308,7 @@ export default function Home() {
               className="flex gap-0 overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar py-1 min-w-0 w-full snap-x snap-mandatory"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-              {activeCategoryObj.subcategories.map((sub) => {
+              {activeCategoryObj.subcategories.filter(s => s.isVisible !== false).map((sub) => {
                 const catSlug = getCategorySlug(activeCategoryObj);
                 const subSlug = getSubcategorySlug(sub);
                 return (
@@ -344,6 +344,63 @@ export default function Home() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+        </section>
+      )}
+
+      {/* Selected Category's Nested Subcategories (Grouped by Subcategory parent-child hierarchy) */}
+      {activeCategoryObj && activeCategoryObj.subcategories && (
+        <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
+          {activeCategoryObj.subcategories
+            .filter(sub => sub.isVisible !== false && sub.subcategories && sub.subcategories.filter(n => n.isVisible !== false).length > 0)
+            .map(sub => {
+              const catSlug = getCategorySlug(activeCategoryObj);
+              const subSlug = getSubcategorySlug(sub);
+              const validNested = sub.subcategories!.filter(n => n.isVisible !== false);
+              return (
+                <div key={sub.id} className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm sm:text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                      <span>{sub.name} Collections</span>
+                    </h3>
+                    <Link
+                      to={`/categories/${catSlug}/${subSlug}`}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center gap-1"
+                    >
+                      View All {sub.name} <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                  <div
+                    className="flex gap-0 overflow-x-auto scroll-smooth hide-scrollbar no-scrollbar py-1 min-w-0 w-full"
+                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                  >
+                    {validNested.map(nested => {
+                      const nestedSlug = getSubcategorySlug(nested);
+                      return (
+                        <Link
+                          key={nested.id}
+                          to={`/categories/${catSlug}/${subSlug}/${nestedSlug}`}
+                          className="group/nested flex flex-col items-center text-center shrink-0 w-28 sm:w-32 cursor-pointer transition-all"
+                        >
+                          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden mb-2 group-hover/nested:scale-105 transition-transform flex items-center justify-center bg-gray-50 border border-gray-100">
+                            {nested.image && (nested.image.startsWith('http') || nested.image.startsWith('data:') || nested.image.startsWith('/')) ? (
+                              <img src={nested.image} alt={nested.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-600">
+                                {renderCategoryFallbackIcon(nested.name, nested.icon, "w-10 h-10 sm:w-12 sm:h-12", false)}
+                              </div>
+                            )}
+                          </div>
+                          <h4 className="text-xs sm:text-sm font-bold text-gray-800 group-hover/nested:text-emerald-700 transition-colors line-clamp-1 w-full px-0.5 text-center">
+                            {nested.name}
+                          </h4>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
         </section>
       )}
 

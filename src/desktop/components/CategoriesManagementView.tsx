@@ -43,19 +43,9 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   const [loading, setLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
 
-  // Expanded State: All categories and subcategories are expanded by default so they are immediately visible on desktop & mobile
-  const [expandedCats, setExpandedCats] = useState<string[]>(() => {
-    return categories.map(c => c.id);
-  });
-  const [expandedSubs, setExpandedSubs] = useState<string[]>(() => {
-    const subs: string[] = [];
-    categories.forEach(c => {
-      (c.subcategories || []).forEach(s => {
-        subs.push(`${c.id}-${s.id}`);
-      });
-    });
-    return subs;
-  });
+  // Expanded State: Collapsed by default so Admin can expand or collapse individual categories manually
+  const [expandedCats, setExpandedCats] = useState<string[]>([]);
+  const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
 
   const toggleCat = (id: string) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   const toggleSub = (catId: string, subId: string) => {
@@ -119,22 +109,6 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       const merged = mergeCategoryTreeWithDefaults(catsData, externalDeletedIds);
       setCategories(merged);
       useCategoryStore.getState().setCategories(merged);
-
-      // Auto-expand loaded categories and subcategories so everything remains visible and accessible
-      setExpandedCats(prev => {
-        const next = new Set(prev);
-        merged.forEach(c => next.add(c.id));
-        return Array.from(next);
-      });
-      setExpandedSubs(prev => {
-        const next = new Set(prev);
-        merged.forEach(c => {
-          (c.subcategories || []).forEach(s => {
-            next.add(`${c.id}-${s.id}`);
-          });
-        });
-        return Array.from(next);
-      });
 
       try {
         const json = JSON.stringify(merged);
