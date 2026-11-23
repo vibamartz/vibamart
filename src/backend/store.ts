@@ -28,7 +28,9 @@ import {
   renameInventoryBrandSection,
   deleteInventoryBrandSection,
   assignProductToBrandSection,
-  bulkAssignProductsToBrandSection
+  bulkAssignProductsToBrandSection,
+  getDeletedBrandSectionIds,
+  recordDeletedBrandSectionId
 } from "./services/inventoryBrandSectionService";
 
 
@@ -1261,7 +1263,9 @@ export interface InventoryBrandSectionState {
 }
 
 export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>((set, get) => ({
-  sections: DEFAULT_BRAND_SECTIONS.map(s => ({ ...s, createdAt: '', updatedAt: '' })),
+  sections: DEFAULT_BRAND_SECTIONS
+    .filter(s => !getDeletedBrandSectionIds().has(s.id))
+    .map(s => ({ ...s, createdAt: '', updatedAt: '' })),
   loading: true,
   initialized: false,
 
@@ -1273,27 +1277,46 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
 
     const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const metaDoc = snapshot.docs.find(d => d.id === '_deleted_metadata');
+      if (metaDoc) {
+        const remoteDeleted = (metaDoc.data()?.deletedIds as string[]) || [];
+        remoteDeleted.forEach(id => recordDeletedBrandSectionId(id));
+      }
+      const deletedIds = getDeletedBrandSectionIds();
+
       if (!snapshot.empty) {
-        const fetched = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        } as InventoryBrandSection));
+        const fetched = snapshot.docs
+          .filter(d => d.id !== '_deleted_metadata' && !deletedIds.has(d.id))
+          .map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+          } as InventoryBrandSection));
 
         fetched.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || (a.createdAt || '').localeCompare(b.createdAt || ''));
         set({ sections: fetched, loading: false, initialized: true });
       } else {
         // Fallback to default sections if empty
-        const defaultsWithDates = DEFAULT_BRAND_SECTIONS.map(s => ({
-          ...s,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }));
+        const defaultsWithDates = DEFAULT_BRAND_SECTIONS
+          .filter(s => !deletedIds.has(s.id))
+          .map(s => ({
+            ...s,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }));
         set({ sections: defaultsWithDates, loading: false, initialized: true });
       }
     }, (error) => {
       console.warn('[useInventoryBrandSectionStore] snapshot error:', error);
       handleFirestoreError(error, OperationType.LIST, INVENTORY_BRAND_SECTIONS_COLLECTION, false);
-      set({ loading: false, initialized: true });
+      const deletedIds = getDeletedBrandSectionIds();
+      const defaultsWithDates = DEFAULT_BRAND_SECTIONS
+        .filter(s => !deletedIds.has(s.id))
+        .map(s => ({
+          ...s,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+      set({ sections: defaultsWithDates, loading: false, initialized: true });
     });
 
     return unsubscribe;
@@ -1317,10 +1340,13 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
   },
 
   deleteSection: async (id: string, allProducts: Product[]) => {
-    const result = await deleteInventoryBrandSection(id, allProducts);
+    // Record deleted ID immediately and optimistically remove from local state
+    recordDeletedBrandSectionId(id);
     set(state => ({
       sections: state.sections.filter(s => s.id !== id)
     }));
+
+    const result = await deleteInventoryBrandSection(id, allProducts);
     return result;
   },
 

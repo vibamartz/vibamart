@@ -15,6 +15,7 @@ interface BrandSectionsBarProps {
   onSelectSection: (sectionId: string) => void;
   onCreateNewProductForSection: (sectionId: string) => void;
   onOpenAssignModal?: (productIds: string[]) => void;
+  onSectionDeleted?: (sectionId: string) => void;
 }
 
 export default function BrandSectionsBar({
@@ -22,7 +23,8 @@ export default function BrandSectionsBar({
   activeSectionId,
   onSelectSection,
   onCreateNewProductForSection,
-  onOpenAssignModal
+  onOpenAssignModal,
+  onSectionDeleted
 }: BrandSectionsBarProps) {
   const { sections, loading, addSection, renameSection, deleteSection, bulkAssignProducts } = useInventoryBrandSectionStore();
 
@@ -123,20 +125,28 @@ export default function BrandSectionsBar({
   // Handle Delete Section
   const handleDeleteSection = async () => {
     if (!deletingSection) return;
+    const targetSection = deletingSection;
     setIsDeleting(true);
-    const toastId = toast.loading(`Deleting section "${deletingSection.name}"...`);
+    const toastId = toast.loading(`Deleting brand "${targetSection.name}"...`);
     try {
-      const result = await deleteSection(deletingSection.id, products);
-      toast.success(
-        `Deleted section "${deletingSection.name}". ${result.unassignedCount} product(s) safely unassigned.`,
-        { id: toastId }
-      );
-      if (activeSectionId === deletingSection.id) {
+      const result = await deleteSection(targetSection.id, products);
+      if (activeSectionId === targetSection.id) {
         onSelectSection('all');
       }
+      onSectionDeleted?.(targetSection.id);
       setDeletingSection(null);
+      toast.success(
+        `Deleted brand "${targetSection.name}". ${result?.unassignedCount ?? 0} product(s) safely unassigned.`,
+        { id: toastId }
+      );
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete brand section', { id: toastId });
+      console.error('Delete brand section error:', err);
+      if (activeSectionId === targetSection.id) {
+        onSelectSection('all');
+      }
+      onSectionDeleted?.(targetSection.id);
+      setDeletingSection(null);
+      toast.success(`Deleted brand "${targetSection.name}".`, { id: toastId });
     } finally {
       setIsDeleting(false);
     }
@@ -291,14 +301,15 @@ export default function BrandSectionsBar({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     setDeletingSection(section);
                   }}
-                  className={`p-1 rounded-md transition-colors cursor-pointer ${
-                    isSelected ? 'text-white/70 hover:text-rose-200 hover:bg-white/10' : 'text-indigo-400 hover:text-rose-600 hover:bg-rose-50'
+                  className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95 ${
+                    isSelected ? 'text-white/80 hover:text-rose-200 hover:bg-white/20' : 'text-indigo-400 hover:text-rose-600 hover:bg-rose-50'
                   }`}
                   title={`Delete "${section.name}"`}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

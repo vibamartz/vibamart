@@ -7,13 +7,43 @@ import {
   deleteDoc,
   writeBatch,
   query,
-  orderBy
+  orderBy,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { InventoryBrandSection, Product } from '../../shared/types';
 import { logAdminAction, AdminAction } from './adminLogService';
 
 export const INVENTORY_BRAND_SECTIONS_COLLECTION = 'inventory_brand_sections';
+const DELETED_BRAND_SECTIONS_STORAGE_KEY = 'viba_deleted_brand_section_ids';
+
+/**
+ * Get the set of locally persisted deleted brand section IDs.
+ */
+export function getDeletedBrandSectionIds(): Set<string> {
+  try {
+    const stored = localStorage.getItem(DELETED_BRAND_SECTIONS_STORAGE_KEY);
+    if (!stored) return new Set();
+    const arr = JSON.parse(stored);
+    return new Set(Array.isArray(arr) ? arr.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Record a deleted brand section ID so it is permanently prevented from resurrecting.
+ */
+export function recordDeletedBrandSectionId(id: string): void {
+  if (!id) return;
+  try {
+    const set = getDeletedBrandSectionIds();
+    set.add(id);
+    localStorage.setItem(DELETED_BRAND_SECTIONS_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch (err) {
+    console.error('Failed to store deleted brand section ID in localStorage:', err);
+  }
+}
 
 /**
  * Default internal brand sections initialized once if the collection is empty.
@@ -31,14 +61,17 @@ export const DEFAULT_BRAND_SECTIONS: Omit<InventoryBrandSection, 'createdAt' | '
  */
 export async function seedInventoryBrandSectionsIfEmpty(): Promise<void> {
   try {
+    const deletedIds = getDeletedBrandSectionIds();
     const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);
     const snapshot = await getDocs(colRef);
 
     if (snapshot.empty) {
       const now = new Date().toISOString();
       const batch = writeBatch(db);
+      let count = 0;
 
       for (const def of DEFAULT_BRAND_SECTIONS) {
+        if (deletedIds.has(def.id)) continue;
         const docRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, def.id);
         const sectionData: InventoryBrandSection = {
           id: def.id,
@@ -48,10 +81,13 @@ export async function seedInventoryBrandSectionsIfEmpty(): Promise<void> {
           updatedAt: now
         };
         batch.set(docRef, sectionData);
+        count++;
       }
 
-      await batch.commit();
-      console.log('[inventoryBrandSectionService] Initialized default brand sections once.');
+      if (count > 0) {
+        await batch.commit();
+        console.log('[inventoryBrandSectionService] Initialized default brand sections once.');
+      }
     }
   } catch (error) {
     console.warn('[inventoryBrandSectionService] Seeding check error (might be offline or mock mode):', error);
@@ -150,39 +186,62 @@ export async function deleteInventoryBrandSection(
   id: string,
   allProducts: Product[] = []
 ): Promise<{ unassignedCount: number }> {
+  // Always record deleted ID first so it can never resurrect
+  recordDeletedBrandSectionId(id);
+
   // Find all products currently assigned to this section
   const affectedProducts = allProducts.filter(p => p.inventorySectionId === id);
 
   // Unassign products in batches of up to 400 (Firestore max 500)
   if (affectedProducts.length > 0) {
-    const CHUNK_SIZE = 400;
-    for (let i = 0; i < affectedProducts.length; i += CHUNK_SIZE) {
-      const chunk = affectedProducts.slice(i, i + CHUNK_SIZE);
-      const batch = writeBatch(db);
-      const now = new Date().toISOString();
+    try {
+      const CHUNK_SIZE = 400;
+      for (let i = 0; i < affectedProducts.length; i += CHUNK_SIZE) {
+        const chunk = affectedProducts.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        const now = new Date().toISOString();
 
-      for (const prod of chunk) {
-        const prodRef = doc(db, 'products', prod.id);
-        batch.update(prodRef, {
-          inventorySectionId: null,
-          updatedAt: now
-        });
+        for (const prod of chunk) {
+          const prodRef = doc(db, 'products', prod.id);
+          batch.update(prodRef, {
+            inventorySectionId: null,
+            updatedAt: now
+          });
+        }
+
+        await batch.commit();
       }
-
-      await batch.commit();
+    } catch (unassignError) {
+      console.warn('[inventoryBrandSectionService] Warning: Product batch unassignment failed (offline/permissions):', unassignError);
     }
   }
 
-  // Delete the section document itself
-  const docRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, id);
-  await deleteDoc(docRef);
+  // Delete the section document itself from Firestore
+  try {
+    const docRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (deleteError) {
+    console.warn('[inventoryBrandSectionService] Warning: deleteDoc failed (offline/permissions):', deleteError);
+  }
 
-  await logAdminAction(
-    AdminAction.SETTINGS_UPDATE,
-    `Deleted internal brand section ${id} and unassigned ${affectedProducts.length} product(s)`,
-    id,
-    INVENTORY_BRAND_SECTIONS_COLLECTION
-  );
+  // Record in Firestore _deleted_metadata so other clients know it is deleted
+  try {
+    const metaRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, '_deleted_metadata');
+    await setDoc(metaRef, { deletedIds: arrayUnion(id) }, { merge: true });
+  } catch (metaError) {
+    // Non-blocking
+  }
+
+  try {
+    await logAdminAction(
+      AdminAction.SETTINGS_UPDATE,
+      `Deleted internal brand section ${id} and unassigned ${affectedProducts.length} product(s)`,
+      id,
+      INVENTORY_BRAND_SECTIONS_COLLECTION
+    );
+  } catch (logError) {
+    // Non-blocking
+  }
 
   return { unassignedCount: affectedProducts.length };
 }

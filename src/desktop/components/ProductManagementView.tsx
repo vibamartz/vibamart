@@ -828,6 +828,9 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
           setProductsForBrandModal(prodsToAssign);
           setIsBrandAssignmentModalOpen(true);
         }}
+        onSectionDeleted={(deletedSecId) => {
+          setProducts(prev => prev.map(p => p.inventorySectionId === deletedSecId ? { ...p, inventorySectionId: null } : p));
+        }}
       />
 
       {/* Filter Toolbar */}

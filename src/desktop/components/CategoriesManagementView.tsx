@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Category, SubCategory } from '../../shared/types';
-import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight, Sparkles, Wand2, Layers } from 'lucide-react';
+import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, ChevronUp, CornerDownRight, Sparkles, Wand2, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
@@ -43,15 +43,43 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   const [loading, setLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'categories' | 'visual_nested'>('categories');
 
-  // Expanded State
-  const [expandedCats, setExpandedCats] = useState<string[]>([]);
-  const [expandedSubs, setExpandedSubs] = useState<string[]>([]);
+  // Expanded State: All categories and subcategories are expanded by default so they are immediately visible on desktop & mobile
+  const [expandedCats, setExpandedCats] = useState<string[]>(() => {
+    return categories.map(c => c.id);
+  });
+  const [expandedSubs, setExpandedSubs] = useState<string[]>(() => {
+    const subs: string[] = [];
+    categories.forEach(c => {
+      (c.subcategories || []).forEach(s => {
+        subs.push(`${c.id}-${s.id}`);
+      });
+    });
+    return subs;
+  });
 
   const toggleCat = (id: string) => setExpandedCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   const toggleSub = (catId: string, subId: string) => {
     const id = `${catId}-${subId}`;
     setExpandedSubs(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
+
+  const expandAll = () => {
+    setExpandedCats(categories.map(c => c.id));
+    const subs: string[] = [];
+    categories.forEach(c => {
+      (c.subcategories || []).forEach(s => {
+        subs.push(`${c.id}-${s.id}`);
+      });
+    });
+    setExpandedSubs(subs);
+  };
+
+  const collapseAll = () => {
+    setExpandedCats([]);
+    setExpandedSubs([]);
+  };
+
+  const areAllExpanded = categories.length > 0 && categories.every(c => expandedCats.includes(c.id));
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -91,6 +119,23 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       const merged = mergeCategoryTreeWithDefaults(catsData, externalDeletedIds);
       setCategories(merged);
       useCategoryStore.getState().setCategories(merged);
+
+      // Auto-expand loaded categories and subcategories so everything remains visible and accessible
+      setExpandedCats(prev => {
+        const next = new Set(prev);
+        merged.forEach(c => next.add(c.id));
+        return Array.from(next);
+      });
+      setExpandedSubs(prev => {
+        const next = new Set(prev);
+        merged.forEach(c => {
+          (c.subcategories || []).forEach(s => {
+            next.add(`${c.id}-${s.id}`);
+          });
+        });
+        return Array.from(next);
+      });
+
       try {
         const json = JSON.stringify(merged);
         localStorage.setItem('viba_categories_cache', json);
@@ -768,20 +813,40 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
               <h2 className="text-xl font-bold text-gray-900">Category Management</h2>
               <p className="text-sm text-gray-500">Organize and manage your categories and subcategories.</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center flex-wrap gap-2.5">
               <button
+                type="button"
+                onClick={areAllExpanded ? collapseAll : expandAll}
+                className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                title={areAllExpanded ? "Collapse all categories" : "Expand all categories"}
+              >
+                {areAllExpanded ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 text-gray-500" />
+                    <span>Collapse All</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <span>Expand All</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={handleRestoreDefaults}
                 disabled={isSaving}
-                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
-                <RotateCcw className={`w-5 h-5 ${isSaving ? 'animate-spin' : ''}`} />
+                <RotateCcw className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
                 Restore Defaults
               </button>
               <button
+                type="button"
                 onClick={() => handleOpenAddModal('category')}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-200 active:scale-95 cursor-pointer"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Add Category
               </button>
             </div>
@@ -789,7 +854,208 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
           {/* Category List */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto min-w-full">
+            {/* Mobile View (sm:hidden): Responsive full-width hierarchical accordion cards */}
+            <div className="block sm:hidden divide-y divide-gray-100">
+              {loading ? (
+                <div className="p-8 text-center text-gray-500 font-medium text-sm">Loading categories...</div>
+              ) : categories.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 font-medium text-sm">No categories found. Tap "Add Category" to create one.</div>
+              ) : (
+                categories.map((category) => {
+                  const isCatExpanded = expandedCats.includes(category.id);
+                  return (
+                    <div key={category.id} className="p-3 bg-white space-y-2.5">
+                      {/* Main Category Row (Mobile) */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div
+                          onClick={() => toggleCat(category.id)}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer select-none"
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleCat(category.id); }}
+                            className="p-1 rounded-md text-gray-400 hover:bg-gray-100 touch-manipulation"
+                          >
+                            {isCatExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                          <CategoryLogo name={category.name} icon={category.icon} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-sm font-bold text-gray-900 truncate">{category.name}</h4>
+                              <span className="text-[10px] font-medium bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded-full border border-indigo-100">
+                                {category.subcategories?.length || 0} subs
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-mono block truncate">{category.id}</span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons (Mobile) */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleToggleVisibility(category); }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${category.isVisible ?? true ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'}`}
+                            title={category.isVisible ?? true ? 'Hide Category' : 'Show Category'}
+                          >
+                            {category.isVisible ?? true ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenAddModal('subcategory', category.id); }}
+                            className="w-8 h-8 flex items-center justify-center text-indigo-600 bg-indigo-50 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Add Subcategory"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal('category', category); }}
+                            className="w-8 h-8 flex items-center justify-center text-indigo-600 bg-indigo-50 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Edit Category"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete('category', category.name, category.id); }}
+                            className="w-8 h-8 flex items-center justify-center text-rose-600 bg-rose-50 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Delete Category"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Subcategories (Level 2) on Mobile */}
+                      {isCatExpanded && category.subcategories && category.subcategories.length > 0 && (
+                        <div className="ml-2 pl-3 border-l-2 border-indigo-100 space-y-2 pt-1">
+                          {category.subcategories.map((sub) => {
+                            const isSubExpanded = expandedSubs.includes(`${category.id}-${sub.id}`);
+                            return (
+                              <div key={sub.id} className="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div
+                                    onClick={() => toggleSub(category.id, sub.id)}
+                                    className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer select-none"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); toggleSub(category.id, sub.id); }}
+                                      className="p-1 rounded text-gray-400 hover:bg-gray-200 touch-manipulation"
+                                    >
+                                      {isSubExpanded ? <ChevronDown className="w-3.5 h-3.5 text-indigo-600" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="sm" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-xs font-bold text-gray-800 truncate">{sub.name}</span>
+                                        <span className="text-[9px] font-medium bg-gray-200/80 text-gray-600 px-1.5 py-0.2 rounded-full">
+                                          {sub.subcategories?.length || 0} nested
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Subcategory Action Buttons */}
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleToggleSubVisibility(category.id, sub.id); }}
+                                      className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95 ${sub.isVisible ?? true ? 'text-emerald-600 bg-emerald-50' : 'text-gray-400 bg-gray-100'}`}
+                                      title={sub.isVisible ?? true ? 'Hide Subcategory' : 'Show Subcategory'}
+                                    >
+                                      {sub.isVisible ?? true ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleOpenAddModal('nested', category.id, sub.id); }}
+                                      className="w-7 h-7 flex items-center justify-center text-indigo-600 bg-indigo-50 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Add Nested Subcategory"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal('subcategory', sub, category.id); }}
+                                      className="w-7 h-7 flex items-center justify-center text-indigo-600 bg-indigo-50 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Edit Subcategory"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleDelete('subcategory', sub.name, category.id, sub.id); }}
+                                      className="w-7 h-7 flex items-center justify-center text-rose-600 bg-rose-50 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Delete Subcategory"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Nested Subcategories (Level 3) on Mobile */}
+                                {isSubExpanded && sub.subcategories && sub.subcategories.length > 0 && (
+                                  <div className="ml-2 pl-2.5 border-l-2 border-indigo-200/60 space-y-1.5 pt-1">
+                                    {sub.subcategories.map((nested) => (
+                                      <div key={nested.id} className="flex items-center justify-between gap-1.5 bg-white p-2 rounded-lg border border-gray-100">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <CategoryLogo name={nested.name} image={nested.image} icon={nested.icon} size="sm" />
+                                          <span className="text-xs font-medium text-gray-700 truncate">{nested.name}</span>
+                                        </div>
+
+                                        {/* Nested Action Buttons */}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleAddNestedToVisual(category, sub, nested); }}
+                                            className="w-6 h-6 flex items-center justify-center text-emerald-700 bg-emerald-50 rounded-md transition-all cursor-pointer touch-manipulation active:scale-95"
+                                            title="Add to Visual Nested Subcategories"
+                                          >
+                                            <Sparkles className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleToggleNestedVisibility(category.id, sub.id, nested.id); }}
+                                            className={`w-6 h-6 flex items-center justify-center rounded-md transition-all cursor-pointer touch-manipulation active:scale-95 ${nested.isVisible ?? true ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                                            title={nested.isVisible ?? true ? 'Hide' : 'Show'}
+                                          >
+                                            {nested.isVisible ?? true ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal('nested', nested, category.id, sub.id); }}
+                                            className="w-6 h-6 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 rounded-md transition-all cursor-pointer touch-manipulation active:scale-95"
+                                            title="Edit"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDelete('nested', nested.name, category.id, sub.id, nested.id); }}
+                                            className="w-6 h-6 flex items-center justify-center text-rose-600 hover:bg-rose-50 rounded-md transition-all cursor-pointer touch-manipulation active:scale-95"
+                                            title="Delete"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop View (hidden sm:block): Full 12-column table grid */}
+            <div className="hidden sm:block overflow-x-auto min-w-full">
               <div className="min-w-[700px]">
                 <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-100 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider">
                   <div className="col-span-1 text-center">Order</div>
@@ -823,12 +1089,19 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                         <div className="col-span-1 flex items-center">
                           <CategoryLogo name={category.name} icon={category.icon} size="sm" />
                         </div>
-                        <div className="col-span-4 font-bold text-gray-900 truncate pr-4 flex items-center gap-3">
-                          <button onClick={(e) => { e.stopPropagation(); toggleCat(category.id); }} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
-                            {isCatExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <div
+                          onClick={() => toggleCat(category.id)}
+                          className="col-span-4 font-bold text-gray-900 truncate pr-4 flex items-center gap-3 cursor-pointer select-none"
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleCat(category.id); }}
+                            className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400 touch-manipulation"
+                          >
+                            {isCatExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />}
                           </button>
-                          {category.name}
-                          <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{category.subcategories?.length || 0}/30 subs</span>
+                          <span className="truncate">{category.name}</span>
+                          <span className="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full shrink-0">{category.subcategories?.length || 0}/30 subs</span>
                         </div>
                         <div className="col-span-3 text-xs text-gray-400 font-mono truncate pr-4">
                           {category.id}
@@ -881,12 +1154,19 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                                   <div className="col-span-1 flex items-center">
                                     <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="sm" />
                                   </div>
-                                  <div className="col-span-6 font-bold text-gray-700 truncate pr-4 flex items-center gap-3">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleSub(category.id, sub.id); }} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
-                                      {isSubExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                  <div
+                                    onClick={() => toggleSub(category.id, sub.id)}
+                                    className="col-span-6 font-bold text-gray-700 truncate pr-4 flex items-center gap-3 cursor-pointer select-none"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); toggleSub(category.id, sub.id); }}
+                                      className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400 touch-manipulation"
+                                    >
+                                      {isSubExpanded ? <ChevronDown className="w-4 h-4 text-indigo-600" /> : <ChevronRight className="w-4 h-4" />}
                                     </button>
-                                    {sub.name}
-                                    <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{sub.subcategories?.length || 0}/30 nested</span>
+                                    <span className="truncate">{sub.name}</span>
+                                    <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full shrink-0">{sub.subcategories?.length || 0}/30 nested</span>
                                   </div>
                                   <div className="col-span-4 flex items-center justify-end gap-1.5 pr-2">
                                     <button
