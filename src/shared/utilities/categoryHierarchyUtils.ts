@@ -477,6 +477,51 @@ export function getDescendantCategoryIds(
   return engine.getDescendantIds(nodeIdOrSlug);
 }
 
+const DELETED_IDS_STORAGE_KEY = 'viba_deleted_category_ids';
+
+export function getLocalDeletedCategoryIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        return new Set(arr.map((id: string) => String(id).trim().toLowerCase()).filter(Boolean));
+      }
+    }
+  } catch {}
+  return new Set();
+}
+
+export function saveLocalDeletedCategoryIds(ids: Set<string> | string[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const arr = Array.from(ids).map(id => String(id).trim().toLowerCase()).filter(Boolean);
+    localStorage.setItem(DELETED_IDS_STORAGE_KEY, JSON.stringify(arr));
+  } catch {}
+}
+
+export function recordDeletedCategoryId(id: string): void {
+  if (!id) return;
+  const current = getLocalDeletedCategoryIds();
+  current.add(id.trim().toLowerCase());
+  saveLocalDeletedCategoryIds(current);
+}
+
+export function removeDeletedCategoryId(id: string): void {
+  if (!id) return;
+  const current = getLocalDeletedCategoryIds();
+  current.delete(id.trim().toLowerCase());
+  saveLocalDeletedCategoryIds(current);
+}
+
+export function clearLocalDeletedCategoryIds(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(DELETED_IDS_STORAGE_KEY);
+  } catch {}
+}
+
 /**
  * Recursively deep-merges category documents with INITIAL_CATEGORIES and local cache.
  * Guarantees that:
@@ -484,10 +529,21 @@ export function getDescendantCategoryIds(
  * 2. Any custom subcategories/nested subcategories added by admin in Firestore/cache are strictly preserved.
  * 3. Parent-child hierarchy, existing category IDs, and associations are strictly preserved.
  * 4. Empty or missing image fields on subcategories/nested subcategories are restored from defaults.
- * 5. 'all-deals' is strictly excluded from Category Management.
+ * 5. Explicitly deleted categories, subcategories, or nested subcategories are NEVER resurrected.
+ * 6. 'all-deals' is strictly excluded from Category Management.
  */
-export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = []): Category[] {
+export function mergeCategoryTreeWithDefaults(
+  remoteCategories: Category[] = [],
+  externalDeletedIds?: Set<string> | string[]
+): Category[] {
   const defaultList = INITIAL_CATEGORIES.filter(c => c.id !== 'all-deals' && c.slug !== 'all-deals');
+
+  const deletedSet = getLocalDeletedCategoryIds();
+  if (externalDeletedIds) {
+    for (const id of externalDeletedIds) {
+      if (id) deletedSet.add(String(id).trim().toLowerCase());
+    }
+  }
 
   let localCached: Category[] = [];
   if (typeof window !== 'undefined') {
@@ -524,6 +580,16 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
     });
   };
 
+  const isDeleted = (id?: string, slug?: string, name?: string): boolean => {
+    if (id && deletedSet.has(id.trim().toLowerCase())) return true;
+    if (slug && deletedSet.has(slug.trim().toLowerCase())) return true;
+    if (name) {
+      const s = createSlug(name).toLowerCase();
+      if (deletedSet.has(s)) return true;
+    }
+    return false;
+  };
+
   const mergeSubcategories = (remoteSubs: SubCategory[] = [], fallbackSubs: SubCategory[] = []): SubCategory[] => {
     const result: SubCategory[] = [];
     const seenIds = new Set<string>();
@@ -531,6 +597,11 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
     for (const rSub of remoteSubs) {
       const matchingFallback = matchSub(rSub, fallbackSubs);
       const subId = rSub.id || matchingFallback?.id || createSlug(rSub.name);
+      const subSlug = rSub.slug || matchingFallback?.slug || createSlug(rSub.name || '');
+
+      if (isDeleted(subId, subSlug, rSub.name)) {
+        continue;
+      }
       seenIds.add(subId.toLowerCase());
 
       const nestedMerged: SubCategory[] = [];
@@ -542,13 +613,18 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
       for (const rn of rNested) {
         const matchingFbNested = matchSub(rn, fbNested);
         const nId = rn.id || matchingFbNested?.id || createSlug(rn.name);
+        const nSlug = rn.slug || matchingFbNested?.slug || createSlug(rn.name || '');
+
+        if (isDeleted(nId, nSlug, rn.name)) {
+          continue;
+        }
         seenNestedIds.add(nId.toLowerCase());
         nestedMerged.push({
           ...matchingFbNested,
           ...rn,
           id: nId,
           name: rn.name || matchingFbNested?.name || '',
-          slug: rn.slug || matchingFbNested?.slug || createSlug(rn.name || ''),
+          slug: nSlug,
           image: rn.image || matchingFbNested?.image || '',
           icon: rn.icon || matchingFbNested?.icon || '',
           isVisible: rn.isVisible ?? matchingFbNested?.isVisible ?? true
@@ -557,6 +633,11 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
 
       for (const fn of fbNested) {
         const fnId = (fn.id || createSlug(fn.name)).toLowerCase();
+        const fnSlug = (fn.slug || createSlug(fn.name)).toLowerCase();
+
+        if (isDeleted(fnId, fnSlug, fn.name)) {
+          continue;
+        }
         if (!seenNestedIds.has(fnId) && !matchSub(fn, nestedMerged)) {
           seenNestedIds.add(fnId);
           nestedMerged.push({ ...fn });
@@ -568,7 +649,7 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
         ...rSub,
         id: subId,
         name: rSub.name || matchingFallback?.name || '',
-        slug: rSub.slug || matchingFallback?.slug || createSlug(rSub.name || ''),
+        slug: subSlug,
         image: rSub.image || matchingFallback?.image || '',
         icon: rSub.icon || matchingFallback?.icon || '',
         isVisible: rSub.isVisible ?? matchingFallback?.isVisible ?? true,
@@ -578,6 +659,11 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
 
     for (const fbSub of fallbackSubs) {
       const fbSubId = (fbSub.id || createSlug(fbSub.name)).toLowerCase();
+      const fbSubSlug = (fbSub.slug || createSlug(fbSub.name)).toLowerCase();
+
+      if (isDeleted(fbSubId, fbSubSlug, fbSub.name)) {
+        continue;
+      }
       if (!seenIds.has(fbSubId) && !matchSub(fbSub, result)) {
         seenIds.add(fbSubId);
         result.push(JSON.parse(JSON.stringify(fbSub)));
@@ -595,6 +681,11 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
     const defCat = matchCategory(remoteCat, defaultList);
     const localCat = matchCategory(remoteCat, localCached);
     const catId = remoteCat.id || defCat?.id || localCat?.id || createSlug(remoteCat.name);
+    const catSlug = remoteCat.slug || defCat?.slug || localCat?.slug || createSlug(remoteCat.name || '');
+
+    if (isDeleted(catId, catSlug, remoteCat.name)) {
+      continue;
+    }
     processedCatIds.add(catId.toLowerCase());
 
     const combinedFallbackSubs = mergeSubcategories(localCat?.subcategories || [], defCat?.subcategories || []);
@@ -606,8 +697,8 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
       ...remoteCat,
       id: catId,
       name: remoteCat.name || defCat?.name || localCat?.name || '',
-      slug: remoteCat.slug || defCat?.slug || localCat?.slug || createSlug(remoteCat.name || ''),
-      seoSlug: remoteCat.seoSlug || remoteCat.slug || defCat?.seoSlug || defCat?.slug || createSlug(remoteCat.name || ''),
+      slug: catSlug,
+      seoSlug: remoteCat.seoSlug || remoteCat.slug || defCat?.seoSlug || defCat?.slug || catSlug,
       order: remoteCat.order ?? defCat?.order ?? localCat?.order ?? 999,
       isVisible: remoteCat.isVisible ?? defCat?.isVisible ?? localCat?.isVisible ?? true,
       subcategories: mergedSubs
@@ -616,6 +707,11 @@ export function mergeCategoryTreeWithDefaults(remoteCategories: Category[] = [])
 
   for (const defCat of defaultList) {
     const defId = (defCat.id || '').toLowerCase();
+    const defSlug = (defCat.slug || defCat.seoSlug || createSlug(defCat.name || '')).toLowerCase();
+
+    if (isDeleted(defId, defSlug, defCat.name)) {
+      continue;
+    }
     if (!processedCatIds.has(defId) && !matchCategory(defCat, merged)) {
       processedCatIds.add(defId);
       const localCat = matchCategory(defCat, localCached);

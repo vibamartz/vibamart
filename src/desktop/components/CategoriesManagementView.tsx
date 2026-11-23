@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../../backend/firebase/firebase';
 import { Category, SubCategory } from '../../shared/types';
 import { GripVertical, Edit2, Trash2, Eye, EyeOff, Plus, Image as ImageIcon, X, Save, RotateCcw, ChevronDown, ChevronRight, CornerDownRight, Sparkles, Wand2, Layers } from 'lucide-react';
@@ -9,7 +9,12 @@ import { CATEGORIES as INITIAL_CATEGORIES } from '../../shared/constants';
 import CategoryLogo from '../../shared/components/CategoryLogo';
 import { generateCategoryLogo, isDuplicateCategory } from '../../shared/utilities/categoryLogoGenerator';
 import { cleanForFirestore } from '../../shared/utilities/firestoreUtils';
-import { mergeCategoryTreeWithDefaults } from '../../shared/utilities/categoryHierarchyUtils';
+import {
+  mergeCategoryTreeWithDefaults,
+  recordDeletedCategoryId,
+  removeDeletedCategoryId,
+  clearLocalDeletedCategoryIds
+} from '../../shared/utilities/categoryHierarchyUtils';
 import { useCategoryStore } from '../../backend/store';
 import { sanitizeAndUploadCategoryDoc, migrateCategoryDocIfNeeded, compressDataUrl } from '../../backend/services/categoryStorageService';
 import { useVisualNestedSubcategoryStore } from '../../backend/store';
@@ -73,12 +78,17 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   useEffect(() => {
     const q = collection(db, 'categories');
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const catsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Category));
+      const deletedMetaDoc = snapshot.docs.find(d => d.id === '_deleted_metadata');
+      const externalDeletedIds = (deletedMetaDoc?.data()?.deletedIds as string[]) || [];
 
-      const merged = mergeCategoryTreeWithDefaults(catsData);
+      const catsData = snapshot.docs
+        .filter(d => d.id !== '_deleted_metadata')
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Category));
+
+      const merged = mergeCategoryTreeWithDefaults(catsData, externalDeletedIds);
       setCategories(merged);
       useCategoryStore.getState().setCategories(merged);
       try {
@@ -247,8 +257,14 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
     setIsSaving(true);
     try {
+      let savedCatId = '';
+      let savedSubId = '';
+      let savedNestedId = '';
+      let nextCategories = [...categories];
+
       if (modalType === 'category') {
         const catId = editingId || generateId(formData.name);
+        savedCatId = catId;
         const catRef = doc(db, 'categories', catId);
 
         const existingCat = editingId ? categories.find(c => c.id === catId) : null;
@@ -265,7 +281,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
           subcategories: existingCat?.subcategories ?? [],
         };
 
-        // Requirement 5: Do not store Main Category icons or image URLs in the database
+        // Requirement: Do not store Main Category icons or image URLs in the database
         delete rawPayload.image;
         delete rawPayload.iconImage;
         delete rawPayload.icon;
@@ -273,6 +289,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
         const sanitizedPayload = await sanitizeAndUploadCategoryDoc(rawPayload);
         await setDoc(catRef, sanitizedPayload, { merge: true });
+
+        if (existingCat) {
+          nextCategories = categories.map(c => c.id === catId ? { ...c, ...sanitizedPayload } : c);
+        } else {
+          nextCategories.push(sanitizedPayload as Category);
+        }
       } else if (modalType === 'subcategory' && activeParentCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -284,6 +306,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         }
 
         const subId = editingId || generateId(formData.name);
+        savedSubId = subId;
         let updatedSubs = [...(parentCat.subcategories || [])];
 
         const subPayload = {
@@ -308,6 +331,8 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         };
         const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
         await setDoc(catRef, sanitizedPayload, { merge: true });
+
+        nextCategories = categories.map(c => c.id === activeParentCatId ? (sanitizedPayload as Category) : c);
       } else if (modalType === 'nested' && activeParentCatId && activeSubCatId) {
         const parentCat = categories.find(c => c.id === activeParentCatId);
         if (!parentCat) throw new Error("Parent category not found");
@@ -320,6 +345,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         }
 
         const nestedId = editingId || generateId(formData.name);
+        savedNestedId = nestedId;
         const updatedSubs = (parentCat.subcategories || []).map(sub => {
           if (sub.id === activeSubCatId) {
             let updatedNested = [...(sub.subcategories || [])];
@@ -349,9 +375,28 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         };
         const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
         await setDoc(catRef, sanitizedPayload, { merge: true });
+
+        nextCategories = categories.map(c => c.id === activeParentCatId ? (sanitizedPayload as Category) : c);
       }
 
-      toast.success('Category saved successfully.');
+      // If an item was previously blacklisted/deleted, un-blacklist it now
+      const idsToUnblacklist = [savedCatId, savedSubId, savedNestedId, formData.seoSlug, createSlug(formData.name!)].filter(Boolean);
+      idsToUnblacklist.forEach(id => removeDeletedCategoryId(id));
+      try {
+        const metaDocRef = doc(db, 'categories', '_deleted_metadata');
+        await setDoc(metaDocRef, { deletedIds: arrayRemove(...idsToUnblacklist) }, { merge: true });
+      } catch {}
+
+      // Optimistically update local and global category store immediately
+      setCategories(nextCategories);
+      useCategoryStore.getState().setCategories(nextCategories);
+      try {
+        const json = JSON.stringify(nextCategories);
+        localStorage.setItem('viba_categories_cache', json);
+        localStorage.setItem('viba_cached_categories', json);
+      } catch {}
+
+      toast.success('Saved successfully.');
       setIsModalOpen(false);
     } catch (error: any) {
       console.error('Error saving category/subcategory:', error);
@@ -362,91 +407,178 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
   };
 
   const handleDelete = async (type: 'category' | 'subcategory' | 'nested', name: string, catId: string, subId?: string, nestedId?: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
+    const typeLabel = type === 'category' ? 'Category' : type === 'subcategory' ? 'Subcategory' : 'Nested Subcategory';
+    if (!window.confirm(`Are you sure you want to delete the ${typeLabel} "${name}"?\n\nThis will permanently delete this ${typeLabel.toLowerCase()} and cannot be undone.`)) {
+      return;
+    }
 
     try {
+      const idsToDelete: string[] = [];
+      let nextCategories = [...categories];
+
       if (type === 'category') {
+        const cat = categories.find(c => c.id === catId);
+        idsToDelete.push(catId);
+        if (cat?.slug) idsToDelete.push(cat.slug);
+        if (cat?.seoSlug) idsToDelete.push(cat.seoSlug);
+        if (cat?.name) idsToDelete.push(createSlug(cat.name));
+
+        (cat?.subcategories || []).forEach(s => {
+          if (s.id) idsToDelete.push(s.id);
+          if (s.slug) idsToDelete.push(s.slug);
+          if (s.name) idsToDelete.push(createSlug(s.name));
+          (s.subcategories || []).forEach(n => {
+            if (n.id) idsToDelete.push(n.id);
+            if (n.slug) idsToDelete.push(n.slug);
+            if (n.name) idsToDelete.push(createSlug(n.name));
+          });
+        });
+
         await deleteDoc(doc(db, 'categories', catId));
+        nextCategories = categories.filter(c => c.id !== catId);
       } else if (type === 'subcategory' && subId) {
         const parentCat = categories.find(c => c.id === catId);
         if (parentCat) {
+          const sub = parentCat.subcategories?.find(s => s.id === subId);
+          idsToDelete.push(subId);
+          if (sub?.slug) idsToDelete.push(sub.slug);
+          if (sub?.name) idsToDelete.push(createSlug(sub.name));
+
+          (sub?.subcategories || []).forEach(n => {
+            if (n.id) idsToDelete.push(n.id);
+            if (n.slug) idsToDelete.push(n.slug);
+            if (n.name) idsToDelete.push(createSlug(n.name));
+          });
+
           const updatedSubs = (parentCat.subcategories || []).filter(s => s.id !== subId);
-          await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+          const updatedCat = { ...parentCat, subcategories: updatedSubs };
+          const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          await setDoc(doc(db, 'categories', catId), sanitizedPayload, { merge: true });
+
+          nextCategories = categories.map(c => c.id === catId ? (sanitizedPayload as Category) : c);
         }
       } else if (type === 'nested' && subId && nestedId) {
         const parentCat = categories.find(c => c.id === catId);
         if (parentCat) {
+          const parentSub = parentCat.subcategories?.find(s => s.id === subId);
+          const nested = parentSub?.subcategories?.find(n => n.id === nestedId);
+          idsToDelete.push(nestedId);
+          if (nested?.slug) idsToDelete.push(nested.slug);
+          if (nested?.name) idsToDelete.push(createSlug(nested.name));
+
           const updatedSubs = (parentCat.subcategories || []).map(sub => {
             if (sub.id === subId) {
-              return { ...sub, subcategories: (sub.subcategories || []).filter(n => n.id !== nestedId) };
+              return {
+                ...sub,
+                subcategories: (sub.subcategories || []).filter(n => n.id !== nestedId)
+              };
             }
             return sub;
           });
-          await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+          const updatedCat = { ...parentCat, subcategories: updatedSubs };
+          const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          await setDoc(doc(db, 'categories', catId), sanitizedPayload, { merge: true });
+
+          nextCategories = categories.map(c => c.id === catId ? (sanitizedPayload as Category) : c);
         }
       }
-      toast.success('Deleted successfully');
+
+      // Record deleted IDs in localStorage and in Firestore _deleted_metadata
+      const validIds = idsToDelete.filter(Boolean);
+      validIds.forEach(id => recordDeletedCategoryId(id));
+      try {
+        const metaDocRef = doc(db, 'categories', '_deleted_metadata');
+        await setDoc(metaDocRef, { deletedIds: arrayUnion(...validIds) }, { merge: true });
+      } catch (err) {
+        console.warn('Could not update _deleted_metadata in Firestore:', err);
+      }
+
+      // Optimistically update local state and global category store immediately
+      setCategories(nextCategories);
+      useCategoryStore.getState().setCategories(nextCategories);
+      try {
+        const json = JSON.stringify(nextCategories);
+        localStorage.setItem('viba_categories_cache', json);
+        localStorage.setItem('viba_cached_categories', json);
+      } catch {}
+
+      toast.success(`${typeLabel} deleted successfully.`);
     } catch (error) {
       console.error('Error deleting:', error);
-      toast.error('Failed to delete');
+      toast.error(`Failed to delete ${typeLabel.toLowerCase()}.`);
     }
   };
 
   const handleToggleVisibility = async (category: Category) => {
+    const newVisibility = !(category.isVisible ?? true);
+    const updatedCats = categories.map(c => c.id === category.id ? { ...c, isVisible: newVisibility } : c);
+    setCategories(updatedCats);
+    useCategoryStore.getState().setCategories(updatedCats);
     try {
-      const newVisibility = !(category.isVisible ?? true);
       const catRef = doc(db, 'categories', category.id);
       await updateDoc(catRef, { isVisible: newVisibility });
       toast.success(`Category is now ${newVisibility ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling visibility:', error);
       toast.error('Failed to update visibility');
+      setCategories(categories);
+      useCategoryStore.getState().setCategories(categories);
     }
   };
 
   const handleToggleSubVisibility = async (catId: string, subId: string) => {
+    const parentCat = categories.find(c => c.id === catId);
+    if (!parentCat) return;
+    let newVis = true;
+    const updatedSubs = (parentCat.subcategories || []).map(s => {
+      if (s.id === subId) {
+        newVis = !(s.isVisible ?? true);
+        return { ...s, isVisible: newVis };
+      }
+      return s;
+    });
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
+    setCategories(updatedCats);
+    useCategoryStore.getState().setCategories(updatedCats);
     try {
-      const parentCat = categories.find(c => c.id === catId);
-      if (!parentCat) return;
-      let newVis = true;
-      const updatedSubs = (parentCat.subcategories || []).map(s => {
-        if (s.id === subId) {
-          newVis = !(s.isVisible ?? true);
-          return { ...s, isVisible: newVis };
-        }
-        return s;
-      });
       await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
       toast.success(`Subcategory is now ${newVis ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling subcategory visibility:', error);
       toast.error('Failed to update subcategory visibility');
+      setCategories(categories);
+      useCategoryStore.getState().setCategories(categories);
     }
   };
 
   const handleToggleNestedVisibility = async (catId: string, subId: string, nestedId: string) => {
+    const parentCat = categories.find(c => c.id === catId);
+    if (!parentCat) return;
+    let newVis = true;
+    const updatedSubs = (parentCat.subcategories || []).map(sub => {
+      if (sub.id === subId) {
+        const updatedNested = (sub.subcategories || []).map(n => {
+          if (n.id === nestedId) {
+            newVis = !(n.isVisible ?? true);
+            return { ...n, isVisible: newVis };
+          }
+          return n;
+        });
+        return { ...sub, subcategories: updatedNested };
+      }
+      return sub;
+    });
+    const updatedCats = categories.map(c => c.id === catId ? { ...c, subcategories: updatedSubs } : c);
+    setCategories(updatedCats);
+    useCategoryStore.getState().setCategories(updatedCats);
     try {
-      const parentCat = categories.find(c => c.id === catId);
-      if (!parentCat) return;
-      let newVis = true;
-      const updatedSubs = (parentCat.subcategories || []).map(sub => {
-        if (sub.id === subId) {
-          const updatedNested = (sub.subcategories || []).map(n => {
-            if (n.id === nestedId) {
-              newVis = !(n.isVisible ?? true);
-              return { ...n, isVisible: newVis };
-            }
-            return n;
-          });
-          return { ...sub, subcategories: updatedNested };
-        }
-        return sub;
-      });
       await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
       toast.success(`Nested subcategory is now ${newVis ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling nested subcategory visibility:', error);
       toast.error('Failed to update nested subcategory visibility');
+      setCategories(categories);
+      useCategoryStore.getState().setCategories(categories);
     }
   };
 
@@ -455,7 +587,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     setIsSaving(true);
     const toastId = toast.loading('Restoring all subcategories and nested subcategories...');
     try {
-      const mergedAll = mergeCategoryTreeWithDefaults(categories);
+      clearLocalDeletedCategoryIds();
+      try {
+        await deleteDoc(doc(db, 'categories', '_deleted_metadata'));
+      } catch {}
+
+      const mergedAll = mergeCategoryTreeWithDefaults(categories, []);
       const batch = writeBatch(db);
       let updatedCount = 0;
       let addedCount = 0;
@@ -696,21 +833,37 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                         <div className="col-span-3 text-xs text-gray-400 font-mono truncate pr-4">
                           {category.id}
                         </div>
-                        <div className="col-span-3 flex items-center justify-end gap-2 pr-2">
+                        <div className="col-span-3 flex items-center justify-end gap-1.5 pr-2">
                           <button
-                            onClick={() => handleToggleVisibility(category)}
-                            className={`p-2 rounded-xl transition-colors ${category.isVisible ?? true ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-gray-500 bg-gray-100 hover:bg-gray-200'}`}
-                            title={category.isVisible ?? true ? 'Visible' : 'Hidden'}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleToggleVisibility(category); }}
+                            className={`min-w-[34px] min-h-[34px] flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95 ${category.isVisible ?? true ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-gray-500 bg-gray-100 hover:bg-gray-200'}`}
+                            title={category.isVisible ?? true ? 'Hide Category' : 'Show Category'}
                           >
                             {category.isVisible ?? true ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => handleOpenAddModal('subcategory', category.id)} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Add Subcategory">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenAddModal('subcategory', category.id); }}
+                            className="min-w-[34px] min-h-[34px] flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Add Subcategory"
+                          >
                             <Plus className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleOpenEditModal('category', category)} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors" title="Edit Category">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal('category', category); }}
+                            className="min-w-[34px] min-h-[34px] flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Edit Category"
+                          >
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDelete('category', category.name, category.id)} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors" title="Delete Category">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete('category', category.name, category.id); }}
+                            className="min-w-[34px] min-h-[34px] flex items-center justify-center p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all cursor-pointer touch-manipulation active:scale-95"
+                            title="Delete Category"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -729,23 +882,45 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                                     <CategoryLogo name={sub.name} image={sub.image} icon={sub.icon} size="sm" />
                                   </div>
                                   <div className="col-span-6 font-bold text-gray-700 truncate pr-4 flex items-center gap-3">
-                                    <button onClick={() => toggleSub(category.id, sub.id)} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleSub(category.id, sub.id); }} className="p-1 hover:bg-gray-200 rounded-md transition-colors text-gray-400">
                                       {isSubExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                                     </button>
                                     {sub.name}
                                     <span className="text-[10px] font-medium bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{sub.subcategories?.length || 0}/30 nested</span>
                                   </div>
-                                  <div className="col-span-4 flex items-center justify-end gap-2 pr-2">
+                                  <div className="col-span-4 flex items-center justify-end gap-1.5 pr-2">
                                     <button
-                                      onClick={() => handleToggleSubVisibility(category.id, sub.id)}
-                                      className={`p-1.5 rounded-lg transition-colors ${sub.isVisible ?? true ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-gray-400 bg-gray-100 hover:bg-gray-200'}`}
-                                      title={sub.isVisible ?? true ? 'Visible' : 'Hidden'}
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleToggleSubVisibility(category.id, sub.id); }}
+                                      className={`min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95 ${sub.isVisible ?? true ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-gray-400 bg-gray-100 hover:bg-gray-200'}`}
+                                      title={sub.isVisible ?? true ? 'Hide Subcategory' : 'Show Subcategory'}
                                     >
                                       {sub.isVisible ?? true ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                                     </button>
-                                    <button onClick={() => handleOpenAddModal('nested', category.id, sub.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Add Nested Subcategory"><Plus className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => handleOpenEditModal('subcategory', sub, category.id)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors" title="Edit Subcategory"><Edit2 className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => handleDelete('subcategory', sub.name, category.id, sub.id)} className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors" title="Delete Subcategory"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleOpenAddModal('nested', category.id, sub.id); }}
+                                      className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Add Nested Subcategory"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleOpenEditModal('subcategory', sub, category.id); }}
+                                      className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Edit Subcategory"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleDelete('subcategory', sub.name, category.id, sub.id); }}
+                                      className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                      title="Delete Subcategory"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                 </div>
 
@@ -763,21 +938,37 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
                                         </div>
                                         <div className="col-span-4 flex items-center justify-end gap-1.5 pr-2">
                                           <button
-                                            onClick={() => handleAddNestedToVisual(category, sub, nested)}
-                                            className="p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleAddNestedToVisual(category, sub, nested); }}
+                                            className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
                                             title="Add to Visual Nested Subcategories"
                                           >
                                             <Sparkles className="w-3 h-3" />
                                           </button>
                                           <button
-                                            onClick={() => handleToggleNestedVisibility(category.id, sub.id, nested.id)}
-                                            className={`p-1.5 rounded-lg transition-colors ${nested.isVisible ?? true ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-200'}`}
-                                            title={nested.isVisible ?? true ? 'Visible' : 'Hidden'}
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleToggleNestedVisibility(category.id, sub.id, nested.id); }}
+                                            className={`min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95 ${nested.isVisible ?? true ? 'text-emerald-600 hover:bg-emerald-100' : 'text-gray-400 hover:bg-gray-200'}`}
+                                            title={nested.isVisible ?? true ? 'Hide Nested Subcategory' : 'Show Nested Subcategory'}
                                           >
                                             {nested.isVisible ?? true ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                                           </button>
-                                          <button onClick={() => handleOpenEditModal('nested', nested, category.id, sub.id)} className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors" title="Edit Nested Subcategory"><Edit2 className="w-3 h-3" /></button>
-                                          <button onClick={() => handleDelete('nested', nested.name, category.id, sub.id, nested.id)} className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors" title="Delete Nested Subcategory"><Trash2 className="w-3 h-3" /></button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal('nested', nested, category.id, sub.id); }}
+                                            className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                            title="Edit Nested Subcategory"
+                                          >
+                                            <Edit2 className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleDelete('nested', nested.name, category.id, sub.id, nested.id); }}
+                                            className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-all cursor-pointer touch-manipulation active:scale-95"
+                                            title="Delete Nested Subcategory"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
                                         </div>
                                       </div>
                                     ))}

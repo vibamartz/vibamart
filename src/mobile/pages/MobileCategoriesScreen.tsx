@@ -320,6 +320,33 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
+                {/* Level 3: Nested Subcategories Grid */}
+                {availableNestedSubcategories && availableNestedSubcategories.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-xs font-black text-gray-900">
+                        {selectedSubCategory ? `${selectedSubCategory.name} Nested Subcategories` : 'Nested Subcategories'}
+                      </span>
+                    </div>
+                    <ResponsiveCategoryGrid
+                      items={availableNestedSubcategories}
+                      boxSizeClass="w-12 h-12 sm:w-14 sm:h-14"
+                      iconSizeClass="w-6.5 h-6.5 sm:w-7 sm:h-7"
+                      textSizeClass="text-[10.5px] sm:text-xs"
+                      onItemClick={(nested) => {
+                        let parentSub = selectedSubCategory;
+                        if (!parentSub) {
+                          parentSub = selectedCategory.subcategories?.find(s => s.subcategories?.some(n => n.id === nested.id)) || null;
+                        }
+                        const catSlug = getCategorySlug(selectedCategory);
+                        const subSlug = parentSub ? getSubcategorySlug(parentSub) : getSubcategorySlug(nested);
+                        const nestedSlug = getSubcategorySlug(nested);
+                        navigate(`/categories/${catSlug}/${subSlug}/${nestedSlug}`);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Dynamic Visual Nested Subcategories Showcase */}
                 {selectedCategory && (
                   <VisualNestedSubcategoriesSection

@@ -425,12 +425,17 @@ export const useCategoryStore = create<CategoryState>((set, get) => {
       const q = collection(db, 'categories');
       onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
-          const fetchedCategories = snapshot.docs.map(doc => {
-            const catData = { id: doc.id, ...doc.data() } as Category;
-            return catData;
-          });
+          const deletedMetaDoc = snapshot.docs.find(d => d.id === '_deleted_metadata');
+          const externalDeletedIds = (deletedMetaDoc?.data()?.deletedIds as string[]) || [];
 
-          const mergedCats = mergeCategoryTreeWithDefaults(fetchedCategories);
+          const fetchedCategories = snapshot.docs
+            .filter(d => d.id !== '_deleted_metadata')
+            .map(doc => {
+              const catData = { id: doc.id, ...doc.data() } as Category;
+              return catData;
+            });
+
+          const mergedCats = mergeCategoryTreeWithDefaults(fetchedCategories, externalDeletedIds);
           mergedCats.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
           if (typeof window !== 'undefined') {
             try {
