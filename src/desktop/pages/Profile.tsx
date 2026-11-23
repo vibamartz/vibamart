@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Package, MapPin, Settings, Heart, Bell,
   CreditCard, ChevronRight, LogOut, Edit2, CheckCircle2,
-  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones, Wallet
+  Clock, ShieldCheck, Mail, Phone, Trash2, Plus, LayoutDashboard, Truck, FileText, Gift, Star, Headphones, Wallet, Globe
 } from 'lucide-react';
+import { useLanguage } from '../../shared/translations/LanguageContext';
 import InvoiceModal from '../components/InvoiceModal';
 import ReviewModal from '../../shared/components/ReviewModal';
 import { formatDeliveredDate } from '../../shared/utilities/dateUtils';
@@ -31,6 +32,8 @@ import Logo from '../components/Logo';
 export default function Profile() {
   const { user, setUser } = useAuthStore();
   const { settings } = useSettingsStore();
+  const { language, openLanguageModal, languages, strings: siteStrings } = useLanguage();
+  const currentLangOption = languages.find((l) => l.code === language) || languages[0];
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses' | 'waitlist' | 'wishlist' | 'settings' | null>(null);
   const [showPreferencesModal, setShowPreferencesModal] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -541,6 +544,7 @@ export default function Profile() {
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'addresses', label: 'Addresses', icon: MapPin },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'language', label: 'Change Language', icon: Globe, action: () => openLanguageModal(), badge: currentLangOption.nativeName },
     { id: 'terms-faq', label: 'Terms & FAQs', icon: FileText, path: '/faq' },
     { id: 'privacy-security', label: 'Privacy & Security', icon: ShieldCheck, path: '/privacy' },
     { id: 'contact-us', label: 'Contact Us (Help)', icon: Headphones, path: '/contact' },
@@ -586,8 +590,13 @@ export default function Profile() {
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                   >
-                    <item.icon className="w-5 h-5" />
-                    {item.label}
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    <span>{item.label}</span>
+                    {(item as any).badge && (
+                      <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                        {(item as any).badge}
+                      </span>
+                    )}
                     {activeTab === item.id && <ChevronRight className="w-4 h-4 ml-auto" />}
                   </button>
                 ))}
@@ -1145,6 +1154,28 @@ export default function Profile() {
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Account Settings</h2>
 
                     <div className="space-y-6">
+                      {/* Language Preference Setting */}
+                      <div className="p-6 bg-gray-50 rounded-3xl flex items-center justify-between group hover:bg-white hover:border-emerald-500/20 border border-transparent transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-white rounded-2xl shadow-sm text-emerald-600">
+                            <Globe className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-gray-900">{siteStrings.language || 'Language'}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Current: <span className="font-bold text-emerald-700">{currentLangOption.nativeName} ({currentLangOption.name})</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={openLanguageModal}
+                          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
+                        >
+                          {siteStrings.changeLanguage || 'Change Language'}
+                        </button>
+                      </div>
+
                       <div className="p-6 bg-gray-50 rounded-3xl flex items-center justify-between group hover:bg-white hover:border-primary/20 border border-transparent transition-all">
                         <div className="flex items-center gap-4">
                           <div className="p-3 bg-white rounded-2xl shadow-sm text-primary">

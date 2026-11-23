@@ -3,9 +3,10 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, ShoppingCart, User, Heart, Menu, X, LogOut, LayoutDashboard,
   Mic, Camera, TrendingUp, History, ArrowRight, Bell, MapPin, ChevronDown, ChevronLeft, ChevronRight,
-  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Loader2, Tag
+  Smartphone, Shirt, Laptop, Home as HomeIcon, Sparkles, Tv, Percent, Loader2, Tag, Globe
 } from 'lucide-react';
 import { useAuthStore, useCartStore, useCategoryStore, useSettingsStore } from '../../backend/store';
+import { useLanguage } from '../../shared/translations/LanguageContext';
 import { useLocationStore, formatHeaderAddress } from '../../shared/utilities/useLocationStore';
 import { auth, db, handleFirestoreError, OperationType } from '../../backend/firebase/firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
@@ -45,6 +46,8 @@ function highlightMatchingText(text: string, query: string) {
 }
 
 export default function Navbar() {
+  const { language, openLanguageModal, languages } = useLanguage();
+  const currentLangOption = languages.find((l) => l.code === language) || languages[0];
   const { settings } = useSettingsStore();
   const { categories: CATEGORIES, loading: catsLoading } = useCategoryStore();
   const navCategories = [
@@ -950,6 +953,18 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               )}
+              {/* Language Selector Button for Desktop */}
+              <button
+                type="button"
+                onClick={openLanguageModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 hover:border-green-600 bg-white hover:bg-green-50/50 text-gray-700 hover:text-green-800 transition-all text-xs font-black shadow-2xs cursor-pointer"
+                title="Change Language"
+                aria-label="Change Language"
+              >
+                <Globe className="w-4 h-4 text-green-600 shrink-0" />
+                <span className="text-gray-900">{currentLangOption.nativeName}</span>
+              </button>
+
               {user ? (
                 <Link to="/profile" className="relative group">
                   <div className="w-10 h-10 rounded-full border-2 border-gray-100 p-0.5 overflow-hidden transition-all group-hover:border-primary">
@@ -974,6 +989,15 @@ export default function Navbar() {
 
             {/* Mobile Actions (Always Visible) */}
             <div className="flex md:hidden items-center gap-1 sm:gap-3">
+              <button
+                type="button"
+                onClick={openLanguageModal}
+                className="text-gray-600 p-2 touch-target flex items-center justify-center hover:text-green-700 cursor-pointer"
+                title="Change Language"
+                aria-label="Change Language"
+              >
+                <Globe className="w-5 h-5 text-green-600" />
+              </button>
               {notifications.length > 0 && (
                 <button
                   onClick={() => setIsNotificationsOpen(true)}

@@ -25,6 +25,7 @@ export interface UserProfile {
   cart?: CartItem[];
   isVerified?: boolean;
   accountStatus?: 'active' | 'suspended';
+  preferredLanguage?: string;
 }
 
 export interface Address {

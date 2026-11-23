@@ -5,21 +5,36 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from './backend/store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, RefreshCw, User as UserIcon, Mail, ShieldCheck, Phone, Globe, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from './desktop/components/Logo';
 import axios from 'axios';
 import { ViBaPermissionManager } from './services/ViBaPermissionManager';
+import LanguageSelectionGrid from './shared/components/LanguageSelectionGrid';
+import { useLanguage } from './shared/translations/LanguageContext';
+import {
+  SupportedLanguage,
+  SUPPORTED_LANGUAGES,
+  AUTH_TRANSLATIONS,
+} from './shared/translations/authTranslations';
 
-type Step = 'auth' | 'otp' | 'profile';
+type Step = 'language' | 'auth' | 'otp' | 'profile';
 type Mode = 'login' | 'signup';
 
 const RESEND_DELAY = 60;
 
 export default function Login() {
   const [mode, setMode] = useState<Mode>('login');
-  const [step, setStep] = useState<Step>('auth');
+  // Always display "Choose Your Language" screen before the Login / Signup page
+  const [step, setStep] = useState<Step>('language');
   const [loading, setLoading] = useState(false);
+
+  const { language, setLanguage, strings: siteStrings } = useLanguage();
+  const t = AUTH_TRANSLATIONS[language] || AUTH_TRANSLATIONS.en;
+
+  const handleLanguageChange = (newLang: SupportedLanguage) => {
+    setLanguage(newLang);
+  };
 
   // Email Auth
   const [emailAddress, setEmailAddress] = useState('');
@@ -53,12 +68,11 @@ export default function Login() {
       ViBaPermissionManager.requestSmsOtpAutofill().then(code => {
         if (code && code.length === 6) {
           setOtpDigits(code.split(''));
-          toast.success('SMS OTP autofilled securely!');
+          toast.success(t.smsAutofilled || 'SMS OTP autofilled securely!');
         }
       });
     }
-  }, [step]);
-
+  }, [step, t.smsAutofilled]);
 
   const startResendTimer = () => {
     setResendTimer(RESEND_DELAY);
@@ -76,7 +90,7 @@ export default function Login() {
 
   const sendOtp = async (isResend = false) => {
     if (!emailAddress || !/^\S+@\S+\.\S+$/.test(emailAddress)) {
-      toast.error('Invalid email or password.');
+      toast.error(t.invalidEmail || 'Invalid email or password.');
       return;
     }
     setLoading(true);
@@ -86,7 +100,7 @@ export default function Login() {
         setStep('otp');
         setOtpDigits(['', '', '', '', '', '']);
         startResendTimer();
-        toast.success(isResend ? 'OTP resent!' : 'OTP sent to your email!');
+        toast.success(isResend ? (t.otpResent || 'OTP resent!') : (t.otpSent || 'OTP sent to your email!'));
         setTimeout(() => otpRefs.current[0]?.focus(), 200);
       } else {
         throw new Error(response.data.error || 'Failed to send OTP');
@@ -141,7 +155,7 @@ export default function Login() {
     e.preventDefault();
     const otpCode = otpDigits.join('');
     if (otpCode.length < 6) {
-      toast.warning('Please enter the complete 6-digit OTP');
+      toast.warning(t.enterCompleteOtp || 'Please enter the complete 6-digit OTP');
       return;
     }
 
@@ -161,7 +175,7 @@ export default function Login() {
           setStep('profile');
         } else {
           await syncUser(firebaseUser);
-          toast.success('Login successful! Welcome back.');
+          toast.success(t.loginSuccess || 'Login successful! Welcome back.');
           navigate('/');
         }
       } else {
@@ -190,12 +204,12 @@ export default function Login() {
         setStep('profile');
       } else {
         await syncUser(firebaseUser);
-        toast.success('Login successful! Welcome back.');
+        toast.success(t.loginSuccess || 'Login successful! Welcome back.');
         navigate('/');
       }
     } catch (error: any) {
       console.error("Google Sign-In Error:", error);
-      toast.error('Login failed. Please try again.');
+      toast.error(t.loginFailed || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -204,22 +218,22 @@ export default function Login() {
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || displayName.trim().length < 2) {
-      toast.warning('Please enter your full name');
+      toast.warning(t.enterFullName || 'Please enter your full name');
       return;
     }
     if (!contactNumber || contactNumber.trim().length < 7) {
-      toast.warning('Please enter a valid contact number');
+      toast.warning(t.enterValidPhone || 'Please enter a valid contact number');
       return;
     }
     setLoading(true);
     try {
       if (!tempFirebaseUser) throw new Error('No temp user');
       await syncUser(tempFirebaseUser, displayName.trim(), contactNumber.trim());
-      toast.success('Your account has been created successfully.');
+      toast.success(t.accountCreated || 'Your account has been created successfully.');
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      toast.error('Registration failed. Please try again.');
+      toast.error(t.registrationFailed || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -241,6 +255,7 @@ export default function Login() {
         role: userEmail === 'vk311779@gmail.com' ? 'super_admin' : 'customer',
         isVerified: true,
         accountStatus: 'active',
+        preferredLanguage: language,
         createdAt: now,
         lastLoginAt: now,
       };
@@ -254,6 +269,7 @@ export default function Login() {
         isVerified: true,
         accountStatus: 'active',
         lastLoginAt: now,
+        preferredLanguage: language,
       };
 
       if (isAdmin && userData.role !== 'admin' && userData.role !== 'super_admin') {
@@ -274,6 +290,7 @@ export default function Login() {
       userData.isVerified = true;
       userData.accountStatus = 'active';
       userData.lastLoginAt = now;
+      userData.preferredLanguage = language;
       setUser(userData);
     }
   };
@@ -282,24 +299,73 @@ export default function Login() {
   const isOtpComplete = otpCode.length === 6;
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center px-4 py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-10 sm:py-12 bg-gradient-to-br from-green-50 via-white to-emerald-50">
       <motion.div
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="max-w-md w-full"
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className={`w-full transition-all duration-300 ${
+          step === 'language' ? 'max-w-xl' : 'max-w-md'
+        }`}
       >
         <div className="bg-white rounded-3xl shadow-2xl shadow-green-100/60 border border-green-100/80 overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-400" />
 
-          <div className="p-8 sm:p-10">
-            <div className="flex justify-center mb-8">
-              <Link to="/" className="hover:opacity-80 transition-opacity">
-                <Logo className="scale-125" showTextOnMobile={true} />
-              </Link>
-            </div>
-
+          <div className="p-6 sm:p-9">
             <AnimatePresence mode="wait">
+              {step === 'language' && (
+                <motion.div
+                  key="language-step"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-6"
+                >
+                  {/* Brand Header & Title */}
+                  <div className="text-center">
+                    <div className="flex justify-center mb-4">
+                      <Link to="/" className="hover:opacity-85 transition-opacity">
+                        <Logo className="scale-125" showTextOnMobile={true} />
+                      </Link>
+                    </div>
+
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 text-[11px] font-black uppercase tracking-wider mb-2">
+                      <Globe className="w-3.5 h-3.5 text-green-600" />
+                      <span>{siteStrings.language || 'Language'}</span>
+                    </div>
+
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                      {siteStrings.chooseYourLanguage || 'Choose Your Language'}
+                    </h1>
+                    <p className="text-gray-500 text-xs sm:text-sm font-medium mt-1">
+                      {siteStrings.chooseYourLanguageSubtitle || 'Select your preferred language to continue'}
+                    </p>
+                  </div>
+
+                  {/* 12 Language Options Grid */}
+                  <LanguageSelectionGrid
+                    selectedLanguage={language}
+                    onSelectLanguage={handleLanguageChange}
+                  />
+
+                  {/* Continue Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setStep('auth')}
+                      className="w-full bg-green-600 hover:bg-green-700 active:scale-[0.99] text-white py-4 rounded-2xl font-black shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 text-base cursor-pointer"
+                    >
+                      <span>{siteStrings.continueBtn || 'Continue'}</span>
+                      <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                    </button>
+                    <p className="text-center text-[11px] text-gray-400 font-medium mt-3">
+                      {siteStrings.proceedToLogin || 'Proceed to Login / Sign In'}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               {step === 'auth' && (
                 <motion.div
                   key="auth"
@@ -308,34 +374,69 @@ export default function Login() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
+                  {/* Change Language bar */}
+                  <div className="mb-6 flex items-center justify-between p-2 px-3 bg-green-50/70 border border-green-200/80 rounded-2xl">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-xl bg-white shadow-2xs border border-green-200 flex items-center justify-center text-green-700 shrink-0">
+                        <Globe className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-green-800/80 tracking-wider">
+                          {t.languageLabel || 'Language'}
+                        </span>
+                        <span className="text-xs font-black text-gray-900 truncate">
+                          {SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeName || 'English'}
+                          {language !== 'en' && (
+                            <span className="text-gray-500 font-semibold text-[11px] ml-1">
+                              ({SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setStep('language')}
+                      className="px-2.5 py-1 rounded-xl text-xs font-black text-green-700 hover:text-green-900 bg-white hover:bg-green-100/60 border border-green-200 shadow-2xs transition-all cursor-pointer"
+                    >
+                      {siteStrings.change || 'Change'}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center mb-6">
+                    <Link to="/" className="hover:opacity-80 transition-opacity">
+                      <Logo className="scale-125" showTextOnMobile={true} />
+                    </Link>
+                  </div>
+
                   <div className="flex bg-gray-100 rounded-2xl p-1 mb-8">
                     {(['login', 'signup'] as Mode[]).map((m) => (
                       <button
                         key={m}
                         onClick={() => setMode(m)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${mode === m
-                          ? 'bg-white text-green-700 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600'
-                          }`}
+                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                          mode === m
+                            ? 'bg-white text-green-700 shadow-sm'
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}
                       >
-                        {m === 'login' ? 'Log In' : 'Sign Up'}
+                        {m === 'login' ? t.logIn : t.signUp}
                       </button>
                     ))}
                   </div>
 
                   <h2 className="text-2xl font-black text-gray-900 mb-1">
-                    {mode === 'login' ? 'Welcome back! 👋' : 'Create account 🎉'}
+                    {mode === 'login' ? t.welcomeBack : t.createAccount}
                   </h2>
                   <p className="text-gray-400 text-sm font-medium mb-8">
-                    {mode === 'login'
-                      ? 'Sign in to access your orders & wishlist'
-                      : 'Join ViBa Mart and start shopping today'}
+                    {mode === 'login' ? t.loginSubtitle : t.signupSubtitle}
                   </p>
 
                   <form onSubmit={handleRequestOtp} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Email Address
+                        {t.emailAddress}
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -343,7 +444,7 @@ export default function Login() {
                           type="email"
                           value={emailAddress}
                           onChange={(e) => setEmailAddress(e.target.value)}
-                          placeholder="you@example.com"
+                          placeholder={t.emailPlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -356,13 +457,13 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <Mail className="w-5 h-5" />
-                      {loading ? 'Sending OTP...' : mode === 'signup' ? 'Send OTP to Verify' : 'Get OTP'}
+                      {loading ? t.sendingOtp : mode === 'signup' ? t.sendOtpToVerify : t.getOtp}
                     </button>
                   </form>
 
                   <div className="mt-6 flex items-center gap-4">
                     <div className="h-px flex-1 bg-gray-100" />
-                    <span className="text-xs font-bold text-gray-400 uppercase">OR</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">{t.or}</span>
                     <div className="h-px flex-1 bg-gray-100" />
                   </div>
 
@@ -377,15 +478,14 @@ export default function Login() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Continue with Google
+                    {t.continueWithGoogle}
                   </button>
 
-
                   <p className="mt-6 text-center text-[11px] text-gray-400 font-medium leading-relaxed">
-                    By continuing, you agree to ViBa Mart's{' '}
-                    <Link to="/terms" className="text-green-600 underline decoration-green-200">Terms</Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">Privacy Policy</Link>
+                    {t.termsNotice}{' '}
+                    <Link to="/terms" className="text-green-600 underline decoration-green-200">{t.terms}</Link>{' '}
+                    {t.and}{' '}
+                    <Link to="/privacy" className="text-green-600 underline decoration-green-200">{t.privacyPolicy}</Link>
                   </p>
                 </motion.div>
               )}
@@ -404,9 +504,9 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Verify OTP</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.verifyOtpTitle}</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    Enter the 6-digit code sent to{' '}
+                    {t.enterCodeSentTo}{' '}
                     <span className="text-gray-700 font-bold">{emailAddress}</span>
                   </p>
 
@@ -437,14 +537,14 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? 'Verifying...' : 'Verify & Continue'}
+                      {loading ? t.verifying : t.verifyAndContinue}
                     </button>
                   </form>
 
                   <div className="flex items-center justify-center mt-6 gap-2">
                     {resendTimer > 0 ? (
                       <p className="text-sm text-gray-400 font-medium">
-                        Resend OTP in{' '}
+                        {t.resendOtpIn}{' '}
                         <span className="font-black text-green-600 tabular-nums">{resendTimer}s</span>
                       </p>
                     ) : (
@@ -454,7 +554,7 @@ export default function Login() {
                         className="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-4 h-4" />
-                        Resend OTP
+                        {t.resendOtp}
                       </button>
                     )}
                   </div>
@@ -468,7 +568,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    Change Email
+                    {t.changeEmail}
                   </button>
                 </motion.div>
               )}
@@ -487,15 +587,15 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">One last step 🙌</h2>
+                  <h2 className="text-2xl font-black text-gray-900 text-center mb-1">{t.oneLastStep}</h2>
                   <p className="text-gray-400 text-sm font-medium text-center mb-8">
-                    Tell us a little about yourself to complete your account
+                    {t.profileSubtitle}
                   </p>
 
                   <form onSubmit={handleCompleteProfile} className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Full Name <span className="text-red-400">*</span>
+                        {t.fullName} <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -503,7 +603,7 @@ export default function Login() {
                           type="text"
                           value={displayName}
                           onChange={(e) => setDisplayName(e.target.value)}
-                          placeholder="e.g. Rahul Sharma"
+                          placeholder={t.fullNamePlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                           autoFocus
@@ -513,7 +613,7 @@ export default function Login() {
 
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                        Contact Number <span className="text-red-400">*</span>
+                        {t.contactNumber} <span className="text-red-400">*</span>
                       </label>
                       <div className="relative">
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
@@ -521,7 +621,7 @@ export default function Login() {
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
-                          placeholder="e.g. 9876543210"
+                          placeholder={t.contactPlaceholder}
                           className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl pl-12 pr-5 py-3.5 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-50 transition-all font-bold placeholder:text-gray-300 text-gray-900"
                           required
                         />
@@ -534,7 +634,7 @@ export default function Login() {
                       className="w-full bg-green-600 text-white py-4 rounded-2xl font-black hover:bg-green-700 shadow-lg shadow-green-200 transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-2"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {loading ? 'Creating account...' : 'Complete Sign Up'}
+                      {loading ? t.creatingAccount : t.completeSignUp}
                     </button>
                   </form>
 
@@ -547,7 +647,7 @@ export default function Login() {
                     className="w-full mt-4 flex items-center justify-center gap-2 text-gray-400 font-bold hover:text-gray-600 transition-colors py-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    Cancel & Restart
+                    {t.cancelAndRestart}
                   </button>
                 </motion.div>
               )}
@@ -556,7 +656,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-[11px] text-gray-400 font-medium mt-4">
-          🔒 Secured by Google Firebase
+          {t.securedBy}
         </p>
       </motion.div>
     </div>
