@@ -18,6 +18,7 @@ import {
 import { motion } from 'motion/react';
 import { formatProductCode, cleanProductCode, generateUniqueProductCode } from '../../shared/utilities/productCode';
 import { useCategoryStore, useVisualNestedSubcategoryStore, useInventoryBrandSectionStore } from '../../backend/store';
+import { isBrandSectionDeleted } from '../../backend/services/inventoryBrandSectionService';
 import { buildFlatCategoryHierarchy, getProductAssignmentNodes } from '../../shared/utilities/categoryHierarchyUtils';
 import { removeProductFromCategoryNode } from '../../backend/services/productAssignmentService';
 
@@ -642,7 +643,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
       // 9. Internal Brand Section Filter (Exclusively for internal inventory organization)
       if (activeBrandSectionId !== 'all') {
         if (activeBrandSectionId === 'unassigned') {
-          const validSectionIds = new Set(brandSections.map(s => s.id));
+          const validSectionIds = new Set(brandSections.filter(s => !isBrandSectionDeleted(s)).map(s => s.id));
           if (p.inventorySectionId && validSectionIds.has(p.inventorySectionId)) {
             return false;
           }
@@ -1190,7 +1191,7 @@ function ProductListView({ onAddProduct, onEditProduct, onDeleteProduct }: {
                             {/* Internal Brand Section Indicator */}
                             <div className="flex items-center gap-1.5 mt-1">
                               {(() => {
-                                const sec = brandSections.find(s => s.id === product.inventorySectionId);
+                                const sec = brandSections.find(s => s.id === product.inventorySectionId && !isBrandSectionDeleted(s));
                                 return (
                                   <button
                                     type="button"

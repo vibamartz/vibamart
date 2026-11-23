@@ -30,7 +30,8 @@ import {
   assignProductToBrandSection,
   bulkAssignProductsToBrandSection,
   getDeletedBrandSectionIds,
-  recordDeletedBrandSectionId
+  recordDeletedBrandSectionId,
+  isBrandSectionDeleted
 } from "./services/inventoryBrandSectionService";
 
 
@@ -1257,14 +1258,14 @@ export interface InventoryBrandSectionState {
   initSections: () => () => void;
   addSection: (name: string) => Promise<InventoryBrandSection>;
   renameSection: (id: string, name: string) => Promise<void>;
-  deleteSection: (id: string, allProducts: Product[]) => Promise<{ unassignedCount: number }>;
+  deleteSection: (id: string, allProducts: Product[], name?: string) => Promise<{ unassignedCount: number }>;
   assignProduct: (productId: string, sectionId: string | null) => Promise<void>;
   bulkAssignProducts: (productIds: string[], sectionId: string | null) => Promise<void>;
 }
 
 export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>((set, get) => ({
   sections: DEFAULT_BRAND_SECTIONS
-    .filter(s => !getDeletedBrandSectionIds().has(s.id))
+    .filter(s => !isBrandSectionDeleted(s))
     .map(s => ({ ...s, createdAt: '', updatedAt: '' })),
   loading: true,
   initialized: false,
@@ -1286,7 +1287,7 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
 
       if (!snapshot.empty) {
         const fetched = snapshot.docs
-          .filter(d => d.id !== '_deleted_metadata' && !deletedIds.has(d.id))
+          .filter(d => d.id !== '_deleted_metadata' && !isBrandSectionDeleted({ id: d.id, name: (d.data() as any)?.name }, deletedIds))
           .map(docSnap => ({
             id: docSnap.id,
             ...docSnap.data()
@@ -1297,7 +1298,7 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
       } else {
         // Fallback to default sections if empty
         const defaultsWithDates = DEFAULT_BRAND_SECTIONS
-          .filter(s => !deletedIds.has(s.id))
+          .filter(s => !isBrandSectionDeleted(s, deletedIds))
           .map(s => ({
             ...s,
             createdAt: new Date().toISOString(),
@@ -1310,7 +1311,7 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
       handleFirestoreError(error, OperationType.LIST, INVENTORY_BRAND_SECTIONS_COLLECTION, false);
       const deletedIds = getDeletedBrandSectionIds();
       const defaultsWithDates = DEFAULT_BRAND_SECTIONS
-        .filter(s => !deletedIds.has(s.id))
+        .filter(s => !isBrandSectionDeleted(s, deletedIds))
         .map(s => ({
           ...s,
           createdAt: new Date().toISOString(),
@@ -1339,14 +1340,14 @@ export const useInventoryBrandSectionStore = create<InventoryBrandSectionState>(
     }));
   },
 
-  deleteSection: async (id: string, allProducts: Product[]) => {
-    // Record deleted ID immediately and optimistically remove from local state
-    recordDeletedBrandSectionId(id);
+  deleteSection: async (id: string, allProducts: Product[], name?: string) => {
+    // Record deleted ID and name immediately and optimistically remove from local state
+    recordDeletedBrandSectionId(id, name);
     set(state => ({
-      sections: state.sections.filter(s => s.id !== id)
+      sections: state.sections.filter(s => !isBrandSectionDeleted(s))
     }));
 
-    const result = await deleteInventoryBrandSection(id, allProducts);
+    const result = await deleteInventoryBrandSection(id, allProducts, name);
     return result;
   },
 

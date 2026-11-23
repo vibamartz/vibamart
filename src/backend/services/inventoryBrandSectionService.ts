@@ -13,6 +13,7 @@ import {
 import { db } from '../firebase/firebase';
 import { InventoryBrandSection, Product } from '../../shared/types';
 import { logAdminAction, AdminAction } from './adminLogService';
+import { createSlug } from '../../shared/utilities/slug';
 
 export const INVENTORY_BRAND_SECTIONS_COLLECTION = 'inventory_brand_sections';
 const DELETED_BRAND_SECTIONS_STORAGE_KEY = 'viba_deleted_brand_section_ids';
@@ -32,17 +33,49 @@ export function getDeletedBrandSectionIds(): Set<string> {
 }
 
 /**
- * Record a deleted brand section ID so it is permanently prevented from resurrecting.
+ * Record a deleted brand section ID and name so it is permanently prevented from resurrecting or blinking.
  */
-export function recordDeletedBrandSectionId(id: string): void {
-  if (!id) return;
+export function recordDeletedBrandSectionId(id: string, name?: string): void {
+  if (!id && !name) return;
   try {
     const set = getDeletedBrandSectionIds();
-    set.add(id);
+    if (id) {
+      set.add(id);
+      set.add(id.trim().toLowerCase());
+    }
+    if (name) {
+      const trimmed = name.trim();
+      set.add(trimmed);
+      set.add(trimmed.toLowerCase());
+      const slug = createSlug(trimmed);
+      if (slug) {
+        set.add(slug);
+        set.add(slug.toLowerCase());
+      }
+    }
     localStorage.setItem(DELETED_BRAND_SECTIONS_STORAGE_KEY, JSON.stringify(Array.from(set)));
   } catch (err) {
     console.error('Failed to store deleted brand section ID in localStorage:', err);
   }
+}
+
+/**
+ * Check whether a brand section is marked as deleted by ID, name, or slug.
+ */
+export function isBrandSectionDeleted(section: { id?: string; name?: string }, deletedSet?: Set<string>): boolean {
+  if (!section) return false;
+  const set = deletedSet || getDeletedBrandSectionIds();
+  const id = (section.id || '').trim().toLowerCase();
+  const name = (section.name || '').trim().toLowerCase();
+  const slug = createSlug(section.name || '').trim().toLowerCase();
+
+  for (const del of set) {
+    const dLower = del.trim().toLowerCase();
+    if (id === dLower || name === dLower || slug === dLower) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -71,7 +104,7 @@ export async function seedInventoryBrandSectionsIfEmpty(): Promise<void> {
       let count = 0;
 
       for (const def of DEFAULT_BRAND_SECTIONS) {
-        if (deletedIds.has(def.id)) continue;
+        if (isBrandSectionDeleted(def, deletedIds)) continue;
         const docRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, def.id);
         const sectionData: InventoryBrandSection = {
           id: def.id,
@@ -184,10 +217,11 @@ export async function renameInventoryBrandSection(
  */
 export async function deleteInventoryBrandSection(
   id: string,
-  allProducts: Product[] = []
+  allProducts: Product[] = [],
+  name?: string
 ): Promise<{ unassignedCount: number }> {
-  // Always record deleted ID first so it can never resurrect
-  recordDeletedBrandSectionId(id);
+  // Always record deleted ID, name and slug first so it can never resurrect or blink
+  recordDeletedBrandSectionId(id, name);
 
   // Find all products currently assigned to this section
   const affectedProducts = allProducts.filter(p => p.inventorySectionId === id);
@@ -227,7 +261,16 @@ export async function deleteInventoryBrandSection(
   // Record in Firestore _deleted_metadata so other clients know it is deleted
   try {
     const metaRef = doc(db, INVENTORY_BRAND_SECTIONS_COLLECTION, '_deleted_metadata');
-    await setDoc(metaRef, { deletedIds: arrayUnion(id) }, { merge: true });
+    const toUnion = [id, id.trim().toLowerCase()];
+    if (name) {
+      const trimmed = name.trim();
+      toUnion.push(trimmed, trimmed.toLowerCase());
+      const slug = createSlug(trimmed);
+      if (slug) {
+        toUnion.push(slug, slug.toLowerCase());
+      }
+    }
+    await setDoc(metaRef, { deletedIds: arrayUnion(...toUnion.filter(Boolean)) }, { merge: true });
   } catch (metaError) {
     // Non-blocking
   }

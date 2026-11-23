@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { InventoryBrandSection, Product } from '../../shared/types';
 import { useInventoryBrandSectionStore } from '../../backend/store';
+import { isBrandSectionDeleted } from '../../backend/services/inventoryBrandSectionService';
 import toast from 'react-hot-toast';
 import {
   Tag, Plus, Edit2, Trash2, Check, X, Search, CheckSquare, Square,
@@ -53,7 +54,7 @@ export default function BrandSectionsBar({
   const sectionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     let unassigned = 0;
-    const validSectionIds = new Set(sections.map(s => s.id));
+    const validSectionIds = new Set(sections.filter(s => !isBrandSectionDeleted(s)).map(s => s.id));
 
     products.forEach(p => {
       if (p.inventorySectionId && validSectionIds.has(p.inventorySectionId)) {
@@ -67,7 +68,10 @@ export default function BrandSectionsBar({
   }, [products, sections]);
 
   const activeSection = useMemo(() => {
-    return sections.find(s => s.id === activeSectionId) || null;
+    if (!activeSectionId || activeSectionId === 'all' || activeSectionId === 'unassigned') return null;
+    const sec = sections.find(s => s.id === activeSectionId);
+    if (!sec || isBrandSectionDeleted(sec)) return null;
+    return sec;
   }, [sections, activeSectionId]);
 
   // Handle Add Section
@@ -126,26 +130,24 @@ export default function BrandSectionsBar({
   const handleDeleteSection = async () => {
     if (!deletingSection) return;
     const targetSection = deletingSection;
+
+    // Immediately dismiss modal and switch active selection so deleted brand never lingers or blinks
+    setDeletingSection(null);
+    if (activeSectionId === targetSection.id) {
+      onSelectSection('all');
+    }
+    onSectionDeleted?.(targetSection.id);
+
     setIsDeleting(true);
     const toastId = toast.loading(`Deleting brand "${targetSection.name}"...`);
     try {
-      const result = await deleteSection(targetSection.id, products);
-      if (activeSectionId === targetSection.id) {
-        onSelectSection('all');
-      }
-      onSectionDeleted?.(targetSection.id);
-      setDeletingSection(null);
+      const result = await deleteSection(targetSection.id, products, targetSection.name);
       toast.success(
         `Deleted brand "${targetSection.name}". ${result?.unassignedCount ?? 0} product(s) safely unassigned.`,
         { id: toastId }
       );
     } catch (err: any) {
       console.error('Delete brand section error:', err);
-      if (activeSectionId === targetSection.id) {
-        onSelectSection('all');
-      }
-      onSectionDeleted?.(targetSection.id);
-      setDeletingSection(null);
       toast.success(`Deleted brand "${targetSection.name}".`, { id: toastId });
     } finally {
       setIsDeleting(false);
@@ -254,7 +256,7 @@ export default function BrandSectionsBar({
         </button>
 
         {/* Dynamic Brand Sections */}
-        {sections.map(section => {
+        {sections.filter(s => !isBrandSectionDeleted(s)).map(section => {
           const isSelected = activeSectionId === section.id;
           const count = sectionCounts.counts[section.id] || 0;
 
