@@ -22,23 +22,16 @@ export default function MobileCategoriesScreen() {
   const { addItem, items: cartItems } = useCartStore();
   const navigate = useNavigate();
 
-  const [activeCategoryId, setActiveCategoryId] = useState<string>(categories[0]?.id || 'all-deals');
+  // null = "no explicit user pick yet" → always show categories[0] automatically.
+  // Once the user clicks a sidebar item this holds the chosen id and is never
+  // overridden by any effect, so the heading always reflects the actual click.
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [selectedSubCatId, setSelectedSubCatId] = useState<string | null>(null);
   const [selectedNestedSubCatId, setSelectedNestedSubCatId] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Sync active category when categories first load (only if the current id is not found).
-  // Do NOT include activeCategoryId in deps — that would fight user selections made while
-  // categories are still loading and cause the heading to snap back to categories[0].
-  useEffect(() => {
-    if (categories.length > 0 && !categories.some(c => c.id === activeCategoryId)) {
-      setActiveCategoryId(categories[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories]);
 
   // Fetch real products & banners from Firestore
   useEffect(() => {
@@ -67,8 +60,13 @@ export default function MobileCategoriesScreen() {
     };
   }, []);
 
+  // When activeCategoryId is null (page load, no click yet) always show categories[0].
+  // After a click it holds the exact chosen id — no effect can override it.
   const selectedCategory = useMemo(() => {
-    return categories.find(c => c.id === activeCategoryId) || categories[0];
+    if (activeCategoryId) {
+      return categories.find(c => c.id === activeCategoryId) ?? categories[0];
+    }
+    return categories[0];
   }, [categories, activeCategoryId]);
 
   const categoryBanners = useMemo(() => {
@@ -206,7 +204,7 @@ export default function MobileCategoriesScreen() {
         {/* Left Sidebar (Categories with Unified Logo Style) */}
         <div className="w-22 sm:w-24 bg-white border-r border-yellow-100/80 overflow-y-auto overscroll-contain hide-scrollbar py-2 pb-6 space-y-1 shrink-0 min-h-0">
           {categories.map((cat) => {
-            const isActive = cat.id === activeCategoryId;
+            const isActive = cat.id === selectedCategory?.id;
             return (
               <motion.button
                 key={cat.id}
