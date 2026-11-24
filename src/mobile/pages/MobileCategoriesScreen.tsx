@@ -30,12 +30,15 @@ export default function MobileCategoriesScreen() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Sync active category fallback when categories load
+  // Sync active category when categories first load (only if the current id is not found).
+  // Do NOT include activeCategoryId in deps — that would fight user selections made while
+  // categories are still loading and cause the heading to snap back to categories[0].
   useEffect(() => {
     if (categories.length > 0 && !categories.some(c => c.id === activeCategoryId)) {
       setActiveCategoryId(categories[0].id);
     }
-  }, [categories, activeCategoryId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories]);
 
   // Fetch real products & banners from Firestore
   useEffect(() => {
