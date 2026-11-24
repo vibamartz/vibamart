@@ -84,8 +84,7 @@ export function isBrandSectionDeleted(section: { id?: string; name?: string }, d
  */
 export const DEFAULT_BRAND_SECTIONS: Omit<InventoryBrandSection, 'createdAt' | 'updatedAt'>[] = [
   { id: 'section_shopsy', name: 'Shopsy', order: 1 },
-  { id: 'section_deodap', name: 'DeoDap', order: 2 },
-  { id: 'section_brand3', name: 'Brand 3', order: 3 }
+  { id: 'section_deodap', name: 'DeoDap', order: 2 }
 ];
 
 /**
@@ -93,6 +92,10 @@ export const DEFAULT_BRAND_SECTIONS: Omit<InventoryBrandSection, 'createdAt' | '
  * Guarantees no recreation on every reload or deployment.
  */
 export async function seedInventoryBrandSectionsIfEmpty(): Promise<void> {
+  // Always ensure Brand 3 (section_brand3) is permanently recorded as deleted
+  // so it can never reappear, blink, or be re-seeded regardless of Firestore state.
+  recordDeletedBrandSectionId('section_brand3', 'Brand 3');
+
   try {
     const deletedIds = getDeletedBrandSectionIds();
     const colRef = collection(db, INVENTORY_BRAND_SECTIONS_COLLECTION);

@@ -497,7 +497,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
 
           const updatedSubs = (parentCat.subcategories || []).filter(s => s.id !== subId);
           const updatedCat = { ...parentCat, subcategories: updatedSubs };
-          const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          let sanitizedPayload: any;
+          try {
+            sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          } catch {
+            sanitizedPayload = cleanForFirestore(updatedCat);
+          }
           await setDoc(doc(db, 'categories', catId), sanitizedPayload, { merge: true });
 
           nextCategories = categories.map(c => c.id === catId ? (sanitizedPayload as Category) : c);
@@ -521,7 +526,12 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
             return sub;
           });
           const updatedCat = { ...parentCat, subcategories: updatedSubs };
-          const sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          let sanitizedPayload: any;
+          try {
+            sanitizedPayload = await sanitizeAndUploadCategoryDoc(updatedCat);
+          } catch {
+            sanitizedPayload = cleanForFirestore(updatedCat);
+          }
           await setDoc(doc(db, 'categories', catId), sanitizedPayload, { merge: true });
 
           nextCategories = categories.map(c => c.id === catId ? (sanitizedPayload as Category) : c);

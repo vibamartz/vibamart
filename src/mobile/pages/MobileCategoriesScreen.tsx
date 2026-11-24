@@ -298,14 +298,9 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 2: Subcategories Grid - Increased size, zero horizontal gap, container removed */}
-                {selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
+                {/* Level 2: Subcategories Grid – shown only when no subcategory is selected */}
+                {!selectedSubCatId && selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between px-0.5">
-                      <span className="text-xs font-black text-gray-900">
-                        {selectedCategory.name} Subcategories
-                      </span>
-                    </div>
                     <ResponsiveCategoryGrid
                       items={selectedCategory.subcategories}
                       boxSizeClass="w-12 h-12 sm:w-14 sm:h-14"
@@ -320,14 +315,9 @@ export default function MobileCategoriesScreen() {
                   </div>
                 )}
 
-                {/* Level 3: Nested Subcategories Grid */}
-                {availableNestedSubcategories && availableNestedSubcategories.length > 0 && (
+                {/* Level 3: Nested Subcategories Grid – shown only when a subcategory is selected */}
+                {selectedSubCatId && availableNestedSubcategories && availableNestedSubcategories.length > 0 && (
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between px-0.5">
-                      <span className="text-xs font-black text-gray-900">
-                        {selectedSubCategory ? `${selectedSubCategory.name} Nested Subcategories` : 'Nested Subcategories'}
-                      </span>
-                    </div>
                     <ResponsiveCategoryGrid
                       items={availableNestedSubcategories}
                       boxSizeClass="w-12 h-12 sm:w-14 sm:h-14"

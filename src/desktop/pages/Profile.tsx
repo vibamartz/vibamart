@@ -586,8 +586,8 @@ export default function Profile() {
                     key={item.id}
                     onClick={() => (item as any).action ? (item as any).action() : item.path ? navigate(item.path) : setActiveTab(item.id as any)}
                     className={`w-full touch-target min-h-[44px] flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${activeTab === item.id
-                        ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-[1.02]'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                   >
                     <item.icon className="w-5 h-5 shrink-0" />
@@ -854,10 +854,10 @@ export default function Profile() {
                                   <div className="flex flex-col items-end">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Status</span>
                                     <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status) ? 'bg-red-100 text-red-600' :
-                                        order.status === 'returned' ? 'bg-rose-100 text-rose-700' :
-                                          order.status === 'refunded' ? 'bg-rose-100 text-rose-700' :
-                                            order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                                              'bg-blue-100 text-blue-600'
+                                      order.status === 'returned' ? 'bg-rose-100 text-rose-700' :
+                                        order.status === 'refunded' ? 'bg-rose-100 text-rose-700' :
+                                          order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                                            'bg-blue-100 text-blue-600'
                                       }`}>
                                       {['cancelled', 'cancel_requested', 'cancel_rejected'].includes(order.status) ? 'Canceled' :
                                         order.status === 'returned' ? 'Returned' :
@@ -1172,7 +1172,7 @@ export default function Profile() {
                           onClick={openLanguageModal}
                           className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
                         >
-                          {siteStrings.changeLanguage || 'Change Language'}
+                          {siteStrings.changeLanguage || 'Language'}
                         </button>
                       </div>
 
@@ -1665,8 +1665,8 @@ function AddressModal({
                   type="button"
                   onClick={() => setAddress({ ...address, label: lbl })}
                   className={`px-4 py-2 touch-target min-h-[44px] rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${(address.label || 'Home') === lbl
-                      ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                      : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
+                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'
                     }`}
                 >
                   {lbl}

@@ -126,7 +126,7 @@ export default function MobileProfileScreen() {
     { title: 'Notification Settings', icon: Bell, badge: null, color: 'text-purple-600 bg-purple-50', action: () => setShowPreferencesModal(true) },
     { title: 'Terms & FAQs', icon: FileText, path: '/faq', badge: null, color: 'text-indigo-600 bg-indigo-50' },
     { title: 'Privacy & Security', icon: ShieldCheck, path: '/privacy', badge: null, color: 'text-teal-600 bg-teal-50' },
-    { title: 'Change Language', icon: Globe, badge: currentLangOption.nativeName, color: 'text-emerald-700 bg-emerald-50', action: () => openLanguageModal() },
+    { title: 'Language', icon: Globe, badge: currentLangOption.nativeName, color: 'text-emerald-700 bg-emerald-50', action: () => openLanguageModal() },
     { title: 'Contact Us (Help)', icon: Headphones, path: '/contact', badge: null, color: 'text-sky-600 bg-sky-50' },
   ];
 
