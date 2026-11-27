@@ -787,7 +787,7 @@ export default function MobileProductListScreen() {
 
       {/* Category / Collection Title Bar */}
       {(currentCategoryObj || currentVisualNestedSubcategoryObj) && (
-        <div className="bg-white rounded-2xl p-3 shadow-xs border border-yellow-100/60 space-y-1">
+        <div key={currentCategoryObj?.id || currentVisualNestedSubcategoryObj?.id || 'title-bar'} className="bg-white rounded-2xl p-3 shadow-xs border border-yellow-100/60 space-y-1">
           <h2 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-tight">
             {currentVisualNestedSubcategoryObj
               ? (currentVisualNestedSubcategoryObj.name || currentVisualNestedSubcategoryObj.offerText || 'Visual Collection')
@@ -804,7 +804,7 @@ export default function MobileProductListScreen() {
 
       {/* Collections Bar (Shown ONLY when browsing Category and no subcategory is selected) */}
       {!currentSubCategoryObj && currentCategoryObj && currentCategoryObj.subcategories && currentCategoryObj.subcategories.length > 0 && (
-        <div className="space-y-2">
+        <div key={currentCategoryObj.id} className="space-y-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-black text-gray-900">
               {currentCategoryObj.name}

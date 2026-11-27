@@ -910,7 +910,7 @@ export default function MobileHomepage() {
       {/* 6. SUBCATEGORIES (Directly below Banners)                                  */}
       {/* ========================================================================= */}
       {activeCategoryObj && activeCategoryObj.subcategories && activeCategoryObj.subcategories.length > 0 && (
-        <section className="w-full min-w-0 space-y-1.5">
+        <section key={activeCategoryObj.id} className="w-full min-w-0 space-y-1.5">
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <span className="text-xs font-black text-gray-900 tracking-tight">
