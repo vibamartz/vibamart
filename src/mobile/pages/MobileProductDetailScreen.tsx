@@ -54,31 +54,53 @@ export default function MobileProductDetailScreen() {
     setActiveInfoTab('description');
   }, [product?.id]);
 
-  const isProgrammaticScroll = React.useRef(false);
-  const scrollTimeoutRef = React.useRef<any>(null);
+  const programmaticTargetRef = React.useRef<number | null>(null);
+  const scrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartX = React.useRef<number | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
+
   const handleMobileGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isImageModalOpen || isProgrammaticScroll.current) return;
+    if (isImageModalOpen) return;
     const width = e.currentTarget.clientWidth;
-    if (width > 0) {
-      const idx = Math.round(e.currentTarget.scrollLeft / width);
-      if (idx >= 0 && idx !== activeImageIndex) {
-        setActiveImageIndex(idx);
+    if (width <= 0) return;
+
+    if (programmaticTargetRef.current !== null) {
+      if (Math.abs(e.currentTarget.scrollLeft - programmaticTargetRef.current * width) <= 2) {
+        programmaticTargetRef.current = null;
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+          scrollTimeoutRef.current = null;
+        }
+      } else {
+        return;
       }
+    }
+
+    const maxIdx = Math.max(0, imagesListRef.current.length - 1);
+    const idx = Math.max(0, Math.min(maxIdx, Math.round(e.currentTarget.scrollLeft / width)));
+    if (idx !== activeImageIndex) {
+      setActiveImageIndex(idx);
     }
   };
 
   const scrollToMobileImage = (idx: number) => {
-    setActiveImageIndex(idx);
+    const maxIdx = Math.max(0, imagesListRef.current.length - 1);
+    const clampedIdx = Math.max(0, Math.min(maxIdx, idx));
+    setActiveImageIndex(clampedIdx);
     if (mobileGalleryRef.current) {
-      isProgrammaticScroll.current = true;
+      programmaticTargetRef.current = clampedIdx;
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       const width = mobileGalleryRef.current.clientWidth;
-      mobileGalleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+      mobileGalleryRef.current.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
       scrollTimeoutRef.current = setTimeout(() => {
-        isProgrammaticScroll.current = false;
-      }, 400);
+        programmaticTargetRef.current = null;
+        scrollTimeoutRef.current = null;
+      }, 800);
     }
   };
 
@@ -222,8 +244,9 @@ export default function MobileProductDetailScreen() {
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
           setActiveImageIndex(0);
+          programmaticTargetRef.current = null;
           if (mobileGalleryRef.current) {
-            mobileGalleryRef.current.scrollTo({ left: 0 });
+            mobileGalleryRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
           }
 
           // Fetch family color matrix if familyId is set
@@ -516,7 +539,8 @@ export default function MobileProductDetailScreen() {
 
   const images = combinedImages.length > 0 ? combinedImages : ['https://via.placeholder.com/600?text=No+Image'];
   imagesListRef.current = images;
-  const activeImageSrc = images[activeImageIndex] || images[0];
+  const safeActiveImageIndex = Math.max(0, Math.min(activeImageIndex, Math.max(0, images.length - 1)));
+  const activeImageSrc = images[safeActiveImageIndex] || images[0];
   const currentStock = selectedVariant ? (selectedVariant.stock ?? 0) : product.stock;
 
   const handleModalPrev = (e?: React.MouseEvent) => {
@@ -531,8 +555,12 @@ export default function MobileProductDetailScreen() {
 
   const handleCloseModal = () => {
     setIsImageModalOpen(false);
+    programmaticTargetRef.current = null;
     if (mobileGalleryRef.current) {
-      mobileGalleryRef.current.scrollLeft = activeImageIndex * mobileGalleryRef.current.clientWidth;
+      mobileGalleryRef.current.scrollTo({
+        left: safeActiveImageIndex * mobileGalleryRef.current.clientWidth,
+        behavior: 'instant' as ScrollBehavior,
+      });
     }
   };
 
@@ -722,6 +750,9 @@ export default function MobileProductDetailScreen() {
           <div
             ref={mobileGalleryRef}
             onScroll={handleMobileGalleryScroll}
+            onTouchStart={() => { programmaticTargetRef.current = null; }}
+            onWheel={() => { programmaticTargetRef.current = null; }}
+            onPointerDown={() => { programmaticTargetRef.current = null; }}
             className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x cursor-pointer"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
@@ -747,7 +778,7 @@ export default function MobileProductDetailScreen() {
           {/* Image Counter Badge if multiple images */}
           {images.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[11px] font-bold text-white tracking-wider pointer-events-none">
-              {activeImageIndex + 1} / {images.length}
+              {safeActiveImageIndex + 1} / {images.length}
             </div>
           )}
 
@@ -1075,7 +1106,7 @@ export default function MobileProductDetailScreen() {
               onTouchEnd={handleModalTouchEnd}
             >
               <img
-                src={images[activeImageIndex] || activeImageSrc}
+                src={images[safeActiveImageIndex] || activeImageSrc}
                 alt={product.name}
                 className="max-h-[85vh] max-w-[92vw] object-contain rounded-xl bg-white select-none"
               />
@@ -1083,7 +1114,7 @@ export default function MobileProductDetailScreen() {
               {/* Image Counter in Modal */}
               {images.length > 1 && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gray-900/80 backdrop-blur-xs text-xs font-semibold text-white tracking-wider shadow-sm">
-                  {activeImageIndex + 1} / {images.length}
+                  {safeActiveImageIndex + 1} / {images.length}
                 </div>
               )}
             </motion.div>

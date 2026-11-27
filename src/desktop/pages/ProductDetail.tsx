@@ -69,30 +69,52 @@ export default function ProductDetail() {
     setActiveInfoTab('description');
   }, [product?.id]);
 
-  const isProgrammaticScroll = React.useRef(false);
-  const scrollTimeoutRef = React.useRef<any>(null);
+  const programmaticTargetRef = React.useRef<number | null>(null);
+  const scrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
 
   const handleGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isImageModalOpen || isProgrammaticScroll.current) return;
+    if (isImageModalOpen) return;
     const width = e.currentTarget.clientWidth;
-    if (width > 0) {
-      const idx = Math.round(e.currentTarget.scrollLeft / width);
-      if (idx >= 0 && idx !== selectedImage) {
-        setSelectedImage(idx);
+    if (width <= 0) return;
+
+    if (programmaticTargetRef.current !== null) {
+      if (Math.abs(e.currentTarget.scrollLeft - programmaticTargetRef.current * width) <= 2) {
+        programmaticTargetRef.current = null;
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+          scrollTimeoutRef.current = null;
+        }
+      } else {
+        return;
       }
+    }
+
+    const maxIdx = Math.max(0, currentDisplayListRef.current.length - 1);
+    const idx = Math.max(0, Math.min(maxIdx, Math.round(e.currentTarget.scrollLeft / width)));
+    if (idx !== selectedImage) {
+      setSelectedImage(idx);
     }
   };
 
   const scrollToImage = (idx: number) => {
-    setSelectedImage(idx);
+    const maxIdx = Math.max(0, currentDisplayListRef.current.length - 1);
+    const clampedIdx = Math.max(0, Math.min(maxIdx, idx));
+    setSelectedImage(clampedIdx);
     if (galleryRef.current) {
-      isProgrammaticScroll.current = true;
+      programmaticTargetRef.current = clampedIdx;
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       const width = galleryRef.current.clientWidth;
-      galleryRef.current.scrollTo({ left: idx * width, behavior: 'smooth' });
+      galleryRef.current.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
       scrollTimeoutRef.current = setTimeout(() => {
-        isProgrammaticScroll.current = false;
-      }, 400);
+        programmaticTargetRef.current = null;
+        scrollTimeoutRef.current = null;
+      }, 800);
     }
   };
 
@@ -129,6 +151,10 @@ export default function ProductDetail() {
     setSelectedVariant(variantId);
     setSelectedAttributes(updatedAttributes);
     setSelectedImage(0);
+    programmaticTargetRef.current = null;
+    if (galleryRef.current) {
+      galleryRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
+    }
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('variant', variantId);
@@ -208,6 +234,11 @@ export default function ProductDetail() {
 
         if (foundProduct && foundProduct.isVisible !== false && foundProduct.status !== 'inactive') {
           setProduct(foundProduct);
+          setSelectedImage(0);
+          programmaticTargetRef.current = null;
+          if (galleryRef.current) {
+            galleryRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
+          }
 
           // Fetch family color matrix if familyId is set
           if (foundProduct.familyId) {
@@ -657,6 +688,7 @@ export default function ProductDetail() {
     : (product.images || []);
   const currentDisplayList = displayImages.length > 0 ? displayImages : [activeImageSrc];
   currentDisplayListRef.current = currentDisplayList;
+  const safeSelectedImage = Math.max(0, Math.min(selectedImage, Math.max(0, currentDisplayList.length - 1)));
 
   const handleModalPrev = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -670,8 +702,12 @@ export default function ProductDetail() {
 
   const handleCloseModal = () => {
     setIsImageModalOpen(false);
+    programmaticTargetRef.current = null;
     if (galleryRef.current) {
-      galleryRef.current.scrollLeft = selectedImage * galleryRef.current.clientWidth;
+      galleryRef.current.scrollTo({
+        left: safeSelectedImage * galleryRef.current.clientWidth,
+        behavior: 'instant' as ScrollBehavior,
+      });
     }
   };
 
@@ -712,6 +748,9 @@ export default function ProductDetail() {
                 <div
                   ref={galleryRef}
                   onScroll={handleGalleryScroll}
+                  onTouchStart={() => { programmaticTargetRef.current = null; }}
+                  onWheel={() => { programmaticTargetRef.current = null; }}
+                  onPointerDown={() => { programmaticTargetRef.current = null; }}
                   className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth touch-pan-x cursor-pointer"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
@@ -738,7 +777,7 @@ export default function ProductDetail() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const prevIdx = (selectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
+                        const prevIdx = (safeSelectedImage - 1 + currentDisplayList.length) % currentDisplayList.length;
                         scrollToImage(prevIdx);
                       }}
                       aria-label="Previous image"
@@ -751,7 +790,7 @@ export default function ProductDetail() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        const nextIdx = (selectedImage + 1) % currentDisplayList.length;
+                        const nextIdx = (safeSelectedImage + 1) % currentDisplayList.length;
                         scrollToImage(nextIdx);
                       }}
                       aria-label="Next image"
@@ -763,7 +802,7 @@ export default function ProductDetail() {
 
                     {/* Image Counter Indicator */}
                     <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-10 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[11px] font-bold text-white tracking-wider pointer-events-none">
-                      {selectedImage + 1} / {currentDisplayList.length}
+                      {safeSelectedImage + 1} / {currentDisplayList.length}
                     </div>
                   </>
                 )}
@@ -798,7 +837,7 @@ export default function ProductDetail() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (product) {
-                        const currentImg = currentDisplayList[selectedImage] || currentDisplayList[0] || (product as any).image;
+                        const currentImg = currentDisplayList[safeSelectedImage] || currentDisplayList[0] || (product as any).image;
                         shareProduct(product, {
                           specificImage: currentImg,
                           variantName: currentVariant?.name
@@ -1198,7 +1237,7 @@ export default function ProductDetail() {
               onTouchEnd={handleModalTouchEnd}
             >
               <img
-                src={currentDisplayList[selectedImage] || activeImageSrc}
+                src={currentDisplayList[safeSelectedImage] || activeImageSrc}
                 alt={product.name}
                 className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl bg-white select-none"
               />
@@ -1206,7 +1245,7 @@ export default function ProductDetail() {
               {/* Image Counter in Modal */}
               {currentDisplayList.length > 1 && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gray-900/80 backdrop-blur-xs text-xs font-semibold text-white tracking-wider shadow-sm">
-                  {selectedImage + 1} / {currentDisplayList.length}
+                  {safeSelectedImage + 1} / {currentDisplayList.length}
                 </div>
               )}
             </motion.div>
