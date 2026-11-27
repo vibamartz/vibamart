@@ -7,7 +7,7 @@ import { useCategoryStore, useCartStore } from '../../backend/store';
 import { getCategorySlug, getSubcategorySlug, getProductSlug } from '../../shared/utilities/slug';
 import { getRewardProductIds, filterOutRewardProducts } from '../../shared/utilities/rewardUtils';
 import { Grid, ArrowRight, Layers, Star, RefreshCw, ShoppingCart, Check, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import CategoryLogo, { renderCategoryFallbackIcon } from '../../shared/components/CategoryLogo';
 import VisualNestedSubcategoriesSection from '../../shared/components/VisualNestedSubcategoriesSection';
 import ResponsiveCategoryGrid from '../components/ResponsiveCategoryGrid';
@@ -240,14 +240,7 @@ export default function MobileCategoriesScreen() {
         {/* Right Content Area */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 pb-8 space-y-3 min-h-0">
           {selectedCategory && (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedCategory.id}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="space-y-3"
-              >
+            <div key={selectedCategory.id} className="space-y-3">
                 {/* Category Header Card */}
                 <div className="bg-white rounded-2xl p-2.5 shadow-sm border border-yellow-100 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -463,8 +456,7 @@ export default function MobileCategoriesScreen() {
                   nestedSubCategoryId={selectedNestedSubCatId || undefined}
                   products={categoryProducts}
                 />
-              </motion.div>
-            </AnimatePresence>
+            </div>
           )}
         </div>
       </div>
