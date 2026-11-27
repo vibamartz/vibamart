@@ -203,20 +203,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const runTranslation = () => {
-      if (isTranslatingRef.current) return;
-      isTranslatingRef.current = true;
-      try {
-        walkAndTranslate(document.body);
-      } finally {
-        isTranslatingRef.current = false;
-      }
+    const observerConfig: MutationObserverInit = {
+      childList: true,
+      subtree: true,
+      characterData: true,
     };
 
-    // Initial pass
-    runTranslation();
-
-    // Observe subsequent dynamic updates
     let timeoutId: any = null;
     const observer = new MutationObserver(() => {
       if (isTranslatingRef.current) return;
@@ -226,11 +218,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       }, 50);
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
+    const runTranslation = () => {
+      if (isTranslatingRef.current) return;
+      isTranslatingRef.current = true;
+      observer.disconnect();
+      try {
+        walkAndTranslate(document.body);
+      } finally {
+        isTranslatingRef.current = false;
+        observer.observe(document.body, observerConfig);
+      }
+    };
+
+    // Initial pass
+    runTranslation();
 
     return () => {
       clearTimeout(timeoutId);

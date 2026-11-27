@@ -132,24 +132,27 @@ export default function MobileProductDetailScreen() {
     };
   }, [isImageModalOpen]);
 
-  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
-    setSelectedVariantId(variantId);
-    setSelectedAttributes(updatedAttributes);
+  const pendingVariantImgRef = React.useRef<string | null>(null);
 
-    // Check if variant has a specific image matching one in the product gallery
-    const targetVariant = product?.variants?.find(v => v.id === variantId);
-    const targetImg = targetVariant?.images?.[0] || targetVariant?.image;
-    if (targetImg && typeof targetImg === 'string' && targetImg.trim()) {
-      const trimmed = targetImg.trim();
-      const foundIdx = images.indexOf(trimmed);
-      if (foundIdx >= 0) {
-        scrollToMobileImage(foundIdx);
-      } else {
-        scrollToMobileImage(0);
-      }
+  useEffect(() => {
+    if (pendingVariantImgRef.current === null) return;
+    const target = pendingVariantImgRef.current;
+    pendingVariantImgRef.current = null;
+    if (target) {
+      const foundIdx = imagesListRef.current.indexOf(target);
+      scrollToMobileImage(foundIdx >= 0 ? foundIdx : 0);
     } else {
       scrollToMobileImage(0);
     }
+  }, [selectedVariantId]);
+
+  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
+    const targetVariant = product?.variants?.find(v => v.id === variantId);
+    const targetImg = targetVariant?.images?.[0] || targetVariant?.image;
+    pendingVariantImgRef.current = (targetImg && typeof targetImg === 'string' && targetImg.trim()) ? targetImg.trim() : '';
+
+    setSelectedVariantId(variantId);
+    setSelectedAttributes(updatedAttributes);
 
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -178,7 +181,7 @@ export default function MobileProductDetailScreen() {
   const productId = product?.id || targetSlugOrId || '';
 
   // Check if item is already in cart
-  const isInCart = cartItems.some(i => i.productId === productId && i.variantId === selectedVariantId);
+  const isInCart = cartItems.some(i => i.productId === productId && (i.variantId || undefined) === (selectedVariantId || undefined));
 
   // Always scroll to top when opening a new product
   useEffect(() => {
@@ -188,6 +191,8 @@ export default function MobileProductDetailScreen() {
   // Fetch product & reviews
   useEffect(() => {
     if (!targetSlugOrId) return;
+    let isMounted = true;
+    let unsubReviews: (() => void) | null = null;
     setLoading(true);
     setProduct(null);
     setFetchError(false);
@@ -300,11 +305,13 @@ export default function MobileProductDetailScreen() {
             navigate(`/products/${canonicalSlug}${urlVariantId ? `?variant=${urlVariantId}` : ''}`, { replace: true });
           }
 
-          const qReviews = query(collection(db, 'reviews'), where('productId', '==', foundProduct.id));
-          return onSnapshot(qReviews, (snap) => {
-            const revs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
-            setReviews(revs);
-          });
+          if (isMounted) {
+            const qReviews = query(collection(db, 'reviews'), where('productId', '==', foundProduct.id));
+            unsubReviews = onSnapshot(qReviews, (snap) => {
+              const revs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
+              setReviews(revs);
+            });
+          }
         } else {
           toast.error("Product information could not be loaded.");
           navigate('/products');
@@ -314,11 +321,15 @@ export default function MobileProductDetailScreen() {
         setFetchError(true);
         toast.error("Product information could not be loaded.");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchProduct();
+    return () => {
+      isMounted = false;
+      if (unsubReviews) unsubReviews();
+    };
   }, [targetSlugOrId, navigate, retryTrigger]);
 
   const handleToggleWishlist = async () => {

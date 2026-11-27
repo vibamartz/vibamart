@@ -38,11 +38,18 @@ export default function TrendingProductsTwoRowSection({
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  const hasRichInitial = Boolean(initialProducts && initialProducts.length >= 20);
+
   useEffect(() => {
-    // If caller provided a rich set of products (at least 20), use it directly
     if (initialProducts && initialProducts.length >= 20) {
       setProducts(initialProducts);
       setLoading(false);
+    }
+  }, [initialProducts]);
+
+  useEffect(() => {
+    // If caller already provides a rich set of products (at least 20), skip duplicate Firestore listener
+    if (hasRichInitial) {
       return;
     }
 
@@ -63,7 +70,7 @@ export default function TrendingProductsTwoRowSection({
     });
 
     return () => unsubscribe();
-  }, [initialProducts]);
+  }, [hasRichInitial]);
 
   // Filter or prioritize products
   const displayProducts = useMemo(() => {

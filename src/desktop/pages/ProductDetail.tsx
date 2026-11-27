@@ -147,14 +147,33 @@ export default function ProductDetail() {
     };
   }, [isImageModalOpen]);
 
-  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
-    setSelectedVariant(variantId);
-    setSelectedAttributes(updatedAttributes);
+  const pendingVariantImgRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (pendingVariantImgRef.current === null) return;
+    const target = pendingVariantImgRef.current;
+    pendingVariantImgRef.current = null;
+    if (target) {
+      const foundIdx = currentDisplayListRef.current.indexOf(target);
+      if (foundIdx >= 0) {
+        scrollToImage(foundIdx);
+        return;
+      }
+    }
     setSelectedImage(0);
     programmaticTargetRef.current = null;
     if (galleryRef.current) {
       galleryRef.current.scrollTo({ left: 0, behavior: 'instant' as ScrollBehavior });
     }
+  }, [selectedVariant]);
+
+  const handleVariantSelection = (variantId: string, updatedAttributes: Record<string, string>) => {
+    const targetVariant = product?.variants?.find(v => v.id === variantId);
+    const targetImg = targetVariant?.images?.[0] || targetVariant?.image;
+    pendingVariantImgRef.current = (targetImg && typeof targetImg === 'string' && targetImg.trim()) ? targetImg.trim() : '';
+
+    setSelectedVariant(variantId);
+    setSelectedAttributes(updatedAttributes);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       next.set('variant', variantId);
@@ -419,7 +438,7 @@ export default function ProductDetail() {
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
   const originalPrice = currentVariant?.mrp || product.mrp || product.price;
   const discountPercentage = originalPrice > totalPrice ? Math.round(((originalPrice - totalPrice) / originalPrice) * 100) : 0;
-  const isInCart = items.some(item => item.productId === product.id && item.variantId === selectedVariant);
+  const isInCart = items.some(item => item.productId === product.id && (item.variantId || undefined) === (selectedVariant || undefined));
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
 
   const validateVariantSelection = (): boolean => {

@@ -170,15 +170,15 @@ export default function MobileProductListScreen() {
     ) || null;
   }, [rawCat, categories]);
 
-  // Backward compatibility redirect for numeric category routes
+  // Backward compatibility redirect for numeric category routes on /category/:slug
   useEffect(() => {
-    if (currentCategoryObj && (rawCat === currentCategoryObj.id || /^\d+$/.test(rawCat))) {
+    if (location.pathname.startsWith('/category/') && currentCategoryObj && (rawCat === currentCategoryObj.id || /^\d+$/.test(rawCat))) {
       const canonical = getCategorySlug(currentCategoryObj);
       if (canonical && rawCat !== canonical) {
         navigate(`/category/${canonical}`, { replace: true });
       }
     }
-  }, [currentCategoryObj, rawCat, navigate]);
+  }, [location.pathname, currentCategoryObj, rawCat, navigate]);
 
   // Active SubCategory Object (Level 1)
   const currentSubCategoryObj = useMemo(() => {
@@ -469,13 +469,13 @@ export default function MobileProductListScreen() {
       // Skip category hierarchy filtering if opening explicit banner or explicit visual subcategory
       if (!matchedBanner && (!currentVisualNestedSubcategoryObj || isSearchQuery)) {
         const effectiveNested = isSearchQuery
-          ? (searchParams.get('nestedSubCategory') || '')
+          ? (searchParams.get('nestedSubCategory') || selectedNestedSubCategory || '')
           : (selectedNestedSubCategory || baseNestedId);
         const effectiveSub = isSearchQuery
-          ? (searchParams.get('subCategory') || '')
+          ? (searchParams.get('subCategory') || selectedSubCategory || '')
           : (selectedSubCategory || baseSubId);
         const effectiveCat = isSearchQuery
-          ? (searchParams.get('category') || '')
+          ? (searchParams.get('category') || selectedCategory || '')
           : (selectedCategory || baseCatId);
 
         const catFilter = (effectiveCat && effectiveCat !== 'all' && effectiveCat !== 'all-deals') ? effectiveCat : '';
@@ -491,7 +491,7 @@ export default function MobileProductListScreen() {
 
       // Brand filter
       const effectiveBrand = isSearchQuery
-        ? (searchParams.get('brand') || '')
+        ? (searchParams.get('brand') || selectedBrand || '')
         : (selectedBrand || baseBrand);
       if (effectiveBrand && product.brand !== effectiveBrand) {
         return false;

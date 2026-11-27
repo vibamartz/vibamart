@@ -306,7 +306,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     return { success: true };
   },
   removeItem: (productId, variantId) => {
-    const newItems = get().items.filter(i => !(i.productId === productId && i.variantId === variantId));
+    const normVariantId = variantId || undefined;
+    const newItems = get().items.filter(i => !(i.productId === productId && (i.variantId || undefined) === normVariantId));
     set({ items: newItems });
     localStorage.setItem(getCartKey(), JSON.stringify(newItems));
     syncCartToFirebase(newItems);

@@ -296,15 +296,17 @@ export default function Profile() {
     // Fetch Wishlist products
     const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (snapshot) => {
       const data = snapshot.data() as UserProfile;
-      const validWishlist = data?.wishlist?.filter(id => id && String(id).trim() !== '') || [];
+      const validWishlist = Array.from(new Set(data?.wishlist?.filter(id => id && String(id).trim() !== '') || []));
       if (validWishlist.length > 0) {
         try {
-          const productsQuery = query(
-            collection(db, 'products'),
-            where('id', 'in', validWishlist)
+          const chunks: string[][] = [];
+          for (let i = 0; i < validWishlist.length; i += 30) {
+            chunks.push(validWishlist.slice(i, i + 30));
+          }
+          const snaps = await Promise.all(
+            chunks.map(chunk => getDocs(query(collection(db, 'products'), where('id', 'in', chunk))))
           );
-          const prodSnap = await getDocs(productsQuery);
-          setWishlistProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+          setWishlistProducts(snaps.flatMap(s => s.docs.map(d => ({ id: d.id, ...d.data() } as Product))));
         } catch (err) {
           handleFirestoreError(err, OperationType.LIST, 'products', false);
           setWishlistProducts([]);

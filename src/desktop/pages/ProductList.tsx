@@ -299,13 +299,13 @@ export default function ProductList() {
 
   // Backward compatibility redirect: if accessed via numeric category ID like /category/1, redirect replace to /category/mobiles
   useEffect(() => {
-    if (matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
+    if (location.pathname.startsWith('/category/') && matchedCategory && (rawCat === matchedCategory.id || /^\d+$/.test(rawCat))) {
       const canonical = getCategorySlug(matchedCategory);
       if (canonical && rawCat !== canonical) {
         navigate(`/category/${canonical}`, { replace: true });
       }
     }
-  }, [matchedCategory, rawCat, navigate]);
+  }, [location.pathname, matchedCategory, rawCat, navigate]);
 
   // Sync recent searches with storage events
   useEffect(() => {
@@ -737,7 +737,7 @@ export default function ProductList() {
     return catObj.subcategories.map(s => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [allProducts, selectedCategories, baseCatId, CATEGORIES]);
 
-  const FiltersContent = () => (
+  const filtersContent = (
     <>
       {settings.enableAvailabilityFilter && (
         <FilterSection title="Availability">
@@ -1241,7 +1241,7 @@ export default function ProductList() {
                 </button>
               </div>
 
-              <FiltersContent />
+              {filtersContent}
             </div>
           </aside>
 
@@ -1460,7 +1460,7 @@ export default function ProductList() {
               </div>
 
               <div className="space-y-8">
-                <FiltersContent />
+                {filtersContent}
 
                 <button
                   onClick={() => setShowFilters(false)}

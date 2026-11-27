@@ -150,7 +150,14 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
       const batch = writeBatch(db);
       newCategories.forEach((cat, index) => {
         const catRef = doc(db, 'categories', cat.id);
-        batch.update(catRef, { order: index });
+        batch.set(catRef, {
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug || createSlug(cat.name),
+          seoSlug: cat.seoSlug || cat.slug || createSlug(cat.name),
+          order: index,
+          isVisible: cat.isVisible ?? true,
+        }, { merge: true });
       });
 
       try {
@@ -545,7 +552,14 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     useCategoryStore.getState().setCategories(updatedCats);
     try {
       const catRef = doc(db, 'categories', category.id);
-      await updateDoc(catRef, { isVisible: newVisibility });
+      await setDoc(catRef, cleanForFirestore({
+        id: category.id,
+        name: category.name,
+        slug: category.slug || createSlug(category.name),
+        seoSlug: category.seoSlug || category.slug || createSlug(category.name),
+        order: category.order ?? 999,
+        isVisible: newVisibility,
+      }), { merge: true });
       toast.success(`Category is now ${newVisibility ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling visibility:', error);
@@ -570,7 +584,13 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     setCategories(updatedCats);
     useCategoryStore.getState().setCategories(updatedCats);
     try {
-      await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+      const sanitizedSubs = cleanForFirestore(updatedSubs);
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({
+        id: parentCat.id,
+        name: parentCat.name,
+        slug: parentCat.slug || createSlug(parentCat.name),
+        subcategories: sanitizedSubs
+      }), { merge: true });
       toast.success(`Subcategory is now ${newVis ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling subcategory visibility:', error);
@@ -601,7 +621,13 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
     setCategories(updatedCats);
     useCategoryStore.getState().setCategories(updatedCats);
     try {
-      await updateDoc(doc(db, 'categories', catId), { subcategories: updatedSubs });
+      const sanitizedSubs = cleanForFirestore(updatedSubs);
+      await setDoc(doc(db, 'categories', catId), cleanForFirestore({
+        id: parentCat.id,
+        name: parentCat.name,
+        slug: parentCat.slug || createSlug(parentCat.name),
+        subcategories: sanitizedSubs
+      }), { merge: true });
       toast.success(`Nested subcategory is now ${newVis ? 'visible' : 'hidden'}`);
     } catch (error) {
       console.error('Error toggling nested subcategory visibility:', error);
@@ -648,7 +674,7 @@ export default function CategoriesManagementView({ onNavigateToVisualNested }: C
         delete payload.iconName;
 
         if (existsInState) {
-          batch.update(catRef, { subcategories: payload.subcategories });
+          batch.set(catRef, { subcategories: payload.subcategories }, { merge: true });
           updatedCount++;
         } else {
           batch.set(catRef, payload);

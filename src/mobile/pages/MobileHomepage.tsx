@@ -300,15 +300,17 @@ export default function MobileHomepage() {
     }
   };
 
+  const currentSlideRef = useRef(0);
+  useEffect(() => {
+    currentSlideRef.current = currentSlide;
+  }, [currentSlide]);
+
   // Banner auto slide
   useEffect(() => {
     if (activeCategoryBanners.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => {
-        const next = (prev + 1) % activeCategoryBanners.length;
-        scrollToBannerSlide(next);
-        return next;
-      });
+      const next = (currentSlideRef.current + 1) % activeCategoryBanners.length;
+      scrollToBannerSlide(next);
     }, 5000);
     return () => clearInterval(timer);
   }, [activeCategoryBanners.length]);

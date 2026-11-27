@@ -35,7 +35,7 @@ export default function MobileProfileScreen() {
 
     const fetchOrdersCount = async () => {
       try {
-        const q = query(collection(db, 'orders'), where('userId', '==', user.uid));
+        const q = query(collection(db, 'orders'), where('customerId', '==', user.uid));
         const snap = await getDocs(q);
         setOrdersCount(snap.size);
       } catch (err) {

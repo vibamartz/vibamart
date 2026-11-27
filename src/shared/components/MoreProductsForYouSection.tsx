@@ -36,10 +36,17 @@ export default function MoreProductsForYouSection({
   const [loading, setLoading] = useState(!initialProducts || initialProducts.length === 0);
   const navigate = useNavigate();
 
+  const hasInitialProducts = Boolean(initialProducts && initialProducts.length > 0);
+
   useEffect(() => {
     if (initialProducts && initialProducts.length > 0) {
       setProducts(initialProducts);
       setLoading(false);
+    }
+  }, [initialProducts]);
+
+  useEffect(() => {
+    if (hasInitialProducts) {
       return;
     }
 
@@ -58,7 +65,7 @@ export default function MoreProductsForYouSection({
     });
 
     return () => unsubscribe();
-  }, [initialProducts]);
+  }, [hasInitialProducts]);
 
   // Determine category target and matching category object
   const targetCategorySlug = (categorySlug || categoryId || '').trim();

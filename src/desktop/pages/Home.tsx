@@ -258,14 +258,16 @@ export default function Home() {
     }
   };
 
+  const currentSlideRef = useRef(0);
+  useEffect(() => {
+    currentSlideRef.current = currentSlide;
+  }, [currentSlide]);
+
   useEffect(() => {
     if (activeBanners.length <= 2) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => {
-        const next = (prev + 2 >= activeBanners.length) ? 0 : prev + 2;
-        scrollToBannerSlide(next);
-        return next;
-      });
+      const next = (currentSlideRef.current + 2 >= activeBanners.length) ? 0 : currentSlideRef.current + 2;
+      scrollToBannerSlide(next);
     }, 6000);
     return () => clearInterval(timer);
   }, [activeBanners.length]);
