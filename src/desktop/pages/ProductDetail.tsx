@@ -199,6 +199,8 @@ export default function ProductDetail() {
     if (!targetSlugOrId) return;
     setLoading(true);
     setProduct(null);
+    setSelectedVariant(undefined);
+    setSelectedAttributes({});
     setNotFound(false);
     setFetchError(false);
 
@@ -285,6 +287,9 @@ export default function ProductDetail() {
           if (initialSelection.variant) {
             setSelectedVariant(initialSelection.variant.id);
             setSelectedAttributes(initialSelection.selectedAttributes);
+          } else {
+            setSelectedVariant(undefined);
+            setSelectedAttributes({});
           }
 
           const canonicalSlug = getProductSlug(foundProduct);
@@ -438,7 +443,11 @@ export default function ProductDetail() {
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
   const originalPrice = currentVariant?.mrp || product.mrp || product.price;
   const discountPercentage = originalPrice > totalPrice ? Math.round(((originalPrice - totalPrice) / originalPrice) * 100) : 0;
-  const isInCart = items.some(item => item.productId === product.id && (item.variantId || undefined) === (selectedVariant || undefined));
+  const isInCart = items.some(item =>
+    item.productId === product.id &&
+    ((item.variantId || undefined) === (selectedVariant || undefined) ||
+      (!item.variantId && activeVariants.length > 0 && selectedVariant === activeVariants[0]?.id))
+  );
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
 
   const validateVariantSelection = (): boolean => {

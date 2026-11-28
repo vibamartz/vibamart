@@ -179,9 +179,14 @@ export default function MobileProductDetailScreen() {
   const [newComment, setNewComment] = useState('');
 
   const productId = product?.id || targetSlugOrId || '';
+  const activeVariantsList = (product?.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
 
   // Check if item is already in cart
-  const isInCart = cartItems.some(i => i.productId === productId && (i.variantId || undefined) === (selectedVariantId || undefined));
+  const isInCart = cartItems.some(i =>
+    i.productId === productId &&
+    ((i.variantId || undefined) === (selectedVariantId || undefined) ||
+      (!i.variantId && activeVariantsList.length > 0 && selectedVariantId === activeVariantsList[0]?.id))
+  );
 
   // Always scroll to top when opening a new product
   useEffect(() => {
@@ -195,6 +200,8 @@ export default function MobileProductDetailScreen() {
     let unsubReviews: (() => void) | null = null;
     setLoading(true);
     setProduct(null);
+    setSelectedVariantId(undefined);
+    setSelectedAttributes({});
     setFetchError(false);
 
     const fetchProduct = async () => {
@@ -295,6 +302,9 @@ export default function MobileProductDetailScreen() {
           if (initialSelection.variant) {
             setSelectedVariantId(initialSelection.variant.id);
             setSelectedAttributes(initialSelection.selectedAttributes);
+          } else {
+            setSelectedVariantId(undefined);
+            setSelectedAttributes({});
           }
 
           if (targetSlugOrId !== canonicalSlug && (
