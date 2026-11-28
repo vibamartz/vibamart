@@ -54,6 +54,23 @@ export default function MobileProductDetailScreen() {
     setActiveInfoTab('description');
   }, [product?.id]);
 
+  // Reset gallery scroll to first image when product finishes loading
+  useEffect(() => {
+    if (!loading && product?.id) {
+      setActiveImageIndex(0);
+      programmaticTargetRef.current = null;
+      if (mobileGalleryRef.current) {
+        const el = mobileGalleryRef.current;
+        const prevBehavior = el.style.scrollBehavior;
+        el.style.scrollBehavior = 'auto';
+        el.scrollLeft = 0;
+        requestAnimationFrame(() => {
+          el.style.scrollBehavior = prevBehavior;
+        });
+      }
+    }
+  }, [product?.id, loading]);
+
   const programmaticTargetRef = React.useRef<number | null>(null);
   const scrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartX = React.useRef<number | null>(null);
@@ -66,41 +83,56 @@ export default function MobileProductDetailScreen() {
 
   const handleMobileGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (isImageModalOpen) return;
-    const width = e.currentTarget.clientWidth;
+    const el = e.currentTarget;
+    const width = el.clientWidth;
     if (width <= 0) return;
 
     if (programmaticTargetRef.current !== null) {
-      if (Math.abs(e.currentTarget.scrollLeft - programmaticTargetRef.current * width) <= 2) {
+      if (Math.abs(el.scrollLeft - programmaticTargetRef.current * width) <= 4) {
         programmaticTargetRef.current = null;
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
           scrollTimeoutRef.current = null;
         }
       } else {
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+          programmaticTargetRef.current = null;
+          scrollTimeoutRef.current = null;
+        }, 150);
         return;
       }
     }
 
     const maxIdx = Math.max(0, imagesListRef.current.length - 1);
-    const idx = Math.max(0, Math.min(maxIdx, Math.round(e.currentTarget.scrollLeft / width)));
-    if (idx !== activeImageIndex) {
-      setActiveImageIndex(idx);
-    }
+    const idx = Math.max(0, Math.min(maxIdx, Math.round(el.scrollLeft / width)));
+    setActiveImageIndex(prev => (prev !== idx ? idx : prev));
   };
 
-  const scrollToMobileImage = (idx: number) => {
+  const scrollToMobileImage = (idx: number, instant = false) => {
     const maxIdx = Math.max(0, imagesListRef.current.length - 1);
     const clampedIdx = Math.max(0, Math.min(maxIdx, idx));
     setActiveImageIndex(clampedIdx);
     if (mobileGalleryRef.current) {
+      const el = mobileGalleryRef.current;
+      const width = el.clientWidth;
+      if (width <= 0) return;
       programmaticTargetRef.current = clampedIdx;
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      const width = mobileGalleryRef.current.clientWidth;
-      mobileGalleryRef.current.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
+      if (instant) {
+        const prevBehavior = el.style.scrollBehavior;
+        el.style.scrollBehavior = 'auto';
+        el.scrollLeft = clampedIdx * width;
+        requestAnimationFrame(() => {
+          el.style.scrollBehavior = prevBehavior;
+        });
+      } else {
+        el.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
+      }
       scrollTimeoutRef.current = setTimeout(() => {
         programmaticTargetRef.current = null;
         scrollTimeoutRef.current = null;
-      }, 800);
+      }, 600);
     }
   };
 
@@ -179,14 +211,9 @@ export default function MobileProductDetailScreen() {
   const [newComment, setNewComment] = useState('');
 
   const productId = product?.id || targetSlugOrId || '';
-  const activeVariantsList = (product?.variants || []).filter(v => !v.disabled && v.status !== 'disabled');
 
   // Check if item is already in cart
-  const isInCart = cartItems.some(i =>
-    i.productId === productId &&
-    ((i.variantId || undefined) === (selectedVariantId || undefined) ||
-      (!i.variantId && activeVariantsList.length > 0 && selectedVariantId === activeVariantsList[0]?.id))
-  );
+  const isInCart = cartItems.some(i => i.productId === productId && (i.variantId || undefined) === (selectedVariantId || undefined));
 
   // Always scroll to top when opening a new product
   useEffect(() => {
@@ -200,9 +227,16 @@ export default function MobileProductDetailScreen() {
     let unsubReviews: (() => void) | null = null;
     setLoading(true);
     setProduct(null);
+    setFetchError(false);
+    setActiveImageIndex(0);
     setSelectedVariantId(undefined);
     setSelectedAttributes({});
-    setFetchError(false);
+    setIsImageModalOpen(false);
+    programmaticTargetRef.current = null;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
 
     const fetchProduct = async () => {
       try {
@@ -408,6 +442,7 @@ export default function MobileProductDetailScreen() {
     const result = addItem(product, 1, selectedVariantId);
     if (result.success) {
       toast.success("Product added to cart successfully.");
+      navigate('/cart');
     } else if (result.exists) {
       navigate('/cart');
     } else if (result.limitReached) {
@@ -576,13 +611,7 @@ export default function MobileProductDetailScreen() {
 
   const handleCloseModal = () => {
     setIsImageModalOpen(false);
-    programmaticTargetRef.current = null;
-    if (mobileGalleryRef.current) {
-      mobileGalleryRef.current.scrollTo({
-        left: safeActiveImageIndex * mobileGalleryRef.current.clientWidth,
-        behavior: 'instant' as ScrollBehavior,
-      });
-    }
+    scrollToMobileImage(safeActiveImageIndex, true);
   };
 
   const handleModalTouchStart = (e: React.TouchEvent) => {
@@ -779,7 +808,7 @@ export default function MobileProductDetailScreen() {
           >
             {images.map((img, idx) => (
               <div
-                key={idx}
+                key={`${product.id}-${idx}-${img}`}
                 onClick={() => setIsImageModalOpen(true)}
                 title="Tap to view larger image"
                 className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-1 bg-white cursor-zoom-in"

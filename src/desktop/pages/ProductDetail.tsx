@@ -69,6 +69,23 @@ export default function ProductDetail() {
     setActiveInfoTab('description');
   }, [product?.id]);
 
+  // Reset gallery scroll to first image when product finishes loading
+  useEffect(() => {
+    if (!loading && product?.id) {
+      setSelectedImage(0);
+      programmaticTargetRef.current = null;
+      if (galleryRef.current) {
+        const el = galleryRef.current;
+        const prevBehavior = el.style.scrollBehavior;
+        el.style.scrollBehavior = 'auto';
+        el.scrollLeft = 0;
+        requestAnimationFrame(() => {
+          el.style.scrollBehavior = prevBehavior;
+        });
+      }
+    }
+  }, [product?.id, loading]);
+
   const programmaticTargetRef = React.useRef<number | null>(null);
   const scrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -80,41 +97,56 @@ export default function ProductDetail() {
 
   const handleGalleryScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (isImageModalOpen) return;
-    const width = e.currentTarget.clientWidth;
+    const el = e.currentTarget;
+    const width = el.clientWidth;
     if (width <= 0) return;
 
     if (programmaticTargetRef.current !== null) {
-      if (Math.abs(e.currentTarget.scrollLeft - programmaticTargetRef.current * width) <= 2) {
+      if (Math.abs(el.scrollLeft - programmaticTargetRef.current * width) <= 4) {
         programmaticTargetRef.current = null;
         if (scrollTimeoutRef.current) {
           clearTimeout(scrollTimeoutRef.current);
           scrollTimeoutRef.current = null;
         }
       } else {
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+          programmaticTargetRef.current = null;
+          scrollTimeoutRef.current = null;
+        }, 150);
         return;
       }
     }
 
     const maxIdx = Math.max(0, currentDisplayListRef.current.length - 1);
-    const idx = Math.max(0, Math.min(maxIdx, Math.round(e.currentTarget.scrollLeft / width)));
-    if (idx !== selectedImage) {
-      setSelectedImage(idx);
-    }
+    const idx = Math.max(0, Math.min(maxIdx, Math.round(el.scrollLeft / width)));
+    setSelectedImage(prev => (prev !== idx ? idx : prev));
   };
 
-  const scrollToImage = (idx: number) => {
+  const scrollToImage = (idx: number, instant = false) => {
     const maxIdx = Math.max(0, currentDisplayListRef.current.length - 1);
     const clampedIdx = Math.max(0, Math.min(maxIdx, idx));
     setSelectedImage(clampedIdx);
     if (galleryRef.current) {
+      const el = galleryRef.current;
+      const width = el.clientWidth;
+      if (width <= 0) return;
       programmaticTargetRef.current = clampedIdx;
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      const width = galleryRef.current.clientWidth;
-      galleryRef.current.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
+      if (instant) {
+        const prevBehavior = el.style.scrollBehavior;
+        el.style.scrollBehavior = 'auto';
+        el.scrollLeft = clampedIdx * width;
+        requestAnimationFrame(() => {
+          el.style.scrollBehavior = prevBehavior;
+        });
+      } else {
+        el.scrollTo({ left: clampedIdx * width, behavior: 'smooth' });
+      }
       scrollTimeoutRef.current = setTimeout(() => {
         programmaticTargetRef.current = null;
         scrollTimeoutRef.current = null;
-      }, 800);
+      }, 600);
     }
   };
 
@@ -199,10 +231,17 @@ export default function ProductDetail() {
     if (!targetSlugOrId) return;
     setLoading(true);
     setProduct(null);
-    setSelectedVariant(undefined);
-    setSelectedAttributes({});
     setNotFound(false);
     setFetchError(false);
+    setSelectedImage(0);
+    setSelectedVariant(undefined);
+    setSelectedAttributes({});
+    setIsImageModalOpen(false);
+    programmaticTargetRef.current = null;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
 
     const fetchProduct = async () => {
       try {
@@ -443,11 +482,7 @@ export default function ProductDetail() {
   const totalPrice = basePrice + (currentVariant?.extraPrice || 0);
   const originalPrice = currentVariant?.mrp || product.mrp || product.price;
   const discountPercentage = originalPrice > totalPrice ? Math.round(((originalPrice - totalPrice) / originalPrice) * 100) : 0;
-  const isInCart = items.some(item =>
-    item.productId === product.id &&
-    ((item.variantId || undefined) === (selectedVariant || undefined) ||
-      (!item.variantId && activeVariants.length > 0 && selectedVariant === activeVariants[0]?.id))
-  );
+  const isInCart = items.some(item => item.productId === product.id && (item.variantId || undefined) === (selectedVariant || undefined));
   const currentStock = currentVariant ? (currentVariant.stock ?? 0) : product.stock;
 
   const validateVariantSelection = (): boolean => {
@@ -479,6 +514,7 @@ export default function ProductDetail() {
   };
 
   const handleAddToCart = () => {
+    if (!product) return;
     if (isInCart) {
       navigate('/cart');
       return;
@@ -487,6 +523,7 @@ export default function ProductDetail() {
     const result = addItem(product, 1, selectedVariant);
     if (result.success) {
       toast.success('Product added to cart successfully.');
+      navigate('/cart');
     } else if (result.exists) {
       navigate('/cart');
     } else if (result.limitReached) {
@@ -730,13 +767,7 @@ export default function ProductDetail() {
 
   const handleCloseModal = () => {
     setIsImageModalOpen(false);
-    programmaticTargetRef.current = null;
-    if (galleryRef.current) {
-      galleryRef.current.scrollTo({
-        left: safeSelectedImage * galleryRef.current.clientWidth,
-        behavior: 'instant' as ScrollBehavior,
-      });
-    }
+    scrollToImage(safeSelectedImage, true);
   };
 
   const handleModalTouchStart = (e: React.TouchEvent) => {
@@ -784,7 +815,7 @@ export default function ProductDetail() {
                 >
                   {currentDisplayList.map((img, idx) => (
                     <div
-                      key={idx}
+                      key={`${product.id}-${idx}-${img}`}
                       onClick={() => setIsImageModalOpen(true)}
                       title="Click to view larger image"
                       className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center bg-white cursor-zoom-in"
